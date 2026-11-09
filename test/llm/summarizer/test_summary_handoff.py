@@ -304,6 +304,26 @@ async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary
 
 
 @pytest.mark.asyncio
+async def test_a_dropped_memory_block_leaves_a_line_saying_so(monkeypatch):
+    """Silence was the bug: the session answered as though the store held nothing.
+
+    The block still yields to the snapshot, but the model is told it was left
+    out, so it can search instead of assuming there is nothing to search for.
+    """
+    cap = summary_cap(8000)
+    journal_index = "J" * 2000 * CHARS_PER_TOKEN
+    agent = _agent(_padded("long", 1200), _padded("long", 1200), _padded("long", 1200))
+
+    with patch(JOURNAL_PATCH, return_value=journal_index):
+        history = await _compress(agent, _history())
+
+    text = _block(history)
+    assert journal_index not in text
+    assert "left out of this summary" in text
+    assert CharLimiter().count_tokens(text) <= cap
+
+
+@pytest.mark.asyncio
 async def test_a_cap_below_the_framing_keeps_the_history_instead(tmp_path, monkeypatch):
     """An over-cap turn is the failure the cap exists to prevent; skip instead."""
     messages = _history()

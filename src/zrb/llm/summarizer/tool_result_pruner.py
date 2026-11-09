@@ -326,3 +326,37 @@ def _tail_by_search(text: str, limiter: "LLMLimiter", budget: int) -> "tuple[str
         else:
             low = middle + 1
     return best, limiter.count_tokens(best)
+
+
+def clip_text_both_ends(text: str, limiter: "LLMLimiter", budget: int) -> str:
+    """*text* under *budget* tokens, keeping its start and its end.
+
+    A message's conclusion is at its end as often as its subject is at its
+    start: the failing assertion is in the last lines of the run that printed
+    it. So a fit that has to lose the middle loses it from the middle, and says
+    how much it removed — the same shape as `prune_tool_result_content`, without
+    the spill pointer, because the caller is fitting one message into a chunk
+    rather than pruning a tool result, and the archive already holds it whole.
+
+    Every fallback honours the budget too. A marker that does not fit is dropped
+    for the start of the text, and a budget too small for any boundary returns
+    what fits of the front: the caller's promise is that the result is bounded,
+    and a budget derived from a model's window is small exactly when an
+    unbounded answer would fail the request.
+    """
+    total = limiter.count_tokens(text)
+    if total <= budget:
+        return text
+    if budget <= 0:
+        return ""
+    marker = f"\n[... {total:,} tokens in all; the middle is not shown ...]\n"
+    body_budget = budget - limiter.count_tokens(marker)
+    if body_budget < 2:
+        return limiter.truncate_text(text, budget)
+    head_budget = max(1, body_budget // 2)
+    head, head_tokens = _keep_head(text, limiter, head_budget)
+    # What the head did not spend goes to the tail, so a head of whole lines
+    # under its budget does not leave the other end short.
+    tail_budget = max(0, body_budget - head_tokens)
+    tail, _ = _keep_tail(text[len(head) :], limiter, tail_budget)
+    return f"{head}{marker}{tail}"

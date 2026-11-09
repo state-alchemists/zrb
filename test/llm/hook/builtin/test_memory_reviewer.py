@@ -10,6 +10,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
     INTERRUPTED_LOG_TEXT,
     _append_event_line,
     _first_sentence,
+    _tags,
     build_completed_log_hook_config,
     build_interrupt_log_hook_config,
     build_memory_reviewer_hook_config,
@@ -291,6 +292,18 @@ async def test_a_cancelled_turn_leaves_an_event_line_and_no_guess(store_dir):
     assert len(lines) == 1
     assert INTERRUPTED_LOG_TEXT in lines[0]
     assert lines[0].endswith("(zrb)")
+
+
+def test_the_project_tag_is_the_directory_on_a_windows_path_too():
+    """`C:\\Users\\go\\bankai` is one directory, not the whole path.
+
+    Splitting on `/` alone left the Windows root in the tag, so a day read on
+    Windows was tagged with a full path where every other day has a project.
+    """
+    context = HookContext(
+        event=HookEvent.STOP, event_data={}, cwd="C:\\Users\\go\\bankai"
+    )
+    assert _tags(context) == "zrb, bankai"
 
 
 def test_the_interrupt_hook_is_registered_beside_the_reviewer(monkeypatch):

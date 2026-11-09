@@ -7,6 +7,7 @@ from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.shared.usage_log import UsageTotals
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
+from zrb.llm.summarizer.tool_result_pruner import clip_text_both_ends
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
@@ -66,11 +67,15 @@ def _fit_to_budget(text: str, limiter: "LLMLimiter", limit: int) -> tuple[str, i
     window, and the instructions appended after it push the request further
     still — a single fat message fails the compaction on its own. The archive
     keeps it in full; the model gets what fits.
+
+    What fits is both ends rather than the first part of it: the conclusion of a
+    long result sits at its end as often as its subject at its start, which is
+    why every other clip in the summariser is two-ended too.
     """
     tokens = limiter.count_tokens(text)
     if tokens <= limit:
         return text, tokens
-    text = limiter.truncate_text(text, limit)
+    text = clip_text_both_ends(text, limiter, limit)
     return text, limiter.count_tokens(text)
 
 

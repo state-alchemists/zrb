@@ -143,12 +143,14 @@ async def test_a_single_message_larger_than_the_budget_is_clipped(
 
     Kept at full length and given its header, one fat message becomes a request
     past the window the model accepts, and a refused chunk fails the compaction.
-    The archive keeps the message whole; the summarizer gets what fits.
+    The archive keeps the message whole; the summarizer gets what fits — both
+    ends of it, because the conclusion of a long result is at its end as often
+    as its subject is at its start.
     """
     sent = _recording_summarizer(monkeypatch)
 
     await chunk_and_summarize(
-        messages=[" ".join(["w"] * 350)],
+        messages=[" ".join(["w"] * 349 + ["DECISIVE"])],
         agent=SimpleNamespace(model=tiny_window_model),
         limiter=_Limiter(),
         token_threshold=1000,
@@ -157,6 +159,8 @@ async def test_a_single_message_larger_than_the_budget_is_clipped(
 
     assert len(sent) == 1
     assert _Limiter().count_tokens(sent[0]) <= _TINY_WINDOW
+    assert "DECISIVE" in sent[0], "the end of the message was cut with the middle"
+    assert "middle is not shown" in sent[0]
 
 
 @pytest.mark.asyncio
