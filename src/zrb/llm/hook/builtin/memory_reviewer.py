@@ -106,11 +106,17 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     # `memory_due` false in the same configuration. An interrupt line without those
     # would leave a day whose log held cancellations and nothing else, which reads
     # worse than a day with no log at all.
-    manager.add_hook(
-        create_interrupt_log_hook(),
-        [HookEvent.STOP],
-        build_interrupt_log_hook_config(),
-    )
+    # Registered through the registry rather than with `add_hook` directly: a
+    # factory is called on every load and reload, and the registry is what
+    # refuses a second hook of the same name — a bare `add_hook` here would
+    # append a duplicate per reload and write the line twice.
+    interrupt_config = build_interrupt_log_hook_config()
+    registered = manager.register_hook_config(interrupt_config, source="builtin")
+    if registered is not None:
+        manager.remove_hook(registered)
+        manager.add_hook(
+            create_interrupt_log_hook(), interrupt_config.events, interrupt_config
+        )
     config = build_memory_reviewer_hook_config()
     hook = manager.register_hook_config(config, source="builtin")
     if hook is None:

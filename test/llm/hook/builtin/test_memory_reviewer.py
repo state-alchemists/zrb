@@ -150,7 +150,9 @@ def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch
     manager = MagicMock()
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
-    manager.register_hook_config.assert_called_once()
+    assert [
+        call.args[0].name for call in manager.register_hook_config.call_args_list
+    ] == ["memory-interrupt-log", "memory-reviewer"]
 
 
 def test_the_reviewer_stays_out_when_memory_is_off(monkeypatch):
