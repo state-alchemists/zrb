@@ -422,8 +422,18 @@ async def summarize_history(
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
         # were replaced while they are still in the history.
+        # The kept tail joins them when rendering it to text lost something: a
+        # tool result over `TAIL_TOOL_OUTPUT_LIMIT` is clipped there, and a
+        # result under the prune threshold has no other copy — its middle would
+        # be gone from the history and from disk at the same time. A tail the
+        # render reproduced faithfully has lost nothing, so it is not archived
+        # and the section stays the record of what the conversation no longer
+        # holds. The trailing messages of a still-unresolved tool call are
+        # always left out: those stay in the history in native form.
+        kept_verbatim = to_keep[: len(to_keep) - len(structured_tail)]
         archived = _without_prior_summaries(
             _verbatim_prefix(to_summarize, messages, verbatim_source)
+            + _clipped_tail(kept_verbatim, messages, verbatim_source)
         )
         if not archived:
             # Nothing but prior summaries here, which the archive does not
@@ -1049,14 +1059,49 @@ def _verbatim_prefix(
     return verbatim_source[: len(to_summarize)]
 
 
+def _clipped_tail(
+    to_keep: "list[ModelMessage]",
+    messages: "list[ModelMessage]",
+    verbatim_source: "list[ModelMessage] | None",
+) -> "list[ModelMessage]":
+    """The kept tail, when turning it into text threw part of it away.
+
+    The tail is not summarized, but it is not kept as messages either:
+    `_prepare_kept_tail` renders it to one block of text, and the renderer clips
+    every tool result in it to `TAIL_TOOL_OUTPUT_LIMIT` characters. A result
+    under `LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` is never pruned, so the
+    clip would leave no copy of its middle anywhere — the history holds the two
+    ends, and the archive held only the summarized prefix.
+
+    The test is the renderer's own comparison rather than a re-statement of its
+    rule: the tail is archived exactly when the text the model sees differs from
+    the text the conversation held. A tail reproduced faithfully is not archived,
+    so a section stays a record of what is no longer in the history.
+
+    The tail is the suffix of `messages`, so the same suffix of
+    `verbatim_source` is the same turns before fat tool results were pruned. A
+    source that does not line up is ignored, as in `_verbatim_prefix`.
+    """
+    if not to_keep:
+        return []
+    if render_verbatim_messages(to_keep) == render_verbatim_messages(
+        to_keep, tool_output_limit=None
+    ):
+        return []
+    if verbatim_source is None or len(verbatim_source) != len(messages):
+        return to_keep
+    return verbatim_source[len(messages) - len(to_keep) :]
+
+
 def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":
     """Drop earlier compactions' synthetic parts from an archive section.
 
     The archive records what the conversation actually said. A summary is a
     derived retelling that the next summary already folds in, and a rendered
-    tail is a handover of turns the archive already holds word for word;
-    archiving either would leave the reader sifting model prose out of verbatim
-    text, and a second compaction would append the first one's tail again.
+    tail is a handover of turns an earlier section already holds word for word
+    (`_clipped_tail`); archiving either would leave the reader sifting model
+    prose out of verbatim text, and a second compaction would append the first
+    one's tail again.
     """
     result: "list[ModelMessage]" = []
     for message in messages:

@@ -459,6 +459,7 @@ async def test_a_section_counts_the_messages_it_archived(tmp_path, monkeypatch):
         verbatim_archive_path("counted", str(tmp_path)), encoding="utf-8"
     ).read()
     # The summary is not archived, and the section it would have inflated is 3
-    # messages at 10 tokens each.
+    # messages at 10 tokens each. The kept tail is not archived either: nothing
+    # in it was clipped, so the section would only repeat what the history holds.
     assert "3 message(s), ~30 tokens" in text
     assert "old summary" not in text
