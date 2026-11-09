@@ -26,20 +26,31 @@ class MultiUITurnControl(MultiUIFanout):
         running = self._running_llm_task
         return running is not None and not running.done()
 
-    def cancel_current_turn(self, reason: str) -> None:
+    def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """Release children's confirmations, cancel this MultiUI's turn and
-        fire `Stop` with *reason* once."""
-        self.cancel_pending_confirmations()
+        fire `Stop` with *reason* once.
+
+        *flush* is the exit path's: it passes `False` because the transcript is
+        being torn down, and replaying buffered output into it is work nobody
+        will read.
+        """
+        self.cancel_pending_confirmations(flush=flush)
         running = self._running_llm_task
         if running is None or running.done():
             return
         running.cancel()
+        # Announced once per task, as `BaseUI.cancel_current_turn` does: the task
+        # stays not-`done()` while the cancellation unwinds, and the memory hooks
+        # must hear about one turn once.
+        first_announcement = running is not self._announced_cancel_task
+        self._announced_cancel_task = running
         main_ui = self.main_ui
         stop = get_turn_hook_manager(self._llm_task).execute_hooks(
             HookEvent.STOP,
             {
                 "reason": reason,
                 "session": main_ui.conversation_session_name if main_ui else "",
+                **({"turn_cancelled": True} if first_announcement else {}),
             },
         )
         task = asyncio.get_running_loop().create_task(stop)

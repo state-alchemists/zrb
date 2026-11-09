@@ -745,20 +745,25 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         parent = self.multi_ui_parent
         return parent is not None and parent.is_turn_running
 
-    def cancel_current_turn(self, reason: str) -> None:
+    def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """Release pending confirmations, cancel the turn and fire `Stop`.
 
         A `MultiUI` child delegates to its parent, which runs the turn.
+
+        *flush* reaches `cancel_pending_confirmations`: an exit passes `False`,
+        because replaying buffered output into a transcript that is being torn
+        down is work nobody will read — the same reason the exit path releases
+        the confirmation buffer that way before it gets here.
         """
         running = self._running_llm_task
         if running is None or running.done():
             parent = self.multi_ui_parent
             if parent is not None:
-                parent.cancel_current_turn(reason)
+                parent.cancel_current_turn(reason, flush=flush)
             else:
-                self.cancel_pending_confirmations()
+                self.cancel_pending_confirmations(flush=flush)
             return
-        self.cancel_pending_confirmations()
+        self.cancel_pending_confirmations(flush=flush)
         running.cancel()
         # Announced once per task. The task stays not-`done()` while the
         # cancellation unwinds, so a second Esc (or an Esc then a Ctrl+C) reaches

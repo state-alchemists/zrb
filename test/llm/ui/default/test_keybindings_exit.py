@@ -52,7 +52,7 @@ def test_ctrl_c_empty(mock_ui, setup_bindings):
     mock_ui.cancel_pending_confirmations.assert_called_once()
     # The cancel and its `turn_cancelled` Stop live in `cancel_current_turn`, so a
     # repeated press announces the cut turn once rather than once per key.
-    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_c")
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_c", flush=False)
     mock_task.cancel.assert_not_called()
     assert "\n<Esc> Canceled" in mock_ui.outputs
     mock_ui.execute_hook.assert_not_called()
@@ -85,7 +85,7 @@ def test_ctrl_d_cancelling_a_running_turn_goes_through_cancel_current_turn(
 
     trigger_binding(setup_bindings, "c-d", event)
 
-    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d")
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d", flush=False)
     event.app.exit.assert_called_once()
 
 
@@ -97,7 +97,7 @@ def test_ctrl_d_cancels_the_turn_a_multiui_parent_runs(mock_ui, setup_bindings):
 
     trigger_binding(setup_bindings, "c-d", event)
 
-    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d")
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d", flush=False)
     event.app.exit.assert_called_once()
 
 

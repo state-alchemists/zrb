@@ -120,7 +120,7 @@ class UISessionDefaults:
         """No turn of its own to run."""
         return False
 
-    def cancel_current_turn(self, reason: str) -> None:
+    def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """No turn of its own to cancel."""
 
     def accumulate_usage(

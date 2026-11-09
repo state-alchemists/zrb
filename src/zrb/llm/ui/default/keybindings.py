@@ -253,7 +253,7 @@ class UIKeybindings:
         # its `turn_cancelled` Stop live in `cancel_current_turn`, so a turn cut
         # here is announced exactly once however many keys were pressed.
         if ui.is_turn_running:
-            ui.cancel_current_turn("ctrl_c")
+            ui.cancel_current_turn("ctrl_c", flush=False)
             ui.append_to_output("\n<Esc> Canceled")
         else:
             # An idle exit: nothing was cut, so the payload must not say so.
@@ -272,7 +272,7 @@ class UIKeybindings:
         # This exit used to cut a running turn and say nothing, so the day lost
         # the event. `cancel_current_turn` cancels, announces and fires the Stop.
         if ui.is_turn_running:
-            ui.cancel_current_turn("ctrl_d")
+            ui.cancel_current_turn("ctrl_d", flush=False)
         event.app.exit()
 
     async def _on_clipboard_paste(self, clipboard: Any) -> None:

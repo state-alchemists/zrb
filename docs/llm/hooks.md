@@ -308,16 +308,21 @@ A runnable version of this snippet is `security-review-agent-example` in `exampl
 
 ## Built-in Hooks
 
-Two hooks ship with zrb. Both are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`memory_reviewer`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_MEMORY_REVIEWER`.
+Three hooks ship with zrb. All are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`memory_reviewer`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_MEMORY_REVIEWER`.
 
 ### The memory reviewer
 
-After every completed turn, a small sub-agent reads that turn and writes what is durable: a log line, a fact, a correction, or today's diary entry. It runs asynchronously, so it never delays the response, and its normal answer is "nothing" — most turns teach nothing that outlives them.
+After every completed turn, a small sub-agent reads that turn and writes what is durable: a log line, a fact, a correction, today's diary entry, or the day's handover. It runs asynchronously, so it never delays the response, and its normal answer is "nothing" — most turns teach nothing that outlives them.
 
 - **On** while memory is on (`ZRB_LLM_MEMORY_ENABLED`, default on) and the reviewer is (`ZRB_LLM_MEMORY_REVIEWER_ENABLED`, default on); its hook name is `memory-reviewer`.
 - **Model:** the small model (`ZRB_LLM_SMALL_MODEL`, or a `/model small …` override). Set one — an unset small model falls back to your main model, which defeats the point of a cheap reviewer.
 - **Tools:** `SearchMemory`, `Remember`, `Forget` (it searches before adding, so it revises a subject rather than inventing a second one); timeout 90 seconds.
 - **The log line is written by the hook, not by the model.** One line from the reply's own first sentence, because a hook on a conversation event can describe the conversation and a *day* is not something it can infer. The diary stays the reviewer's to author.
+- **It keeps the handover current**, but only when the state of play moved — a decision made, a thread opened or closed, a correction, a plan that shifted. A handover rewritten every turn becomes a log of the last turn, so a turn that only answered a question leaves it alone. It revises the day's `handover` without touching the day's `claim`.
+
+### The interrupt log
+
+A cancelled turn has no completed transcript, so the reviewer — whose premise is one — stays out. A second hook, `memory-interrupt-log`, matches the `Stop` payload's `turn_cancelled` and writes the single line `the turn was cancelled`, with no model call. It covers Esc, Ctrl+C and Ctrl+D while a turn is running, announces a cut turn once however many keys were pressed, and fires through a `MultiUI` parent's turn too. Without it, a session ended mid-turn left the day's log reading as if nothing had happened.
 
 How an agent-type hook like this one is wired internally is traced in [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-the-memory-reviewer) (a contributor page).
 

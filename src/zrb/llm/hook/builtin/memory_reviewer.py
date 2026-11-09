@@ -17,6 +17,7 @@ nothing, and neither is an error.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -151,7 +152,9 @@ def create_interrupt_log_hook() -> "HookCallable":
         # lazy: the contract module is imported for types elsewhere in this file
         from zrb.llm.hook.contracts.interface import HookResult
 
-        _write_log_line(context, INTERRUPTED_LOG_TEXT)
+        # Off the loop: the store's lock polls and the git commit can block, and a
+        # quit must not hold the event loop on either while it is torn down.
+        await asyncio.to_thread(_write_log_line, context, INTERRUPTED_LOG_TEXT)
         return HookResult()
 
     return interrupt_log
@@ -165,7 +168,9 @@ def _with_log_line(hook: "HookCallable") -> "HookCallable":
         try:
             return await hook(context)
         finally:
-            _append_event_line(context)
+            # Off the loop, for the same reason the interrupt hook is: a lock wait
+            # or a slow git commit must not stall the turn that just finished.
+            await asyncio.to_thread(_append_event_line, context)
 
     return reviewed
 
