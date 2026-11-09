@@ -312,7 +312,7 @@ def _first_sentence(message: str) -> str:
 def _tags(context: "HookContext") -> str:
     """`(zrb, <project>)` — where the work happened, for a human reading a day."""
     tags = ["zrb"]
-    cwd = (context.cwd or "").rstrip("/").rsplit("/", 1)[-1]
+    cwd = (context.cwd or "").replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
     if cwd and cwd not in tags:
         tags.append(cwd)
     return ", ".join(tags)
