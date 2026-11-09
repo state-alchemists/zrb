@@ -781,6 +781,13 @@ def summary_cap(conversational_token_threshold: int) -> int:
     return max(_SUMMARY_CAP_FLOOR, int(conversational_token_threshold * ratio))
 
 
+_MEMORY_OMITTED_NOTE = (
+    "The memory block was left out of this summary to stay under the cap. Its "
+    "claims are still on disk: use `SearchMemory` before answering from memory, "
+    "and read the store root that a claim's path is relative to."
+)
+
+
 def _fit_note_blocks(
     limiter: "LLMLimiter", cap: int, carried_block: str, archive_note: str
 ) -> "tuple[str, str]":
@@ -792,6 +799,11 @@ def _fit_note_blocks(
     being replaced. The archive pointer goes next, and last of all the notes go
     together. A cap the framing alone cannot fit is left to the caller, which
     keeps the history instead of inserting an over-cap turn.
+
+    A dropped block is replaced by one line saying so. The alternative was a
+    session that lost its memory without being told, and went on answering as
+    though the store held nothing — the model can only search for what it knows
+    exists.
     """
     if cap <= 0:
         return carried_block, archive_note
@@ -811,6 +823,8 @@ def _fit_note_blocks(
             ),
             plain=True,
         )
+    if carried_block and is_within_cap(_MEMORY_OMITTED_NOTE, archive_note):
+        return _MEMORY_OMITTED_NOTE, archive_note
     if is_within_cap("", archive_note):
         return "", archive_note
     if archive_note:
