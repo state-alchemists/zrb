@@ -1,5 +1,6 @@
 """The memory reviewer: its config, its log line, and its gate."""
 
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -88,6 +89,41 @@ def test_the_turn_becomes_a_log_line_with_its_project(store_dir):
     assert "Replaced the journal with a memory store" in lines[0]
     assert lines[0].endswith("(zrb)")
     assert "Details below" not in lines[0]
+
+
+def test_the_log_is_committed_under_the_store_lock(store_dir, monkeypatch):
+    """The log hook and the reviewer run as two tasks on one `Stop`.
+
+    `git_commit` stages every managed path, so a commit made outside the lock can
+    sweep up a writer's half-finished change, or lose the race for
+    `.git/index.lock` and be dropped — it is best effort, and a dropped commit
+    leaves nothing behind to notice. The memory tools commit inside the lock; the
+    log has to as well, which is why this asserts the depth and not the message.
+    """
+    depth = 0
+    commit_depth: list[int] = []
+    real_locked = store.locked
+
+    @contextmanager
+    def tracking_locked():
+        nonlocal depth
+        with real_locked():
+            depth += 1
+            try:
+                yield
+            finally:
+                depth -= 1
+
+    monkeypatch.setattr(store, "locked", tracking_locked)
+    monkeypatch.setattr(store, "git_commit", lambda message: commit_depth.append(depth))
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Replaced the journal with a memory store.",
+        cwd="/home/gofrendi/zrb",
+    )
+    _append_event_line(context)
+    assert commit_depth == [1]
 
 
 def test_a_reply_that_reads_as_an_instruction_is_not_logged_verbatim(store_dir):

@@ -266,14 +266,22 @@ def _write_log_line(context: "HookContext", text: str) -> None:
         with store.locked():
             store.append_log(text, tags=_tags(context))
             store.prune_logs()
+            # Inside the lock, like the memory tools' commits: `git_commit`
+            # stages every managed path, so a commit made outside it can sweep up
+            # a writer's half-finished change, or lose the race for
+            # `.git/index.lock` and be dropped — this is best effort, and a
+            # dropped commit is silent. It matters now because this turn runs as
+            # its own task beside the reviewer, and the two commit concurrently
+            # where one hook used to do both.
+            #
+            # The log is part of the audit trail, and a log day is the one thing
+            # the store may prune: an entry that never reached git is an entry
+            # retention can take with nothing left behind.
+            store.git_commit(f"log: {store.today()}")
     except OSError:
         # The reply is already delivered; a log that could not be written is a
         # missing line, not a failed turn.
         return
-    # The log is part of the audit trail, and a log day is the one thing the
-    # store may prune: an entry that never reached git is an entry retention can
-    # take with nothing left behind.
-    store.git_commit(f"log: {store.today()}")
 
 
 def _first_sentence(message: str) -> str:
