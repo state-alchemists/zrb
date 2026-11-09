@@ -102,8 +102,8 @@ def test_a_diary_is_only_ever_forgotten_as_wrong():
 
 
 def test_a_body_is_bounded_per_kind():
-    assert body_error("x" * 2_001, "diary") is not None
-    assert body_error("x" * 2_001, "fact") is None
+    assert body_error("x" * 5_001, "diary") is not None
+    assert body_error("x" * 5_001, "fact") is None
     assert body_error("x" * 8_001, "fact") is not None
 
 

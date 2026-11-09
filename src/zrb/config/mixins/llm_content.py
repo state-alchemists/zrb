@@ -61,7 +61,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
-        self.DEFAULT_LLM_MEMORY_DIARY_MAX_CHARS: str = "2000"
+        self.DEFAULT_LLM_MEMORY_DIARY_MAX_CHARS: str = "5000"
         self.DEFAULT_LLM_MEMORY_HANDOVER_MAX_CHARS: str = "700"
         self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
         self.DEFAULT_LLM_MEMORY_RECENT_LOG_LINES: str = "4"
