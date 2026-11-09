@@ -32,6 +32,7 @@ from zrb.llm.memory.model import (
     format_stamp,
     id_error,
     split_document,
+    week_error,
     week_span,
 )
 from zrb.llm.memory.paths import (
@@ -40,6 +41,7 @@ from zrb.llm.memory.paths import (
     FACTS_DIR,
     GITIGNORE_FILE,
     LOG_DIR,
+    WEEK_DIR,
 )
 from zrb.llm.memory.render import render_core
 from zrb.util.file_lock import hold_file_lock
@@ -233,6 +235,12 @@ def load_weeks() -> dict[str, WeekNote]:
             continue
         if name.removesuffix(".md") != note.id:
             continue
+        # A week the calendar does not have — `2026-W54`, a hand-edit that meant
+        # `W45` — is absent rather than fatal: `week_span` below would raise, and
+        # a store that cannot be read because one file is wrong is worse than a
+        # store missing one file.
+        if week_error(note.id) is not None:
+            continue
         notes[note.id] = note
     return notes
 
@@ -390,7 +398,7 @@ def write_core(facts: list[Fact] | None = None) -> str:
 # store that leaks them. Naming them at the commit matters as much as staging them:
 # the index is shared with whoever else works in the repository, and a bare commit
 # takes along everything they had staged.
-_MANAGED_PATHS = (CORE_FILE, FACTS_DIR, DIARY_DIR, LOG_DIR, GITIGNORE_FILE)
+_MANAGED_PATHS = (CORE_FILE, FACTS_DIR, DIARY_DIR, WEEK_DIR, LOG_DIR, GITIGNORE_FILE)
 
 # Written inside `.git` when *this* store created the repository. A `.git` without
 # it belongs to somebody else, and adding our commits to their history is not

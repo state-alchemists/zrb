@@ -23,7 +23,7 @@ from zrb.llm.hook.builtin.memory_week import (
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager.manager import HookManager
 from zrb.llm.memory import paths, render, store
-from zrb.llm.memory.model import Diary, WeekNote
+from zrb.llm.memory.model import Diary, WeekNote, iso_week
 from zrb.llm.prompt.memory_context import render_memory_block
 
 # 2026-11-10 is a Tuesday in ISO week 46, so the week that just ended is W45:
@@ -147,9 +147,16 @@ async def test_the_hook_writes_nothing_when_the_model_says_nothing(
 
 
 def test_the_block_leads_with_the_week(store_dir):
-    _day("2026-11-02", "Built the recall hook.")
-    _note(claim="The week the store gained a week.")
-    _day(_TODAY, "A new day.")
+    """The note is the block's first line, whatever today happens to be.
+
+    The week and the day come from the real clock, because that is the clock the
+    block renders against: a fixed date here would start failing the week the
+    note went stale, and the test would be measuring the calendar, not the block.
+    """
+    today = store.today()
+    last_week = memory_week.previous_week(iso_week(today))
+    _note(week=last_week, claim="The week the store gained a week.")
+    _day(today, "A new day.")
 
     block = render_memory_block()
 
@@ -157,8 +164,8 @@ def test_the_block_leads_with_the_week(store_dir):
     # The contract above also names `## Recent`, so split on the heading itself.
     recent = block.rsplit("\n## Recent\n", 1)[1]
     first = recent.strip().splitlines()[0]
-    assert first == f"- Week ({_LAST_WEEK}): The week the store gained a week."
-    assert "Today (2026-11-10): A new day." in recent
+    assert first == f"- Week ({last_week}): The week the store gained a week."
+    assert f"Today ({today}): A new day." in recent
 
 
 def test_a_note_older_than_a_fortnight_is_not_shown(store_dir):
@@ -172,6 +179,23 @@ def test_a_week_being_lived_through_is_not_shown(store_dir):
     _note(week="2026-W46")
 
     assert store.latest_week_note("2026-11-10") is None
+
+
+def test_a_week_the_calendar_does_not_have_is_ignored(store_dir):
+    """A hand-edited `2026-W54` must not take the block down with it.
+
+    Reproduced before the fix: `load_weeks` accepted the file, `latest_week_note`
+    asked `week_span` for its dates, and the `ValueError` escaped
+    `render_memory_block`, which handles only `OSError` — so one bad file failed
+    every session's first turn.
+    """
+    _note(week="2026-W54", claim="A week that does not exist.")
+    _day(store.today(), "A new day.")
+
+    assert store.latest_week_note(store.today()) is None
+    block = render_memory_block()
+    assert block is not None
+    assert "A week that does not exist." not in block
 
 
 def test_the_note_reads_as_a_line_a_session_can_read(store_dir):

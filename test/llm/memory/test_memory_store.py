@@ -15,7 +15,7 @@ from zrb.llm.hook.builtin.memory_reviewer import _append_event_line
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.memory import paths, render, search, store
-from zrb.llm.memory.model import Diary, Fact
+from zrb.llm.memory.model import Diary, Fact, WeekNote
 from zrb.llm.tool.memory import forget, remember
 from zrb.util.file_lock import FileLockTimeout
 from zrb.util.owner_only import DIR_MODE, FILE_MODE
@@ -382,6 +382,25 @@ def test_a_store_inside_the_notes_directory_uses_the_notes_repository(
         ["git", "log", "--oneline"], cwd=str(notes), capture_output=True, text=True
     ).stdout
     assert "remember: x" in log
+
+
+@needs_git
+def test_a_week_note_reaches_the_audit_trail(store_dir, monkeypatch):
+    """A managed path that misses `week/` writes notes nobody can restore.
+
+    Reproduced before the fix: `git_commit` staged the store's other paths and
+    left `week/` untracked, so the note existed on disk and nowhere in the
+    history the store calls its undo button.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    _run_git(store_dir, "init", "-q")
+    (store_dir / ".git" / "zrb-memory").write_text("")
+    store.save_week(
+        WeekNote(id="2026-W45", claim="The week of the store.", updated=store.now())
+    )
+    store.git_commit("week: 2026-W45")
+    tracked = _run_git(store_dir, "ls-files").stdout
+    assert "week/2026-W45.md" in tracked
 
 
 @needs_git

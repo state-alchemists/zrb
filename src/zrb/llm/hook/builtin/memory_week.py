@@ -138,7 +138,7 @@ def week_note_request(today_day: str | None = None) -> tuple[str, str] | None:
     """
     if not (CFG.LLM_MEMORY_ENABLED and CFG.LLM_MEMORY_REVIEWER_ENABLED):
         return None
-    week = _previous_week(iso_week(today_day or store.today()))
+    week = previous_week(iso_week(today_day or store.today()))
     if store.load_week(week) is not None:
         return None
     material = week_material(week)
@@ -174,7 +174,13 @@ def _written_days(start: str, end: str) -> list[tuple[str, Diary]]:
     return found
 
 
-def _previous_week(week: str) -> str:
+def previous_week(week: str) -> str:
+    """The ISO week before *week*.
+
+    Public because the block's tests need the same week the hook will write
+    about, and computing it a second way in a test is how a test drifts from the
+    code it is testing.
+    """
     monday, _ = week_span(week)
     return iso_week((date.fromisoformat(monday) - timedelta(days=7)).isoformat())
 
