@@ -34,7 +34,7 @@ Everything lives inside those six slots — including the diary, which is a `rem
 3. **The bounded core is the only thing always in context.** Everything else is unreachable except through search. Growth costs nothing per turn.
 4. **The cap is enforced by refusal, not by summarization.** A write that cannot fit fails with the exact deficit and the current core, so consolidation happens in that turn.
 5. **Retire, never delete.** A wrong belief keeps its file with a reason. "What did I believe, and why did I stop" stays answerable.
-6. **The day is written, not inferred.** A diary entry states what the day was; the week view reads those statements instead of deriving themes from tag counts.
+6. **The day is written, not inferred.** A diary entry states what the day was; the recent block reads those statements instead of deriving themes from tag counts.
 7. **Git is the audit log and the undo button.** Every write commits, naming its own files so work the human had staged stays staged. The repository is the store's own or the notes directory itself; a checkout that merely contains the notes gets no memory commits.
 
 ---
@@ -72,7 +72,7 @@ Events → days → beliefs → essentials: minutes, hours, indefinite, always.
 | Path | Read by | Written by |
 |---|---|---|
 | `facts/*.md` | renderer, search, reviewer, human | `remember` / `forget` |
-| `diary/*.md` | recent block, week view, search, human | `remember` / `forget` |
+| `diary/*.md` | recent block, search, human | `remember` / `forget` |
 | `log/*.md` | recent block, search, human | the log hooks (append), human |
 | `core.md` | injection, human dashboard | renderer only |
 | Persona (`{LLM_PROMPT_DIR}/persona.md`) | system prompt, slot 1 | **human only** — outside this tree |
@@ -162,7 +162,7 @@ turn only.
 | Field | Required | Rule |
 |---|---|---|
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
-| `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
+| `claim` | yes | The day in one line, ≤ 160 chars. This is what the recent block shows for that day, so a day stops being inferred from its log lines. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
 | `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (2,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
@@ -245,8 +245,9 @@ Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing 
 - I owe a staging cert rotation, blocked on DNS access. [rotate-staging-cert]
 
 ## Recent
-- Handover (2026-11-03): Deploy still blocked on the staging cert — ask for DNS access first.
+- Handover (2026-11-02): Deploy still blocked on the staging cert — ask for DNS access first.
 - Today (2026-11-03): Spent the day on memory design; cut confidence and identity.
+- 2026-11-01: Replaced the journal with a memory store; the migration ran on first use.
 - 19:02 — gofrendi asked what the design costs, not what it enables. (zrb, meta)
 - 18:41 — Fixed WSL ACL denial on the UNC workspace path. (zrb)
 </memory>
@@ -271,23 +272,18 @@ render_core(facts):
 render_recent(diary, log):
     handover = newest diary entry with a non-empty handover, within 7 days
     today    = today's diary entry claim, if one exists
+    previous = the newest active entry strictly before today
     tail     = last 4 lines of today's log, then yesterday's if fewer than 4
     out      = [f"- Handover ({handover.date}): {handover.text}"] if handover
              + [f"- Today ({today.id}): {today.claim}"]           if today
+             + [f"- {previous.id}: {previous.claim}"]             if previous
              + [line if from_today else f"- {mmdd} {line}" for line in tail]
     return cut_to(out, 1600)       # whole lines only; half a fact is worse than none
 ```
 
-```
-render_week(entries, today_day, days=7):
-    for day in the last 7 days, newest first:
-        if entries[day] is active: line = f"- {day} — {entries[day].claim}"
-    return lines
-```
+The last-day line is what a session opened after midnight is missing without: today's claim stays empty until the day is written, so the block would carry where things stand and nothing about what the day before it was. It is labelled with its own date rather than the word "yesterday", because after a quiet day that word would name a day nothing was written about; the authored claim is the only line, since a day cannot be inferred from its log lines. A handover and a claim from the same day are both kept — state of play and what the day was are different sentences — and the line sits ahead of the log, because a cap cuts the tail.
 
-The authored claim is the only line: a day with no entry renders nothing, because a day cannot be inferred from its log lines. An authored `claim` beats a derived theme, which is why the diary exists.
-
-All three are pure functions of files on disk. Rendering twice yields identical bytes, so the renderer writes only when the output changed.
+All of them are pure functions of files on disk. Rendering twice yields identical bytes, so the renderer writes only when the output changed.
 
 The block's own two lines are derived the same way, and are the only place the model is told its address and its budget:
 
@@ -585,7 +581,7 @@ Compaction re-emits the core and recent block, because a summary that drops the 
 | Situation | Behaviour |
 |---|---|
 | `core.md` missing or unreadable | Regenerated from facts on next write; the session starts with no core rather than an error |
-| Today's diary missing | The recent block omits `Today`; the week falls back to the log for that day |
+| Today's diary missing | The recent block omits `Today`; the last-day line and the log tail still render |
 | Today's log missing | The recent block omits the log tail; the diary lines are unaffected |
 | A fact or diary file is corrupt | Skipped with a warning; everything else still renders |
 | Memory directory empty | No `<memory>` block at all — silence, not an error message |
@@ -637,7 +633,6 @@ Two lines the Journal section had are absent rather than zeroed. A search's **ou
 | `LLM_MEMORY_DIARY_MAX_CHARS` | `2000` | Diary body cap; a page, not a transcript |
 | `LLM_MEMORY_HANDOVER_MAX_CHARS` | `700` | The handover field cap |
 | `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS` | `7` | How far back a handover is still current |
-| `LLM_MEMORY_WEEK_LOOKBACK_DAYS` | `6` | Days in the week view |
 | `LLM_MEMORY_DELTA_PER_TURN` | `3` | Lines in `<memory-delta>` |
 | `LLM_MEMORY_SEARCH_LIMIT` | `10` | Default `limit` for `search` |
 | `LLM_MEMORY_CLAIM_MAX_CHARS` | `160` | The one-sentence rule |
@@ -645,9 +640,9 @@ Two lines the Journal section had are absent rather than zeroed. A search's **ou
 | `LLM_MEMORY_REVIEWER_ENABLED` | `on` | The post-turn reviewer |
 | `LLM_MEMORY_LOCK_TIMEOUT` | `30` | Seconds a write waits for the lock |
 
-Five rows are still the design rather than the code: `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS`,
-`LLM_MEMORY_WEEK_LOOKBACK_DAYS`, `LLM_MEMORY_DELTA_PER_TURN`, `LLM_MEMORY_SEARCH_LIMIT`
-and `LLM_MEMORY_CLAIM_MAX_CHARS` are constants in the modules that use them today.
+Four rows are still the design rather than the code: `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS`,
+`LLM_MEMORY_DELTA_PER_TURN`, `LLM_MEMORY_SEARCH_LIMIT` and `LLM_MEMORY_CLAIM_MAX_CHARS`
+are constants in the modules that use them today.
 The two that a session meets at write time — the diary body and the handover — are
 settings, because they are the two a growing day actually runs into.
 

@@ -15,7 +15,7 @@ from zrb.llm.hook.builtin.memory_reviewer import _append_event_line
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.memory import paths, render, search, store
-from zrb.llm.memory.model import Fact
+from zrb.llm.memory.model import Diary, Fact
 from zrb.llm.tool.memory import forget, remember
 from zrb.util.file_lock import FileLockTimeout
 from zrb.util.owner_only import DIR_MODE, FILE_MODE
@@ -282,6 +282,19 @@ def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
         paths.log_path("a/b")
     assert store.load_fact("../victim") is None
     assert store.load_diary("../../etc/passwd") is None
+
+
+def test_the_last_day_written_is_the_newest_one_before_today(store_dir):
+    """What the block's last-day line names, and the one day it must not."""
+    for day in ("2026-11-01", "2026-11-03", "2026-11-05"):
+        store.save_diary(Diary(id=day, claim=f"Wrote about {day}."))
+
+    previous = store.latest_diary_before("2026-11-04")
+    assert previous is not None and previous.id == "2026-11-03"
+    previous = store.latest_diary_before("2026-11-06")
+    assert previous is not None and previous.id == "2026-11-05"
+    # Strictly before: a day is not its own previous day, and a first day has none.
+    assert store.latest_diary_before("2026-11-01") is None
 
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git")

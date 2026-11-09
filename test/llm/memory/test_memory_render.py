@@ -1,4 +1,4 @@
-"""The four views: deterministic bytes, and a cap that cuts whole lines."""
+"""The store's views: deterministic bytes, and a cap that cuts whole lines."""
 
 from zrb.llm.memory.model import Diary, Fact
 from zrb.llm.memory.render import (
@@ -15,7 +15,6 @@ from zrb.llm.memory.render import (
     render_core_note,
     render_recent,
     render_store_note,
-    render_week,
 )
 
 
@@ -288,12 +287,35 @@ def test_the_day_is_named_once_and_carries_both_fields():
     assert "Spent the day on memory" in recent
 
 
-def test_the_week_shows_authored_days_only():
-    entries = {
-        "2026-11-03": Diary(id="2026-11-03", claim="Today was this."),
-        "2026-11-01": Diary(id="2026-11-01", claim="That day was that."),
-    }
-    lines = render_week(entries, "2026-11-03")
-    assert lines[0] == "- 2026-11-03 — Today was this."
-    # 2026-11-02 has no entry, so it is absent rather than derived from its log.
-    assert len(lines) == 2
+def test_the_recent_block_names_the_last_day_written():
+    """Opened after midnight, today's claim is empty and the last day's is not.
+
+    The label is the entry's own date: after a quiet day, "yesterday" would name
+    a day nothing was written about.
+    """
+    today = Diary(id="2026-11-03", claim="Today.", updated="2026-11-03T09:00:00")
+    previous = Diary(
+        id="2026-11-01",
+        claim="Cut confidence and identity.",
+        updated="2026-11-01T20:00:00",
+    )
+    recent = render_recent(None, today, ["- 09:00 — an event"], previous)
+    lines = recent.splitlines()[1:]
+    assert lines[0].startswith("- Today (2026-11-03):")
+    assert lines[1] == "- 2026-11-01: Cut confidence and identity."
+    # Ahead of the log: the cap cuts the tail, and the log is the tail.
+    assert lines[2].endswith("an event")
+
+
+def test_a_handover_and_a_claim_from_one_day_are_both_kept():
+    """State of play and what the day was are different sentences."""
+    yesterday = Diary(
+        id="2026-11-02",
+        claim="Spent the day on memory design.",
+        handover="Ask about the DNS access first.",
+        updated="2026-11-02T20:00:00",
+    )
+    today = Diary(id="2026-11-03", claim="Today.", updated="2026-11-03T09:00:00")
+    recent = render_recent(yesterday, today, [], yesterday)
+    assert "Ask about the DNS access" in recent
+    assert "- 2026-11-02: Spent the day on memory design." in recent

@@ -204,6 +204,20 @@ def latest_handover(today_day: str | None = None) -> Diary | None:
     return None
 
 
+def latest_diary_before(day: str) -> Diary | None:
+    """The newest active entry strictly before *day*, or ``None``.
+
+    `load_diaries` is newest first and a day is its id, so the first entry that
+    sorts earlier is the one wanted. Left unbounded on purpose: a store written
+    to last month still has a last day, and the line carries its date, so naming
+    an old one is honest where naming none would be silent.
+    """
+    for entry_day, entry in load_diaries().items():
+        if entry_day < day:
+            return entry
+    return None
+
+
 def log_lines(day: str) -> list[str]:
     """The event lines of *day*: the `# date` header is not one of them."""
     return [
