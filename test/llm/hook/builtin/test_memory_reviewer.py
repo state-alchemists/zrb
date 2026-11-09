@@ -169,6 +169,24 @@ def test_the_reviewer_stays_out_when_it_is_switched_off(monkeypatch):
     manager.register_hook_config.assert_not_called()
 
 
+def test_the_interrupt_log_outlives_the_reviewer_switch(monkeypatch):
+    """Turning the reviewer off stops the model call, not the day's event line."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
+    manager = MagicMock()
+    register_memory_reviewer_hook(manager)
+    names = [
+        call.args[2].name if len(call.args) > 2 else None
+        for call in manager.add_hook.call_args_list
+    ]
+    assert names == ["memory-interrupt-log"]
+
+
+def test_the_interrupt_log_does_not_stretch_the_exit_drain():
+    """It calls no model, so it must not extend the quit's grace to a 90s timeout."""
+    assert build_interrupt_log_hook_config().timeout is None
+
+
 def test_the_reviewer_keeps_the_handover_current():
     """An exit-only handover is absent exactly when a killed session needed it."""
     from zrb.llm.prompt.prompt import get_prompt

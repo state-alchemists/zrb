@@ -95,17 +95,19 @@ def build_memory_reviewer_hook_config() -> HookConfig:
 
 def register_memory_reviewer_hook(manager: "HookManager") -> None:
     """Register the reviewer unless memory or the reviewer is switched off."""
-    if not CFG.LLM_MEMORY_ENABLED or not CFG.LLM_MEMORY_REVIEWER_ENABLED:
+    if not CFG.LLM_MEMORY_ENABLED:
         return
     # A cancelled turn never reaches the reviewer's matcher: the TUI fires its own
-    # Stop, with `turn_cancelled` and no completed transcript. Registered before
-    # the reviewer so a config the manager refuses cannot also take the log gap
-    # with it — a day with no events is a day that never happened.
+    # Stop, with `turn_cancelled` and no completed transcript. Gated on memory
+    # alone — it calls no model, and switching the reviewer off to stop spending a
+    # small-model call per turn must not also take the day's log line with it.
     manager.add_hook(
         create_interrupt_log_hook(),
         [HookEvent.STOP],
         build_interrupt_log_hook_config(),
     )
+    if not CFG.LLM_MEMORY_REVIEWER_ENABLED:
+        return
     config = build_memory_reviewer_hook_config()
     hook = manager.register_hook_config(config, source="builtin")
     if hook is None:
@@ -141,7 +143,12 @@ def build_interrupt_log_hook_config() -> HookConfig:
             )
         ],
         is_async=True,
-        timeout=_TIMEOUT_SECONDS,
+        # No model is called, so this hook must not stretch the exit drain: the
+        # manager extends it to a pending agent hook's own timeout, and 90 s of
+        # "the terminal looks hung after quitting" is longer than the line is
+        # worth. The write runs in a thread and finishes even if the awaiting
+        # task is cancelled at the ordinary budget.
+        timeout=None,
     )
 
 

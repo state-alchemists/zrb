@@ -162,7 +162,7 @@ turn only.
 | Field | Required | Rule |
 |---|---|---|
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
-| `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. |
+| `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
 | `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (2,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
