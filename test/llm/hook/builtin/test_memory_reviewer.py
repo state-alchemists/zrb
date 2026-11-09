@@ -142,6 +142,7 @@ def test_all_three_hooks_register_while_both_switches_are_on(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
+    manager.registry.get_configs.return_value = {}
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -166,6 +167,7 @@ def test_the_log_hooks_survive_the_reviewer_switch(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
     manager = MagicMock()
+    manager.registry.get_configs.return_value = {}
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -173,17 +175,38 @@ def test_the_log_hooks_survive_the_reviewer_switch(monkeypatch):
     ] == ["memory-event-log", "memory-interrupt-log"]
 
 
-def test_the_log_hooks_are_added_with_their_own_callables(monkeypatch):
-    """The registry refuses a second hook of the same name; `add_hook` does not.
+def test_a_log_hook_already_registered_is_not_registered_again(monkeypatch):
+    """`register_hook_config` refuses a disabled config, not a duplicate one.
 
-    Each log hook is registered through the registry and then swapped for a
-    callable that writes the line instead of building an agent, so the swap has to
-    happen exactly once per name — a plain `add_hook` would append another copy on
-    every reload and write the line twice.
+    A live manager can re-scan without clearing the registry — assigning
+    `search_dirs` clears `_loaded` and keeps the hooks — so without the name check
+    every completed turn would write its line twice.
     """
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
+    manager.registry.get_configs.return_value = {
+        "memory-event-log": MagicMock(),
+        "memory-interrupt-log": MagicMock(),
+    }
+    manager.register_hook_config.return_value = MagicMock()
+    register_memory_reviewer_hook(manager)
+    assert [
+        call.args[0].name for call in manager.register_hook_config.call_args_list
+    ] == ["memory-reviewer"]
+
+
+def test_the_log_hooks_are_added_with_their_own_callables(monkeypatch):
+    """Each log hook is registered and then swapped for its own callable.
+
+    The config names an `AgentHookConfig` for the manager's sake; the callable
+    that actually runs writes the line and builds no agent. The swap happens once
+    per name, because the registry appends whatever it is handed.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
+    manager = MagicMock()
+    manager.registry.get_configs.return_value = {}
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [call.args[2].name for call in manager.add_hook.call_args_list]

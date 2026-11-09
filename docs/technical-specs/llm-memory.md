@@ -483,12 +483,13 @@ Its output is a JSON object, validated through the same code paths as the tools,
 
 ```json
 {
-  "log": "one line, or null",
   "remember": [{"id": "…", "claim": "…", "kind": "fact", "pin": false, "tags": "…"}],
   "forget": [{"id": "…", "reason": "done"}],
   "diary": {"claim": "…", "handover": "…", "body": "…"}
 }
 ```
+
+There is no `log` key: the turn's log line is appended by `memory-event-log` before the reviewer is asked anything, so the model has nothing to add to it.
 
 `diary.id` is implied: the reviewer's day. The entry is created if today has none and merged if it does.
 
@@ -541,8 +542,9 @@ sequenceDiagram
     A->>M: search(...) whenever a layer 1-3 answer is missing
     Note over A,R: turn ends
     A->>R: fork with transcript
+    M->>M: memory-event-log appends the turn's line
     R->>M: search (dedup check)
-    R->>M: append log line; remember / forget; merge today's diary
+    R->>M: remember / forget; merge today's diary
 ```
 
 Compaction re-emits the core and recent block, because a summary that drops the memory block would end the session's knowledge mid-conversation.

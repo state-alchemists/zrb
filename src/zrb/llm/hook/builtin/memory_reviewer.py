@@ -134,14 +134,20 @@ def _register_log_hook(
     config: HookConfig,
     factory: "Callable[[], HookCallable]",
 ) -> None:
-    """Register *config* with the callable *factory* builds, at most once per load.
+    """Register *config* with the callable *factory* builds, once per manager.
 
-    Through the registry, because a factory runs on every load and reload and the
-    registry is what refuses a second hook of the same name — a bare `add_hook`
-    would append a duplicate per reload and write the line twice. The callable is
-    swapped in afterwards because a log hook names an `AgentHookConfig` for the
-    manager's sake and must never build an agent.
+    The name check is what makes "once" true: `register_hook_config` does not
+    refuse a duplicate — it returns `None` only for a disabled config — so a
+    second scan would append a second copy and write every line twice. A fresh
+    manager never repeats the factory, but `search_dirs` can be reassigned on a
+    live one (its docstring invites exactly that), which clears `_loaded` and
+    re-scans without clearing the registry.
+
+    The callable is swapped in afterwards because a log hook names an
+    `AgentHookConfig` for the manager's sake and must never build an agent.
     """
+    if config.name in manager.registry.get_configs():
+        return
     registered = manager.register_hook_config(config, source="builtin")
     if registered is None:
         return

@@ -322,7 +322,7 @@ After every completed turn, a small sub-agent reads that turn and writes what is
 
 ### The event log
 
-`memory-event-log` writes one line for every completed turn — the reply's first sentence, bounded to 140 characters, and the project it was done in. No model is called: a hook on a conversation event can describe the conversation, and the day a turn belongs to is knowable without asking anything.
+`memory-event-log` writes one line for every completed turn that has a usable first sentence — the reply's own prose, bounded to 140 characters, and the project it was done in. A reply that is only a heading and a code fence writes nothing: there is no prose to quote, and inventing one would put words in the turn's mouth. No model is called either way: a hook on a conversation event can describe the conversation, and the day a turn belongs to is knowable without asking anything.
 
 - **On** whenever memory is on (`ZRB_LLM_MEMORY_ENABLED`), whether or not the reviewer is; its hook name is `memory-event-log`.
 - **Never the raw reply.** The log is quoted back inside a later `<memory>` block, so a reply that reads as an instruction is recorded as `a reply was kept out of the log: its text reads as an instruction`.
