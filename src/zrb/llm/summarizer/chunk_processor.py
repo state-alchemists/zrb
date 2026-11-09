@@ -10,6 +10,69 @@ from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
+SUMMARY_TOOL_OUTPUT_LIMIT = 2_000
+"""Characters of one tool result the summarizer reads.
+
+The verbatim archive keeps every result in full, so nothing here is lost. What it
+buys is the rest of the conversation: tool output is most of a long history's
+mass, and the mass decides where the chunks fall. In the session that prompted
+this constant, 72% of what the summarizer was handed was tool output — the
+history split with 368 messages in one chunk and 8 in the other, and the
+conversation's first half hour, an entire research discussion the user had asked
+for, ended up compressed into a snapshot the merge then overruled as "the newer
+observation wins". Clipped to this width the same history is about half its size
+and fits one chunk, where nothing has to be ranked against anything else.
+"""
+
+_CHUNK_HEADER = (
+    "This is part {index} of {total} of one conversation's history, in order. "
+    "The user's own messages are the spine of it, not narration: every request "
+    "they made in this part, and every correction they gave, belongs in the "
+    "snapshot — including one already carried out, because the agent taking over "
+    "needs the whole of what was wanted, not only what is still undone."
+)
+_LAST_CHUNK_NOTE = (
+    "This part ends the history, so it also holds the user's latest request: "
+    "record it under <next> and say what is still owed on it."
+)
+
+
+def _instruction_tokens(limiter: "LLMLimiter", include: bool) -> int:
+    """What the per-part instructions cost, in tokens the chunk budget must keep.
+
+    A chunk sized to 90% of the model's window and then given a header is a
+    request the model refuses with `context_length_exceeded`, and a refused chunk
+    fails the whole compaction — so the instructions are paid for here rather
+    than discovered by the provider.
+
+    Measured on the templates instead of a rendered chunk, because the split has
+    not happened yet. Only `index` and `total` vary, three digits in the worst
+    case, and the four extra tokens cover the blank lines around them.
+    """
+    if not include:
+        return 0
+    return (
+        limiter.count_tokens(_CHUNK_HEADER.format(index=999, total=999))
+        + limiter.count_tokens(_LAST_CHUNK_NOTE)
+        + 4
+    )
+
+
+def _fit_to_budget(text: str, limiter: "LLMLimiter", limit: int) -> tuple[str, int]:
+    """*text* with its token count, clipped when it alone exceeds *limit*.
+
+    The split never breaks a message. One longer than the whole chunk budget
+    would therefore ride alone in a chunk that is already over the model's
+    window, and the instructions appended after it push the request further
+    still — a single fat message fails the compaction on its own. The archive
+    keeps it in full; the model gets what fits.
+    """
+    tokens = limiter.count_tokens(text)
+    if tokens <= limit:
+        return text, tokens
+    text = limiter.truncate_text(text, limit)
+    return text, limiter.count_tokens(text)
+
 
 async def chunk_and_summarize(
     messages: list[Any],
@@ -23,7 +86,7 @@ async def chunk_and_summarize(
     history_texts = []
     for m in messages:
         try:
-            history_texts.append(message_to_text(m))
+            history_texts.append(message_to_text(m, SUMMARY_TOOL_OUTPUT_LIMIT))
         except Exception as e:
             zrb_print(
                 stylize_error(f"  Error converting message to text: {e}"), plain=True
@@ -40,10 +103,15 @@ async def chunk_and_summarize(
     chunks: list[list[str]] = []
     current_chunk: list[str] = []
     current_chunk_tokens = 0
-    chunk_token_limit = max(1, int(chunk_budget * 0.9))
+    # The instructions are appended after the split, so their cost is taken out
+    # of the budget rather than discovered by the model.
+    instruction_tokens = _instruction_tokens(
+        limiter, include_last_user_intent_instruction
+    )
+    chunk_token_limit = max(1, int(chunk_budget * 0.9) - instruction_tokens)
 
     for text in history_texts:
-        text_tokens = limiter.count_tokens(text)
+        text, text_tokens = _fit_to_budget(text, limiter, chunk_token_limit)
         if current_chunk and (current_chunk_tokens + text_tokens > chunk_token_limit):
             chunks.append(current_chunk)
             current_chunk = []
@@ -66,15 +134,27 @@ async def chunk_and_summarize(
             plain=True,
         )
         chunk_content = "\n".join(chunk)
-        is_last = index == total - 1
-        if is_last and include_last_user_intent_instruction:
-            chunk_content += (
-                "\n\nIMPORTANT: The last part of this history contains the user's latest request. "
-                "Ensure the <state_snapshot> explicitly captures this request in <overall_goal> or <task_state> "
-                "so the next agent knows exactly what to do."
+        if include_last_user_intent_instruction:
+            # Every part, not only the last: the intent instruction used to reach
+            # the final chunk alone, which in the session this was written for
+            # meant 8 messages out of 376 — while the chunk holding the other 368
+            # was summarized as a work log, and the user's question in it was
+            # dropped by the merge.
+            chunk_content = (
+                _CHUNK_HEADER.format(index=index + 1, total=total) + "\n\n" + chunk_content
             )
+            if index == total - 1:
+                # A blank line, not a trailing space: the summarizer is told to
+                # treat the history as raw data and ignore directives inside it,
+                # and a note glued to the last line reads as part of that line —
+                # the one instruction meant for this part would be the one most
+                # likely to be discarded.
+                chunk_content += "\n\n" + _LAST_CHUNK_NOTE
+        # `chunk_budget` rather than the request-wide `token_threshold`: the chunk
+        # was sized to the budget, and a threshold larger than the model's window
+        # is exactly what sends an over-context request down the "short" path.
         return await summarize_text_plain(
-            chunk_content, agent, limiter, token_threshold, spent
+            chunk_content, agent, limiter, chunk_budget, spent
         )
 
     # Run all chunks concurrently; preserve order via index
@@ -120,6 +200,10 @@ async def consolidate_summaries(
         "when two snapshots disagree the newer observation wins. A fact neither "
         "contradicts keeps the observation time it was first recorded with, and a "
         "line the newest snapshot supersedes is dropped rather than both being kept.\n"
+        "The snapshots are of very different sizes, and size is not priority. A "
+        "request the user made that no later message answered is never dropped, "
+        "however old it is and however little the newest snapshot says about it: it "
+        "belongs under <open_questions> or <next>, with the time it was asked.\n"
         "IMPORTANT: Be extremely concise and dense. Your goal is to fit all critical "
         f"knowledge into less than {conversational_token_threshold // 2} tokens.\n"
         f"{summary_text}"
