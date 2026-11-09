@@ -49,7 +49,7 @@ def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
 
 
 def render_verbatim_messages(
-    messages: Sequence[object], tool_output_limit: int = TAIL_TOOL_OUTPUT_LIMIT
+    messages: Sequence[object], tool_output_limit: int | None = TAIL_TOOL_OUTPUT_LIMIT
 ) -> str:
     """*messages* as one block of text, each tool result clipped to the limit.
 
@@ -58,6 +58,10 @@ def render_verbatim_messages(
     itself unspent once the clipping happens. The two callers that matter are
     the renderer that sends the tail and the measurement that decides how much
     of it fits, which is why the conversion lives here rather than beside either.
+
+    ``None`` renders without clipping, the way `message_to_text` reads it: the
+    caller that has to know what the clip dropped compares the two forms rather
+    than re-implementing the rule (see `history_summarizer._clipped_tail`).
     """
     return "\n".join(message_to_text(m, tool_output_limit) for m in messages)
 
