@@ -6,10 +6,13 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.hook.builtin.memory_reviewer import (
+    INTERRUPTED_LOG_TEXT,
     _append_event_line,
     _first_sentence,
     _with_log_line,
+    build_interrupt_log_hook_config,
     build_memory_reviewer_hook_config,
+    create_interrupt_log_hook,
     register_memory_reviewer_hook,
 )
 from zrb.llm.hook.contracts.interface import HookContext, HookResult
@@ -164,3 +167,50 @@ def test_the_reviewer_stays_out_when_it_is_switched_off(monkeypatch):
     manager = MagicMock()
     register_memory_reviewer_hook(manager)
     manager.register_hook_config.assert_not_called()
+
+
+def test_the_reviewer_keeps_the_handover_current():
+    """An exit-only handover is absent exactly when a killed session needed it."""
+    from zrb.llm.prompt.prompt import get_prompt
+
+    text = get_prompt("memory_reviewer")
+    assert "handover" in text.lower()
+    assert "leaves that for the session" not in text
+    assert "only when the state of play moved" in text
+
+
+def test_a_cancelled_turn_wakes_the_log_only_hook():
+    config = build_interrupt_log_hook_config()
+    assert config.name == "memory-interrupt-log"
+    assert config.events == [HookEvent.STOP]
+    assert len(config.matchers) == 1
+    assert config.matchers[0].field == "event_data.turn_cancelled"
+    assert config.matchers[0].value is True
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_turn_leaves_an_event_line_and_no_guess(store_dir):
+    """A turn that was cut has no reply to quote; the event is still an event."""
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={"turn_cancelled": True, "reason": "cancel"},
+        cwd="/home/gofrendi/zrb",
+    )
+    await create_interrupt_log_hook()(context)
+    lines = store.log_lines(store.today())
+    assert len(lines) == 1
+    assert INTERRUPTED_LOG_TEXT in lines[0]
+    assert lines[0].endswith("(zrb)")
+
+
+def test_the_interrupt_hook_is_registered_beside_the_reviewer(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
+    manager = MagicMock()
+    manager.register_hook_config.return_value = MagicMock()
+    register_memory_reviewer_hook(manager)
+    names = [
+        call.args[2].name if len(call.args) > 2 else None
+        for call in manager.add_hook.call_args_list
+    ]
+    assert "memory-interrupt-log" in names

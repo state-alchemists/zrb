@@ -253,7 +253,9 @@ def test_cancel_current_turn_cancels_the_running_turn_and_fires_stop(surface_ui)
     running.cancel.assert_called_once()
     [(event, data), _] = execute_hook.call_args
     assert event.value == "Stop"
-    assert data == {"reason": "barge_in", "session": "s1"}
+    # `turn_cancelled` is what tells the memory hooks that no completed
+    # transcript exists: the reviewer stays out and only the log line is written.
+    assert data == {"reason": "barge_in", "session": "s1", "turn_cancelled": True}
 
 
 @pytest.mark.parametrize("done", [None, True])

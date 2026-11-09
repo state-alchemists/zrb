@@ -757,7 +757,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         running.cancel()
         self.execute_hook(
             HookEvent.STOP,
-            {"reason": reason, "session": self.conversation_session_name},
+            {
+                "reason": reason,
+                "session": self.conversation_session_name,
+                # A cancelled turn is not a completed one, and the runner never
+                # sees this path, so the payload says which it was: a log-only
+                # hook writes the event line and the reviewer — whose premise is
+                # a finished transcript — stays out.
+                "turn_cancelled": True,
+            },
         )
 
     def execute_hook(

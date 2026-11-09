@@ -33,6 +33,16 @@ if TYPE_CHECKING:
 
 _NAME = "memory-reviewer"
 
+# The log-only hook a cancelled turn runs. Separate from the reviewer because a
+# cancelled turn is not a completed one: the reviewer's premise is a finished
+# transcript, and what exists here is whatever streamed before the interrupt.
+_INTERRUPT_NAME = "memory-interrupt-log"
+
+# What an interrupted turn leaves in the log. There is no reply to quote — the
+# turn was cut before one existed — and a guess at what it would have said is not
+# an event.
+INTERRUPTED_LOG_TEXT = "the turn was interrupted before a reply"
+
 # A tool-calling round trip takes ~15s on a small model; shutdown waits this long
 # before cancelling, so a one-shot `zrb llm chat` does not kill the reviewer.
 _TIMEOUT_SECONDS = 90
@@ -84,6 +94,15 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     """Register the reviewer unless memory or the reviewer is switched off."""
     if not CFG.LLM_MEMORY_ENABLED or not CFG.LLM_MEMORY_REVIEWER_ENABLED:
         return
+    # A cancelled turn never reaches the reviewer's matcher: the TUI fires its own
+    # Stop, with `turn_cancelled` and no completed transcript. Registered before
+    # the reviewer so a config the manager refuses cannot also take the log gap
+    # with it — a day with no events is a day that never happened.
+    manager.add_hook(
+        create_interrupt_log_hook(),
+        [HookEvent.STOP],
+        build_interrupt_log_hook_config(),
+    )
     config = build_memory_reviewer_hook_config()
     hook = manager.register_hook_config(config, source="builtin")
     if hook is None:
@@ -92,6 +111,48 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     # turn taught nothing: a day with no events is a day that never happened.
     manager.remove_hook(hook)
     manager.add_hook(_with_log_line(hook), config.events, config)
+
+
+def build_interrupt_log_hook_config() -> HookConfig:
+    """The hook a cancelled turn runs: one event line, no model call.
+
+    The `AgentHookConfig` is the shape `HookManager.add_hook` expects for a
+    built-in; the callable registered beside it is what runs, and it never builds
+    an agent. Nothing here may fail the teardown of a chat the user already quit.
+    """
+    return HookConfig(
+        name=_INTERRUPT_NAME,
+        events=[HookEvent.STOP],
+        type=HookType.AGENT,
+        config=AgentHookConfig(
+            system_prompt=get_prompt("memory_reviewer"),
+            tools=["SearchMemory", "Remember", "Forget"],
+            model=resolve_configured_small_model(),
+            auto_approve=True,
+        ),
+        matchers=[
+            MatcherConfig(
+                field="event_data.turn_cancelled",
+                operator=MatcherOperator.EQUALS,
+                value=True,
+            )
+        ],
+        is_async=True,
+        timeout=_TIMEOUT_SECONDS,
+    )
+
+
+def create_interrupt_log_hook() -> "HookCallable":
+    """Write the interrupted turn's event line and nothing else."""
+
+    async def interrupt_log(context: "HookContext") -> "HookResult":
+        # lazy: the contract module is imported for types elsewhere in this file
+        from zrb.llm.hook.contracts.interface import HookResult
+
+        _write_log_line(context, INTERRUPTED_LOG_TEXT)
+        return HookResult()
+
+    return interrupt_log
 
 
 def _with_log_line(hook: "HookCallable") -> "HookCallable":
@@ -112,8 +173,17 @@ def _append_event_line(context: "HookContext") -> None:
     text = _first_sentence(context.last_assistant_message or "")
     if not text:
         return
-    reason = injection_reason(text)
-    if reason:
+    _write_log_line(context, text)
+
+
+def _write_log_line(context: "HookContext", text: str) -> None:
+    """Put one event into the day's log, with the project it happened in.
+
+    Split from `_append_event_line` because a turn that was cancelled has no
+    reply to take a sentence from: its line is a fixed statement of the event,
+    and it reaches the same file through the same lock and the same commit.
+    """
+    if injection_reason(text):
         text = WITHHELD_LOG_TEXT
     try:
         with store.locked():

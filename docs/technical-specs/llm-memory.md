@@ -473,7 +473,7 @@ This is where ~90% of writes come from. The foreground model writes memory only 
 | Model | The main model by default, or a cheaper one |
 | Tools | `search` only, at most 2 calls (it needs them to avoid duplicate ids) |
 | Inputs | The turn's transcript, the current core, today's diary entry, the last 20 log lines, the persona |
-| Effect | Appends a log line; optionally remembers, forgets, or writes today's diary |
+| Effect | Appends a log line; optionally remembers, forgets, writes today's diary, or revises its handover |
 
 Its output is a JSON object, validated through the same code paths as the tools, so a reviewer write and a foreground write cannot diverge:
 
@@ -495,6 +495,7 @@ Validation rules, in order:
 3. **Nothing durable ⇒ empty object.** "No memory change" is the normal outcome of most turns, and must be cheap.
 4. **The diary is written for a day, not a turn.** It is revised when the day's narrative actually moved, not once per turn, or it becomes a second log — and a paragraph written later in the day is *appended* (`body_mode="a"`) rather than restated, because a writer that never read the day cannot faithfully rewrite it.
 5. **Identity proposals are facts, not edits.** A pattern in how the user works goes to `tags: identity-proposal` with quoted evidence in the body. A human merges it into the persona.
+6. **The handover is revised when the state of play moved, and it is the reviewer's to revise.** A session can end without warning — a cancelled turn, a closed terminal, a killed process — and a handover written only by a session that knows it is leaving is missing exactly when the next session needs it most. The gate is the same as the diary's: a turn that only answered a question leaves it alone, or the handover becomes a log of the last turn. Unlike the body, the handover *replaces*: two states of play are not one.
 
 What belongs where — the rule that keeps the diary from becoming prose-shaped log:
 
