@@ -337,14 +337,22 @@ def clip_text_both_ends(text: str, limiter: "LLMLimiter", budget: int) -> str:
     how much it removed — the same shape as `prune_tool_result_content`, without
     the spill pointer, because the caller is fitting one message into a chunk
     rather than pruning a tool result, and the archive already holds it whole.
+
+    Every fallback honours the budget too. A marker that does not fit is dropped
+    for the start of the text, and a budget too small for any boundary returns
+    what fits of the front: the caller's promise is that the result is bounded,
+    and a budget derived from a model's window is small exactly when an
+    unbounded answer would fail the request.
     """
     total = limiter.count_tokens(text)
-    if budget < 2 or total <= budget:
+    if total <= budget:
         return text
+    if budget <= 0:
+        return ""
     marker = f"\n[... {total:,} tokens in all; the middle is not shown ...]\n"
     body_budget = budget - limiter.count_tokens(marker)
     if body_budget < 2:
-        return marker.strip()
+        return limiter.truncate_text(text, budget)
     head_budget = max(1, body_budget // 2)
     head, head_tokens = _keep_head(text, limiter, head_budget)
     # What the head did not spend goes to the tail, so a head of whole lines

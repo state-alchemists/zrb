@@ -7,6 +7,7 @@ import pytest
 
 from zrb.llm.summarizer.tool_result_pruner import (
     PRUNED_PREFIX,
+    clip_text_both_ends,
     is_pruned_tool_result,
     prune_tool_result_content,
     spill_tool_result,
@@ -22,6 +23,20 @@ class CharLimiter:
 
     def truncate_text(self, text: str, limit: int) -> str:
         return text[:limit]
+
+
+@pytest.mark.parametrize("budget", range(0, 80))
+def test_the_two_ended_clip_never_exceeds_its_budget(budget):
+    """Every fallback has to be bounded too, or the fit is not a fit.
+
+    The marker costs more than a small budget, and a budget of one token cannot
+    hold it at all. Returning the original text or the whole marker there is the
+    overshoot the chunk fit exists to prevent — and the budget comes from a
+    model's window, so it is small exactly when a request would fail.
+    """
+    limiter = CharLimiter()
+    clipped = clip_text_both_ends("head " + "m" * 400 + " tail", limiter, budget)
+    assert limiter.count_tokens(clipped) <= budget
 
 
 def test_the_pruned_text_keeps_a_measured_head_and_tail():
