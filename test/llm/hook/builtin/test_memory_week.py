@@ -20,6 +20,8 @@ from zrb.llm.hook.builtin.memory_week import (
     week_material,
     week_note_request,
 )
+from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager.manager import HookManager
 from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.model import Diary, WeekNote
 from zrb.llm.prompt.memory_context import render_memory_block
@@ -227,6 +229,47 @@ def test_the_hook_config_runs_on_a_completed_turn():
     # first turn must not wait on a model call to close last week.
     assert config.is_async is True
     assert config.timeout is not None
+
+
+@pytest.mark.asyncio
+async def test_the_manager_dispatches_the_hook_and_the_note_lands(store_dir, monkeypatch):
+    """Through the real manager: matcher, spawn, write, drain.
+
+    The lesson #886 taught: a hook asserted only at the callable can be wired so
+    that nothing ever reaches it. This one runs the way the runner runs it.
+    """
+    _day("2026-11-02", "Built the recall hook.")
+
+    async def fake_model(_material):
+        return "The week the store gained a week."
+
+    monkeypatch.setattr(memory_week, "_ask_model", fake_model)
+    manager = HookManager()
+    register_week_note_hook(manager)
+
+    await manager.execute_hooks(HookEvent.STOP, {"memory_due": True})
+    await manager.shutdown(drain=True, grace_seconds=5)
+
+    note = store.load_week(_LAST_WEEK)
+    assert note is not None and note.claim == "The week the store gained a week."
+
+
+@pytest.mark.asyncio
+async def test_the_manager_does_not_dispatch_it_without_the_flag(store_dir, monkeypatch):
+    """No `memory_due` in the payload: the matcher keeps the hook out."""
+    _day("2026-11-02", "Built the recall hook.")
+
+    async def fake_model(_material):
+        raise AssertionError("the hook ran without its flag")
+
+    monkeypatch.setattr(memory_week, "_ask_model", fake_model)
+    manager = HookManager()
+    register_week_note_hook(manager)
+
+    await manager.execute_hooks(HookEvent.STOP, {})
+    await manager.shutdown(drain=True, grace_seconds=5)
+
+    assert store.load_week(_LAST_WEEK) is None
 
 
 def test_the_hook_registers_once_while_memory_is_on(store_dir):
