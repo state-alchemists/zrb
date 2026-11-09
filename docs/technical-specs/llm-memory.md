@@ -366,7 +366,7 @@ Three tools. Two of them write.
 | Tool | Capability | Signature |
 |---|---|---|
 | `search` | `READ` | `search(query, scope="facts", limit=10)` |
-| `remember` | `EDIT` | `remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
+| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
 | `forget` | `EDIT` | `forget(id, reason)` where `reason ∈ {wrong, stale, done}` |
 
 There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or `list` tool. Each is either already possible (`read`) or is a `remember` call with a different `kind` (diary, handover).
@@ -374,12 +374,13 @@ There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or
 ### 5.2 `remember`
 
 ```
-remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None,
+remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
          source=None, handover=None, body=None, body_mode=None):
     require kind in {fact, loop, diary}
-    require one_sentence(claim, max=160)
+    require one_sentence(claim, max=160) unless claim is None
     if kind == "diary":
         require iso_date(id); require pin is False
+        require claim is not None or diary/<id>.md exists    # a new day needs one
         require body_mode is None or body_mode in {"w", "a"}   # diary only
         require body_mode != "a" or body.strip()
         require body is None or len(body) <= DIARY_MAX
@@ -387,6 +388,7 @@ remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None,
         path = diary/<id>.md
     else:
         require kebab(id)
+        require claim is not None                              # a fact is one sentence
         require body_mode is None                              # a fact body replaces
         require body is None or len(body) <= 8000
         path = facts/<id>.md
@@ -416,7 +418,7 @@ and discovered by whoever reads it next.
 Five properties follow from computing the core before writing:
 
 - **Dedup is by identity, not similarity.** One subject, one file; one day, one diary entry. No duplicate-detection code exists.
-- **Revision is a merge.** Omitted fields are preserved, so a session that only appends a diary paragraph cannot silently drop the handover, and a reviewer that restates a claim cannot silently drop the pin.
+- **Revision is a merge.** Omitted fields are preserved, so a session that only appends a diary paragraph cannot silently drop the handover, and a reviewer that restates a claim cannot silently drop the pin. `claim` follows the same rule for a diary that already exists — a handover that moved is not a new answer to what the day was — and is required only where there is nothing to keep: a new day, or any fact.
 - **Overflow is atomic.** When the core is full, *nothing* is written, and the refusal is actionable:
 
 ```

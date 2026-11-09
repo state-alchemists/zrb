@@ -197,6 +197,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # Per-instance fallback so ad-hoc UIs never share an xcom slot.
         self._yolo_xcom_key = self._ui_config.yolo_xcom_key or f"_yolo_{id(self)}"
         self._running_llm_task: asyncio.Task | None = None
+        # The task whose cancellation has already been announced to the memory
+        # hooks. A repeat Esc during the unwind reaches `cancel_current_turn`
+        # with the same task object still not `done()`, and one turn must leave
+        # one event line.
+        self._announced_cancel_task: asyncio.Task | None = None
         self.llm_task = llm_task
         self._history_manager = history_manager
         self._assistant_name = self._ui_config.assistant_name
@@ -755,6 +760,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             return
         self.cancel_pending_confirmations()
         running.cancel()
+        # Announced once per task. The task stays not-`done()` while the
+        # cancellation unwinds, so a second Esc (or an Esc then a Ctrl+C) reaches
+        # here again with the same object: the cancel is repeated, the event line
+        # is not. Before this, a repeat Stop was inert because the reviewer's
+        # matcher needs `memory_due`; a log-only hook would have duplicated it.
+        first_announcement = running is not self._announced_cancel_task
+        self._announced_cancel_task = running
         self.execute_hook(
             HookEvent.STOP,
             {
@@ -764,7 +776,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 # sees this path, so the payload says which it was: a log-only
                 # hook writes the event line and the reviewer — whose premise is
                 # a finished transcript — stays out.
-                "turn_cancelled": True,
+                **({"turn_cancelled": True} if first_announcement else {}),
             },
         )
 

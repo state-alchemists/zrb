@@ -147,6 +147,35 @@ def test_a_second_diary_call_keeps_the_handover(store_dir):
     assert entry.body == "A long day of arguing with myself."
 
 
+def test_a_handover_revision_keeps_the_days_claim(store_dir):
+    """The claim is every later session's `Today` line; a moved handover is not a
+    new day, and a reviewer that never read the day must not rewrite it."""
+    remember(
+        "2026-11-03", "Spent the day on memory.", kind="diary", body="Morning: the split."
+    )
+    message = remember(
+        "2026-11-03", None, kind="diary", handover="Ask about the cap first."
+    )
+    assert "Remembered the day" in message
+    entry = store.load_diary("2026-11-03")
+    assert entry is not None
+    assert entry.claim == "Spent the day on memory."
+    assert entry.handover == "Ask about the cap first."
+    assert entry.body == "Morning: the split."
+
+
+def test_a_new_day_needs_a_claim_even_with_a_body(store_dir):
+    message = remember("2026-11-04", None, kind="diary", body="A day.")
+    assert "needs a `claim`" in message
+    assert store.load_diary("2026-11-04") is None
+
+
+def test_a_fact_still_needs_a_claim(store_dir):
+    message = remember("x", None)
+    assert "needs a `claim`" in message
+    assert store.load_fact("x") is None
+
+
 def test_a_diary_entry_is_forgotten_only_as_wrong(store_dir):
     remember("2026-11-03", "A day.", kind="diary", body="something")
     assert "only as `wrong`" in forget("2026-11-03", "stale")

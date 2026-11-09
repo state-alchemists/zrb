@@ -248,22 +248,19 @@ class UIKeybindings:
             return
         # No flush: the app is exiting.
         ui.cancel_pending_confirmations(flush=False)
-        turn_cancelled = False
-        if ui.running_llm_task and not ui.running_llm_task.done():
-            ui.running_llm_task.cancel()
-            turn_cancelled = True
+        # `is_turn_running`, not `running_llm_task`: under a MultiUI the parent
+        # runs the turn, and this UI's own task slot stays empty. The cancel and
+        # its `turn_cancelled` Stop live in `cancel_current_turn`, so a turn cut
+        # here is announced exactly once however many keys were pressed.
+        if ui.is_turn_running:
+            ui.cancel_current_turn("ctrl_c")
             ui.append_to_output("\n<Esc> Canceled")
-        ui.execute_hook(
-            HookEvent.STOP,
-            {
-                "reason": "ctrl_c",
-                "session": ui.conversation_session_name,
-                # Only a turn that was actually cut may say so. An idle Ctrl+C
-                # ends a session that was not mid-turn, and a memory hook that
-                # heard "interrupted" would log a turn that never existed.
-                **({"turn_cancelled": True} if turn_cancelled else {}),
-            },
-        )
+        else:
+            # An idle exit: nothing was cut, so the payload must not say so.
+            ui.execute_hook(
+                HookEvent.STOP,
+                {"reason": "ctrl_c", "session": ui.conversation_session_name},
+            )
         event.app.exit()
 
     def _on_exit_if_empty(self, event: Any) -> None:
@@ -272,19 +269,10 @@ class UIKeybindings:
         if ui.input_field.buffer.text != "":
             return
         ui.cancel_pending_confirmations(flush=False)
-        if ui.running_llm_task and not ui.running_llm_task.done():
-            ui.running_llm_task.cancel()
-            # This exit used to fire no `Stop` at all, so a turn cut by Ctrl+D
-            # left the day with no event line — the case the memory interrupt
-            # hook exists for. Announced only for a turn that was actually cut.
-            ui.execute_hook(
-                HookEvent.STOP,
-                {
-                    "reason": "ctrl_d",
-                    "session": ui.conversation_session_name,
-                    "turn_cancelled": True,
-                },
-            )
+        # This exit used to cut a running turn and say nothing, so the day lost
+        # the event. `cancel_current_turn` cancels, announces and fires the Stop.
+        if ui.is_turn_running:
+            ui.cancel_current_turn("ctrl_d")
         event.app.exit()
 
     async def _on_clipboard_paste(self, clipboard: Any) -> None:
