@@ -341,6 +341,13 @@ async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monke
                 )
             ]
         ),
+        # Padding, so the compaction runs on a budget that can also hold the
+        # per-part instructions and the pruned result's pointer. A budget of a
+        # few dozen tokens cannot hold both, and this test is about the archive.
+        *[
+            ModelRequest(parts=[UserPromptPart(content="context line " * 30)])
+            for _ in range(4)
+        ],
         ModelRequest(parts=[UserPromptPart(content="what did it say?")]),
     ]
 
@@ -352,7 +359,7 @@ async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monke
         message_agent=message_agent,
         summary_window=1,
         message_token_threshold=50,
-        conversational_token_threshold=60,
+        conversational_token_threshold=250,
         session_name="fat-tool-result",
     )
     await processor(messages, 0)

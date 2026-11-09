@@ -15,6 +15,9 @@ class _Limiter:
     def count_tokens(self, text: str) -> int:
         return len(text.split())
 
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        return " ".join(text.split()[:max_tokens])
+
 
 @pytest.mark.asyncio
 async def test_empty_messages_returns_no_summaries_marker():
@@ -51,7 +54,11 @@ async def test_message_to_text_failure_falls_back_to_str():
 
 
 _TINY_MODEL = "zrb-test-tiny-window"
-_TINY_WINDOW = 100
+# Wide enough to hold a real chunk and the per-part instructions: the header
+# costs about fifty tokens, so a hundred-token window asserted behaviour the
+# model could not physically accept, and it went unnoticed while nothing checked
+# the window at all.
+_TINY_WINDOW = 400
 
 
 @pytest.fixture
@@ -100,21 +107,9 @@ async def test_chunk_is_capped_by_the_summarization_models_window(
     )
 
 
-_NARROW_MODEL = "zrb-test-narrow-window"
-_NARROW_WINDOW = 400
-
-
-@pytest.fixture
-def narrow_window_model():
-    "A window wide enough for the header, narrow enough for it to matter."
-    model_capabilities.register(_NARROW_MODEL, context_window=_NARROW_WINDOW)
-    yield f"fake:{_NARROW_MODEL}"
-    model_capabilities.clear()
-
-
 @pytest.mark.asyncio
 async def test_the_instructions_are_paid_for_out_of_the_chunk_budget(
-    narrow_window_model, monkeypatch
+    tiny_window_model, monkeypatch
 ):
     """The header and the last-part note are appended after the split is sized.
 
@@ -126,7 +121,7 @@ async def test_the_instructions_are_paid_for_out_of_the_chunk_budget(
 
     await chunk_and_summarize(
         messages=_messages(60),
-        agent=SimpleNamespace(model=narrow_window_model),
+        agent=SimpleNamespace(model=tiny_window_model),
         limiter=_Limiter(),
         token_threshold=1000,
         include_last_user_intent_instruction=True,
@@ -134,10 +129,34 @@ async def test_the_instructions_are_paid_for_out_of_the_chunk_budget(
 
     assert len(sent) > 1, "one chunk would not exercise the per-chunk header"
     assert all(
-        _Limiter().count_tokens(chunk) <= _NARROW_WINDOW for chunk in sent
+        _Limiter().count_tokens(chunk) <= _TINY_WINDOW for chunk in sent
     ), "a chunk plus its instructions is larger than the model's window"
     assert all("spine of it" in chunk for chunk in sent)
     assert "latest request" in sent[-1]
+
+
+@pytest.mark.asyncio
+async def test_a_single_message_larger_than_the_budget_is_clipped(
+    tiny_window_model, monkeypatch
+):
+    """The split never breaks a message, so it would ride alone in an oversized chunk.
+
+    Kept at full length and given its header, one fat message becomes a request
+    past the window the model accepts, and a refused chunk fails the compaction.
+    The archive keeps the message whole; the summarizer gets what fits.
+    """
+    sent = _recording_summarizer(monkeypatch)
+
+    await chunk_and_summarize(
+        messages=[" ".join(["w"] * 350)],
+        agent=SimpleNamespace(model=tiny_window_model),
+        limiter=_Limiter(),
+        token_threshold=1000,
+        include_last_user_intent_instruction=True,
+    )
+
+    assert len(sent) == 1
+    assert _Limiter().count_tokens(sent[0]) <= _TINY_WINDOW
 
 
 @pytest.mark.asyncio

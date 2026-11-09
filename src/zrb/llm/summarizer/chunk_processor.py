@@ -38,7 +38,7 @@ _LAST_CHUNK_NOTE = (
 
 
 def _instruction_tokens(limiter: "LLMLimiter", include: bool) -> int:
-    """What the per-chunk instructions cost, in tokens the chunk budget must keep.
+    """What the per-part instructions cost, in tokens the chunk budget must keep.
 
     A chunk sized to 90% of the model's window and then given a header is a
     request the model refuses with `context_length_exceeded`, and a refused chunk
@@ -56,6 +56,22 @@ def _instruction_tokens(limiter: "LLMLimiter", include: bool) -> int:
         + limiter.count_tokens(_LAST_CHUNK_NOTE)
         + 4
     )
+
+
+def _fit_to_budget(text: str, limiter: "LLMLimiter", limit: int) -> tuple[str, int]:
+    """*text* with its token count, clipped when it alone exceeds *limit*.
+
+    The split never breaks a message. One longer than the whole chunk budget
+    would therefore ride alone in a chunk that is already over the model's
+    window, and the instructions appended after it push the request further
+    still — a single fat message fails the compaction on its own. The archive
+    keeps it in full; the model gets what fits.
+    """
+    tokens = limiter.count_tokens(text)
+    if tokens <= limit:
+        return text, tokens
+    text = limiter.truncate_text(text, limit)
+    return text, limiter.count_tokens(text)
 
 
 async def chunk_and_summarize(
@@ -95,7 +111,7 @@ async def chunk_and_summarize(
     chunk_token_limit = max(1, int(chunk_budget * 0.9) - instruction_tokens)
 
     for text in history_texts:
-        text_tokens = limiter.count_tokens(text)
+        text, text_tokens = _fit_to_budget(text, limiter, chunk_token_limit)
         if current_chunk and (current_chunk_tokens + text_tokens > chunk_token_limit):
             chunks.append(current_chunk)
             current_chunk = []
@@ -134,8 +150,11 @@ async def chunk_and_summarize(
                 # the one instruction meant for this part would be the one most
                 # likely to be discarded.
                 chunk_content += "\n\n" + _LAST_CHUNK_NOTE
+        # `chunk_budget` rather than the request-wide `token_threshold`: the chunk
+        # was sized to the budget, and a threshold larger than the model's window
+        # is exactly what sends an over-context request down the "short" path.
         return await summarize_text_plain(
-            chunk_content, agent, limiter, token_threshold, spent
+            chunk_content, agent, limiter, chunk_budget, spent
         )
 
     # Run all chunks concurrently; preserve order via index
