@@ -17,10 +17,12 @@ nothing, and neither is an error.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
@@ -28,10 +30,22 @@ from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+    from zrb.llm.hook.contracts.interface import HookCallable, HookContext
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "memory-reviewer"
+
+# The log-only hook a cancelled turn runs. Separate from the reviewer because a
+# cancelled turn is not a completed one: the reviewer's premise is a finished
+# transcript, and what exists here is whatever streamed before the interrupt.
+_INTERRUPT_NAME = "memory-interrupt-log"
+
+# What a cancelled turn leaves in the log. It does not claim the turn had no
+# reply: `cancel_current_turn` sees a queued job that is still finishing, so a
+# turn whose answer already landed can also be cancelled, and the reviewer has
+# written its own line for it. "Cancelled" is true in both cases; "interrupted
+# before a reply" would be false in the second.
+INTERRUPTED_LOG_TEXT = "the turn was cancelled"
 
 # A tool-calling round trip takes ~15s on a small model; shutdown waits this long
 # before cancelling, so a one-shot `zrb llm chat` does not kill the reviewer.
@@ -84,6 +98,26 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     """Register the reviewer unless memory or the reviewer is switched off."""
     if not CFG.LLM_MEMORY_ENABLED or not CFG.LLM_MEMORY_REVIEWER_ENABLED:
         return
+    # A cancelled turn never reaches the reviewer's matcher: the TUI fires its own
+    # Stop, with `turn_cancelled` and no completed transcript.
+    #
+    # Registered with the reviewer rather than on `LLM_MEMORY_ENABLED` alone, even
+    # though it calls no model: the log line for a *completed* turn is written by
+    # `_with_log_line`, which exists only past this return, and the runner reports
+    # `memory_due` false in the same configuration. An interrupt line without those
+    # would leave a day whose log held cancellations and nothing else, which reads
+    # worse than a day with no log at all.
+    # Registered through the registry rather than with `add_hook` directly: a
+    # factory is called on every load and reload, and the registry is what
+    # refuses a second hook of the same name — a bare `add_hook` here would
+    # append a duplicate per reload and write the line twice.
+    interrupt_config = build_interrupt_log_hook_config()
+    registered = manager.register_hook_config(interrupt_config, source="builtin")
+    if registered is not None:
+        manager.remove_hook(registered)
+        manager.add_hook(
+            create_interrupt_log_hook(), interrupt_config.events, interrupt_config
+        )
     config = build_memory_reviewer_hook_config()
     hook = manager.register_hook_config(config, source="builtin")
     if hook is None:
@@ -94,6 +128,52 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     manager.add_hook(_with_log_line(hook), config.events, config)
 
 
+def build_interrupt_log_hook_config() -> HookConfig:
+    """The hook a cancelled turn runs: one event line, no model call.
+
+    The `AgentHookConfig` is the shape `HookManager.add_hook` expects for a
+    built-in; the callable registered beside it is what runs, and it never builds
+    an agent. Nothing here may fail the teardown of a chat the user already quit.
+    """
+    return HookConfig(
+        name=_INTERRUPT_NAME,
+        events=[HookEvent.STOP],
+        type=HookType.AGENT,
+        config=AgentHookConfig(
+            system_prompt=get_prompt("memory_reviewer"),
+            tools=["SearchMemory", "Remember", "Forget"],
+            model=resolve_configured_small_model(),
+            auto_approve=True,
+        ),
+        matchers=[
+            MatcherConfig(
+                field="event_data.turn_cancelled",
+                operator=MatcherOperator.EQUALS,
+                value=True,
+            )
+        ],
+        is_async=True,
+        # No model is called, so this hook must not stretch the exit drain: the
+        # manager extends it to a pending agent hook's own timeout, and 90 s of
+        # "the terminal looks hung after quitting" is longer than the line is
+        # worth. The write runs in a thread and finishes even if the awaiting
+        # task is cancelled at the ordinary budget.
+        timeout=None,
+    )
+
+
+def create_interrupt_log_hook() -> "HookCallable":
+    """Write the interrupted turn's event line and nothing else."""
+
+    async def interrupt_log(context: "HookContext") -> "HookResult":
+        # Off the loop: the store's lock polls and the git commit can block, and a
+        # quit must not hold the event loop on either while it is torn down.
+        await asyncio.to_thread(_write_log_line, context, INTERRUPTED_LOG_TEXT)
+        return HookResult()
+
+    return interrupt_log
+
+
 def _with_log_line(hook: "HookCallable") -> "HookCallable":
     async def reviewed(context: "HookContext") -> "HookResult":
         # The log line is about the turn, not about the reviewer: a failed or
@@ -102,7 +182,9 @@ def _with_log_line(hook: "HookCallable") -> "HookCallable":
         try:
             return await hook(context)
         finally:
-            _append_event_line(context)
+            # Off the loop, for the same reason the interrupt hook is: a lock wait
+            # or a slow git commit must not stall the turn that just finished.
+            await asyncio.to_thread(_append_event_line, context)
 
     return reviewed
 
@@ -112,8 +194,17 @@ def _append_event_line(context: "HookContext") -> None:
     text = _first_sentence(context.last_assistant_message or "")
     if not text:
         return
-    reason = injection_reason(text)
-    if reason:
+    _write_log_line(context, text)
+
+
+def _write_log_line(context: "HookContext", text: str) -> None:
+    """Put one event into the day's log, with the project it happened in.
+
+    Split from `_append_event_line` because a turn that was cancelled has no
+    reply to take a sentence from: its line is a fixed statement of the event,
+    and it reaches the same file through the same lock and the same commit.
+    """
+    if injection_reason(text):
         text = WITHHELD_LOG_TEXT
     try:
         with store.locked():

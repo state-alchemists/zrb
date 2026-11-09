@@ -197,6 +197,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # Per-instance fallback so ad-hoc UIs never share an xcom slot.
         self._yolo_xcom_key = self._ui_config.yolo_xcom_key or f"_yolo_{id(self)}"
         self._running_llm_task: asyncio.Task | None = None
+        # The task whose cancellation has already been announced to the memory
+        # hooks. A repeat Esc during the unwind reaches `cancel_current_turn`
+        # with the same task object still not `done()`, and one turn must leave
+        # one event line.
+        self._announced_cancel_task: asyncio.Task | None = None
         self.llm_task = llm_task
         self._history_manager = history_manager
         self._assistant_name = self._ui_config.assistant_name
@@ -740,24 +745,38 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         parent = self.multi_ui_parent
         return parent is not None and parent.is_turn_running
 
-    def cancel_current_turn(self, reason: str) -> None:
+    def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """Release pending confirmations, cancel the turn and fire `Stop`.
 
-        A `MultiUI` child delegates to its parent, which runs the turn.
+        A `MultiUI` child delegates to its parent, which runs the turn. *flush*
+        reaches `cancel_pending_confirmations`: an exit passes `False`, because
+        replaying buffered output into a transcript being torn down is work
+        nobody will read.
         """
         running = self._running_llm_task
         if running is None or running.done():
             parent = self.multi_ui_parent
             if parent is not None:
-                parent.cancel_current_turn(reason)
+                parent.cancel_current_turn(reason, flush=flush)
             else:
-                self.cancel_pending_confirmations()
+                self.cancel_pending_confirmations(flush=flush)
             return
-        self.cancel_pending_confirmations()
+        self.cancel_pending_confirmations(flush=flush)
         running.cancel()
+        # Announced once per task: it stays not-`done()` while the cancel unwinds,
+        # so a second Esc reaches here again with the same object and must not
+        # write a second event line.
+        first_announcement = running is not self._announced_cancel_task
+        self._announced_cancel_task = running
         self.execute_hook(
             HookEvent.STOP,
-            {"reason": reason, "session": self.conversation_session_name},
+            {
+                "reason": reason,
+                "session": self.conversation_session_name,
+                # No completed transcript exists, so the reviewer stays out and a
+                # log-only hook writes the event line.
+                **({"turn_cancelled": True} if first_announcement else {}),
+            },
         )
 
     def execute_hook(

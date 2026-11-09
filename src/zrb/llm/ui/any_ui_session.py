@@ -84,12 +84,13 @@ class AnyUISession(ABC):
         this UI's own, or the one its `MultiUI` parent runs for it."""
 
     @abstractmethod
-    def cancel_current_turn(self, reason: str) -> None:
+    def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """Stop the turn the assistant is taking, as Esc does: release a
         pending confirmation, cancel the running turn and fire `Stop` with
         *reason* (who asked, e.g. ``"escape"``). With no turn running only
         the confirmation is released; a UI that never runs a turn and holds
-        no confirmation does nothing.
+        no confirmation does nothing. *flush* reaches the confirmation release;
+        an exit passes ``False`` because the transcript is being torn down.
         """
 
     @property

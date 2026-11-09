@@ -325,7 +325,11 @@ async def test_cancel_current_turn_cancels_the_turn_multi_ui_runs():
         child.cancel_current_turn.assert_not_called()
     [call] = turn_manager.execute_hooks.call_args_list
     assert call.args[0].value == "Stop"
-    assert call.args[1] == {"reason": "barge_in", "session": "s1"}
+    assert call.args[1] == {
+        "reason": "barge_in",
+        "session": "s1",
+        "turn_cancelled": True,
+    }
 
 
 def test_cancel_current_turn_with_no_turn_only_releases_confirmations():

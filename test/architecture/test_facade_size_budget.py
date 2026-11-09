@@ -130,7 +130,13 @@ FACADE_BUDGETS = {
     # +4 (1271->1275): the imports naming `zrb.llm.shared.*` are longer than
     # `zrb.llm.*` were, so black wrapped four `from ... import (...)` blocks that
     # used to fit one line. Same names, same surface.
-    "llm/ui/base/ui.py": 1275,
+    # +19 (1275->1294): `cancel_current_turn` grew the exit path it now carries —
+    # a `flush` parameter (an exit releases confirmations without replaying them
+    # into a transcript being torn down), the `_announced_cancel_task` state that
+    # writes one event line per cut turn however many keys were pressed, and the
+    # `turn_cancelled` payload field the log-only hook matches. New surface on a
+    # method `AnyUI` already declares; the multi-UI copy lives in `multi/turn.py`.
+    "llm/ui/base/ui.py": 1294,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

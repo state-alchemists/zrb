@@ -253,7 +253,28 @@ def test_cancel_current_turn_cancels_the_running_turn_and_fires_stop(surface_ui)
     running.cancel.assert_called_once()
     [(event, data), _] = execute_hook.call_args
     assert event.value == "Stop"
-    assert data == {"reason": "barge_in", "session": "s1"}
+    # `turn_cancelled` is what tells the memory hooks that no completed
+    # transcript exists: the reviewer stays out and only the log line is written.
+    assert data == {"reason": "barge_in", "session": "s1", "turn_cancelled": True}
+
+
+def test_a_repeated_cancel_announces_the_turn_once(surface_ui):
+    """The task stays not-`done()` while the cancel unwinds; the line must not."""
+    running = MagicMock()
+    running.done.return_value = False
+    surface_ui.running_llm_task = running
+    surface_ui.conversation_session_name = "s1"
+
+    with (
+        patch.object(surface_ui, "cancel_pending_confirmations"),
+        patch.object(surface_ui, "execute_hook") as execute_hook,
+    ):
+        surface_ui.cancel_current_turn("escape")
+        surface_ui.cancel_current_turn("escape")
+
+    first, second = execute_hook.call_args_list
+    assert first.args[1]["turn_cancelled"] is True
+    assert "turn_cancelled" not in second.args[1]
 
 
 @pytest.mark.parametrize("done", [None, True])

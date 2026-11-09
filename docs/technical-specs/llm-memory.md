@@ -162,7 +162,7 @@ turn only.
 | Field | Required | Rule |
 |---|---|---|
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
-| `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. |
+| `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
 | `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (2,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
@@ -366,7 +366,7 @@ Three tools. Two of them write.
 | Tool | Capability | Signature |
 |---|---|---|
 | `search` | `READ` | `search(query, scope="facts", limit=10)` |
-| `remember` | `EDIT` | `remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
+| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
 | `forget` | `EDIT` | `forget(id, reason)` where `reason ∈ {wrong, stale, done}` |
 
 There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or `list` tool. Each is either already possible (`read`) or is a `remember` call with a different `kind` (diary, handover).
@@ -374,12 +374,13 @@ There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or
 ### 5.2 `remember`
 
 ```
-remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None,
+remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
          source=None, handover=None, body=None, body_mode=None):
     require kind in {fact, loop, diary}
-    require one_sentence(claim, max=160)
+    require one_sentence(claim, max=160) unless claim is None
     if kind == "diary":
         require iso_date(id); require pin is False
+        require claim is not None or diary/<id>.md exists    # a new day needs one
         require body_mode is None or body_mode in {"w", "a"}   # diary only
         require body_mode != "a" or body.strip()
         require body is None or len(body) <= DIARY_MAX
@@ -387,6 +388,7 @@ remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None,
         path = diary/<id>.md
     else:
         require kebab(id)
+        require claim is not None                              # a fact is one sentence
         require body_mode is None                              # a fact body replaces
         require body is None or len(body) <= 8000
         path = facts/<id>.md
@@ -416,7 +418,7 @@ and discovered by whoever reads it next.
 Five properties follow from computing the core before writing:
 
 - **Dedup is by identity, not similarity.** One subject, one file; one day, one diary entry. No duplicate-detection code exists.
-- **Revision is a merge.** Omitted fields are preserved, so a session that only appends a diary paragraph cannot silently drop the handover, and a reviewer that restates a claim cannot silently drop the pin.
+- **Revision is a merge.** Omitted fields are preserved, so a session that only appends a diary paragraph cannot silently drop the handover, and a reviewer that restates a claim cannot silently drop the pin. `claim` follows the same rule for a diary that already exists — a handover that moved is not a new answer to what the day was — and is required only where there is nothing to keep: a new day, or any fact.
 - **Overflow is atomic.** When the core is full, *nothing* is written, and the refusal is actionable:
 
 ```
@@ -473,7 +475,7 @@ This is where ~90% of writes come from. The foreground model writes memory only 
 | Model | The main model by default, or a cheaper one |
 | Tools | `search` only, at most 2 calls (it needs them to avoid duplicate ids) |
 | Inputs | The turn's transcript, the current core, today's diary entry, the last 20 log lines, the persona |
-| Effect | Appends a log line; optionally remembers, forgets, or writes today's diary |
+| Effect | Appends a log line; optionally remembers, forgets, writes today's diary, or revises its handover |
 
 Its output is a JSON object, validated through the same code paths as the tools, so a reviewer write and a foreground write cannot diverge:
 
@@ -495,6 +497,7 @@ Validation rules, in order:
 3. **Nothing durable ⇒ empty object.** "No memory change" is the normal outcome of most turns, and must be cheap.
 4. **The diary is written for a day, not a turn.** It is revised when the day's narrative actually moved, not once per turn, or it becomes a second log — and a paragraph written later in the day is *appended* (`body_mode="a"`) rather than restated, because a writer that never read the day cannot faithfully rewrite it.
 5. **Identity proposals are facts, not edits.** A pattern in how the user works goes to `tags: identity-proposal` with quoted evidence in the body. A human merges it into the persona.
+6. **The handover is revised when the state of play moved, and it is the reviewer's to revise.** A session can end without warning — a cancelled turn, a closed terminal, a killed process — and a handover written only by a session that knows it is leaving is missing exactly when the next session needs it most. The gate is the same as the diary's: a turn that only answered a question leaves it alone, or the handover becomes a log of the last turn. Unlike the body, the handover *replaces*: two states of play are not one.
 
 What belongs where — the rule that keeps the diary from becoming prose-shaped log:
 

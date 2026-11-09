@@ -26,8 +26,8 @@ A claim is **one sentence, at most 160 characters**, stating what is true. The e
 
 - If the sentence could be a log line, it is not a diary line.
 - A moment between you and the user belongs in the diary's body: their words quoted, then one line of why it mattered. Never paraphrase a quote you do not have.
-- Add to the day, do not rewrite it: `Remember(kind="diary", body="…", body_mode="a")` puts this paragraph after whatever the day already says, so you write what has happened since rather than restating the day you were not there for. A day with no entry yet takes the same call and becomes one.
-- Do not write a handover. The assistant leaves that for the session that knows it is leaving.
+- Add to the day, do not rewrite it: `Remember(kind="diary", body="…", body_mode="a")` puts this paragraph after whatever the day already says, so you write what has happened since rather than restating the day you were not there for. A day with no entry yet takes the same call plus `id` and `claim`, and the first paragraph creates it.
+- Keep the handover current, but only when the state of play moved. `Remember(id="<today>", kind="diary", handover="…")` — the handover is the first thing the next session reads: what is in flight, what is blocked, what it should do first — at most 700 characters, and it replaces the day's previous one. Omit `claim`: a diary that already has one keeps it, and rewriting the day's sentence from one turn's transcript is how a day becomes a log of its last turn. A day with no entry yet needs `claim` and `body` too, because a handover cannot be stored on a day that does not exist. A session can end without warning: a cancelled turn, a closed laptop, a killed process. A handover written only by the session that knows it is leaving is missing exactly when it is needed. Revise it when a decision was made, a thread opened or closed, the user corrected you, or the plan changed. A turn that only answered a question leaves it alone.
 
 ## Closing a loop
 

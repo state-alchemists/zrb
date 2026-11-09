@@ -50,12 +50,54 @@ def test_ctrl_c_empty(mock_ui, setup_bindings):
     trigger_binding(setup_bindings, "c-c", event)
 
     mock_ui.cancel_pending_confirmations.assert_called_once()
-    mock_task.cancel.assert_called_once()
+    # The cancel and its `turn_cancelled` Stop live in `cancel_current_turn`, so a
+    # repeated press announces the cut turn once rather than once per key.
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_c", flush=False)
+    mock_task.cancel.assert_not_called()
     assert "\n<Esc> Canceled" in mock_ui.outputs
+    mock_ui.execute_hook.assert_not_called()
+    event.app.exit.assert_called_once()
+
+
+def test_ctrl_c_without_a_running_turn_claims_no_cancellation(mock_ui, setup_bindings):
+    """An idle exit must not tell the memory hooks that a turn was cut."""
+    event = create_mock_event("")
+    mock_ui.running_llm_task = None
+
+    trigger_binding(setup_bindings, "c-c", event)
+
+    mock_ui.cancel_current_turn.assert_not_called()
     mock_ui.execute_hook.assert_called_with(
         HookEvent.STOP,
         {"reason": "ctrl_c", "session": "test_session"},
     )
+    event.app.exit.assert_called_once()
+
+
+def test_ctrl_d_cancelling_a_running_turn_goes_through_cancel_current_turn(
+    mock_ui, setup_bindings
+):
+    """Ctrl+D used to cut a turn and say nothing: the day lost the event."""
+    event = create_mock_event("")
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    mock_ui.running_llm_task = mock_task
+
+    trigger_binding(setup_bindings, "c-d", event)
+
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d", flush=False)
+    event.app.exit.assert_called_once()
+
+
+def test_ctrl_d_cancels_the_turn_a_multiui_parent_runs(mock_ui, setup_bindings):
+    """Under a MultiUI the child's task slot is empty; the parent runs the turn."""
+    event = create_mock_event("")
+    mock_ui.running_llm_task = None
+    mock_ui.parent_runs_turn = True
+
+    trigger_binding(setup_bindings, "c-d", event)
+
+    mock_ui.cancel_current_turn.assert_called_once_with("ctrl_d", flush=False)
     event.app.exit.assert_called_once()
 
 

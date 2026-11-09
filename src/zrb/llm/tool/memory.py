@@ -109,14 +109,16 @@ def remember(
         ),
     ],
     claim: Annotated[
-        str,
+        str | None,
         Field(
             description=(
                 "One sentence, at most 160 characters, saying what is true. This "
-                "is what a future session reads; the evidence goes in `body`."
+                "is what a future session reads; the evidence goes in `body`. "
+                "Omit it only when revising a diary that already has one — a "
+                "handover that moved does not rewrite the day's claim."
             )
         ),
-    ],
+    ] = None,
     kind: Annotated[
         str | None,
         Field(
@@ -231,6 +233,12 @@ def remember(
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
         append = (body_mode or "").strip().lower() == BODY_APPEND
         return _remember_diary(id, claim, handover, source, body, append)
+    if claim is None:
+        return (
+            "A fact needs a `claim`: one sentence saying what is true. Omit it "
+            "only when revising a diary that already has one. [SYSTEM "
+            "SUGGESTION]: re-send with the sentence."
+        )
     return _remember_fact(id, claim, wanted_kind, pin, tags, applies_when, source, body)
 
 
@@ -513,15 +521,23 @@ def _appended_body(previous: str, paragraph: str) -> str:
 
 def _remember_diary(
     day: str,
-    claim: str,
+    claim: str | None,
     handover: str | None,
     source: str | None,
     body: str | None,
     append: bool,
 ) -> str:
+    """Write a day. *claim* may be ``None``, which keeps the stored sentence.
+
+    A handover that moved is not a new answer to "what was this day": the claim
+    is rendered as the `Today` line of every later session and as that day's line
+    in the week view, so rewriting it from one turn's transcript would make the
+    day a log of its last turn. Every other field already follows the merge rule
+    — omitted means kept — and the claim was the one exception.
+    """
     for problem in (
         date_error(day),
-        claim_error(claim),
+        claim_error(claim) if claim is not None else None,
         body_error(body, KIND_DIARY),
         handover_error(handover),
     ):
@@ -537,9 +553,21 @@ def _remember_diary(
         return _unwritable(e)
 
 
+def _claim_to_store(claim: str | None, old: "Diary | None") -> str | None:
+    """The sentence a diary write stores, or ``None`` when a new day has none.
+
+    Omitted keeps the stored one, the rule every other field follows: a handover
+    that moved is not a new answer to what the day was, and a reviewer that never
+    read the day must not rewrite its `Today` line.
+    """
+    if claim is not None:
+        return claim
+    return old.claim if old is not None else None
+
+
 def _remember_diary_locked(
     day: str,
-    claim: str,
+    claim: str | None,
     handover: str | None,
     source: str | None,
     body: str | None,
@@ -551,6 +579,12 @@ def _remember_diary_locked(
             "A new diary entry needs a `body`: the day in the first person, what "
             "it was rather than what happened (the log holds that). "
             "[SYSTEM SUGGESTION]: nothing was written."
+        )
+    claim = _claim_to_store(claim, old)
+    if claim is None:
+        return (
+            "A new diary entry needs a `claim`: the day in one line, at most "
+            "160 characters. [SYSTEM SUGGESTION]: nothing was written."
         )
     body_text = _body_after(old, body, append)
     # Only an append needs the whole: the fragment the caller sent passed

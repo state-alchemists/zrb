@@ -40,6 +40,9 @@ class MultiUIState(UIStateDefaultsMixin):
         self.shell_cut_signal = None  # the turn's cut signal, set by the runner
         self._process_messages_task: asyncio.Task | None = None
         self._running_llm_task: asyncio.Task | None = None
+        # The task whose cancellation has already been announced to the memory
+        # hooks, as `BaseUI` keeps it: one cut turn, one event line.
+        self._announced_cancel_task: asyncio.Task | None = None
         self._is_thinking: bool = False
         self._last_result_data: str | None = None
         self._llm_task: Any = None
