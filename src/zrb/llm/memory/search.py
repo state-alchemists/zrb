@@ -79,12 +79,25 @@ class Hit:
     path: str
     updated: str
     score: int
+    tags: tuple[str, ...] = ()
 
     def line(self) -> str:
         stamps = [stamp for stamp in (self.updated[:10], self.kind) if stamp]
         suffix = f" ({', '.join(stamps)})" if stamps else ""
         name = self.id or self.path
         return f"{name} — {self.claim}  [{self.path}]{suffix}"
+
+
+def is_about_the_subject(query: str, hit: Hit) -> bool:
+    """Whether *hit* names the subject in its id, claim or tags — not in its body.
+
+    A body match says the subject is mentioned somewhere in the evidence, which
+    is enough for a search the model asked for and not enough to spend a turn's
+    context on unasked: recall fires on what a claim is *about*.
+    """
+    wanted = terms(query)
+    surfaces = (hit.id.lower(), hit.claim.lower(), " ".join(hit.tags).lower())
+    return any(word in surface for word in wanted for surface in surfaces)
 
 
 def terms(query: str) -> list[str]:
@@ -205,6 +218,7 @@ def _fact_hit(fact: Fact, score: int) -> Hit:
         path=paths.relative(paths.fact_path(fact.id)),
         updated=fact.updated,
         score=score,
+        tags=tuple(fact.tags),
     )
 
 
