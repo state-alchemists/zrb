@@ -499,25 +499,24 @@ This is where ~90% of writes come from. The foreground model writes memory only 
 
 The log line is not the reviewer's. A completed turn's event line is written by `memory-event-log`, a hook with no model behind it, registered whenever memory is on: a turn is worth a line whether or not it is worth re-reading, and `LLM_MEMORY_REVIEWER_ENABLED=off` must stop the per-turn model call without stopping the day's record.
 
-Its output is a JSON object, validated through the same code paths as the tools, so a reviewer write and a foreground write cannot diverge:
+Its output is the memory tools themselves: the reviewer is an agent hook with `SearchMemory`, `Remember` and `Forget`, so its writes go through the same implementation a foreground turn uses and cannot diverge from it:
 
-```json
-{
-  "remember": [{"id": "…", "claim": "…", "kind": "fact", "pin": false, "tags": "…"}],
-  "forget": [{"id": "…", "reason": "done"}],
-  "diary": {"claim": "…", "handover": "…", "body": "…"}
-}
+```
+SearchMemory(query=…)
+Remember(id=…, claim=…, kind="fact", tags=…)
+Remember(id="<today>", kind="diary", body=…, body_mode="a")
+Forget(id=…, reason="done")
 ```
 
-There is no `log` key: the turn's log line is appended by `memory-event-log` before the reviewer is asked anything, so the model has nothing to add to it.
+The tool surface is the validation. A diary call that names no date, or a claim over 160 characters, is refused by `Remember` itself rather than by a parser beside it. There is no `log` tool: the turn's log line is written by `memory-event-log` before the reviewer is asked anything, so the model has nothing to add to it.
 
-`diary.id` is implied: the reviewer's day. The entry is created if today has none and merged if it does.
+The reviewer's day is today, which it names on every diary call like any other caller — the date is the entry's identity, so it is required even for an append. The entry is created if today has none and merged if it does.
 
 Validation rules, in order:
 
 1. **Search before add.** If a fact for the subject exists, the reviewer must revise that id rather than invent a second one.
 2. **Never state what the turn did not establish.** A claim needs a source: the user's words, an observed result, or a file path. Guesses do not get written.
-3. **Nothing durable ⇒ empty object.** "No memory change" is the normal outcome of most turns, and must be cheap.
+3. **Nothing durable ⇒ no tool call.** "No memory change" is the normal outcome of most turns, and must be cheap.
 4. **The diary is written for a day, not a turn.** It is revised when the day's narrative actually moved, not once per turn, or it becomes a second log — and a paragraph written later in the day is *appended* (`body_mode="a"`) rather than restated, because a writer that never read the day cannot faithfully rewrite it.
 5. **Identity proposals are facts, not edits.** A pattern in how the user works goes to `tags: identity-proposal` with quoted evidence in the body. A human merges it into the persona.
 6. **The handover is revised when the state of play moved, and it is the reviewer's to revise.** A session can end without warning — a cancelled turn, a closed terminal, a killed process — and a handover written only by a session that knows it is leaving is missing exactly when the next session needs it most. The gate is the same as the diary's: a turn that only answered a question leaves it alone, or the handover becomes a log of the last turn. Unlike the body, the handover *replaces*: two states of play are not one.
@@ -573,7 +572,7 @@ Compaction re-emits the core and recent block, because a summary that drops the 
 
 - One `memory/.lock` per write **transaction** (entry + core + commit), `flock`, 30 s timeout. The reviewer and a foreground tool can never interleave inside a transaction.
 - Every file is written to `<path>.tmp` and `os.replace`d — a crash cannot truncate an entry, a diary, or the core.
-- Log lines are appended with `O_APPEND` and a single `write` to that day's file, which POSIX makes atomic for small buffers; no lock is needed for the common path. A day file is created on its first line and never rewritten, so it has no generated section and no merge step.
+- Log lines are appended under the store's lock: `append_log` reads the day file, drops any blank line an older writer left, and writes the whole file back. The lock, not `O_APPEND`, is what makes two writers correct — and it is held anyway, because the same write is committed to git in the same transaction. A day file is created on its first line and has no generated section and no merge step.
 - **One writer process per memory directory.** Two agents sharing one directory is not supported; both would regenerate `core.md` and each would overwrite the other's view. Cross-device sync is the same problem: appends merge in git, generated views do not.
 
 ### 7.3 Degradation
