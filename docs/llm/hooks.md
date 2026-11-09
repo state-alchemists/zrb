@@ -308,7 +308,7 @@ A runnable version of this snippet is `security-review-agent-example` in `exampl
 
 ## Built-in Hooks
 
-Five hooks ship with zrb. All are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`memory_reviewer`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_MEMORY_REVIEWER`.
+Six hooks ship with zrb. All are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`memory_reviewer`, `memory_week`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_MEMORY_REVIEWER`.
 
 ### The memory reviewer
 
@@ -333,6 +333,24 @@ After every completed turn, a small sub-agent reads that turn and writes what is
 A cancelled turn has no completed transcript, so the reviewer — whose premise is one — stays out. A third hook, `memory-interrupt-log`, matches the `Stop` payload's `turn_cancelled` and writes the single line `the turn was cancelled`, with no model call. It covers Esc, Ctrl+C and Ctrl+D while a turn is running — and a send-now that has to fall back to cancelling the turn, because that turn is cut the same way and leaves no other line. It announces a cut turn once however many keys were pressed, and fires through a `MultiUI` parent's turn too. Without it, a session ended mid-turn left the day's log reading as if nothing had happened.
 
 Both log hooks are registered whenever memory is on. They used to share the reviewer's switch, on the argument that a log written beside a reviewer that never ran would leave a day holding cancellations and nothing else — which was backwards: the answer was to free the line from the reviewer, not to drag it down with it. With `ZRB_LLM_MEMORY_REVIEWER_ENABLED=off` the log still records every turn; only the per-turn model call stops. Neither hook carries a timeout, so quitting never waits on a write that called no model.
+
+### The week note
+
+A day has a claim and a handover, and a month of days cannot fit in `## Recent` — so the rung between them was the one nothing wrote. `memory-week` writes it: one sentence saying what a finished week was, compressed from that week's day claims, and the block a session opens with carries it as the first line under `## Recent`.
+
+```
+## Recent
+- Week (2026-W45): The week the store learned to reach for what it knew.
+- Handover: the summariser fix is green and waiting on a merge.
+- Today (2026-11-10): Wrote the last-day line and deleted a dead renderer.
+```
+
+- **On** while memory is on and the reviewer is (`ZRB_LLM_MEMORY_ENABLED`, `ZRB_LLM_MEMORY_REVIEWER_ENABLED`); its hook name is `memory-week`. Both spend a model call on memory's behalf, and one switch stops both.
+- **Once per week, never on a schedule.** On a completed turn it asks whether the week that just ended has written days and no note. If it does, one small-model call compresses them; until then it asks and stops.
+- **Only the week that just ended.** An older gap is left alone: the block shows one note, and a call spent on a week nobody will read is how a background job becomes a bill.
+- **The material is the day claims**, with the gap counted — `3 of 7 days written`. A note that lists the days is the days again.
+- **One sentence, at most 160 characters.** If the model returns more, the note is clipped at a word boundary the way a log line is: this writer cannot be corrected the way a tool call can, so it keeps the start of a sentence rather than losing one to its last clause.
+- **A note is never rewritten by hand.** It is ordinary frontmatter in `week/<YYYY-Www>.md`, so it can be edited or deleted; the next session after a deletion writes it again from the same days.
 
 ### Recall by cue
 

@@ -27,10 +27,12 @@ from zrb.llm.memory.model import (
     STATUS_RETIRED,
     Diary,
     Fact,
+    WeekNote,
     date_error,
     format_stamp,
     id_error,
     split_document,
+    week_span,
 )
 from zrb.llm.memory.paths import (
     CORE_FILE,
@@ -51,6 +53,12 @@ _GIT_TIMEOUT_SECONDS = 20
 # The handover a first turn reads is the newest one, but only while it is recent:
 # a two-month-old "ask for the DNS credentials" is a thread that ended.
 _HANDOVER_MAX_AGE_DAYS = 7
+
+# A week note is written for a week that has finished, so the one the block shows
+# on Monday is a day old. It stays the week's frame for a fortnight: after that
+# either a newer week has replaced it, or nothing was written and a month-old
+# summary would be a claim about a different month.
+_WEEK_NOTE_MAX_AGE_DAYS = 14
 
 _TIME_FORMAT = "%H:%M"
 
@@ -189,6 +197,64 @@ def load_diaries(include_retired: bool = False) -> dict[str, Diary]:
             continue
         entries[entry.id] = entry
     return entries
+
+
+def load_week(week: str) -> WeekNote | None:
+    try:
+        note = WeekNote.from_markdown(read_document(paths.week_path(week)))
+    except ValueError:
+        return None
+    if note is None or note.id != week:
+        return None
+    return note
+
+
+def save_week(note: WeekNote) -> None:
+    write_document(paths.week_path(note.id), note.to_markdown())
+
+
+def load_weeks() -> dict[str, WeekNote]:
+    """Every active week note, keyed by its ISO week, newest first.
+
+    An ISO week id is zero-padded and a year's weeks sort inside the year, so
+    filename order is chronological order — no date parsing is needed to sort.
+    """
+    notes: dict[str, WeekNote] = {}
+    try:
+        names = sorted(os.listdir(paths.week_dir()), reverse=True)
+    except OSError:
+        return notes
+    for name in names:
+        if not name.endswith(".md") or name.startswith("."):
+            continue
+        path = os.path.join(paths.week_dir(), name)
+        note = WeekNote.from_markdown(read_document(path))
+        if note is None or not note.is_active:
+            continue
+        if name.removesuffix(".md") != note.id:
+            continue
+        notes[note.id] = note
+    return notes
+
+
+def latest_week_note(today_day: str | None = None) -> WeekNote | None:
+    """The newest week note still worth showing, or ``None``.
+
+    Only a finished week is a note: the week being lived through has its days,
+    and a summary of four of them would be rewritten before it was read. The
+    first note that is old enough to be stale ends the search, because the rest
+    are older still.
+    """
+    current = _as_date(today_day) or date.today()
+    for week, note in load_weeks().items():
+        _, sunday = week_span(week)
+        ended = _as_date(sunday)
+        if ended is None or ended > current:
+            continue
+        if (current - ended).days > _WEEK_NOTE_MAX_AGE_DAYS:
+            return None
+        return note
+    return None
 
 
 def latest_handover(today_day: str | None = None) -> Diary | None:

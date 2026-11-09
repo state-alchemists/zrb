@@ -11,6 +11,7 @@ from zrb.config.config import CFG
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.builtin.memory_recall import register_recall_hook
 from zrb.llm.hook.builtin.memory_reviewer import register_memory_reviewer_hook
+from zrb.llm.hook.builtin.memory_week import register_week_note_hook
 from zrb.llm.hook.builtin.self_review import register_self_review_hook
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import (
@@ -79,6 +80,7 @@ class HookManager(HookManagerLoading):
         self._hook_factories: list[Callable[[HookManager], None]] = [
             register_memory_reviewer_hook,
             register_recall_hook,
+            register_week_note_hook,
             register_self_review_hook,
             register_skill_frontmatter_hooks,
         ]
