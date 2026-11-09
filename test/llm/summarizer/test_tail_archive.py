@@ -124,6 +124,12 @@ async def test_the_archive_keeps_the_result_the_tail_only_clips(tmp_path, monkey
         verbatim_archive_path("tail-clip", str(tmp_path)), encoding="utf-8"
     ).read()
     assert _MIDDLE_MARKER in archived
+    # The tail's other messages were reproduced faithfully, so they stay out of
+    # the archive: it records what the history no longer holds, not recent turns
+    # it still holds in full.
+    for intact in ("It has three markers.", "what did it say?"):
+        assert intact in rendered
+        assert intact not in archived
     # Nothing pruned it either, so the archive is the only place it could be.
     spill = os.path.join(str(tmp_path), "verbatim", "tail-clip.tool-results")
     assert not os.path.exists(spill)

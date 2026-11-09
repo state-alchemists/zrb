@@ -422,14 +422,15 @@ async def summarize_history(
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
         # were replaced while they are still in the history.
-        # The kept tail joins them when rendering it to text lost something: a
-        # tool result over `TAIL_TOOL_OUTPUT_LIMIT` is clipped there, and a
-        # result under the prune threshold has no other copy — its middle would
-        # be gone from the history and from disk at the same time. A tail the
-        # render reproduced faithfully has lost nothing, so it is not archived
-        # and the section stays the record of what the conversation no longer
-        # holds. The trailing messages of a still-unresolved tool call are
-        # always left out: those stay in the history in native form.
+        # The kept tail joins them by the message, when rendering it to text lost
+        # something: a tool result over `TAIL_TOOL_OUTPUT_LIMIT` is clipped
+        # there, and a result under the prune threshold has no other copy — its
+        # middle would be gone from the history and from disk at the same time.
+        # The neighbouring tail messages are reproduced faithfully in the text
+        # the next turn inherits, so they stay out, and the section stays the
+        # record of what the conversation no longer holds. The trailing messages
+        # of a still-unresolved tool call are always left out: those stay in the
+        # history in native form.
         kept_verbatim = to_keep[: len(to_keep) - len(structured_tail)]
         archived = _without_prior_summaries(
             _verbatim_prefix(to_summarize, messages, verbatim_source)
@@ -1064,7 +1065,7 @@ def _clipped_tail(
     messages: "list[ModelMessage]",
     verbatim_source: "list[ModelMessage] | None",
 ) -> "list[ModelMessage]":
-    """The kept tail, when turning it into text threw part of it away.
+    """The kept tail's messages whose rendering to text threw part of them away.
 
     The tail is not summarized, but it is not kept as messages either:
     `_prepare_kept_tail` renders it to one block of text, and the renderer clips
@@ -1073,10 +1074,13 @@ def _clipped_tail(
     clip would leave no copy of its middle anywhere — the history holds the two
     ends, and the archive held only the summarized prefix.
 
+    Only the messages that lost something are returned. The rest of the tail was
+    reproduced faithfully in the text the next turn inherits, and archiving it
+    too would fill the file with turns the history still holds.
+
     The test is the renderer's own comparison rather than a re-statement of its
-    rule: the tail is archived exactly when the text the model sees differs from
-    the text the conversation held. A tail reproduced faithfully is not archived,
-    so a section stays a record of what is no longer in the history.
+    rule: a message is archived exactly when the text the model sees differs from
+    the text the conversation held.
 
     The tail is the suffix of `messages`, so the same suffix of
     `verbatim_source` is the same turns before fat tool results were pruned. A
@@ -1084,13 +1088,25 @@ def _clipped_tail(
     """
     if not to_keep:
         return []
-    if render_verbatim_messages(to_keep) == render_verbatim_messages(
-        to_keep, tool_output_limit=None
-    ):
-        return []
-    if verbatim_source is None or len(verbatim_source) != len(messages):
-        return to_keep
-    return verbatim_source[len(messages) - len(to_keep) :]
+    originals = to_keep
+    if verbatim_source is not None and len(verbatim_source) == len(messages):
+        originals = verbatim_source[len(messages) - len(to_keep) :]
+    return [
+        original
+        for message, original in zip(to_keep, originals)
+        if _is_render_lossy(message)
+    ]
+
+
+def _is_render_lossy(message: "ModelMessage") -> bool:
+    """Whether the text this message is sent as holds less than the message.
+
+    Asked of the renderer in both forms rather than of a size rule written here,
+    so the answer cannot drift from what the tail actually sends.
+    """
+    return render_verbatim_messages([message]) != render_verbatim_messages(
+        [message], tool_output_limit=None
+    )
 
 
 def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":
