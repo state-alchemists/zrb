@@ -38,10 +38,12 @@ _NAME = "memory-reviewer"
 # transcript, and what exists here is whatever streamed before the interrupt.
 _INTERRUPT_NAME = "memory-interrupt-log"
 
-# What an interrupted turn leaves in the log. There is no reply to quote — the
-# turn was cut before one existed — and a guess at what it would have said is not
-# an event.
-INTERRUPTED_LOG_TEXT = "the turn was interrupted before a reply"
+# What a cancelled turn leaves in the log. It does not claim the turn had no
+# reply: `cancel_current_turn` sees a queued job that is still finishing, so a
+# turn whose answer already landed can also be cancelled, and the reviewer has
+# written its own line for it. "Cancelled" is true in both cases; "interrupted
+# before a reply" would be false in the second.
+INTERRUPTED_LOG_TEXT = "the turn was cancelled"
 
 # A tool-calling round trip takes ~15s on a small model; shutdown waits this long
 # before cancelling, so a one-shot `zrb llm chat` does not kill the reviewer.

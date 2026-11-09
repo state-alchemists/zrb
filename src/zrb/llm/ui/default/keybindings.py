@@ -248,12 +248,21 @@ class UIKeybindings:
             return
         # No flush: the app is exiting.
         ui.cancel_pending_confirmations(flush=False)
+        turn_cancelled = False
         if ui.running_llm_task and not ui.running_llm_task.done():
             ui.running_llm_task.cancel()
+            turn_cancelled = True
             ui.append_to_output("\n<Esc> Canceled")
         ui.execute_hook(
             HookEvent.STOP,
-            {"reason": "ctrl_c", "session": ui.conversation_session_name},
+            {
+                "reason": "ctrl_c",
+                "session": ui.conversation_session_name,
+                # Only a turn that was actually cut may say so. An idle Ctrl+C
+                # ends a session that was not mid-turn, and a memory hook that
+                # heard "interrupted" would log a turn that never existed.
+                **({"turn_cancelled": True} if turn_cancelled else {}),
+            },
         )
         event.app.exit()
 
@@ -265,6 +274,17 @@ class UIKeybindings:
         ui.cancel_pending_confirmations(flush=False)
         if ui.running_llm_task and not ui.running_llm_task.done():
             ui.running_llm_task.cancel()
+            # This exit used to fire no `Stop` at all, so a turn cut by Ctrl+D
+            # left the day with no event line — the case the memory interrupt
+            # hook exists for. Announced only for a turn that was actually cut.
+            ui.execute_hook(
+                HookEvent.STOP,
+                {
+                    "reason": "ctrl_d",
+                    "session": ui.conversation_session_name,
+                    "turn_cancelled": True,
+                },
+            )
         event.app.exit()
 
     async def _on_clipboard_paste(self, clipboard: Any) -> None:

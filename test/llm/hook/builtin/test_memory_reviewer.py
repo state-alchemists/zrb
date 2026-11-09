@@ -177,6 +177,10 @@ def test_the_reviewer_keeps_the_handover_current():
     assert "handover" in text.lower()
     assert "leaves that for the session" not in text
     assert "only when the state of play moved" in text
+    # The call shape the prompt shows has to be one the tool accepts: `remember`
+    # needs an id and a claim, and a day with no entry needs a body.
+    assert 'Remember(id="<today>", claim="…", kind="diary", handover="…")' in text
+    assert "a handover cannot be stored on a day that does not exist" in text
 
 
 def test_a_cancelled_turn_wakes_the_log_only_hook():

@@ -54,7 +54,38 @@ def test_ctrl_c_empty(mock_ui, setup_bindings):
     assert "\n<Esc> Canceled" in mock_ui.outputs
     mock_ui.execute_hook.assert_called_with(
         HookEvent.STOP,
+        {"reason": "ctrl_c", "session": "test_session", "turn_cancelled": True},
+    )
+    event.app.exit.assert_called_once()
+
+
+def test_ctrl_c_without_a_running_turn_claims_no_cancellation(mock_ui, setup_bindings):
+    """An idle exit must not tell the memory hooks that a turn was cut."""
+    event = create_mock_event("")
+    mock_ui.running_llm_task = None
+
+    trigger_binding(setup_bindings, "c-c", event)
+
+    mock_ui.execute_hook.assert_called_with(
+        HookEvent.STOP,
         {"reason": "ctrl_c", "session": "test_session"},
+    )
+    event.app.exit.assert_called_once()
+
+
+def test_ctrl_d_cancelling_a_running_turn_fires_stop(mock_ui, setup_bindings):
+    """Ctrl+D used to cut a turn and say nothing: the day lost the event."""
+    event = create_mock_event("")
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    mock_ui.running_llm_task = mock_task
+
+    trigger_binding(setup_bindings, "c-d", event)
+
+    mock_task.cancel.assert_called_once()
+    mock_ui.execute_hook.assert_called_with(
+        HookEvent.STOP,
+        {"reason": "ctrl_d", "session": "test_session", "turn_cancelled": True},
     )
     event.app.exit.assert_called_once()
 
