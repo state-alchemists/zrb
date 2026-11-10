@@ -116,7 +116,7 @@ The reminder is withheld for a model on zrb's parallel-call deny-list (`supports
 
 ## Memory & Notes Storage
 
-How the store works — the four file kinds, what reaches the model and when — is explained once, in [LLM Memory](../technical-specs/llm-memory.md). This section lists the knobs.
+How the store works — its files, what reaches the model and when — is explained once, in [LLM Memory](../technical-specs/llm-memory.md). This section lists the knobs.
 
 The journal's fourteen `ZRB_LLM_JOURNAL_*` settings are retired. A start that still sets one names it and what to set instead, from the list in `src/zrb/config/retired.py`: the directory became `ZRB_LLM_NOTES_DIR`, the git backing and the judge became `ZRB_LLM_MEMORY_GIT_ENABLED` and `ZRB_LLM_MEMORY_REVIEWER_ENABLED`, the lock timeout became `ZRB_LLM_MEMORY_LOCK_TIMEOUT`, and the rest controlled a system that no longer exists.
 
@@ -126,9 +126,9 @@ The journal's fourteen `ZRB_LLM_JOURNAL_*` settings are retired. A start that st
 |----------|-------------|---------|
 | `ZRB_LLM_MEMORY_ENABLED` | The privacy switch, not a choice between stores. `off` unregisters `SearchMemory`, `Remember` and `Forget`, suppresses the `<memory>` block and the reviewer, and leaves the store untouched on disk — the session neither reads nor writes a memory, and nothing takes its place | `on` |
 | `ZRB_LLM_NOTES_DIR` | The notes directory: the store lives inside it as `memory-v1`, and it is what `zrb memory migrate` reads. One directory to back up, and the notes an older zrb wrote stay beside the store. `.version` at its root records that they were read | `~/.zrb/llm-notes/` |
-| `ZRB_LLM_MEMORY_DIR` | The store itself: `core.md`, `facts/`, `diary/`, `log/` and a git repository. Point it at an Obsidian vault subfolder to browse memory as a graph. The version segment keeps an older install from reading a newer format as its own | `<ZRB_LLM_NOTES_DIR>/memory-v1` |
+| `ZRB_LLM_MEMORY_DIR` | The store itself: `core.md`, `facts/`, `diary/`, `week/`, `log/` and a git repository. Point it at an Obsidian vault subfolder to browse memory as a graph. The version segment keeps an older install from reading a newer format as its own | `<ZRB_LLM_NOTES_DIR>/memory-v1` |
 | `ZRB_LLM_MEMORY_CORE_MAX_CHARS` | Characters of `core.md` — the pinned claims and open loops injected on a conversation's first turn. The cap is enforced by refusal, not truncation: a pin that does not fit fails and names the deficit. `0` means no pins fit and the core is never written | `4000` |
-| `ZRB_LLM_MEMORY_RECENT_MAX_CHARS` | Characters of the `## Recent` block injected beside the core: the newest handover, today's diary claim and the last few log lines. Whole lines only | `1600` |
+| `ZRB_LLM_MEMORY_RECENT_MAX_CHARS` | Characters of the `## Recent` block injected beside the core: the week note, the newest handover, today's diary claim, the last day written and the last few log lines — in that order, which is also the eviction order, so the log tail is what the cap cuts first. Whole lines only | `1600` |
 | `ZRB_LLM_MEMORY_RECENT_LOG_LINES` | Log lines `## Recent` carries, today's first and yesterday's when today is short. `0` drops them and keeps the handover | `4` |
 | `ZRB_LLM_MEMORY_REVIEWER_ENABLED` | The background reviewer that reads each completed turn and writes what is durable. Its normal answer is "nothing", so it costs one small-model call on a turn that recorded nothing. `off` leaves writing to the agent's own `Remember` calls | `on` |
 | `ZRB_LLM_MEMORY_GIT_ENABLED` | Commit every memory write, so git is the audit log and the undo button. A commit that fails never fails the write | `on` |

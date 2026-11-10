@@ -362,7 +362,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state under a key the feature owns; `None` removes it. The default TUI draws `status_badges` on a line of their own above its status bar |
 | `is_turn_running` | `True` while `running_llm_task` runs, or while the `MultiUI` parent runs a turn for this child | Whether `cancel_current_turn` has a turn to stop; Esc checks it. Part of the session role, so a caller reaches it as `ui.session.is_turn_running` |
-| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). Part of the session role, reached as `ui.session.cancel_current_turn` |
+| `cancel_current_turn(reason, flush=True)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released. `flush=False` releases without replaying the confirmation into the transcript, which is what the exit path passes because the transcript is being torn down | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). Part of the session role, reached as `ui.session.cancel_current_turn` |
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. Reached as `ui.input.is_waiting_for_answer` and `ui.input.is_prompt_answered_since` |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
@@ -436,7 +436,7 @@ The accessor returns the UI itself. Every UI in zrb answers for the role on the 
 | `conversation_session_name` (read/write) | The conversation this UI is attached to; empty when it tracks none |
 | `plan_mode_active` (read/write) | Whether `/plan` is on |
 | `is_thinking` (read/write) | Whether the assistant is producing a response |
-| `is_turn_running` / `cancel_current_turn(reason)` | Whether a turn is running that can be stopped, and the stop itself (see [Optional methods](#optional-methods)) |
+| `is_turn_running` / `cancel_current_turn(reason, flush=True)` | Whether a turn is running that can be stopped, and the stop itself (see [Optional methods](#optional-methods)) |
 | `history_manager` / `snapshot_manager` | The conversation history, and the filesystem snapshots `/rewind` uses, or `None` |
 | `accumulate_usage(usage, context_usage=None)` / `reset_context_usage()` | Fold one run's token totals into the session meter, and forget the context size after `/compress` |
 | `background_tasks` | The set keeping fire-and-forget tasks referenced |
