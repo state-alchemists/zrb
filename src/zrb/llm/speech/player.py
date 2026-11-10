@@ -27,6 +27,7 @@ from zrb.llm.speech.pcm_player import (
 )
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
 from zrb.llm.speech.pcm_player import (
+    is_device_wedged,
     wait_for_streams_to_close,
 )
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
@@ -496,8 +497,14 @@ class Speaker:
         return backend.create_utterance(text)
 
     def _can_play_in_process(self) -> bool:
-        """Whether zrb may play a sentence itself at all."""
-        return self._player_mode != "command" and is_in_process_available()
+        """Whether zrb may play a sentence itself at all: not when a player
+        program was asked for, not without the extra, and not on a device that
+        was written off after the audio service wedged."""
+        return (
+            self._player_mode != "command"
+            and is_in_process_available()
+            and not is_device_wedged()
+        )
 
     def _should_speak_in_process(self, later: "list[AnySpeechBackend]") -> bool:
         """Whether zrb plays a sentence's own audio rather than a stand-in
@@ -529,12 +536,22 @@ class Speaker:
             is_first = not self._has_said_device_failed
             self._has_said_device_failed = True
             self._device_failed_at = time.monotonic()
-        if is_first:
+        if not is_first:
+            return
+        if is_device_wedged():
+            # Said by the player too, once, where the wedge is found; this is
+            # the speaker's word on what it means for the queue.
             logger.warning(
                 f"Could not use the audio device to play speech in process "
-                f"({exc}); it is left alone for {_DEVICE_RETRY_SECONDS:g}s, and "
-                "the devices are read again before it is tried"
+                f"({exc}); the device is written off for this session, and a "
+                "player program says the sentences after it"
             )
+            return
+        logger.warning(
+            f"Could not use the audio device to play speech in process "
+            f"({exc}); it is left alone for {_DEVICE_RETRY_SECONDS:g}s, and "
+            "the devices are read again before it is tried"
+        )
 
     def warm_up(self) -> None:
         """Load a local in-process backend's model on a thread of its own, so
