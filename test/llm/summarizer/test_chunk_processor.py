@@ -4,11 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
 from zrb.llm.summarizer.chunk_processor import chunk_and_summarize
 from zrb.llm.util.capabilities import model_capabilities
-
-from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
 
 class _Limiter:
@@ -236,9 +235,7 @@ async def test_tool_output_is_clipped_before_the_summarizer_reads_it(monkeypatch
     sent = _recording_summarizer(monkeypatch)
     fat = ModelRequest(
         parts=[
-            ToolReturnPart(
-                content="A" * 9_000, tool_name="Read", tool_call_id="call_1"
-            )
+            ToolReturnPart(content="A" * 9_000, tool_name="Read", tool_call_id="call_1")
         ]
     )
 

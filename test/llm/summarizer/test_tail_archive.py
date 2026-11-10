@@ -64,7 +64,9 @@ def _conversation_around_a_big_result():
         ModelRequest(
             parts=[
                 ToolReturnPart(
-                    tool_name="read_file", content=_three_part_output(), tool_call_id="1"
+                    tool_name="read_file",
+                    content=_three_part_output(),
+                    tool_call_id="1",
                 )
             ]
         ),

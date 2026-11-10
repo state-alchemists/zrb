@@ -146,7 +146,9 @@ async def chunk_and_summarize(
             # was summarized as a work log, and the user's question in it was
             # dropped by the merge.
             chunk_content = (
-                _CHUNK_HEADER.format(index=index + 1, total=total) + "\n\n" + chunk_content
+                _CHUNK_HEADER.format(index=index + 1, total=total)
+                + "\n\n"
+                + chunk_content
             )
             if index == total - 1:
                 # A blank line, not a trailing space: the summarizer is told to

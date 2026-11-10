@@ -151,7 +151,10 @@ def test_a_handover_revision_keeps_the_days_claim(store_dir):
     """The claim is every later session's `Today` line; a moved handover is not a
     new day, and a reviewer that never read the day must not rewrite it."""
     remember(
-        "2026-11-03", "Spent the day on memory.", kind="diary", body="Morning: the split."
+        "2026-11-03",
+        "Spent the day on memory.",
+        kind="diary",
+        body="Morning: the split.",
     )
     message = remember(
         "2026-11-03", None, kind="diary", handover="Ask about the cap first."

@@ -292,7 +292,9 @@ def test_the_hook_config_runs_on_a_completed_turn():
 
 
 @pytest.mark.asyncio
-async def test_the_manager_dispatches_the_hook_and_the_note_lands(store_dir, monkeypatch):
+async def test_the_manager_dispatches_the_hook_and_the_note_lands(
+    store_dir, monkeypatch
+):
     """Through the real manager: matcher, spawn, write, drain.
 
     The lesson #886 taught: a hook asserted only at the callable can be wired so
@@ -315,7 +317,9 @@ async def test_the_manager_dispatches_the_hook_and_the_note_lands(store_dir, mon
 
 
 @pytest.mark.asyncio
-async def test_the_manager_does_not_dispatch_it_without_the_flag(store_dir, monkeypatch):
+async def test_the_manager_does_not_dispatch_it_without_the_flag(
+    store_dir, monkeypatch
+):
     """No `memory_due` in the payload: the matcher keeps the hook out."""
     _day("2026-11-02", "Built the recall hook.")
 

@@ -299,9 +299,7 @@ def test_the_recent_block_names_the_last_day_written():
         claim="Cut confidence and identity.",
         updated="2026-11-01T20:00:00",
     )
-    recent = render_recent(
-        None, today, ["- 09:00 — an event"], previous_entry=previous
-    )
+    recent = render_recent(None, today, ["- 09:00 — an event"], previous_entry=previous)
     lines = recent.splitlines()[1:]
     assert lines[0].startswith("- Today (2026-11-03):")
     assert lines[1] == "- 2026-11-01: Cut confidence and identity."

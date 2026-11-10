@@ -336,4 +336,3 @@ def _warmed_modules_stay_whole(_warm_modules_shadowed_by_sys_modules_patches):
     yield
     replaced = replaced_warmed_modules(_warmed)
     assert not replaced, f"test left these modules replaced: {replaced}"
-
