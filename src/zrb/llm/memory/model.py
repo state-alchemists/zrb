@@ -1,9 +1,11 @@
-"""The two shapes a memory entry takes: a fact and a diary entry.
+"""The shapes a memory entry takes: a fact, a diary entry and a week note.
 
 A fact is one claim about the world, identified by its subject. A diary entry is
-one day, identified by its date. Both carry a ``claim`` — the single sentence
-that is rendered into the core, matched by search, and compared on revision — and
-an optional body that holds the evidence and is never injected.
+one day, identified by its date, and a week note is one ISO week, identified by
+its week — the rung between a day and the month nobody writes down. All three
+carry a ``claim`` — the single sentence that is rendered into the core or the
+recent block, matched by search, and compared on revision — and an optional body
+that holds the evidence and is never injected.
 
 Three rules are enforced here rather than by the tools, so the reader, the writer
 and the migration agree:
@@ -22,7 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from zrb.config.config import CFG
 
@@ -38,6 +40,7 @@ MAX_FACT_BODY_CHARS = 8_000
 KIND_FACT = "fact"
 KIND_LOOP = "loop"
 KIND_DIARY = "diary"
+KIND_WEEK = "week"
 KINDS = (KIND_FACT, KIND_LOOP, KIND_DIARY)
 
 # `body_mode`: whether a body replaces the stored one or is added after it. A
@@ -60,6 +63,7 @@ DIARY_REASONS = (REASON_WRONG,)
 
 _ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_WEEK = re.compile(r"^\d{4}-W\d{2}$")
 
 # Markers that only make sense as instructions to a model. A memory is read back
 # inside a later prompt, so a line holding one is a poisoned fact, not a claim.
@@ -237,6 +241,65 @@ class Diary:
         )
 
 
+_WEEK_FIELDS = (
+    "id",
+    "kind",
+    "claim",
+    "status",
+    "source",
+    "updated",
+)
+
+
+@dataclass
+class WeekNote:
+    """One ISO week, in the first person. ``claim`` is what the week was.
+
+    A week is the rung between a day and a month: too long for a diary entry,
+    too short to be a standing belief. It carries no handover — the state of play
+    is the last day's business — and no body of its own, because the day claims it
+    was written from stay the evidence.
+    """
+
+    id: str
+    claim: str
+    status: str = STATUS_ACTIVE
+    source: str = ""
+    updated: str = ""
+
+    kind: str = field(default=KIND_WEEK, init=False)
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == STATUS_ACTIVE
+
+    def to_markdown(self) -> str:
+        values = {
+            "id": self.id,
+            "kind": KIND_WEEK,
+            "claim": self.claim,
+            "status": self.status,
+            "source": self.source,
+            "updated": self.updated,
+        }
+        return _document(_WEEK_FIELDS, values, "")
+
+    @classmethod
+    def from_markdown(cls, text: str) -> "WeekNote | None":
+        front, _ = split_document(text)
+        week = front.get("id", "").strip()
+        claim = front.get("claim", "").strip()
+        if not week or not claim:
+            return None
+        return cls(
+            id=week,
+            claim=claim,
+            status=front.get("status", STATUS_ACTIVE).strip() or STATUS_ACTIVE,
+            source=front.get("source", "").strip(),
+            updated=front.get("updated", "").strip(),
+        )
+
+
 def claim_error(claim: str) -> str | None:
     """Why *claim* cannot be stored, or ``None`` when it can."""
     text = claim.strip()
@@ -295,6 +358,38 @@ def date_error(day: str) -> str | None:
     except ValueError:
         return f"{day!r} is not a real date."
     return None
+
+
+def week_error(week: str) -> str | None:
+    """Why *week* cannot name a week note, or ``None`` when it can.
+
+    The shape is checked before the calendar: `2026-W54` is week-shaped and does
+    not exist, and only `fromisocalendar` knows which years carry a week 53.
+    """
+    text = week.strip()
+    if not _WEEK.match(text):
+        return f"A week note's id is its ISO week, `YYYY-Www` ({week!r} is not)."
+    try:
+        date.fromisocalendar(int(text[:4]), int(text[6:]), 1)
+    except ValueError:
+        return f"{week!r} is not a real ISO week."
+    return None
+
+
+def iso_week(day: str) -> str:
+    """The ISO week a `YYYY-MM-DD` day belongs to, as `YYYY-Www`.
+
+    Taken from `isocalendar` rather than arithmetic on the date, because the
+    first days of January can belong to the previous year's last week.
+    """
+    year, week, _ = date.fromisoformat(day.strip()).isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def week_span(week: str) -> tuple[str, str]:
+    """``(monday, sunday)`` of *week*, as `YYYY-MM-DD` strings."""
+    monday = date.fromisocalendar(int(week[:4]), int(week[6:]), 1)
+    return monday.isoformat(), (monday + timedelta(days=6)).isoformat()
 
 
 def is_date_shaped(value: str) -> bool:

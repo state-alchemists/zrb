@@ -34,7 +34,7 @@ Everything lives inside those six slots — including the diary, which is a `rem
 3. **The bounded core is the only thing always in context.** Everything else is unreachable except through search. Growth costs nothing per turn.
 4. **The cap is enforced by refusal, not by summarization.** A write that cannot fit fails with the exact deficit and the current core, so consolidation happens in that turn.
 5. **Retire, never delete.** A wrong belief keeps its file with a reason. "What did I believe, and why did I stop" stays answerable.
-6. **The day is written, not inferred.** A diary entry states what the day was; the recent block reads those statements instead of deriving themes from tag counts.
+6. **The day is written, not inferred.** A diary entry states what the day was; the recent block reads those statements instead of deriving themes from tag counts. A week note does the same one rung up: it is compressed from those days rather than derived from a count of anything.
 7. **Git is the audit log and the undo button.** Every write commits, naming its own files so work the human had staged stays staged. The repository is the store's own or the notes directory itself; a checkout that merely contains the notes gets no memory commits.
 
 ---
@@ -50,29 +50,33 @@ ${LLM_MEMORY_DIR}                 default: ${LLM_NOTES_DIR}/memory-v1 — ~/.zrb
 │   └── gofrendi-prefers-diagrams.md
 ├── diary/
 │   └── 2026-11-03.md             one entry per day, first person
+├── week/
+│   └── 2026-W45.md               one note per ISO week, first person
 ├── log/
 │   └── 2026-11-03.md             append-only, one file per day
 ├── .lock                         serialises write transactions (gitignored)
 └── .git/                         one commit per write
 ```
 
-Four kinds of file and a lock. There are no category directories, no per-category indexes, and no backlink files — Obsidian computes backlinks from `[[links]]` itself.
+Five kinds of file and a lock. There are no category directories, no per-category indexes, and no backlink files — Obsidian computes backlinks from `[[links]]` itself.
 
-Each kind has one cadence, and that is why the count stays at four:
+Each kind has one cadence, and that is why the count stays at five:
 
 | File | Answers | Written | Rewritten? |
 |---|---|---|---|
 | `log/` | *what happened*, with clock times | many appends a day, one file per day | never |
 | `diary/` | *what the day was*, in the first person | once a day, revised as it goes | merged, never truncated |
+| `week/` | *what the week was*, in one sentence | once a week, from that week's days | never |
 | `facts/` | what is true, undated | occasionally | replaced by subject |
 | `core.md` | what must never be forgotten | generated on a pin or loop change | regenerated |
 
-Events → days → beliefs → essentials: minutes, hours, indefinite, always.
+Events → days → weeks → beliefs → essentials: minutes, hours, a week, indefinite, always.
 
 | Path | Read by | Written by |
 |---|---|---|
 | `facts/*.md` | renderer, search, reviewer, human | `remember` / `forget` |
 | `diary/*.md` | recent block, search, human | `remember` / `forget` |
+| `week/*.md` | recent block, human | the `memory-week` hook, human |
 | `log/*.md` | recent block, search, human | the log hooks (append), human |
 | `core.md` | injection, human dashboard | renderer only |
 | Persona (`{LLM_PROMPT_DIR}/persona.md`) | system prompt, slot 1 | **human only** — outside this tree |
@@ -170,7 +174,30 @@ turn only.
 
 A second session on the same day `remember`s into the same file and merges — which is what adding to a diary is. Omitted fields keep their stored values, so a session that only appends a paragraph cannot wipe the handover. `body_mode="a"` is how that paragraph is added without reading the day back: the join happens inside the store's lock, one blank line apart, because only the lock knows what the day already says.
 
-### 3.4 The core — `core.md` (generated)
+### 3.4 A week note — `week/<YYYY-Www>.md` with `kind: week`
+
+```markdown
+---
+id: 2026-W45
+kind: week
+claim: The week the store learned to reach for what it knew.
+status: active
+source: week
+updated: 2026-11-10T06:12:41
+---
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `id` | yes | An ISO week, `YYYY-Www`. `fromisocalendar` decides which years have a week 53, so `2026-W54` is refused as a week that does not exist rather than as a typo. |
+| `claim` | yes | The week in one sentence, ≤ 160 chars. This is the only line the recent block shows for it. |
+| `source` | no | `week` when the hook wrote it; a hand-written note keeps whatever it says. |
+| `status` | yes | Always `active`. Nothing retires a week: the note is one sentence about a week that happened, and a note that is no longer wanted is deleted. |
+| `body` | — | None. The days it was written from are the evidence and are already stored. |
+
+A week note is the middle rung of day → week → month. It exists because the recent block can hold one day and one handover, and a month of day claims cannot ride there — so the only way "what have we been doing" survives a month is one compressed line per week.
+
+### 3.5 The core — `core.md` (generated)
 
 ```markdown
 <!-- GENERATED from pinned facts and open loops. Edit facts/<id>.md, never this file. -->
@@ -190,7 +217,7 @@ Rules:
 - An empty section is omitted entirely. An empty core is an empty file, not an error.
 - The comment line is stripped before injection and excluded from the cap.
 
-### 3.5 The log — `log/YYYY-MM-DD.md`
+### 3.6 The log — `log/YYYY-MM-DD.md`
 
 ```markdown
 # 2026-11-03
@@ -210,7 +237,7 @@ The log is *events only*. There is no `## Handover` section and no `[handover]` 
 
 **Ephemeral detail, permanent narrative.** A log day may be pruned (`LLM_MEMORY_LOG_RETENTION_DAYS`); that day's diary entry may not. The asymmetry is the reason for the split — the diary is what the log was for, so a store that kept only the diary would still be a store with a past. Retention is **off by default**: deleting a log day is the one destructive operation the store has, so it is opted into rather than inherited. Facts and diaries are never deleted; only logs are.
 
-### 3.6 Git
+### 3.7 Git
 
 `git init` on first write; `.gitignore` contains `.lock`. One commit per write, message `remember: <id>`, `forget: <id>`, `log: <YYYY-MM-DD>`, `diary: <YYYY-MM-DD>`. Commits use inline `-c user.name=zrb-memory` so no global identity is needed.
 
@@ -224,7 +251,7 @@ The log is *events only*. There is no `## Handover` section and no `[handover]` 
 |---|---|---|---|---|
 | 1 | Identity | persona prompt section | ~800 chars | System prompt, every request. Never changes mid-session ⇒ cache-stable. |
 | 2 | Core | `core.md` | 4,000 chars | First user turn of a conversation, and again after any history compaction. |
-| 3 | Recent | newest `handover` + today's diary `claim` + last 4 log lines | 1,600 chars | Same moment as layer 2. |
+| 3 | Recent | newest week note + newest `handover` + today's diary `claim` + the last day written + last 4 log lines | 1,600 chars | Same moment as layer 2. |
 | 4 | On demand | `search` | 10 hits | Whenever layers 1–3 do not answer. |
 
 Standing cost: ≈ 6.6k characters, ≈ 1.7k tokens. Everything else in the store — every fact body, every diary body, every log line, every transcript — costs nothing until searched.
@@ -245,6 +272,7 @@ Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing 
 - I owe a staging cert rotation, blocked on DNS access. [rotate-staging-cert]
 
 ## Recent
+- Week (2026-W44): The week the store stopped being a journal and started being a memory. [week/2026-W44.md]
 - Handover (2026-11-02): Deploy still blocked on the staging cert — ask for DNS access first.
 - Today (2026-11-03): Spent the day on memory design; cut confidence and identity.
 - 2026-11-01: Replaced the journal with a memory store; the migration ran on first use.
@@ -270,16 +298,20 @@ render_core(facts):
 
 ```
 render_recent(diary, log):
+    week     = newest week note whose week has ended, within 14 days
     handover = newest diary entry with a non-empty handover, within 7 days
     today    = today's diary entry claim, if one exists
     previous = the newest active entry strictly before today
     tail     = last 4 lines of today's log, then yesterday's if fewer than 4
-    out      = [f"- Handover ({handover.date}): {handover.text}"] if handover
+    out      = [f"- Week ({week.id}): {week.claim} [week/{week.id}.md]"] if week
+             + [f"- Handover ({handover.date}): {handover.text}"] if handover
              + [f"- Today ({today.id}): {today.claim}"]           if today
              + [f"- {previous.id}: {previous.claim}"]             if previous
              + [line if from_today else f"- {mmdd} {line}" for line in tail]
     return cut_to(out, 1600)       # whole lines only; half a fact is worse than none
 ```
+
+The week line leads because it is the widest statement in the block and nothing else renders it: a week is the only rung between the days here and the months that cannot ride here at all. It appears once its week has ended and for a fortnight after — a note for a week still being lived through would be rewritten before it was read, and one older than that is a summary of a month nobody is asking about.
 
 The last-day line is what a session opened after midnight is missing without: today's claim stays empty until the day is written, so the block would carry where things stand and nothing about what the day before it was. It is labelled with its own date rather than the word "yesterday", because after a quiet day that word would name a day nothing was written about; the authored claim is the only line, since a day cannot be inferred from its log lines. A handover and a claim from the same day are both kept — state of play and what the day was are different sentences — and the line sits ahead of the log, because a cap cuts the tail.
 
@@ -376,6 +408,28 @@ staging-ssh-port — Staging SSH is on port 2222.  [facts/staging-ssh-port.md] (
 A recalled claim that is retired afterwards earns its "Forget this claim" line, because the model has had it. A claim whose text reads as an instruction is withheld exactly as in a search result.
 
 ---
+
+### 4.7 The week note
+
+A week is written, not summarised on the fly, and the writer is a hook rather than a tool: `memory-week` asks on every completed turn whether the week that just ended has written days and no note. When it does, one small-model call compresses those days into a sentence and stores it; every other turn pays a directory listing.
+
+```
+week_material(week):
+    days = every active diary entry in the week with a claim
+    return "Week 2026-W45 (2026-11-02 to 2026-11-08), 3 of 7 days written:"
+         + ["- <day>: <claim>", ...]
+```
+
+| Rule | Value | Why |
+| --- | --- | --- |
+| Trigger | the week that just ended, once | one note per finished week; an older gap would spend a call on a week nothing will read |
+| Material | that week's day claims, oldest first, with the gap counted | a week is what its days were, and the log already holds the detail |
+| Output | one sentence, at most 160 characters | the claim rule, because it is read back inside a prompt |
+| Over the length | clipped at a word boundary | this writer cannot be corrected the way a tool call can |
+| Written by | the hook, not a tool | no round trip, no refusal to relay, and no id for a model to invent |
+| Off | `LLM_MEMORY_ENABLED` or `LLM_MEMORY_REVIEWER_ENABLED` | both spend a model call on memory's behalf |
+
+Two things a week note is not. It is not a summary of the log — the days are already that, and the log holds the detail those days left out. And it is not searchable: `SearchMemory` has no `week` scope, so the note reaches a session through the block, and a human through the file.
 
 ## 5. Writing
 
@@ -586,6 +640,8 @@ Compaction re-emits the core and recent block, because a summary that drops the 
 | Memory directory empty | No `<memory>` block at all — silence, not an error message |
 | Git absent or unwritable | Writes still succeed; only the commit is skipped |
 | Reviewer fails or times out | Dropped; the turn's memory is lost, never the reply |
+| The week note's model call fails | No note for that week; the next session finds it still owed and tries again |
+| A week note is deleted | The next session after its week finds it owed and writes it again from the same days |
 
 ### 7.4 Security
 
@@ -738,7 +794,10 @@ than in the design.
    on — so `LLM_MEMORY_REVIEWER_ENABLED=off` stops the model call without stopping
    the record. `memory-interrupt-log` writes the same kind of line for a cancelled
    turn. The diary stays the reviewer's to author, because a day is not something a
-   hook can infer.
+   hook can infer. The week note went the same way as the log line, one rung up: a
+   week is inferable — it is its days — so `memory-week` reads them and asks the
+   model for one sentence, and the trigger is the calendar rather than a model
+   noticing.
 5. **The delta is a set of versions, not a timestamp.** §4.4 compares `updated`
    against the session's first turn. A fact recorded in the same second as the
    block is neither before nor after by a clock, and a revised claim must be shown

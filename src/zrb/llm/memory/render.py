@@ -22,6 +22,7 @@ from zrb.llm.memory.model import (
     KIND_LOOP,
     Diary,
     Fact,
+    WeekNote,
     injection_reason,
 )
 
@@ -177,9 +178,11 @@ def render_recent(
     handover: Diary | None,
     today_entry: Diary | None,
     log_tail: Sequence[str],
+    *,
     previous_entry: Diary | None = None,
+    week_note: WeekNote | None = None,
 ) -> str:
-    """`## Recent`: the handover, today's claim, the last day written, then the log.
+    """`## Recent`: the week, the handover, today, the last day, then the log.
 
     The order is also the eviction order. A cap cuts the tail, and the tail has
     to be the least useful line, so the log runs newest first: dropping the
@@ -191,12 +194,17 @@ def render_recent(
     claim stays empty until the day is written. It carries its own date rather
     than the word "yesterday", which a quiet day would make a lie.
 
+    *week_note* is the widest statement in the block and the one nothing else
+    renders, so it leads: a month of day claims cannot ride here, and one line
+    saying what the week was is what replaces them.
+
     A handover and a claim from the same day are both kept: state of play and
     what the day was are different sentences, and the second is the one that
     goes missing when a session outlives a night.
     """
     today_id = today_entry.id if today_entry is not None else ""
     dated = [
+        week_note_line(week_note),
         _handover_line(handover, today_entry),
         _today_line(today_entry),
         _previous_line(previous_entry, today_id),
@@ -210,6 +218,18 @@ def render_recent(
     if not lines:
         return ""
     return _section(RECENT_HEADING, lines)
+
+
+def week_note_line(note: WeekNote | None) -> str:
+    """The week's frame as one line, or ``""`` when there is no note.
+
+    It ends with the file that holds it, like a fact line: the block promises
+    every line names the file to read, and the week note keeps a body no one has
+    written yet — the path is what makes the promise true today.
+    """
+    if note is None or not _is_injectable(note.claim):
+        return ""
+    return f"- Week ({note.id}): {_one_line(note.claim)} [week/{note.id}.md]"
 
 
 def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:

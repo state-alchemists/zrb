@@ -28,6 +28,7 @@ from zrb.util.owner_only import makedirs_owner_only, tighten_once, write_text_ow
 CORE_FILE = "core.md"
 FACTS_DIR = "facts"
 DIARY_DIR = "diary"
+WEEK_DIR = "week"
 LOG_DIR = "log"
 LOCK_FILE = ".lock"
 GITIGNORE_FILE = ".gitignore"
@@ -128,6 +129,10 @@ def diary_dir() -> str:
     return os.path.join(memory_dir(), DIARY_DIR)
 
 
+def week_dir() -> str:
+    return os.path.join(memory_dir(), WEEK_DIR)
+
+
 def log_dir() -> str:
     return os.path.join(memory_dir(), LOG_DIR)
 
@@ -145,6 +150,11 @@ def fact_path(fact_id: str) -> str:
 
 def diary_path(day: str) -> str:
     return os.path.join(diary_dir(), f"{_checked_name(day)}.md")
+
+
+def week_path(week: str) -> str:
+    """``week/<YYYY-Www>.md``."""
+    return os.path.join(week_dir(), f"{_checked_name(week)}.md")
 
 
 def log_path(day: str) -> str:
@@ -186,7 +196,7 @@ def ensure_store() -> str:
     empty, not broken.
     """
     root = memory_dir()
-    for path in (root, facts_dir(), diary_dir(), log_dir()):
+    for path in (root, facts_dir(), diary_dir(), week_dir(), log_dir()):
         makedirs_owner_only(path)
     _write_gitignore(root)
     tighten_once(root)
