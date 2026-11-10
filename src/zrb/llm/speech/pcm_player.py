@@ -53,6 +53,12 @@ _TIMEOUT_POLL_SECONDS = 0.02
 # the stream is given up on rather than left to hold the playing thread, the
 # speaker and the exit of the process.
 STREAM_STOP_TIMEOUT_SECONDS = 2.0
+# How long opening an output stream may take. It takes milliseconds; past this
+# the audio service is wedged in the same CoreAudio deadlock, and `Pa_OpenStream`
+# waits on the HAL mutex for ever. That call is made on a thread of its own and
+# given up on: it is made while the speech lock is held, so a sentence stuck
+# there silences every later one for the rest of the session.
+STREAM_OPEN_TIMEOUT_SECONDS = 3.0
 
 # The volume zrb speaks at, as a percentage of the speech's own level.
 # `FULL_VOLUME` is the level the backend rendered; a lower one is quieter, a
@@ -113,6 +119,25 @@ def _stream_closed() -> None:
     with _streams_changed:
         _open_streams -= 1
         _streams_changed.notify_all()
+
+
+def _close_a_late_stream(
+    done: threading.Event, captured: "_Captured", opened: "list[AnyOutputStream]"
+) -> None:
+    """Close a stream that arrived after its sentence was given up on.
+
+    The open was abandoned at its deadline, long before PortAudio answered, so
+    nothing will play into what it returns: closing it here is the only way the
+    device goes back. It stays counted as open until then, so the exit handler
+    still waits for the thread that owns it.
+    """
+    done.wait()
+    if captured.error is not None or not opened:
+        return
+    try:
+        opened[0].close()
+    finally:
+        _stream_closed()
 
 
 def has_open_streams() -> bool:
@@ -400,11 +425,49 @@ class PcmUtterance(Utterance):
                     self._fallback_playing = None
             utterance.cleanup()
 
+    def _open_stream_in_time(self) -> "AnyOutputStream":
+        """`_open_stream`, with a deadline no wedged device can hold past.
+
+        `Pa_OpenStream` waits on CoreAudio's HAL mutex, and this runs while the
+        speech lock is held: an open that never returns would keep the device from
+        every later sentence in the session, not just this one. So the open runs
+        on a thread of its own, and one still waiting when the deadline passes is
+        left there (a daemon thread that can only end when the audio service comes
+        back) while this one reports the device unusable, so the sentence goes to
+        a player program and the lock is released.
+        """
+        done = threading.Event()
+        captured = _Captured()
+        opened: list["AnyOutputStream"] = []
+
+        def run() -> None:
+            try:
+                with captured:
+                    opened.append(self._open_stream())
+            finally:
+                done.set()
+
+        threading.Thread(target=run, name="zrb-speech-open", daemon=True).start()
+        if done.wait(STREAM_OPEN_TIMEOUT_SECONDS):
+            if captured.error is not None:
+                raise captured.error
+            return opened[0]
+        threading.Thread(
+            target=_close_a_late_stream,
+            args=(done, captured, opened),
+            name="zrb-speech-open-late",
+            daemon=True,
+        ).start()
+        raise TimeoutError(
+            "opening the output stream took over "
+            f"{STREAM_OPEN_TIMEOUT_SECONDS:g} seconds; the audio service is stuck"
+        )
+
     def _play_in_process(self, timeout: float | None) -> None:
         reader = threading.Thread(target=self._read_source, daemon=True)
         is_played = False
         try:
-            stream = self._open_stream()
+            stream = self._open_stream_in_time()
             try:
                 # Only once there is a stream to play into: a device that
                 # cannot open must not leave a download running.
