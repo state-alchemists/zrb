@@ -201,6 +201,34 @@ def test_a_week_the_calendar_does_not_have_is_ignored(store_dir):
     assert "A week that does not exist." not in block
 
 
+@pytest.mark.asyncio
+async def test_a_note_written_while_the_model_thinks_is_not_overwritten(
+    store_dir, monkeypatch
+):
+    """The check that starts the hook runs outside the lock; the write asks again.
+
+    Reproduced before the fix: two sessions both find the week owed, both call the
+    model, and the second write replaces the first — the week would say something
+    nobody chose twice.
+    """
+    _day("2026-11-02", "Built the recall hook.")
+
+    async def racing_model(_material):
+        # Another session finished first, during this one's model call.
+        store.save_week(
+            WeekNote(id=_LAST_WEEK, claim="The other session's week.", source="week")
+        )
+        return "This session's week."
+
+    monkeypatch.setattr(memory_week, "_ask_model", racing_model)
+
+    await create_week_note_hook()(None)  # type: ignore[arg-type]
+
+    note = store.load_week(_LAST_WEEK)
+    assert note is not None
+    assert note.claim == "The other session's week."
+
+
 def test_the_note_reads_as_a_line_a_session_can_read(store_dir):
     _note()
 

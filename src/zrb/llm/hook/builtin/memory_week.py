@@ -251,9 +251,23 @@ def _bounded(text: str) -> str:
 
 
 def _save_note(week: str, claim: str) -> None:
-    """Write the note under the store's lock, and commit it like any other write."""
+    """Write the note under the store's lock, and commit it like any other write.
+
+    The question that triggered this call — "is the week still owed?" — was asked
+    outside the lock, and a model call sits between the two. Two sessions can pass
+    that check on the same week and both come back with a sentence; without the
+    second question below, the later writer replaces the earlier note and the week
+    says something nobody chose twice. The lock asks it again, so the first note
+    stands and the second is dropped.
+
+    The duplicate model call is the price of not holding the store's lock across a
+    network wait: the note is at most a small call a week, and a lock held for ten
+    seconds would stall every log line and every reviewer write in the meantime.
+    """
     try:
         with store.locked():
+            if store.load_week(week) is not None:
+                return
             store.save_week(
                 WeekNote(id=week, claim=claim, source=SOURCE, updated=store.now())
             )
