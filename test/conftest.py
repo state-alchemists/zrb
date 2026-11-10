@@ -11,6 +11,7 @@ The autouse fixtures provide deterministic non-secret defaults and restore
 
 import os
 import shutil
+import sys
 import tempfile
 from collections.abc import MutableMapping
 from pathlib import Path
@@ -276,6 +277,22 @@ def _disable_real_filesystem_hooks():
         yield
 
 
+# Cached for the reason below, plus the two modules a run resolves between a model
+# name and the SDK. Those two are *required*: `openai` is a core dependency, and an
+# environment without it fails every agent construction, so a missing one should be
+# one clear error at session start rather than eleven ImportErrors mid-run.
+_WARMED_MODULES = ("pydantic_ai.toolsets", "numpy")
+_REQUIRED_WARMED_MODULES = ("openai", "pydantic_ai.providers.openai")
+_warmed: "dict[str, object]" = {}
+
+
+def _replaced_warmed_modules(warmed: "dict[str, object]") -> "list[str]":
+    """Names whose warmed module is no longer the one sitting in `sys.modules`."""
+    return [
+        name for name, module in warmed.items() if sys.modules.get(name) is not module
+    ]
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _warm_modules_shadowed_by_sys_modules_patches():
     """Warm modules that `sys.modules` patches can evict or shadow.
@@ -283,9 +300,34 @@ def _warm_modules_shadowed_by_sys_modules_patches():
     Caching `pydantic_ai.toolsets` avoids mocked-parent imports; caching `numpy`
     avoids re-importing its loaded C extension after `patch.dict` restoration.
     Optional dependencies remain guarded.
+
+    The provider modules are here because a worker that meets one replaced fails
+    every later agent construction — `ImportError: cannot import name
+    'OpenAIProvider' from 'pydantic_ai.providers.openai'`, which names pydantic-ai
+    and never the test that broke it. Each module is remembered, so
+    `_warmed_modules_stay_whole` can tell a test that replaced it from one that
+    merely used it.
     """
-    for module_name in ("pydantic_ai.toolsets", "numpy"):
+    for module_name in _WARMED_MODULES:
         try:
-            __import__(module_name)
+            # `fromlist` asks for the leaf: a dotted name returns its top package
+            # otherwise, and the guard would then watch the wrong module.
+            _warmed[module_name] = __import__(module_name, fromlist=["__name__"])
         except ImportError:
             pass
+    for module_name in _REQUIRED_WARMED_MODULES:
+        _warmed[module_name] = __import__(module_name, fromlist=["__name__"])
+
+
+@pytest.fixture(autouse=True)
+def _warmed_modules_stay_whole(_warm_modules_shadowed_by_sys_modules_patches):
+    """Fail the test that leaves a warmed module replaced, naming it here.
+
+    A test that patches `sys.modules` and leaks the patch breaks every later agent
+    in that xdist worker; the damage surfaces in another file, as an ImportError
+    about pydantic-ai, and the culprit is nowhere in the report.
+    """
+    yield
+    replaced = _replaced_warmed_modules(_warmed)
+    assert not replaced, f"test left these modules replaced: {replaced}"
+
