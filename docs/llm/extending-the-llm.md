@@ -356,7 +356,7 @@ The building blocks are in `zrb.llm.summarizer`, all `async` except `split_histo
 
 ### Memory
 
-Long-term memory is a store of four file kinds — `facts/<id>.md`, `diary/<YYYY-MM-DD>.md`, `log/<YYYY-MM-DD>.md` and a generated `core.md` — that the agent writes through `Remember` and `Forget` and reads through `SearchMemory`. A reviewer Stop hook writes most of it from the turn's transcript. How it is stored and when it reaches the model: [LLM Memory](../technical-specs/llm-memory.md). Knobs: [LLM Configuration → Memory & Notes Storage](../configuration/llm-context.md#memory--notes-storage).
+Long-term memory is a store of five file kinds — `facts/<id>.md`, `diary/<YYYY-MM-DD>.md`, `week/<YYYY-Www>.md`, `log/<YYYY-MM-DD>.md` and a generated `core.md` — that the agent writes through `Remember` and `Forget` and reads through `SearchMemory`. A reviewer Stop hook writes most of it from the turn's transcript, and separate hooks close a finished week and recall a claim whose name a prompt contains. How it is stored and when it reaches the model: [LLM Memory](../technical-specs/llm-memory.md). Knobs: [LLM Configuration → Memory & Notes Storage](../configuration/llm-context.md#memory--notes-storage).
 
 ---
 

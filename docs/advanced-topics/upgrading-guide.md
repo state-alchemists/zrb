@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.38.0](#upgrading-to-3380)
 - [Upgrading to 3.37.0](#upgrading-to-3370)
 - [Upgrading to 3.35.0](#upgrading-to-3350)
 - [Upgrading to 3.33.0](#upgrading-to-3330)
@@ -26,6 +27,21 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
 
 ---
+
+## Upgrading to 3.38.0
+
+Two changes reach code and configuration outside zrb itself.
+
+**A custom UI's `cancel_current_turn` takes `flush`.** The exit path (Ctrl+C, Ctrl+D) now calls `cancel_current_turn(reason, flush=False)` so a confirmation is released without being replayed into a transcript that is being torn down. `AnyUI`, `BaseUI`, `MultiUI` and `UIStateDefaultsMixin` already declare it; a class that implements the session role directly must add the parameter, or the exit path raises `TypeError` and the UI may not quit while a turn runs:
+
+```python
+def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
+    ...
+```
+
+**`ZRB_LLM_HOOKS` must name every memory hook you want.** The day's log line and the cancelled-turn line are no longer written by the reviewer: `memory-event-log` and `memory-interrupt-log` are hooks of their own. An allowlist of `memory-reviewer` alone therefore keeps the reviewer's model call and silently drops both log lines. Name all five — `memory-reviewer`, `memory-event-log`, `memory-interrupt-log`, `memory-recall` and `memory-week` — or leave `ZRB_LLM_HOOKS` empty as most setups do. With the reviewer off, a completed turn still writes one log line and (with `ZRB_LLM_MEMORY_GIT_ENABLED`) one commit.
+
+`zrb.llm.memory.render.render_week` and `LLM_MEMORY_WEEK_LOOKBACK_DAYS` are gone: the week rung replaced a rendered log with one sentence per finished week. Both were internal, and nothing in zrb called them.
 
 ## Upgrading to 3.37.0
 
