@@ -154,6 +154,42 @@ def wait_for_streams_to_close(timeout: float) -> None:
         _streams_changed.wait_for(lambda: _open_streams == 0, timeout)
 
 
+# Set once a CoreAudio call has been given up on: the audio service is wedged in
+# a deadlock zrb cannot undo from here — PortAudio's stop waits on a CoreAudio
+# lock that the audio thread holds and wants back, and an open queues behind
+# both. Every later call is led into the same deadlock, a deadline at a time,
+# without playing a block. So the device is written off for the rest of the
+# process and sentences are said by a player program, which runs in a process of
+# its own and shares no lock with this one. Only a restart clears it.
+_device_wedged = False
+_device_wedged_lock = threading.Lock()
+
+
+def is_device_wedged() -> bool:
+    """Whether the audio service has been written off in this process: a stop or
+    an open never came back, so the device is not tried again and every sentence
+    is said by a player program."""
+    with _device_wedged_lock:
+        return _device_wedged
+
+
+def _write_off_the_device(reason: Exception) -> None:
+    """Stop trying this process's audio device for good, and say why.
+
+    Said once: the first wedge is the news, and every sentence after it takes
+    this path."""
+    global _device_wedged
+    with _device_wedged_lock:
+        if _device_wedged:
+            return
+        _device_wedged = True
+    logger.warning(
+        f"Giving up on the audio device for this session ({reason}): the audio "
+        "service is wedged, so a player program says every sentence from here. "
+        "A restart brings the device back."
+    )
+
+
 # The machine's default output when a sentence last opened a stream: PortAudio
 # opens the default it read when it was started, so a stream on the wrong device
 # is only noticed by comparing the two.
@@ -360,9 +396,10 @@ class PcmUtterance(Utterance):
             self._heard(b"")
             return
         fallback = self._fallback
-        if fallback is not None and self._is_device_resting():
-            # The device failed moments ago: opening it again would fail the
-            # same way, however long ago this sentence was made.
+        if fallback is not None and (self._is_device_resting() or is_device_wedged()):
+            # The device failed moments ago, or never came back from a stop:
+            # opening it again would fail the same way, or join the deadlock it
+            # is stuck in, however long ago this sentence was made.
             self._play_fallback(fallback, timeout)
             return
         try:
@@ -436,6 +473,13 @@ class PcmUtterance(Utterance):
         back) while this one reports the device unusable, so the sentence goes to
         a player program and the lock is released.
         """
+        if is_device_wedged():
+            # No stream is built, and no thread is added to the deadlock: the
+            # device was given up on, and this is the failure it already is.
+            raise TimeoutError(
+                "the audio device was given up on in this session (the audio "
+                "service is wedged); a player program says the sentence"
+            )
         done = threading.Event()
         captured = _Captured()
         opened: list["AnyOutputStream"] = []
@@ -458,10 +502,12 @@ class PcmUtterance(Utterance):
             name="zrb-speech-open-late",
             daemon=True,
         ).start()
-        raise TimeoutError(
+        error = TimeoutError(
             "opening the output stream took over "
             f"{STREAM_OPEN_TIMEOUT_SECONDS:g} seconds; the audio service is stuck"
         )
+        _write_off_the_device(error)
+        raise error
 
     def _play_in_process(self, timeout: float | None) -> None:
         reader = threading.Thread(target=self._read_source, daemon=True)
@@ -601,9 +647,11 @@ class PcmUtterance(Utterance):
 
         On macOS, stopping a stream can deadlock inside CoreAudio: the audio
         thread, in PortAudio's start-stop callback, and the stopping thread
-        each wait for a lock the other holds. Nothing can be done about that
-        from here, so it must not be allowed to freeze the thread that plays
-        speech, which every later sentence waits on."""
+        each wait for a lock the other holds. That cannot be undone from here,
+        so the wait is bounded, and a stop that runs out the clock takes the
+        device with it for the rest of the process (`_write_off_the_device`):
+        the thread that plays speech is not frozen, and nothing is led into the
+        same deadlock after it."""
         done = threading.Event()
         captured = _Captured()
 
@@ -633,16 +681,16 @@ class PcmUtterance(Utterance):
         What was being said is not lost by this: the stream is only stopped once
         its audio has played to the end, or on purpose (`stop`, a timeout), so
         handing the sentence to a player program as well would say it twice.
-        Later sentences go to the program until the device is tried again."""
+        Later sentences go to the program, for the rest of the process: the
+        service this stop is stuck on does not come back on its own."""
         error = TimeoutError(
             f"stopping the output stream took over {STREAM_STOP_TIMEOUT_SECONDS} "
             "seconds; the audio service is stuck"
         )
         guard_exit_handler()
+        _write_off_the_device(error)
         if self._on_device_error is not None:
             self._on_device_error(error)
-        else:
-            logger.warning(f"Giving up on the speech stream: {error}")
 
     def _is_finished_in_time(self, timeout: float | None, stream: object) -> bool:
         """Whether playback finished before *timeout* seconds of playing,
