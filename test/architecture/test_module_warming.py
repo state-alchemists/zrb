@@ -30,18 +30,18 @@ def test_the_provider_modules_reach_a_test_complete():
 
 def test_a_module_that_is_still_the_one_warmed_is_not_reported():
     module = sys.modules["openai"]
-    assert suite_config._replaced_warmed_modules({"openai": module}) == []
+    assert suite_config.replaced_warmed_modules({"openai": module}) == []
 
 
 def test_a_replaced_module_is_reported_by_name(monkeypatch):
     warmed = types.ModuleType("openai")
     intruder = types.ModuleType("openai")
     monkeypatch.setitem(sys.modules, "openai", intruder)
-    assert suite_config._replaced_warmed_modules({"openai": warmed}) == ["openai"]
+    assert suite_config.replaced_warmed_modules({"openai": warmed}) == ["openai"]
 
 
 def test_an_evicted_module_is_reported_too(monkeypatch):
     """`patch.dict` restoring a *deleted* key leaves nothing behind either."""
     warmed = types.ModuleType("numpy")
     monkeypatch.delitem(sys.modules, "numpy", raising=False)
-    assert suite_config._replaced_warmed_modules({"numpy": warmed}) == ["numpy"]
+    assert suite_config.replaced_warmed_modules({"numpy": warmed}) == ["numpy"]

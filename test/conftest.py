@@ -286,8 +286,14 @@ _REQUIRED_WARMED_MODULES = ("openai", "pydantic_ai.providers.openai")
 _warmed: "dict[str, object]" = {}
 
 
-def _replaced_warmed_modules(warmed: "dict[str, object]") -> "list[str]":
-    """Names whose warmed module is no longer the one sitting in `sys.modules`."""
+def replaced_warmed_modules(warmed: "dict[str, object]") -> "list[str]":
+    """Names whose warmed module is no longer the one sitting in `sys.modules`.
+
+    Public because `test/architecture/test_module_warming.py` loads this file to
+    exercise it directly: the ratchet that keeps tests on the public API
+    (`test_private_test_access_ratchet.py`) counts a private reach here as one of
+    the couplings it exists to prevent.
+    """
     return [
         name for name, module in warmed.items() if sys.modules.get(name) is not module
     ]
@@ -328,6 +334,6 @@ def _warmed_modules_stay_whole(_warm_modules_shadowed_by_sys_modules_patches):
     about pydantic-ai, and the culprit is nowhere in the report.
     """
     yield
-    replaced = _replaced_warmed_modules(_warmed)
+    replaced = replaced_warmed_modules(_warmed)
     assert not replaced, f"test left these modules replaced: {replaced}"
 
