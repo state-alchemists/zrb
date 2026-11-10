@@ -164,7 +164,10 @@ def test_the_block_leads_with_the_week(store_dir):
     # The contract above also names `## Recent`, so split on the heading itself.
     recent = block.rsplit("\n## Recent\n", 1)[1]
     first = recent.strip().splitlines()[0]
-    assert first == f"- Week ({last_week}): The week the store gained a week."
+    assert first == (
+        f"- Week ({last_week}): The week the store gained a week. "
+        f"[week/{last_week}.md]"
+    )
     assert f"Today ({today}): A new day." in recent
 
 
@@ -203,7 +206,12 @@ def test_the_note_reads_as_a_line_a_session_can_read(store_dir):
 
     line = render.week_note_line(store.load_week(_LAST_WEEK))
 
-    assert line == f"- Week ({_LAST_WEEK}): The week the store gained a week."
+    # The file the block promises to name: a fact line ends with its id, a week
+    # line with the path, because a week's id is not a fact id.
+    assert line == (
+        f"- Week ({_LAST_WEEK}): The week the store gained a week. "
+        f"[week/{_LAST_WEEK}.md]"
+    )
 
 
 def test_a_note_that_reads_as_an_instruction_is_withheld(store_dir):

@@ -272,7 +272,7 @@ Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing 
 - I owe a staging cert rotation, blocked on DNS access. [rotate-staging-cert]
 
 ## Recent
-- Week (2026-W44): The week the store stopped being a journal and started being a memory.
+- Week (2026-W44): The week the store stopped being a journal and started being a memory. [week/2026-W44.md]
 - Handover (2026-11-02): Deploy still blocked on the staging cert — ask for DNS access first.
 - Today (2026-11-03): Spent the day on memory design; cut confidence and identity.
 - 2026-11-01: Replaced the journal with a memory store; the migration ran on first use.
@@ -303,7 +303,7 @@ render_recent(diary, log):
     today    = today's diary entry claim, if one exists
     previous = the newest active entry strictly before today
     tail     = last 4 lines of today's log, then yesterday's if fewer than 4
-    out      = [f"- Week ({week.id}): {week.claim}"]               if week
+    out      = [f"- Week ({week.id}): {week.claim} [week/{week.id}.md]"] if week
              + [f"- Handover ({handover.date}): {handover.text}"] if handover
              + [f"- Today ({today.id}): {today.claim}"]           if today
              + [f"- {previous.id}: {previous.claim}"]             if previous

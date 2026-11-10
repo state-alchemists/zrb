@@ -340,7 +340,7 @@ A day has a claim and a handover, and a month of days cannot fit in `## Recent` 
 
 ```
 ## Recent
-- Week (2026-W45): The week the store learned to reach for what it knew.
+- Week (2026-W45): The week the store learned to reach for what it knew. [week/2026-W45.md]
 - Handover: the summariser fix is green and waiting on a merge.
 - Today (2026-11-10): Wrote the last-day line and deleted a dead renderer.
 ```

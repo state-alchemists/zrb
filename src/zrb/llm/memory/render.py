@@ -221,10 +221,15 @@ def render_recent(
 
 
 def week_note_line(note: WeekNote | None) -> str:
-    """The week's frame as one line, or ``""`` when there is no note."""
+    """The week's frame as one line, or ``""`` when there is no note.
+
+    It ends with the file that holds it, like a fact line: the block promises
+    every line names the file to read, and the week note keeps a body no one has
+    written yet — the path is what makes the promise true today.
+    """
     if note is None or not _is_injectable(note.claim):
         return ""
-    return f"- Week ({note.id}): {_one_line(note.claim)}"
+    return f"- Week ({note.id}): {_one_line(note.claim)} [week/{note.id}.md]"
 
 
 def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:
