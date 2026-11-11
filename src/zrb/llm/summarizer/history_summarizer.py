@@ -22,7 +22,15 @@ from zrb.llm.shared.message import (
     validate_tool_pair_integrity,
 )
 from zrb.llm.shared.message_text import render_verbatim_messages
-from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, UsageTotals, record_totals
+from zrb.llm.shared.usage_log import (
+    KIND_SUMMARIZATION,
+    LIMIT_BOTH,
+    LIMIT_MESSAGE,
+    LIMIT_TOKEN,
+    CompactionDetail,
+    UsageTotals,
+    record_totals,
+)
 from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
@@ -239,6 +247,22 @@ async def _maybe_compress_history(
             ),
             plain=True,
         )
+        # The same numbers go to the log, at WARNING because that is the level
+        # the file keeps: this is the only durable record of what the trigger
+        # saw. The usage log counts the summary call, which is chunked and so
+        # smaller than the history; the verbatim header counts only the messages
+        # the summary replaced. Neither can say which limit was reached.
+        CFG.LOGGER.warning(
+            "Compaction fired on the %s limit: %d tokens against %d allowed "
+            "(%d trigger less a %d system prompt), %d messages against a %d window",
+            _limit_reached(is_short_enough, is_within_tokens),
+            current_tokens,
+            adjusted_threshold,
+            conversational_token_threshold,
+            system_prompt_overhead,
+            len(messages),
+            summary_window,
+        )
         result = await summarize_history(
             messages,
             agent=agent,
@@ -249,9 +273,22 @@ async def _maybe_compress_history(
             history_dir=history_dir,
             tail_budget_ratio=tail_budget_ratio,
             verbatim_source=verbatim_source,
+            compaction=CompactionDetail(
+                reason=_limit_reached(is_short_enough, is_within_tokens),
+                history_tokens=current_tokens,
+                allowed_tokens=adjusted_threshold,
+                prompt_tokens=system_prompt_overhead,
+                messages=len(messages),
+                window=summary_window,
+            ),
         )
         if result != messages:
             new_tokens = limiter.count_tokens(result)
+            CFG.LOGGER.warning(
+                "Compaction finished: %d tokens left, from %d",
+                new_tokens,
+                current_tokens,
+            )
             zrb_print(
                 stylize_warning(
                     f"  Conversation compressed "
@@ -273,6 +310,19 @@ async def _maybe_compress_history(
             plain=True,
         )
         return messages
+
+
+def _limit_reached(is_short_enough: bool, is_within_tokens: bool) -> str:
+    """Which limit a compaction is answering, named for the log line.
+
+    Both checks run on every fire, and a history can cross the two at once, so
+    the line says which rather than leaving a reader to guess from the numbers.
+    """
+    if is_short_enough:
+        return LIMIT_TOKEN
+    if is_within_tokens:
+        return LIMIT_MESSAGE
+    return LIMIT_BOTH
 
 
 async def summarize_messages(
@@ -330,6 +380,7 @@ async def summarize_history(
     history_dir: str | None = None,
     verbatim_source: "list[ModelMessage] | None" = None,
     tail_budget_ratio: float | None = None,
+    compaction: "CompactionDetail | None" = None,
 ) -> "list[ModelMessage]":
     """Replace older messages with a chunked summary, keeping a recent tail.
 
@@ -349,6 +400,11 @@ async def summarize_history(
     before the caller's own fat-message pass, so the archive keeps the tool's
     output rather than the summary of it; it is used only when it lines up with
     `messages`.
+
+    *compaction* is why this ran — the limit it answered and what it saw when it
+    fired — and it rides on the usage line so `/usage` can report it beside the
+    cost. A caller that does not know passes nothing, and the record carries
+    nothing.
     """
     # The compaction's own charge, written once it is over: the calls happen at
     # the leaves of this call tree and nothing else in a run ever sees them.
@@ -477,7 +533,7 @@ async def summarize_history(
     finally:
         # Whatever the outcome, the calls were paid for: the summarizer reads the
         # whole conversation before the cap can reject the result.
-        _record_compaction(spent, session_name, messages, started_at)
+        _record_compaction(spent, session_name, messages, started_at, compaction)
 
 
 def _record_compaction(
@@ -485,6 +541,7 @@ def _record_compaction(
     session_name: "str | Callable[[], str | None] | None",
     messages: "list[ModelMessage]",
     started_at: float,
+    compaction: "CompactionDetail | None" = None,
 ) -> None:
     """Write what this compaction cost, when it called the model at all.
 
@@ -499,6 +556,7 @@ def _record_compaction(
         session=_usage_session(session_name, messages),
         kind=KIND_SUMMARIZATION,
         duration_ms=int((time.monotonic() - started_at) * 1000),
+        compaction=compaction,
     )
 
 

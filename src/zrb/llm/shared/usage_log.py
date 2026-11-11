@@ -53,12 +53,45 @@ KIND_TURN = "turn"
 KIND_SUMMARIZATION = "summarization"
 """One compaction: what replacing a history with a summary consumed."""
 
+# Why a compaction ran, as its record spells it. `LIMIT_TOKEN` and
+# `LIMIT_MESSAGE` can appear together: a history can cross both checks at once.
+COMPACTION_FORCED = "forced"
+"""A person asked for it (`/compress`); no limit was reached."""
+LIMIT_TOKEN = "token"
+LIMIT_MESSAGE = "message"
+LIMIT_BOTH = "token and message"
+
 
 def record_to_dict(record: "UsageRecord") -> dict[str, object]:
     """Serialize a log record, keeping its timestamp readable."""
     raw = dataclasses.asdict(record)
     raw["timestamp"] = record.timestamp.isoformat()
     return raw
+
+
+@dataclass(frozen=True)
+class CompactionDetail:
+    """What a compaction saw when it fired, and why it fired at all.
+
+    Carried on the compaction's own record, because `/usage` can already say
+    what a compaction cost and nothing says why it ran: the trigger is the
+    configured threshold *less the system prompt*, the window can fire on
+    message count alone, and `/compress` fires on neither. A reader with the
+    cost and not the reason is looking at half a decision.
+
+    `allowed_tokens` is what the history was measured against, and
+    `prompt_tokens` is how much of the trigger the system prompt had already
+    spent — their sum is the configured trigger. A forced compaction answers no
+    limit, so its three token fields are zero and the renderer prints them as
+    unknown rather than as nothing.
+    """
+
+    reason: str
+    history_tokens: int
+    allowed_tokens: int
+    prompt_tokens: int
+    messages: int
+    window: int
 
 
 @dataclass(frozen=True)
@@ -82,6 +115,9 @@ class UsageRecord:
     # Calls and failures per tool name. A line without them reads back as empty.
     tool_counts: dict[str, int] = field(default_factory=dict)
     tool_errors: dict[str, int] = field(default_factory=dict)
+    # Why a compaction ran. Absent on a turn, and on every line written before
+    # this field existed.
+    compaction: CompactionDetail | None = None
 
     @property
     def cache_hit_ratio(self) -> float:
@@ -126,6 +162,7 @@ class UsageRecord:
             cost=_as_cost(raw.get("cost")),
             tool_counts=_as_name_counts(raw.get("tool_counts")),
             tool_errors=_as_name_counts(raw.get("tool_errors")),
+            compaction=_as_compaction(raw.get("compaction")),
             **counts,
         )
 
@@ -226,6 +263,7 @@ def record_totals(
     when: datetime | None = None,
     tool_counts: dict[str, int] | None = None,
     tool_errors: dict[str, int] | None = None,
+    compaction: CompactionDetail | None = None,
 ) -> UsageRecord | None:
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
@@ -239,6 +277,7 @@ def record_totals(
         cost=totals.cost,
         tool_counts=dict(tool_counts or {}),
         tool_errors=dict(tool_errors or {}),
+        compaction=compaction,
         **{name: getattr(totals, name) for name in _INT_FIELDS},
     )
     return _write_record(record)
@@ -483,6 +522,28 @@ def _as_name_counts(value: object) -> dict[str, int]:
         and isinstance(count, (int, float))
         and not isinstance(count, bool)
     }
+
+
+def _as_compaction(value: object) -> CompactionDetail | None:
+    """Why a compaction ran, or ``None`` where the line does not say.
+
+    Optional detail, like the tool counts: a malformed one is dropped rather
+    than making the record — and the tokens it cost — unreadable. Every line
+    written before this field existed answers ``None``.
+    """
+    if not isinstance(value, dict):
+        return None
+    try:
+        return CompactionDetail(
+            reason=str(value["reason"]),
+            history_tokens=int(value["history_tokens"]),
+            allowed_tokens=int(value["allowed_tokens"]),
+            prompt_tokens=int(value["prompt_tokens"]),
+            messages=int(value["messages"]),
+            window=int(value["window"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _as_cost(value: object) -> float | None:

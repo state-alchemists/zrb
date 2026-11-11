@@ -5,6 +5,8 @@ about behavior (what is kept, when compaction triggers) rather than about the
 private helpers that implement it.
 """
 
+import logging
+
 import pytest
 from pydantic_ai.messages import (
     ModelRequest,
@@ -462,3 +464,82 @@ async def test_the_summary_is_written_from_the_whole_conversation(
     assert any(
         "question 5" in prompt for prompt in prompts
     ), "the kept tail never reached the summarizer"
+
+
+@pytest.mark.asyncio
+async def test_a_compaction_fire_records_the_trigger_and_the_prompt(
+    caplog, monkeypatch
+):
+    """The fire line is the only record of what the trigger saw.
+
+    The usage log counts the summary call, which is chunked and so smaller than
+    the history; the verbatim header counts only the messages the summary
+    replaced. Neither says which limit was reached, nor how much of the trigger
+    the system prompt had already spent — so the fire itself has to say both.
+    """
+    from unittest.mock import MagicMock
+
+    async def keep(messages, **kwargs):
+        return messages
+
+    monkeypatch.setattr(history_summarizer, "summarize_history", keep)
+    history = _turns(6)  # 12 messages, 120 tokens at 10 each
+
+    with caplog.at_level(logging.WARNING):
+        await history_summarizer._maybe_compress_history(
+            history,
+            agent=MagicMock(),
+            summary_window=300,
+            limiter=FixedLimiter(per_message=10),
+            conversational_token_threshold=100,
+            system_prompt_overhead=40,
+            tail_budget_ratio=TAIL_BUDGET_RATIO,
+        )
+
+    (line,) = [
+        record.getMessage()
+        for record in caplog.records
+        if "Compaction fired" in record.getMessage()
+    ]
+    assert "on the token limit" in line
+    # The history, against what the prompt left of the trigger — not the trigger.
+    assert "120 tokens against 60 allowed" in line
+    assert "100 trigger less a 40 system prompt" in line
+    assert "12 messages against a 300 window" in line
+
+
+@pytest.mark.asyncio
+async def test_the_fire_line_names_the_message_window_when_tokens_fit(
+    caplog, monkeypatch
+):
+    """The window can fire a compaction on its own, and the line has to say so.
+
+    A reader who sees only a token figure would take a message-count fire for a
+    mismeasurement, which is the reading that made the board ask for this line.
+    """
+    from unittest.mock import MagicMock
+
+    async def keep(messages, **kwargs):
+        return messages
+
+    monkeypatch.setattr(history_summarizer, "summarize_history", keep)
+    history = _turns(400)  # 800 messages, 800 tokens at 1 each
+
+    with caplog.at_level(logging.WARNING):
+        await history_summarizer._maybe_compress_history(
+            history,
+            agent=MagicMock(),
+            summary_window=300,
+            limiter=FixedLimiter(per_message=1),
+            conversational_token_threshold=1_000,
+            system_prompt_overhead=0,
+            tail_budget_ratio=TAIL_BUDGET_RATIO,
+        )
+
+    (line,) = [
+        record.getMessage()
+        for record in caplog.records
+        if "Compaction fired" in record.getMessage()
+    ]
+    assert "on the message limit" in line
+    assert "800 messages against a 300 window" in line

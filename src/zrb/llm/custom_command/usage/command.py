@@ -26,7 +26,12 @@ from zrb.llm.custom_command.usage.tools import (
     get_registered_tool_names,
     render_tools_section,
 )
-from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, UsageRecord, read_records
+from zrb.llm.shared.usage_log import (
+    COMPACTION_FORCED,
+    KIND_SUMMARIZATION,
+    UsageRecord,
+    read_records,
+)
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -40,6 +45,9 @@ _UNPRICED = "—"
 _INPUT = "input_tokens"
 _OUTPUT = "output_tokens"
 _CACHE_READ = "cache_read_tokens"
+# How many fires the Compaction section names: enough to see a pattern, short
+# enough that a day's worth of compactions does not bury the table above it.
+_FIRE_LINES = 5
 
 
 def create_usage_commands() -> list[AnyCustomCommand]:
@@ -144,7 +152,40 @@ def _compaction_section(records: list[UsageRecord]) -> list[str]:
         *(f"    {_row(model, runs)}" for model, runs in ordered),
         f"    {len(compactions)} compaction(s) · {_duration(wall_time)} of wall "
         "time · not counted in the table above",
+        *_fire_lines(compactions),
     ]
+
+
+def _fire_lines(compactions: list[UsageRecord]) -> list[str]:
+    """Why each recent compaction ran — the fact its cost alone cannot show.
+
+    Newest first and capped: a window can hold dozens, and what the trigger is
+    doing now is the question worth answering. A line written before this field
+    existed has no reason, and saying so is better than a reader taking it for
+    a turn that wandered in.
+    """
+    ordered = sorted(compactions, key=lambda record: record.timestamp, reverse=True)
+    lines = ["    fires (newest first)"]
+    lines.extend(f"      {_fire_line(record)}" for record in ordered[:_FIRE_LINES])
+    earlier = len(ordered) - _FIRE_LINES
+    if earlier > 0:
+        lines.append(f"      ... and {earlier} earlier")
+    return lines
+
+
+def _fire_line(record: UsageRecord) -> str:
+    """One compaction's reason and the numbers it fired on."""
+    when = record.timestamp.astimezone().strftime("%m-%d %H:%M")
+    detail = record.compaction
+    if detail is None:
+        return f"{when}  reason not recorded"
+    if detail.reason == COMPACTION_FORCED:
+        return f"{when}  forced · {detail.messages} message(s)"
+    return (
+        f"{when}  {detail.reason} · {_tokens(detail.history_tokens)} of "
+        f"{_tokens(detail.allowed_tokens)} allowed · {detail.messages} of "
+        f"{detail.window} message(s) · prompt {_tokens(detail.prompt_tokens)}"
+    )
 
 
 def _no_usage(label: str, memory: list[str]) -> str:
