@@ -5,10 +5,12 @@ three rounds cost three request bodies where one would do. The rule asking the
 model to batch is in the prompt already; this is the check that notices when it
 was ignored, and says so once rather than every round after.
 
-Only calls that are certainly independent are counted: the same lookup tool,
-one call per round, over consecutive rounds, on *different* arguments. Writes
-and shell commands are never counted — there the next call usually depends on
-what the previous one printed, and batching them would be wrong.
+Only calls that are certainly independent are counted: a lookup tool calling
+once per round, over consecutive rounds, on *different* arguments. The tools
+may differ — a `Read` between two `Grep` calls is still three lookups issued
+one round apart, since none of them needs the last one's output. Writes and
+shell commands are never counted — there the next call usually depends on what
+the previous one printed, and batching them would be wrong.
 """
 
 from __future__ import annotations
@@ -53,10 +55,10 @@ def create_batch_nudge_processor() -> (
             _is_parallel_calls_unsupported()
         ):
             return messages
-        tool_name = _single_call_streak_tool(messages)
-        if tool_name is None:
+        tool_names = _single_call_streak_tools(messages)
+        if tool_names is None:
             return messages
-        return [*messages, _create_nudge(tool_name)]
+        return [*messages, _create_nudge(tool_names)]
 
     return process_history
 
@@ -73,13 +75,15 @@ def _is_parallel_calls_unsupported() -> bool:
     return model_capabilities.get(model).supports_parallel_tool_calls is False
 
 
-def _single_call_streak_tool(messages: "list[ModelMessage]") -> str | None:
-    """The tool of a trailing single-call streak, or ``None`` when there is none.
+def _single_call_streak_tools(messages: "list[ModelMessage]") -> list[str] | None:
+    """The tools of a trailing single-call streak, or ``None`` when there is none.
 
-    Walking backwards, a final answer with no tool calls ends the tail the
-    question is about, a round that already carried several calls shows the
-    model is batching, and a nudge already in the history means this streak has
-    been mentioned once — any of the three answers ``None``.
+    The tools may differ: three lookups issued one round apart are the same
+    waste whether or not they are the same lookup. Walking backwards, a final
+    answer with no tool calls ends the tail the question is about, a round that
+    already carried several calls shows the model is batching, a nudge already
+    in the history means this streak has been mentioned once, and a call that
+    is not a lookup ends it too — any of the four answers ``None``.
     """
     collected: list[tuple[str, str]] = []
     for message in reversed(messages):
@@ -94,17 +98,12 @@ def _single_call_streak_tool(messages: "list[ModelMessage]") -> str | None:
         tool_name, args = calls[0]
         if tool_name not in BATCHABLE_TOOLS:
             return None
-        if not _is_same_tool_streak(collected, tool_name):
-            return None
         collected.append((tool_name, args))
         if len(collected) == STREAK_LENGTH:
-            return tool_name if _is_each_call_distinct(collected) else None
+            if not _is_each_call_distinct(collected):
+                return None
+            return [name for name, _ in collected]
     return None
-
-
-def _is_same_tool_streak(collected: list[tuple[str, str]], tool_name: str) -> bool:
-    """Whether nothing is collected yet, or all of it is this same tool."""
-    return not collected or collected[-1][0] == tool_name
 
 
 def _tool_calls(message: object) -> list[tuple[str, str]] | None:
@@ -139,8 +138,13 @@ def _render_args(args: object) -> str:
 
 
 def _is_each_call_distinct(collected: list[tuple[str, str]]) -> bool:
-    """Whether every call in the streak asked for something different."""
-    return len({args for _, args in collected}) == len(collected)
+    """Whether every call in the streak asked for something different.
+
+    The tool is part of what was asked: `Grep x` after `Glob x` is two
+    lookups even though their arguments are identical, while the same tool on
+    the same arguments is one lookup repeated.
+    """
+    return len(set(collected)) == len(collected)
 
 
 def _message_texts(message: object) -> list[str]:
@@ -153,17 +157,19 @@ def _message_texts(message: object) -> list[str]:
     return texts
 
 
-def _create_nudge(tool_name: str) -> "ModelMessage":
+def _create_nudge(tool_names: list[str]) -> "ModelMessage":
     """The nudge, as the user turn that carries it."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
+    distinct = sorted(set(tool_names))
+    call = f"one `{distinct[0]}` call" if len(distinct) == 1 else "a single lookup"
     return ModelRequest(
         parts=[
             UserPromptPart(
                 content=(
                     f"{NUDGE_MARKER} — the last {STREAK_LENGTH} rounds each carried "
-                    f"one `{tool_name}` call on different arguments. If those calls "
+                    f"{call} on different arguments. If those calls "
                     "did not depend on each other's results, put them in one "
                     "response: each extra round re-sends the whole conversation."
                 )

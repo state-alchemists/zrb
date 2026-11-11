@@ -121,10 +121,29 @@ def test_a_streak_after_the_nudge_gets_a_fresh_one():
     assert len(_process(messages)) == len(messages) + 1
 
 
-def test_lookups_of_different_tools_are_not_one_streak():
+def test_lookups_of_different_tools_are_one_streak():
+    """A lookup streak is one streak whether or not the tool changes.
+
+    None of these calls needs the last one's output: the model is looking at
+    three things one round apart, and one response would have done it.
+    """
     messages: list = [_prompt(), _call("Read", path="a.py"), _prompt()]
     for tool, arg in (("Grep", "pattern"), ("Glob", "pattern")):
         messages.extend([_call(tool, **{arg: "x"}), _prompt()])
+
+    result = _process(messages)
+
+    assert len(result) == len(messages) + 1
+    assert NUDGE_MARKER in _nudge_text(result)
+    assert "a single lookup" in _nudge_text(result)
+
+
+def test_a_shell_command_in_the_middle_ends_the_streak():
+    """Widening the streak to mixed lookups must not carry it across a call
+    that may have produced the arguments of the next one."""
+    messages: list = [_prompt(), _call("Read", path="a.py"), _prompt()]
+    messages.extend([_call("Shell", command="pytest -q"), _prompt()])
+    messages.extend([_call("Read", path="b.py"), _prompt()])
 
     assert _process(messages) == messages
 
