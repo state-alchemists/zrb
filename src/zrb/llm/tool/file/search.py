@@ -87,6 +87,10 @@ def search_files(
     No matches rules out the pattern, not the behavior. Before reporting that
     something is absent — or that a removal is complete — say which pattern and
     path you searched, so the claim carries its own evidence.
+
+    Call this in parallel when you know the several patterns or directories you
+    need — one response with six Greps, not six — unless System Context says
+    this model cannot batch, which overrides.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE

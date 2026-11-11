@@ -153,6 +153,10 @@ def glob_files(
     files, and LS when you do not yet know what you are looking for.
 
     A git checkout hides what `.gitignore` excludes, matching LS.
+
+    Call this in parallel when you know the several patterns or directories you
+    need — one response with six Globs, not six — unless System Context says
+    this model cannot batch, which overrides.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
