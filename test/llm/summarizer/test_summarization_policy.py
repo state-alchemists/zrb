@@ -223,6 +223,19 @@ def test_the_tail_budget_is_configurable_and_defaults_to_the_constant(monkeypatc
     assert CFG.LLM_HISTORY_TAIL_BUDGET_RATIO == TAIL_BUDGET_RATIO
 
 
+def test_the_tail_ceiling_defaults_to_twelve_thousand_tokens(monkeypatch):
+    """Pinned because nothing else fails when it drifts.
+
+    On the default trigger the ceiling, not the ratio, is what decides the
+    verbatim tail: 0.4 of 200,000 allows 80,000 tokens, so this number is the
+    size of the handover every compaction leaves.
+    """
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_HISTORY_TAIL_MAX_TOKENS", raising=False)
+
+    assert CFG.DEFAULT_LLM_HISTORY_TAIL_MAX_TOKENS == "12000"
+    assert CFG.LLM_HISTORY_TAIL_MAX_TOKENS == 12_000
+
+
 def test_a_smaller_budget_also_shrinks_the_retry():
     """The retry follows the setting instead of a fixed 80%, so lowering the
     tail budget cannot be undone by a retry several times its size.
