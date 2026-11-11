@@ -76,7 +76,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
         self.DEFAULT_LLM_HISTORY_TAIL_BUDGET_RATIO: str = "0.4"
-        self.DEFAULT_LLM_HISTORY_TAIL_MAX_TOKENS: str = "24000"
+        self.DEFAULT_LLM_HISTORY_TAIL_MAX_TOKENS: str = "12000"
         self.DEFAULT_LLM_SUMMARY_MAX_TOKEN_RATIO: str = "0.05"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -529,7 +529,7 @@ class LLMContentMixin:
 
     LLM_HISTORY_TAIL_MAX_TOKENS = EnvField(
         int,
-        fallback=24_000,
+        fallback=12_000,
         doc=(
             "Absolute ceiling on the verbatim tail, in tokens, applied on top of "
             "LLM_HISTORY_TAIL_BUDGET_RATIO: whichever is smaller wins. A share of "
