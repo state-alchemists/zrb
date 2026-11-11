@@ -79,11 +79,13 @@ class CompactionDetail:
     message count alone, and `/compress` fires on neither. A reader with the
     cost and not the reason is looking at half a decision.
 
-    `allowed_tokens` is what the history was measured against, and
-    `prompt_tokens` is how much of the trigger the system prompt had already
-    spent — their sum is the configured trigger. A forced compaction answers no
-    limit, so its three token fields are zero and the renderer prints them as
-    unknown rather than as nothing.
+    `allowed_tokens` is the effective allowance the history was measured
+    against: the configured trigger less `prompt_tokens`, floored at one, so a
+    system prompt that outgrows the trigger leaves a one-token allowance rather
+    than a negative one — in that case the pair does not add back up to the
+    configured trigger. A forced compaction answers no limit, so its three token
+    fields are zero and the renderer prints them as unknown rather than as
+    nothing.
     """
 
     reason: str

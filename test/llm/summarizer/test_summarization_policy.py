@@ -543,3 +543,36 @@ async def test_the_fire_line_names_the_message_window_when_tokens_fit(
     ]
     assert "on the message limit" in line
     assert "800 messages against a 300 window" in line
+
+
+def test_a_fire_that_reached_no_model_does_not_vanish_from_usage(caplog):
+    """A fire the log announces must not disappear from `/usage` in silence.
+
+    `record_totals` writes no line for a compaction that never called the model,
+    so `/usage` lists nothing — and a reader comparing the two surfaces would
+    take the missing line for a compaction that never fired. The silent case
+    says which it was.
+    """
+    with caplog.at_level(logging.WARNING):
+        history_summarizer._record_compaction(
+            history_summarizer.UsageTotals(),
+            "s1",
+            _turns(6),
+            0.0,
+            history_summarizer.CompactionDetail(
+                reason=history_summarizer.LIMIT_TOKEN,
+                history_tokens=120,
+                allowed_tokens=60,
+                prompt_tokens=40,
+                messages=12,
+                window=300,
+            ),
+        )
+
+    (line,) = [
+        record.getMessage()
+        for record in caplog.records
+        if "reached no model" in record.getMessage()
+    ]
+    assert "no usage line" in line
+    assert "12 messages were left as they were" in line

@@ -550,14 +550,26 @@ def _record_compaction(
     answers is what replacing that history cost. `record_totals` writes nothing
     for a compaction that never reached the model, which is the case for a
     history under the threshold and for one whose split left nothing to replace.
+
+    A fire that reached no model is still a fire the caller logged at WARNING a
+    moment earlier, so the silent case says so: otherwise the log claims a
+    compaction happened and `/usage` shows none, with nothing explaining the
+    difference.
     """
-    record_totals(
+    record = record_totals(
         spent,
         session=_usage_session(session_name, messages),
         kind=KIND_SUMMARIZATION,
         duration_ms=int((time.monotonic() - started_at) * 1000),
         compaction=compaction,
     )
+    if record is None and compaction is not None:
+        CFG.LOGGER.warning(
+            "Compaction (%s) reached no model, so it has no usage line: %d "
+            "messages were left as they were",
+            compaction.reason,
+            len(messages),
+        )
 
 
 def _usage_session(

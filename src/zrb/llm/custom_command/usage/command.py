@@ -175,7 +175,10 @@ def _fire_lines(compactions: list[UsageRecord]) -> list[str]:
 
 def _fire_line(record: UsageRecord) -> str:
     """One compaction's reason and the numbers it fired on."""
-    when = record.timestamp.astimezone().strftime("%m-%d %H:%M")
+    # The default window is the whole log and it is never rotated, so a fires
+    # list can span years: without the year, two same-day fires a year apart
+    # read as twins and "newest first" becomes unverifiable.
+    when = record.timestamp.astimezone().strftime("%Y-%m-%d %H:%M")
     detail = record.compaction
     if detail is None:
         return f"{when}  reason not recorded"

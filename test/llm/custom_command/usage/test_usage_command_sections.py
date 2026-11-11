@@ -230,6 +230,9 @@ def test_the_compaction_section_names_the_limit_each_fire_answered(usage_dir):
     assert "message · 172.3k of 172.5k allowed" in out
     assert "315 of 300 message(s)" in out
     assert "prompt 54.9k" in out
+    # The default window is the whole log, which is never rotated, so a stamp
+    # without the year cannot tell two same-day fires a year apart apart.
+    assert record.timestamp.astimezone().strftime("%Y-%m-%d %H:%M") in out
 
 
 def test_a_forced_compaction_says_so_without_inventing_a_measurement(usage_dir):
