@@ -9,7 +9,8 @@ is complete. Text written before a tool call is spoken when the call starts, so
 
 Only a `<spoken>` block is said while the reply streams. The prose around it
 is for the eye, and none of it is said on the chance that no block follows:
-such a reply is read whole when the turn ends, by the stop hook.
+a response that opens no block is read whole when the turn ends, by the stop
+hook.
 
 Events are read by their ``event_kind``/``part_kind`` tags rather than their
 classes, so speech never imports pydantic-ai.
@@ -26,11 +27,14 @@ from zrb.llm.util.spoken import SpokenSplitter
 
 
 class StreamedReply:
-    """The part of one turn's reply already spoken, and what is left to cut.
+    """The part of one turn's last response already spoken, and what is left.
 
-    Every sentence of a `<spoken>` block is said as it completes. A reply with
-    no block claims nothing here and is read whole when the turn ends. A
-    session that summarizes long replies does not stream them (`SpeechSession`).
+    Every sentence of a `<spoken>` block is said as it completes. A response
+    with no block claims nothing here and is read whole when the turn ends; a
+    claim made by an earlier response in the same turn is not carried into this
+    one (`_reset_spoken`), so a block that spoke first does not silence the
+    answer written after it. A session that summarizes long replies does not
+    stream them (`SpeechSession`).
 
     *max_chars*, when given, is the longest run of prose said as one piece:
     the speech backend's own limit, which the chunker cannot know. Events
@@ -58,9 +62,11 @@ class StreamedReply:
 
     @property
     def has_claimed_turn(self) -> bool:
-        """Whether this turn's reply is streaming's to speak: some of it was
-        spoken, or the user talked over it. Either way, the whole reply must
-        not be spoken again when the turn ends."""
+        """Whether the last response is streaming's to speak: some of it was
+        spoken, or the user talked over it. Either way, that message must not be
+        spoken again when the turn ends — while a response that said nothing,
+        and whose prose no block marked, is still the turn's last word and the
+        stop hook's to read whole."""
         return self._has_spoken or self._was_muted
 
     def handle_event(self, event: Any) -> None:
@@ -108,14 +114,20 @@ class StreamedReply:
     def _reset(self) -> None:
         self._chunker.reset()
         self._reset_spoken()
-        self._has_spoken = False
         self._is_muted = self._was_muted = False
 
     def _reset_spoken(self) -> None:
-        """A fresh splitter for a new message, still blocks-only: `reset` puts
-        `_speaks_outside` back on, and this stream must not have it."""
+        """A fresh message: a new splitter, still blocks-only, and no claim yet.
+
+        The claim is the *response's*, not the turn's. A block said in an earlier
+        response has already been heard and says nothing about this one, so
+        leaving `_has_spoken` set would mark the turn spoken from its first
+        block and lose the last response's unmarked prose — the answer to the
+        turn — because the stop hook reads only an unclaimed response. `reset`
+        puts `_speaks_outside` back on, and this stream must not have it."""
         self._spoken.reset()
         self._spoken.speak_only_blocks()
+        self._has_spoken = False
 
     def _read(self, event: Any) -> list[str]:
         kind = getattr(event, "event_kind", None)

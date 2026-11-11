@@ -13,7 +13,10 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
-from zrb.llm.speech.backend.any_speech_backend import SpeechServiceStopped
+from zrb.llm.speech.backend.any_speech_backend import (
+    SpeechMadeNoAudio,
+    SpeechServiceStopped,
+)
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.util.priority import raise_priority
 from zrb.llm.util.teardown import cancel_and_wait, close_quietly
@@ -243,7 +246,9 @@ class TTSPipeline:
         self, text: str, timeout: float = FIRST_CHUNK_TIMEOUT_SECONDS, voice: str = ""
     ) -> SpeechAudio:
         """Return *text* as audio in *voice* (empty: the voice the service
-        was built with), or raise if synthesis fails to start."""
+        was built with), or raise: `SpeechServiceStopped` when the service will
+        not speak again at all, `SpeechMadeNoAudio` when it made nothing of this
+        sentence and the caller should ask a fresh one."""
         if not self.is_service_usable:
             raise self._service_stopped()
         self._sentence_lock.acquire()
@@ -266,7 +271,12 @@ class TTSPipeline:
             # this pipeline can be asked: the backend has to replace it.
             if not self.is_service_usable:
                 raise self._service_stopped() from exc
-            raise
+            # Nothing arrived for this sentence — the first chunk is what was
+            # waited for — so it said not one word of it. A service that made
+            # nothing of a sentence is one to replace before it is asked again:
+            # that is what makes the speaker's second attempt a fresh voice
+            # rather than the same silence.
+            raise SpeechMadeNoAudio(str(exc) or "it made no audio") from exc
         return SpeechAudio(
             sentence.sample_rate,
             self._read(sentence, first),

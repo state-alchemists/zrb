@@ -118,3 +118,23 @@ def test_a_new_response_starts_blocks_only_again():
     reply.handle_event(_event("part_delta", delta=_delta("text", "<spoken>Two")))
     reply.flush()
     assert said == ["One", "Two"]
+
+
+def test_a_block_said_in_one_response_does_not_claim_the_next():
+    """A turn's responses are separate messages, and the claim is about one of
+    them. A block said before a tool call has been heard; it says nothing about
+    the answer written after it, which no block marks. Leaving the turn claimed
+    would lose that answer — the stop hook reads only an unclaimed response."""
+    reply, said = _reply()
+    reply.handle_event(
+        _event("part_start", index=0, part=_part("text", "<spoken>Let me look.</spoken>"))
+    )
+    reply.handle_event(_event("part_start", index=1, part=_part("tool-call")))
+    reply.handle_event(
+        _event("part_start", index=0, part=_part("text", "It was one bug. "))
+    )
+    reply.handle_event(_event("part_end", part=_part("text")))
+    reply.flush()
+
+    assert said == ["Let me look."]
+    assert not reply.has_claimed_turn

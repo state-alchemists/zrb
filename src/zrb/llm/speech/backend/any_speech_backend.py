@@ -18,6 +18,17 @@ class SpeechServiceStopped(RuntimeError):
     as one more failed render."""
 
 
+class SpeechMadeNoAudio(RuntimeError):
+    """A backend's service made no audio at all for one sentence.
+
+    The first chunk never arrived, so not a word of that sentence was said. Not
+    the same as a service that stopped: this pipeline may well speak the next
+    sentence, but it has already made nothing of this one, and asking it again
+    is how a sentence is lost. A backend that hears this lets the pipeline go,
+    so the caller's next attempt — the speaker asks a local voice twice — is a
+    fresh service, which is what speaks a sentence this one made nothing of."""
+
+
 class AnySpeechBackend(ABC):
     """Interface for text-to-speech backends."""
 
