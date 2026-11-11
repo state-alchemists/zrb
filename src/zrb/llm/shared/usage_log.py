@@ -95,6 +95,24 @@ class CompactionDetail:
     messages: int
     window: int
 
+    @classmethod
+    def forced(cls, messages: int, window: int | None = None) -> "CompactionDetail":
+        """A compaction a person asked for, which answers no limit.
+
+        The token fields stay zero: nothing was measured, and the renderer says
+        `forced` rather than printing zeroes as a history that measured nothing.
+        *window* defaults to the configured one — the window such a history would
+        have been measured against had the trigger decided.
+        """
+        return cls(
+            reason=COMPACTION_FORCED,
+            history_tokens=0,
+            allowed_tokens=0,
+            prompt_tokens=0,
+            messages=messages,
+            window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW if window is None else window,
+        )
+
 
 @dataclass(frozen=True)
 class UsageRecord:

@@ -13,6 +13,7 @@ from zrb.llm.summarizer.history_summarizer import (
     create_summarizer_history_processor,
     summarize_history,
     summarize_messages,
+    warn_forced_compaction,
 )
 from zrb.llm.summarizer.message_converter import (
     message_to_text,
@@ -34,6 +35,7 @@ __all__ = [
     "create_summarizer_history_processor",
     "summarize_history",
     "summarize_messages",
+    "warn_forced_compaction",
     "split_history",
     "count_tail_tokens",
     "count_history_tokens",

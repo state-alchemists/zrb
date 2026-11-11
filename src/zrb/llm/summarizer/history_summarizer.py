@@ -572,6 +572,19 @@ def _record_compaction(
         )
 
 
+def warn_forced_compaction(command: str, messages: int) -> None:
+    """Say a person asked for this compaction, since no limit answers for it.
+
+    The trigger's fire line only speaks for a threshold or a window; a typed
+    `/compress` reaches the summarizer without either, and a compaction that
+    appears in the log with no reason would read as one the trigger decided.
+    *command* is one of the configured `/compress` commands, never free text.
+    """
+    CFG.LOGGER.warning(
+        "Compaction forced by %s: %d messages in the history", command, messages
+    )
+
+
 def _usage_session(
     session_name: "str | Callable[[], str | None] | None",
     messages: "list[ModelMessage] | None",
