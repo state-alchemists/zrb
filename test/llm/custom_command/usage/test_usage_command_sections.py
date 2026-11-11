@@ -8,7 +8,16 @@ from pydantic_ai.usage import RunUsage
 from zrb.config.config import CFG
 from zrb.llm.custom_command.usage.command import create_usage_commands, render_usage
 from zrb.llm.memory.model import Diary, Fact
-from zrb.llm.shared.usage_log import UsageRecord, record_usage
+from zrb.llm.shared.usage_log import (
+    COMPACTION_FORCED,
+    KIND_SUMMARIZATION,
+    LIMIT_MESSAGE,
+    CompactionDetail,
+    UsageRecord,
+    UsageTotals,
+    record_totals,
+    record_usage,
+)
 
 
 @pytest.fixture
@@ -183,3 +192,72 @@ def test_a_window_with_no_runs_still_reports_the_store(memory_dir):
     assert "  Memory" in out
     assert "1 fact(s)" in out
     assert "writes" not in out
+
+
+def _compaction_totals() -> UsageTotals:
+    """A non-empty total, so `record_totals` writes a line at all."""
+    totals = UsageTotals()
+    totals.input_tokens = 900
+    totals.requests = 1
+    return totals
+
+
+def test_the_compaction_section_names_the_limit_each_fire_answered(usage_dir):
+    """The table says what a compaction cost; this says why it ran.
+
+    Without it a reader sees cost and has to guess between the token trigger,
+    the message window and a typed `/compress`.
+    """
+    record = record_totals(
+        _compaction_totals(),
+        session="s1",
+        kind=KIND_SUMMARIZATION,
+        when=datetime.now(timezone.utc),
+        compaction=CompactionDetail(
+            reason=LIMIT_MESSAGE,
+            history_tokens=172_329,
+            allowed_tokens=172_500,
+            prompt_tokens=54_900,
+            messages=315,
+            window=300,
+        ),
+    )
+    assert record is not None
+
+    out = render_usage([record], "label", registered_tools=[])
+
+    assert "fires (newest first)" in out
+    assert "message · 172.3k of 172.5k allowed" in out
+    assert "315 of 300 message(s)" in out
+    assert "prompt 54.9k" in out
+    # The default window is the whole log, which is never rotated, so a stamp
+    # without the year cannot tell two same-day fires a year apart apart.
+    assert record.timestamp.astimezone().strftime("%Y-%m-%d %H:%M") in out
+
+
+def test_a_forced_compaction_says_so_without_inventing_a_measurement(usage_dir):
+    """`/compress` answers no limit, so it has no history to compare.
+
+    Printing zeroes would read as a history that measured nothing; the line
+    has to say what it knows and stop.
+    """
+    record = record_totals(
+        _compaction_totals(),
+        session="s1",
+        kind=KIND_SUMMARIZATION,
+        when=datetime.now(timezone.utc),
+        compaction=CompactionDetail(
+            reason=COMPACTION_FORCED,
+            history_tokens=0,
+            allowed_tokens=0,
+            prompt_tokens=0,
+            messages=84,
+            window=300,
+        ),
+    )
+    assert record is not None
+
+    out = render_usage([record], "label", registered_tools=[])
+
+    assert "forced · 84 message(s)" in out
+    assert "0 of" not in out

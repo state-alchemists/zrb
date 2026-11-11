@@ -31,7 +31,8 @@ from zrb.llm.prompt.live_context.context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.shared.stream_observer import StreamObserver
-from zrb.llm.summarizer import summarize_history
+from zrb.llm.shared.usage_log import CompactionDetail
+from zrb.llm.summarizer import summarize_history, warn_forced_compaction
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
@@ -744,6 +745,9 @@ class LLMTask(BaseTask):
         ):
             return False
         ctx.print("Compressing conversation history...", plain=True)
+        # A forced compaction answers no limit, so the trigger's fire line never
+        # sees it; the summarizer says the reason for this one.
+        warn_forced_compaction(user_message.strip(), len(message_history))
         # lazy: heavy third-party (via zrb.llm.ui)
         from zrb.llm.agent.run.setup import session_model_scope
 
@@ -755,6 +759,7 @@ class LLMTask(BaseTask):
                 force=True,
                 session_name=conversation_name,
                 history_dir=history_manager.storage_dir,
+                compaction=CompactionDetail.forced(len(message_history)),
             )
         history_manager.update(conversation_name, new_history)
         await asyncio.to_thread(history_manager.save, conversation_name)

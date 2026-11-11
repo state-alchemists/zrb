@@ -462,3 +462,4 @@ async def test_the_summary_is_written_from_the_whole_conversation(
     assert any(
         "question 5" in prompt for prompt in prompts
     ), "the kept tail never reached the summarizer"
+

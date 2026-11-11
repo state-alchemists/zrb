@@ -16,6 +16,8 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.conversation_naming import with_slug
 from zrb.llm.shared.usage_log import (
     KIND_SUMMARIZATION,
+    LIMIT_TOKEN,
+    CompactionDetail,
     UsageTotals,
     read_records,
     record_totals,
@@ -405,3 +407,69 @@ def test_a_cost_no_call_reported_is_unknown_not_zero(usage_dir):
 def test_a_total_that_reached_no_model_is_not_recorded(usage_dir):
     assert record_totals(UsageTotals(), when=JANUARY) is None
     assert read_records() == []
+
+
+def _totals(tokens: int = 900) -> UsageTotals:
+    """A non-empty total, so `record_totals` writes a line at all."""
+    totals = UsageTotals()
+    totals.input_tokens = tokens
+    totals.requests = 1
+    return totals
+
+
+def test_a_compaction_keeps_the_reason_it_fired_for(usage_dir):
+    """The cost alone cannot answer "why did the summarizer run".
+
+    The trigger is the configured threshold less the system prompt, the message
+    window fires on its own, and `/compress` answers neither — so the reason and
+    the numbers it fired on are information the token counts do not carry.
+    """
+    record_totals(
+        _totals(),
+        session="s1",
+        kind=KIND_SUMMARIZATION,
+        when=JANUARY,
+        compaction=CompactionDetail(
+            reason=LIMIT_TOKEN,
+            history_tokens=1200,
+            allowed_tokens=1000,
+            prompt_tokens=400,
+            messages=12,
+            window=300,
+        ),
+    )
+
+    (record,) = read_records()
+
+    assert record.compaction is not None
+    assert record.compaction.reason == LIMIT_TOKEN
+    assert record.compaction.history_tokens == 1200
+    assert record.compaction.allowed_tokens == 1000
+    assert record.compaction.prompt_tokens == 400
+    assert record.compaction.window == 300
+
+
+def test_a_line_written_before_the_reason_existed_still_reads(usage_dir):
+    """Records outlive the code that wrote them.
+
+    A compaction written by an older zrb has no reason field; it must read back
+    as "not recorded" rather than fail the parse and cost the tokens the line
+    carries.
+    """
+    written = record_totals(
+        _totals(),
+        session="s1",
+        # JANUARY, not now: the file is written by hand below.
+        when=JANUARY,
+    )
+    assert written is not None
+    raw = written.to_dict()
+    raw.pop("compaction")
+    path = usage_store_path(JANUARY)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(json.dumps(raw) + "\n")
+
+    (record,) = read_records()
+
+    assert record.compaction is None
+    assert record.input_tokens == 900
