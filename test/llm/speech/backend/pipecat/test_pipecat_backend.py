@@ -15,6 +15,7 @@ from pipecat.services.tts_service import TTSService  # noqa: E402
 from zrb.config.config import CFG  # noqa: E402
 from zrb.llm.speech import SpeechConfig  # noqa: E402
 from zrb.llm.speech.backend.any_speech_backend import (  # noqa: E402
+    SpeechMadeNoAudio,
     SpeechServiceStopped,
 )
 from zrb.llm.speech.backend.pipecat.backend import PipecatSpeechBackend  # noqa: E402
@@ -199,6 +200,47 @@ def test_a_service_that_stopped_is_replaced_by_the_next_sentence(monkeypatch, ca
     backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
     try:
         with pytest.raises(SpeechServiceStopped, match="no longer make audio"):
+            backend.create_audio(SENTENCE)
+        chunks = list(backend.create_audio(SENTENCE).chunks)
+    finally:
+        backend.close()
+
+    assert len(built) == 2
+    assert built[1].said == [SENTENCE]
+    assert chunks == [CHUNK]
+    assert "starts a fresh one" in caplog.text
+
+
+class SilentSpeechService(FakeSpeechService):
+    """A service that completes a context without making any audio."""
+
+    async def run_tts(self, text: str, context_id: str):
+        self.said.append(text)
+        return
+        yield  # pragma: no cover — a generator, as the service expects
+
+
+def test_a_service_that_made_no_audio_is_replaced_before_it_is_asked_again(
+    monkeypatch, caplog
+):
+    """The speaker asks a local voice twice, so the second attempt must not be
+    the service that just made nothing of the sentence: one silent context is
+    the engine's slip, and the sentence is spoken by a fresh one instead of
+    going unsaid."""
+    built: "list[FakeSpeechService]" = []
+
+    def create_service(name: str, config: SpeechConfig) -> FakeSpeechService:
+        service = SilentSpeechService() if not built else FakeSpeechService()
+        built.append(service)
+        return service
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service",
+        create_service,
+    )
+    backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
+    try:
+        with pytest.raises(SpeechMadeNoAudio, match="no audio"):
             backend.create_audio(SENTENCE)
         chunks = list(backend.create_audio(SENTENCE).chunks)
     finally:

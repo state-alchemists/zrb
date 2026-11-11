@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.shared.ambient_state import get_current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import (
     AnySpeechBackend,
+    SpeechMadeNoAudio,
     SpeechServiceStopped,
 )
 from zrb.llm.voice.manager import tts_manager
@@ -67,17 +68,27 @@ class PipecatSpeechBackend(AnySpeechBackend):
 
     def create_audio(self, text: str) -> "SpeechAudio":
         """Return *text* as PCM for in-process playback, in the voice the
-        speaker asks for, else the one the service was built with."""
+        speaker asks for, else the one the service was built with.
+
+        A pipeline that failed this sentence is let go before the error is
+        re-raised, so the speaker's second attempt at a local voice is a fresh
+        service: one silent context is not the sentence's fault, and asking the
+        service that made nothing of it again is how the sentence is lost."""
         pipeline = self._get_pipeline()
         try:
             return pipeline.speak(text, voice=get_current_speech_voice())
         except SpeechServiceStopped:
             # A service that stopped refuses every sentence, so this pipeline
             # is not worth keeping: the next sentence builds a new one.
-            self._discard_pipeline(pipeline)
+            self._discard_pipeline(pipeline, "stopped making audio")
+            raise
+        except SpeechMadeNoAudio:
+            # It made nothing of this sentence; a pipeline that has done so once
+            # is not one to ask again for the same words.
+            self._discard_pipeline(pipeline, "made no audio for a sentence")
             raise
 
-    def _discard_pipeline(self, pipeline: "TTSPipeline") -> None:
+    def _discard_pipeline(self, pipeline: "TTSPipeline", reason: str) -> None:
         """Let *pipeline* go, so the next sentence starts a fresh service.
 
         Rebuilding reloads the model, which is the price of a voice at all: a
@@ -87,7 +98,7 @@ class PipecatSpeechBackend(AnySpeechBackend):
                 return
             self._pipeline = None
         logger.warning(
-            f"The {self._service_name} speech service stopped making audio; "
+            f"The {self._service_name} speech service {reason}; "
             "the next sentence starts a fresh one"
         )
         pipeline.close()
