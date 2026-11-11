@@ -97,6 +97,9 @@ def list_files(
 
     A git checkout hides what `.gitignore` excludes (generated coverage HTML,
     build output), so the listing is the repository's real shape.
+
+    Listing several places? Put every call in one response, not one call per
+    round — unless System Context says this model cannot batch.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -153,6 +156,9 @@ def glob_files(
     files, and LS when you do not yet know what you are looking for.
 
     A git checkout hides what `.gitignore` excludes, matching LS.
+
+    Looking for several patterns? Put every call in one response, not one call
+    per round — unless System Context says this model cannot batch.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))

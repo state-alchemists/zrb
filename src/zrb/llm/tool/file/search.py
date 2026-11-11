@@ -87,6 +87,9 @@ def search_files(
     No matches rules out the pattern, not the behavior. Before reporting that
     something is absent — or that a removal is complete — say which pattern and
     path you searched, so the claim carries its own evidence.
+
+    Searching several patterns? Put every call in one response, not one call
+    per round — unless System Context says this model cannot batch.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE
