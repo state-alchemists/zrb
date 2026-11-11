@@ -121,10 +121,30 @@ def test_a_streak_after_the_nudge_gets_a_fresh_one():
     assert len(_process(messages)) == len(messages) + 1
 
 
-def test_lookups_of_different_tools_are_not_one_streak():
+def test_lookups_of_different_tools_are_one_streak():
+    """A lookup does not need the last lookup's output, whichever tool it was.
+
+    Measured on three weeks of transcripts, this is the shape today's rule
+    misses: 47 mixed streaks against 28 same-tool ones.
+    """
     messages: list = [_prompt(), _call("Read", path="a.py"), _prompt()]
-    for tool, arg in (("Grep", "pattern"), ("Glob", "pattern")):
-        messages.extend([_call(tool, **{arg: "x"}), _prompt()])
+    messages.extend([_call("Grep", pattern="alpha"), _prompt()])
+    messages.extend([_call("Glob", pattern="**/*.py"), _prompt()])
+
+    result = _process(messages)
+
+    assert len(result) == len(messages) + 1
+    assert "`Read`" in _nudge_text(result)
+    assert "`Grep`" in _nudge_text(result)
+    assert "`Glob`" in _nudge_text(result)
+
+
+def test_a_mixed_streak_still_needs_distinct_arguments():
+    """Widening the tools did not weaken the evidence: identical arguments are
+    one lookup repeated, not several lookups that could have been batched."""
+    messages: list = [_prompt()]
+    for tool in ("Read", "Grep", "Glob"):
+        messages.extend([_call(tool, target="x"), _prompt()])
 
     assert _process(messages) == messages
 
