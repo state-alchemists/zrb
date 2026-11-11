@@ -127,7 +127,9 @@ def test_a_block_said_in_one_response_does_not_claim_the_next():
     would lose that answer — the stop hook reads only an unclaimed response."""
     reply, said = _reply()
     reply.handle_event(
-        _event("part_start", index=0, part=_part("text", "<spoken>Let me look.</spoken>"))
+        _event(
+            "part_start", index=0, part=_part("text", "<spoken>Let me look.</spoken>")
+        )
     )
     reply.handle_event(_event("part_start", index=1, part=_part("tool-call")))
     reply.handle_event(
