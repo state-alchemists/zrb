@@ -318,7 +318,7 @@ class LLMLimiter:
         """Tokens in *content* itself, ignoring a usage anchor inside it.
 
         `count_tokens` prefers a provider-reported usage count when the content
-        holds one, because that is what the request it describes really cost.
+        holds one, because that is what the request it describes cost.
         That request covered every message up to the response carrying it, so
         the number says nothing about a window cut out of that history: used on
         a suffix it returns the unsplit history's size however much the suffix

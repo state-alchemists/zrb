@@ -108,12 +108,6 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
     completed turn's event line and a cancelled turn's — are on whenever memory
     is, because the day's record is not the reviewer's business; the reviewer
     joins them when `LLM_MEMORY_REVIEWER_ENABLED` says so.
-
-    They used to share the reviewer's switch, on the argument that a log written
-    beside a reviewer that never ran would leave a day holding cancellations and
-    nothing else. That was backwards: the answer was to free the line from the
-    reviewer, not to drag it down with it — switching off a per-turn model call
-    should not also stop recording what the day held.
     """
     if not CFG.LLM_MEMORY_ENABLED:
         return
@@ -270,9 +264,8 @@ def _write_log_line(context: "HookContext", text: str) -> None:
             # stages every managed path, so a commit made outside it can sweep up
             # a writer's half-finished change, or lose the race for
             # `.git/index.lock` and be dropped — this is best effort, and a
-            # dropped commit is silent. It matters now because this turn runs as
-            # its own task beside the reviewer, and the two commit concurrently
-            # where one hook used to do both.
+            # dropped commit is silent. It matters here because this turn runs as
+            # its own task beside the reviewer, and the two commit concurrently.
             #
             # The log is part of the audit trail, and a log day is the one thing
             # the store may prune: an entry that never reached git is an entry

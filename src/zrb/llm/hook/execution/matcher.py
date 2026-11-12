@@ -120,8 +120,7 @@ def get_field_value(context: HookContext, field_path: str) -> object:
 def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bool:
     """Evaluate all matchers against the given context.
 
-    Returns True if ALL matchers pass, False otherwise. Matchers can access
-    fields in the context using dot notation (e.g. "metadata.project").
+    Returns True if ALL matchers pass, False otherwise.
     """
     if not matchers:
         return True

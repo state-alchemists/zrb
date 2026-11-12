@@ -205,7 +205,7 @@ class GlobalStreamCapture:
         """Returns a file object connected to the original stdout (terminal)."""
         if os.name == "nt":
             try:
-                # CONOUT$ is more robust than duping a redirected FD 1.
+                # CONOUT$ is safer than duping a redirected FD 1.
                 return open("CONOUT$", "w", encoding="utf-8", errors="replace")
             except Exception:
                 # Fall through to the portable os.dup.

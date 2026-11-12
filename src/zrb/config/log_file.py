@@ -1,8 +1,8 @@
 """An optional log file, for the lines a repainting terminal loses.
 
 The chat UI draws its own screen, so a warning written to stderr is painted
-over by the next frame and never read again — which is how a stutter only
-ever reproducible "while the machine is busy" stayed undiagnosable. A file
+over by the next frame and never read again — which is how a stutter
+reproducible only "while the machine is busy" stayed undiagnosable. A file
 keeps the line, rotated, so it can be read after the fact.
 """
 

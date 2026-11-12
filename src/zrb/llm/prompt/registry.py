@@ -66,7 +66,7 @@ class PromptRegistry:
 
     The base is the ``set_prompts`` value, else ``default``; either may be a
     zero-argument callable resolved at query time. Delta ops are replayed over
-    it on every read. ``remove_prompt`` drops the first entry equal to the one given.
+    it on every read.
     """
 
     def __init__(self, default: PromptSetValue = None) -> None:

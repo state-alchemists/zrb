@@ -106,7 +106,7 @@ def archive_verbatim_history(
         _ensure_archive_directory(os.path.dirname(path))
         # No owned_entries restriction: unlike the journal root, "verbatim" is
         # never user-configured directly -- zrb names and creates it itself
-        # beneath whatever LLM_HISTORY_DIR is, and only ever puts its own
+        # beneath whatever LLM_HISTORY_DIR is, and puts only its own
         # archives and lock sidecars there, so narrowing the whole
         # subdirectory cannot reach content that belongs to something else.
         tighten_once(os.path.dirname(path))
@@ -167,7 +167,7 @@ def _ensure_archive_directory(directory: str) -> None:
     up to its nearest existing ancestor (including one planted in the race
     between its own check and the `mkdir` that follows), and creates every
     missing level at the right mode instead of `os.makedirs()`'s mode
-    argument, which only ever reaches the leaf. Ownership is the one check
+    argument, which reaches only the leaf. Ownership is the one check
     specific to the archive: a *directory* that already exists, is a real
     directory, and is not a symlink can still belong to someone else.
     """
@@ -214,8 +214,8 @@ def _cut_back(descriptor: int, size_before: int) -> None:
     """Truncate the open archive back to *size_before*; best effort.
 
     When this fails too the partial section stays on disk. It is logged, not
-    repaired: repairing it means rewriting a file whose whole promise is that it
-    is only ever appended to.
+    repaired: repairing it would mean rewriting a file that is append-only by
+    contract.
     """
     try:
         os.ftruncate(descriptor, size_before)

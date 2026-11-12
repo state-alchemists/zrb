@@ -148,7 +148,7 @@ def _repo_slug(git_root: str) -> str:
     The basename alone is not unique: two checkouts named `api` would share one
     directory and the second `git worktree add` would fail on a path it does not
     own. The digest comes from the canonical path, so it survives a rename of the
-    directory the repository sits in only if the path really is the same repo.
+    directory the repository sits in only when the path resolves to the same repo.
     """
     real_root = os.path.realpath(git_root)
     name = os.path.basename(real_root) or "repo"

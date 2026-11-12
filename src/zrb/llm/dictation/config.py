@@ -20,10 +20,9 @@ class DictationConfig:
     `CFG.LLM_DICTATION_<FIELD>`; one left ``None`` is read from there when a
     session starts.
 
-    Three of them were renamed when the switches took the `_ENABLED` suffix —
-    ``enable_echo_cancel``, ``detect_emotion`` and ``emotion_out_of_process`` —
-    and the old names still work as constructor arguments and attributes,
-    warning once.
+    ``enable_echo_cancel``, ``detect_emotion`` and ``emotion_out_of_process``
+    are the pre-`_ENABLED` names, and still work as constructor arguments and
+    attributes, warning once.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
     ``multimodal``, ``sensevoice``), a speech service registered with ``stt_manager``

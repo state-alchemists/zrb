@@ -6,14 +6,10 @@ shows it in the same framed panel the choice widget uses, docked above the
 input: the question, then the answer once it arrives, at a fixed height that
 scrolls instead of swallowing the screen.
 
-It docks rather than taking the input frame's place because it keeps typing
-alive: the panel takes the focus while it is shown, so the movement keys walk
-the answer instead of the input (Up/Down with PageUp/PageDown/Home/End scroll
-the panel rather than recalling a queued message), but a typed character starts
-a message in the input without the focus leaving the panel, so the input frame
-has to stay visible. Enter closes the panel without submitting an input draft;
-Esc also closes it. Both return focus to the input. A panel that opens while a
-prompt is waiting for the user keeps the focus where it is: that field is what
+It docks above the input: typing here starts a message in the input, so hiding
+the input would make that typing blind. The panel takes the focus while it is
+shown, so Up/Down walk the answer instead of recalling a queued message; a
+prompt already waiting keeps the focus where it is, since that field is what
 the turn is blocked on.
 
 * `begin(question)` — open the panel and say the answer is coming. Returns a
@@ -379,13 +375,8 @@ class UISideQuestion:
         return panel
 
     def side_question_panel(self) -> "AnyContainer":
-        """The framed panel, docked above the input while a side answer is up.
-
-        A panel whose input is dead may stand in the input frame's place; a
-        panel that keeps the input alive docks above it. Typing here starts a
-        message in the input (`handle_typed_text`), so hiding the input would
-        make that typing blind.
-        """
+        """The framed panel, docked above the input while a side answer is up
+        (see `create_layout` for where a panel goes)."""
         # lazy: heavy third-party
         from prompt_toolkit.widgets import Frame
 

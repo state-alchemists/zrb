@@ -12,7 +12,7 @@ TAIL_BUDGET_RATIO = 0.4
 
 Compaction runs when the history reaches the trigger threshold. Keeping 40% of
 it leaves the rest of the window for the turns that follow, so the summarizer
-does not run again on the very next request.
+does not run again on the next request.
 """
 
 TURN_START_MIN_SHARE = 0.5
@@ -57,7 +57,7 @@ MAX_TAIL_BUDGET_RATIO = 0.8
 """Largest tail a setting may ask for.
 
 A tail that fills the threshold leaves no headroom: the history would be back
-at the trigger on the very next request, and at exactly 1.0 the split keeps
+at the trigger on the next request, and at exactly 1.0 the split keeps
 everything and the summarizer runs on nothing. Capping at the retry ceiling
 keeps a compaction worth running — it always frees at least a fifth of the
 threshold — and keeps a configured number from silently disabling compaction.

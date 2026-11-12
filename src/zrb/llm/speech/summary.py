@@ -3,7 +3,7 @@ instead of the reply, which stays on screen in full.
 
 `SpeechSummarizer` makes the summary on a worker thread and guarantees the
 listener hears the reply exactly once: the summary if it arrives in time, the
-reply whole if the model fails, is slow, or is simply stuck. The deadline is
+reply whole if the model fails, is slow, or is stuck. The deadline is
 kept by a timer outside the worker, so the fallback never depends on the worker
 returning.
 

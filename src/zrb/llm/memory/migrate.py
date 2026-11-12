@@ -10,7 +10,7 @@ never touches or deletes the notes. That is deliberate — the old store is the
 evidence for the new one, and a migration that destroys its input cannot be
 re-run after a bug.
 
-Four rules:
+Five rules:
 
 * **The claim is the journal's own headline.** A note's `hud_line`, else the first
   sentence of its `**Finding:**`, else the note's title. Where a hud_line is over
@@ -28,8 +28,7 @@ Four rules:
   read back inside a future prompt, so a journal note whose headline or handover
   carries a prompt-injection marker gets a neutral line instead of that text: the
   entry survives, the words do not. A body is never injected, so it is bounded and
-  kept as it was — the alternative was discarding three hundred notes because one
-  of them quoted an injection.
+  kept as it was.
 """
 
 from __future__ import annotations

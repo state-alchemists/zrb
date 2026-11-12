@@ -239,11 +239,10 @@ class UISelection:
     def choice_panel(self) -> "AnyContainer":
         """The framed panel, standing in the input frame's place while it runs.
 
-        A panel whose input is dead may stand in the input frame's place; a
-        panel that keeps the input alive docks above it. A choice makes the
-        input dead — printable keys reach it only outside a choice
-        (`filter=not_choice_active`, `app/keybinding.py`) — so the panel takes
-        the input's rows instead of covering the transcript with a float.
+        A choice makes the input dead — printable keys reach it only outside a
+        choice (`filter=not_choice_active`, `app/keybinding.py`) — so the panel
+        takes the input's rows instead of covering the transcript with a float
+        (`create_layout`).
         """
         # lazy: heavy third-party
         from prompt_toolkit.widgets import Frame

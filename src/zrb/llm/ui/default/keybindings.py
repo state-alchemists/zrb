@@ -89,7 +89,7 @@ class UIKeybindings:
         # pane binds the same keys for its own focus and the `/btw` panel pages
         # itself; the choice panel binds neither, and a docked panel leaves
         # the transcript visible, so without these two an active choice would
-        # freeze the very transcript the user wants to read.
+        # freeze the transcript the user wants to read.
         @app_keybindings.add("pageup")
         def _(event):
             self._on_page_output(event, -1)
@@ -269,8 +269,7 @@ class UIKeybindings:
         if ui.input_field.buffer.text != "":
             return
         ui.cancel_pending_confirmations(flush=False)
-        # This exit used to cut a running turn and say nothing, so the day lost
-        # the event. `cancel_current_turn` cancels, announces and fires the Stop.
+        # `cancel_current_turn` cancels, announces and fires the Stop.
         if ui.is_turn_running:
             ui.cancel_current_turn("ctrl_d", flush=False)
         event.app.exit()

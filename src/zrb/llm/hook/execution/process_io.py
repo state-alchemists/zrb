@@ -159,7 +159,7 @@ def _write_stdin(
 def _unregister(sel: "selectors.BaseSelector", fileobj: object) -> None:
     """Drop *fileobj* from the selector, tolerating an already-dropped one."""
     try:
-        # The selector was given this very object to watch; drop that one.
+        # The selector was given this object to watch; drop that one.
         sel.unregister(cast("IO[bytes]", fileobj))
     except (KeyError, ValueError):
         pass

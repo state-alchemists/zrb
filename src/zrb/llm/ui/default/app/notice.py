@@ -19,7 +19,7 @@ def append_notice(ui: "BaseUI", text: str, **kwargs) -> None:
     they needed it.
 
     A UI with no transcript to append to (a test double, a headless caller)
-    simply gets nothing: a notice is never worth raising over.
+    gets nothing: a notice is never worth raising over.
     """
     append = getattr(ui, "append_to_output", None)
     if append is None:

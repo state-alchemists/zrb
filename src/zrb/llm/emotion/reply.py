@@ -225,7 +225,7 @@ def _has_visible_text(text: str) -> bool:
 
 def _without_partial_marker(text: str) -> str:
     """*text* without the tail that could still become a marker: `<spok` says
-    nothing yet, and the emoji may be the very next character."""
+    nothing yet, and the emoji may be the next character."""
     tail = partial_marker(text)
     return text[: len(text) - len(tail)]
 

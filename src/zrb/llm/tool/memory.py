@@ -527,14 +527,8 @@ def _remember_diary(
     body: str | None,
     append: bool,
 ) -> str:
-    """Write a day. *claim* may be ``None``, which keeps the stored sentence.
-
-    A handover that moved is not a new answer to "what was this day": the claim
-    is rendered as the `Today` line of every later session and as that day's own
-    dated line once the day has passed, so rewriting it from one turn's
-    transcript would make the day a log of its last turn. Every other field
-    already follows the merge rule — omitted means kept — and the claim was the
-    one exception.
+    """Write a day. *claim* may be ``None``, which keeps the stored sentence
+    (see `_claim_to_store`).
     """
     for problem in (
         date_error(day),

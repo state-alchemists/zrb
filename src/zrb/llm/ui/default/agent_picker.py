@@ -303,11 +303,10 @@ class UIAgentPicker:
     def agent_picker_panel(self) -> "AnyContainer":
         """The framed panel, standing in the input frame's place while it is up.
 
-        A panel whose input is dead may stand in the input frame's place; a
-        panel that keeps the input alive docks above it. The picker binds
-        Up/Down/Enter/Esc/Left on its own control and forwards nothing, so a
-        typed character reaches no widget at all while it holds the focus —
-        the input is dead, and the picker takes its rows.
+        The picker binds Up/Down/Enter/Esc/Left on its own control and forwards
+        nothing, so a typed character reaches no widget at all while it holds
+        the focus: the input is dead, and the picker takes its rows
+        (`create_layout`).
         """
         # lazy: heavy third-party
         from prompt_toolkit.widgets import Frame

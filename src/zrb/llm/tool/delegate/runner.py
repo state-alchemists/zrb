@@ -507,8 +507,7 @@ async def _stop_waiter(waiter: "asyncio.Task | None") -> None:
 async def _stop_runs(runs: "list[asyncio.Task]") -> None:
     """Stop delegations whose turn is being cancelled.
 
-    The turn that would have reported them is gone, so they stop with it — the
-    behaviour they had before a cut could move them anywhere.
+    The turn that would have reported them is gone, so they stop with it.
     """
     for run in runs:
         run.cancel()

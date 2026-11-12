@@ -271,7 +271,7 @@ def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
 def add_credential_hint(e: Exception) -> Exception:
     """Return *e* with a hint about zrb's own API key when it is a missing-key error.
 
-    A hint is a courtesy, so this may only ever improve an error, never replace
+    A hint is a courtesy, so this may only improve an error, never replace
     it. The two imports below are the heaviest in the tree, and either one can
     raise `ImportError` for reasons that have nothing to do with *e*: a shadowed
     `sys.modules` entry, or a module half-initialised while another thread

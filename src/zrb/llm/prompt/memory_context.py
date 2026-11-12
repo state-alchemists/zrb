@@ -190,11 +190,10 @@ def _shown_so_far(core_ids: list[str]) -> list[str]:
 
     The block is written after the hooks have run, so a recall on this turn has
     already put a claim in front of the model and recorded it. Writing `shown`
-    from the core alone forgot that: the next cue offered the same claim again,
-    and a claim retired after being shown never earned its "Forget this claim"
-    line, because the tombstone is decided from this list. A compaction
-    re-renders the block through the same function, so the overwrite lost the
-    same ids a second way.
+    from the core alone would offer the same claim again on the next cue, and a
+    claim retired after being shown would lose its "Forget this claim" line,
+    because the tombstone is decided from this list. A compaction re-renders the
+    block through this same function.
 
     The state file is keyed by conversation, so the union cannot carry another
     session's claims into this one.

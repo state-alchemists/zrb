@@ -197,9 +197,7 @@ def usage_store_path(when: datetime, directory: str | None = None) -> str:
 
 
 def store_path(prefix: str, when: datetime, directory: str | None = None) -> str:
-    """The month file of the log named by *prefix* that *when* belongs to.
-
-    One file per month beside the usage log, so a week's question reads one file."""
+    """The month file of the log named by *prefix* that *when* belongs to."""
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
     return os.path.join(base, f"{prefix}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}")
 

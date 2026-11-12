@@ -337,11 +337,9 @@ class UI(BaseUI, AnyUIDisplay):
     def _create_input_panel(self) -> "AnyContainer":
         """The panels that stand in the input frame's place while they are up.
 
-        A panel whose input is dead may stand in the input frame's place; a
-        panel that keeps the input alive docks above it (see `create_layout`).
         The choice and the picker both hold the focus without forwarding a
         keypress to the input, so both replace the frame; `/btw` forwards what
-        is typed to the input, so it docks instead.
+        is typed to the input, so it docks instead (`create_layout`).
         """
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition

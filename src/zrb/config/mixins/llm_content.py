@@ -599,9 +599,7 @@ class LLMContentMixin:
         ),
         # A tool result keeps a token-budgeted head and tail and is replaced by
         # a pointer to its verbatim text, so this is a *pruning* budget, not a
-        # point at which a model rewrites the output. The old default (half the
-        # conversational trigger) only fired for results near the whole context
-        # window, which meant a tool result was almost never pruned at all.
+        # point at which a model rewrites the output.
         default_factory=lambda cfg: (
             cfg.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD or "8000"
         ),

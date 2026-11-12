@@ -14,6 +14,5 @@ to know which was which before the import line made sense. The `config/`,
 structure of their own, not leaves.
 
 This package deliberately imports nothing. `from zrb.llm.shared import message`
-must cost nothing beyond the module named, which is the whole reason these are
-at layer 0.
+must cost nothing beyond the module named, which is why these are at layer 0.
 """

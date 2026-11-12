@@ -1,16 +1,14 @@
 """The `/usage` Memory section: what the store holds, and what the window wrote.
 
-The Journal section this replaces read a dedicated event log the journal wrote on
-every injection, search and write. The store writes no such log — its record is
-the files it leaves — so the section reads two sources instead: the store on disk
-for the numbers a window cannot bound (`core`, `store`), and the usage log's
-per-tool counts for the window's own activity (`writes`, `recall`).
+The store writes no event log — its record is the files it leaves — so the
+section reads two sources instead: the store on disk for the numbers a window
+cannot bound (`core`, `store`), and the usage log's per-tool counts for the
+window's own activity (`writes`, `recall`).
 
 What that costs is stated rather than filled in. A search's outcome is recorded
-nowhere, so "how many found nothing" — a line the journal section had — is
-absent instead of guessed, and the reviewer's own runs never reach the usage log
-(`_record_run_usage` is called from the runner, not from a hook), so there is no
-`judge` line to draw.
+nowhere, so "how many found nothing" is absent instead of guessed, and the
+reviewer's own runs never reach the usage log (`_record_run_usage` is called from
+the runner, not from a hook), so there is no `judge` line to draw.
 """
 
 from __future__ import annotations

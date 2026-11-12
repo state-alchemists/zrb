@@ -16,13 +16,8 @@ SUMMARY_TOOL_OUTPUT_LIMIT = 2_000
 
 The verbatim archive keeps every result in full, so nothing here is lost. What it
 buys is the rest of the conversation: tool output is most of a long history's
-mass, and the mass decides where the chunks fall. In the session that prompted
-this constant, 72% of what the summarizer was handed was tool output — the
-history split with 368 messages in one chunk and 8 in the other, and the
-conversation's first half hour, an entire research discussion the user had asked
-for, ended up compressed into a snapshot the merge then overruled as "the newer
-observation wins". Clipped to this width the same history is about half its size
-and fits one chunk, where nothing has to be ranked against anything else.
+mass, and the mass decides where the chunks fall. At this width a tool-heavy
+history fits one chunk, where nothing has to be ranked against anything else.
 """
 
 _CHUNK_HEADER = (
@@ -140,11 +135,9 @@ async def chunk_and_summarize(
         )
         chunk_content = "\n".join(chunk)
         if include_last_user_intent_instruction:
-            # Every part, not only the last: the intent instruction used to reach
-            # the final chunk alone, which in the session this was written for
-            # meant 8 messages out of 376 — while the chunk holding the other 368
-            # was summarized as a work log, and the user's question in it was
-            # dropped by the merge.
+            # Every part, not only the last: a chunk summarized without it comes
+            # back as a work log, and the user's question in it is dropped by the
+            # merge.
             chunk_content = (
                 _CHUNK_HEADER.format(index=index + 1, total=total)
                 + "\n\n"

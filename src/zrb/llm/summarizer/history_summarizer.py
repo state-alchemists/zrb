@@ -883,10 +883,8 @@ def _fit_note_blocks(
     together. A cap the framing alone cannot fit is left to the caller, which
     keeps the history instead of inserting an over-cap turn.
 
-    A dropped block is replaced by one line saying so. The alternative was a
-    session that lost its memory without being told, and went on answering as
-    though the store held nothing — the model can only search for what it knows
-    exists.
+    A dropped block is replaced by one line saying so: the model can only search
+    for what it knows exists.
     """
     if cap <= 0:
         return carried_block, archive_note
@@ -1147,7 +1145,7 @@ def _verbatim_prefix(
 ) -> "list[ModelMessage]":
     """The text of the replaced messages as the conversation actually held it.
 
-    `split_history` only ever cuts a prefix, so the same count of
+    `split_history` cuts a prefix and nothing else, so the same count of
     `verbatim_source` is the same messages before fat tool results were
     replaced by summaries. A source that does not line up is ignored: archiving
     the wrong slice would be worse than archiving the summarized one.

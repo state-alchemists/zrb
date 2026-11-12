@@ -154,7 +154,7 @@ class EmotionDetector:
             best = max(range(len(scores)), key=scores.__getitem__)
             emotion = str(result["labels"][best]).split("/")[-1]
         except MODEL_ERRORS as exc:
-            # Keep dictating; this utterance just has no tone.
+            # Keep dictating; this utterance has no tone.
             logger.warning(f"Hearing the tone failed: {exc}")
             return None
         if emotion not in _EMOTIONS or scores[best] < self._min_score:

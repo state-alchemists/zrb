@@ -141,9 +141,7 @@ def spill_tool_result(
 MIN_PRUNE_TOKENS = 64
 """Smallest budget a prune honours, before the pointer's own size is counted.
 
-A configured threshold under this is raised to it. The effective budget can be
-higher still: the marker and the path are measured, and the block is never
-truncated below their size, because a path cut in half cannot be opened.
+A configured threshold under this is raised to it.
 """
 
 
@@ -161,11 +159,8 @@ def prune_tool_result_content(
     that can drift from what the tool actually printed.
 
     The budget is spent in this order: the marker and its pointer first, then
-    the head and the tail from what is left. The effective budget is the
-    larger of the configured threshold, `MIN_PRUNE_TOKENS`, and the measured
-    size of the marker plus two tokens — the pointer is never truncated,
-    because the file it names cannot be found from a path that was cut in
-    half. The result never exceeds that effective budget.
+    the head and the tail from what is left. The result never exceeds
+    `effective_prune_budget`'s answer.
     """
     total_tokens = limiter.count_tokens(content)
     budget = effective_prune_budget(limiter, total_tokens, threshold_tokens, spill_path)

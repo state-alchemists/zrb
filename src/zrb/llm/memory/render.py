@@ -35,9 +35,8 @@ MEMORY_CLOSE = "</memory>"
 DELTA_OPEN = "<memory-delta>"
 DELTA_CLOSE = "</memory-delta>"
 
-# What the block says about itself. Two sentences, because the block is the one
-# place a poisoned claim would arrive inside a prompt: the first says how to use
-# the line, the second says what it can never do.
+# What the block says about itself, and why it has two sentences: the block is the
+# one place a poisoned claim would arrive inside a prompt.
 MEMORY_CONTRACT = (
     "Your own remembered claims, carried from earlier sessions. Each line ends "
     "with the id of the file that holds it (`facts/<id>.md`, or `diary/<date>.md`); "
@@ -130,7 +129,7 @@ def core_budget(facts: Sequence[Fact], cap: int) -> CoreBudget:
 def render_core_note(budget: CoreBudget) -> str:
     """One line: how full the core is, and whether the cap is already cutting.
 
-    A claim the cap dropped leaves no trace in the block — it is simply absent —
+    A claim the cap dropped leaves no trace in the block — it is absent —
     so a session planning a pin cannot tell whether the room exists. The refusal
     at write time is the backstop; this is the same fact, before the write.
     """

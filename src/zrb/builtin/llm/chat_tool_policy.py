@@ -13,8 +13,8 @@ def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
 def is_path_inside_active_worktree(args: dict[str, object]) -> bool:
     """Whether *path* is inside the worktree the session is working on.
 
-    ``EnterWorktree`` puts the tree outside the checkout, so a session that
-    moved into one read every file there through an approval prompt. A call
+    ``EnterWorktree`` puts the tree outside the checkout, so a session inside
+    one would read every file there through an approval prompt. A call
     that names no path is left to the working-directory rules: `LS`, `Glob` and
     `Grep` default to `"."`, and approving a pathless call here would approve
     all of them — including the ones meant for the process's own directory.

@@ -246,7 +246,7 @@ class SubAgentBuilding:
 
         ``None`` → return ``""`` (no-inheritance sub-agent). ``[]`` → return
         ``""`` (explicit opt-out). A non-empty list builds a temporary
-        PromptManager scoped to just those sections.
+        PromptManager scoped to those sections.
 
         """
         if not inherit_sections:

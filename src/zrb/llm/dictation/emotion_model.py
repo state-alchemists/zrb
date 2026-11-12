@@ -374,8 +374,8 @@ def _stop_child(process: "BaseProcess | None", connection: "Connection | None") 
 def _serve(connection: "Connection", repo: str) -> None:
     """The child: load the model in this process, then classify what it is sent.
 
-    This runs in a process of its own, which is the point: the model's load
-    spike lands here. `make_expendable` asks the kernel to kill this process
+    This runs in a process of its own: the model's load spike lands here.
+    `make_expendable` asks the kernel to kill this process
     rather than the chat if the machine runs out.
     """
     make_expendable()

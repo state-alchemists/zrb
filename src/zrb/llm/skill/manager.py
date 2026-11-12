@@ -95,7 +95,7 @@ def remember_skill_manager(manager: "SkillManager") -> None:
     A supplied `SkillManager` reaches the model through
     `create_activate_skill_tool` or `get_skill_custom_command`, and compaction
     asks whether a name is real before re-attaching its body: a manager it has
-    never heard of would make a body the model really was given look invented.
+    never heard of would make a body the model was given look invented.
     Every construction path is covered because the manager registers itself —
     one factory at a time is how the custom-command path gets missed.
     """
@@ -137,8 +137,6 @@ class SkillManager:
         self._scan_results: dict[str, Skill] = {}
         # Every manager is a possible source of an activation, and compaction
         # asks this set before it re-attaches a body (see `has_skill`).
-        # Registering here rather than at each activation factory is the only
-        # way the set cannot be missed when a new activation path is added.
         remember_skill_manager(self)
 
     @property
