@@ -14,7 +14,12 @@ from zrb.llm.hook.skill_frontmatter import (
 from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
-from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
+from zrb.util.dir_search import (
+    BUILTIN_PLUGIN_DIR,
+    get_upward_dirs,
+    scan_plugin_dirs,
+    split_config_dir_patterns,
+)
 from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 from zrb.util.markdown import get_first_heading
@@ -324,25 +329,31 @@ class SkillManager:
         return dirs
 
     def _get_home_search_dirs(self) -> list[Path]:
-        """User home directories — ~/.claude/, ~/.zrb/."""
+        """User home directories — ~/.claude/, ~/.zrb/, and any absolute root."""
         dirs: list[Path] = []
         if not CFG.LLM_SEARCH_HOME_ENABLED:
             return dirs
         home = Path.home()
-        for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-            root = home / pattern
+        names, roots = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
+        for root in [home / name for name in names] + roots:
             if root.exists() and root.is_dir():
                 dirs.extend(self._collect_skill_and_plugin_dirs(root))
         return dirs
 
     def _get_project_search_dirs(self) -> list[Path]:
-        """Project directories — walk root → cwd looking for config dirs."""
+        """Project directories — walk root → cwd looking for config dir names.
+
+        An absolute root is not repeated here: it belongs to the home tier, and
+        appending it after a project's own dirs would let it win collisions the
+        project is meant to win.
+        """
         dirs: list[Path] = []
         if not CFG.LLM_SEARCH_PROJECT_ENABLED:
             return dirs
+        names, _ = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
         for project_dir in self._get_upward_dirs():
-            for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-                root = project_dir / pattern
+            for name in names:
+                root = project_dir / name
                 if root.exists() and root.is_dir():
                     dirs.extend(self._collect_skill_and_plugin_dirs(root))
         return dirs

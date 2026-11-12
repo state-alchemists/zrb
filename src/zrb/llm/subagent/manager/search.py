@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
+from zrb.util.dir_search import (
+    BUILTIN_PLUGIN_DIR,
+    get_upward_dirs,
+    scan_plugin_dirs,
+    split_config_dir_patterns,
+)
 
 
 class SubAgentManagerSearch:
@@ -26,6 +31,7 @@ class SubAgentManagerSearch:
         """
         search_dirs: list[str | Path] = []
         home = Path.home()
+        names, roots = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
 
         _append_if_dir(BUILTIN_PLUGIN_DIR / "core_agents", search_dirs)
 
@@ -33,13 +39,15 @@ class SubAgentManagerSearch:
             _append_if_dir(BUILTIN_PLUGIN_DIR / "agents", search_dirs)
 
         if CFG.LLM_SEARCH_HOME_ENABLED:
-            for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-                self._add_agents_from_root(home / pattern, search_dirs)
+            for config_root in [home / name for name in names] + roots:
+                self._add_agents_from_root(config_root, search_dirs)
 
         if CFG.LLM_SEARCH_PROJECT_ENABLED:
+            # An absolute root belongs to the home tier only: repeated here it
+            # would outrank the project's own agents on a name collision.
             for project_dir in get_upward_dirs(root_dir):
-                for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-                    self._add_agents_from_root(project_dir / pattern, search_dirs)
+                for name in names:
+                    self._add_agents_from_root(project_dir / name, search_dirs)
 
         for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
             plugin_path = Path(plugin_path_str)

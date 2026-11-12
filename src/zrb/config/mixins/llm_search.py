@@ -83,7 +83,9 @@ class LLMSearchMixin:
         ),
         doc=(
             "Config subdirectory names to look for in each traversed dir "
-            "(colon-separated; semicolon on Windows). "
+            "(colon-separated; semicolon on Windows). An absolute path is a root "
+            "of its own, scanned once as a user tier — point it at "
+            "`$CLAUDE_CONFIG_DIR` to follow Claude Code's config directory. "
             "Default: ['.claude', '.{ROOT_GROUP_NAME}']."
         ),
     )

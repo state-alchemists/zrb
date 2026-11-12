@@ -10,6 +10,7 @@ from zrb.util.dir_search import (
     get_dirs_up_to_home,
     get_upward_dirs,
     scan_plugin_dirs,
+    split_config_dir_patterns,
 )
 
 
@@ -260,3 +261,30 @@ def test_get_dirs_up_to_home_outside_home_is_start_only(tmp_path):
 def test_get_dirs_up_to_home_other_drive_is_start_only():
     with patch("os.path.commonpath", side_effect=ValueError("different drives")):
         assert get_dirs_up_to_home("/x/y", "/x") == ["/x/y"]
+
+
+def test_split_config_dir_patterns_keeps_names_and_absolute_roots_apart(tmp_path):
+    root = str(tmp_path / "config")
+    names, roots = split_config_dir_patterns([".claude", root, ".zrb"])
+    assert names == [".claude", ".zrb"]
+    assert roots == [Path(root)]
+
+
+def test_split_config_dir_patterns_expands_a_tilde_root(tmp_path):
+    # A platform's own absolute path: "/home/someone" carries no drive on
+    # Windows and would be read as a name there.
+    expanded = str(tmp_path / "claude-alt")
+    with patch("os.path.expanduser", return_value=expanded):
+        names, roots = split_config_dir_patterns(["~/.claude-alt"])
+    assert names == []
+    assert roots == [Path(expanded)]
+
+
+def test_split_config_dir_patterns_drops_blank_and_repeated_entries():
+    names, roots = split_config_dir_patterns([".claude", "  ", ".claude", ".zrb"])
+    assert names == [".claude", ".zrb"]
+    assert roots == []
+
+
+def test_split_config_dir_patterns_of_nothing_is_nothing():
+    assert split_config_dir_patterns([]) == ([], [])

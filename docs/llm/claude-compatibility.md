@@ -57,6 +57,14 @@ Zrb supports Claude-style skills. A skill is defined by a `SKILL.md` (or `*.skil
 
 Claude Code downloads the skills enabled on a claude.ai account into `~/.claude/skills/synced/`, one bucket directory per account or workspace: `synced/<bucket>/<name>/SKILL.md`. Zrb scans each bucket as its own root, so it reads them without widening the scan of any other directory — the walk is bounded by the number of buckets, not by the size of the tree. A skill you wrote yourself wins the name: synced skills are scanned first, and a later directory overrides an earlier one. These are **remote** files — Anthropic ships and rewrites them — so a skill from `synced/` carries the same trust as anything else on disk; zrb does not sandbox the commands a skill asks for.
 
+Claude Code reads its config directory from `$CLAUDE_CONFIG_DIR` when it is set, and from `~/.claude` otherwise — never both. Zrb's config-dir names accept an absolute path, so one entry points it at the same directory for skills, sub-agents, hooks, plugins and the user-level `CLAUDE.md`:
+
+```bash
+export ZRB_LLM_CONFIG_DIR_NAMES=".claude:.zrb:$CLAUDE_CONFIG_DIR"
+```
+
+Two things about that line. An absolute entry is a root in its own right: it is scanned once, as a user tier, and never appended to the project walk — appended there, it would come after the project's own directories and let a user skill override a project skill of the same name. And the variable *replaces* the default list rather than extending it, so `.claude` and `.zrb` have to be named if you still want them; setting it to just `$CLAUDE_CONFIG_DIR` drops both. On Windows the separator is `;`, not `:`.
+
 
 ### Skill Format
 

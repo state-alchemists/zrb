@@ -65,6 +65,33 @@ def get_dirs_up_to_home(start_dir: str, home_dir: str) -> list[str]:
     return dirs
 
 
+def split_config_dir_patterns(patterns: list[str]) -> tuple[list[str], list[Path]]:
+    """Split configured config-dir patterns into names and absolute roots.
+
+    A name — ``.claude``, ``.zrb`` — is a directory looked for under every
+    directory a search visits: home, and each project directory up to the
+    filesystem root. An absolute path is a root in its own right, so it is
+    scanned once, wherever it is. Applying it to a project directory as well
+    would append it after that project's own config dirs, and a caller where a
+    later directory wins would then let user-level skills override project ones.
+
+    ``~`` is expanded, so either spelling reaches the same directory. Blank and
+    repeated entries are dropped; order is kept.
+    """
+    names: list[str] = []
+    roots: list[Path] = []
+    for pattern in patterns:
+        if not pattern.strip():
+            continue
+        candidate = Path(os.path.expanduser(pattern))
+        if candidate.is_absolute():
+            if candidate not in roots:
+                roots.append(candidate)
+        elif pattern not in names:
+            names.append(pattern)
+    return names, roots
+
+
 def scan_plugin_dirs(plugins_root: Path) -> list[Path]:
     """Every plugin directory under *plugins_root*, from all of Claude Code's layouts.
 
