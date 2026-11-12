@@ -84,6 +84,71 @@ def test_scan_plugin_dirs_lists_marketplace_checkouts(tmp_path):
     assert checkout in scan_plugin_dirs(tmp_path)
 
 
+def test_scan_plugin_dirs_reads_a_marketplaces_plugins_folder(tmp_path):
+    "A marketplace keeps its plugins in `plugins/<name>/` — the documented layout."
+    plugin = tmp_path / "marketplaces" / "acme" / "plugins" / "documents"
+    (plugin / ".claude-plugin").mkdir(parents=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    (plugin / "skills" / "pdf").mkdir(parents=True)
+    assert plugin in scan_plugin_dirs(tmp_path)
+
+
+def test_scan_plugin_dirs_follows_a_declared_source(tmp_path):
+    "The manifest, not the folder convention, says where a plugin is."
+    checkout = tmp_path / "marketplaces" / "acme"
+    plugin = checkout / "vendored" / "documents"
+    (plugin / "skills" / "pdf").mkdir(parents=True)
+    (checkout / ".claude-plugin").mkdir(parents=True)
+    (checkout / ".claude-plugin" / "marketplace.json").write_text(
+        json.dumps(
+            {
+                "name": "acme",
+                "plugins": [{"name": "documents", "source": "./vendored/documents"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert plugin in scan_plugin_dirs(tmp_path)
+
+
+def test_scan_plugin_dirs_ignores_a_remote_source(tmp_path):
+    "A github/npm source is not on this disk to read."
+    checkout = tmp_path / "marketplaces" / "acme"
+    (checkout / ".claude-plugin").mkdir(parents=True)
+    (checkout / ".claude-plugin" / "marketplace.json").write_text(
+        json.dumps(
+            {
+                "name": "acme",
+                "plugins": [
+                    {"name": "remote", "source": "github", "repo": "acme/remote"},
+                    {"name": "odd", "source": 3},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert scan_plugin_dirs(tmp_path) == [checkout]
+
+
+def test_scan_plugin_dirs_ignores_a_malformed_marketplace_manifest(tmp_path):
+    checkout = tmp_path / "marketplaces" / "acme"
+    (checkout / ".claude-plugin").mkdir(parents=True)
+    (checkout / ".claude-plugin" / "marketplace.json").write_text(
+        "{not json", encoding="utf-8"
+    )
+    assert scan_plugin_dirs(tmp_path) == [checkout]
+
+
+def test_scan_plugin_dirs_tolerates_unexpected_marketplace_shapes(tmp_path):
+    checkout = tmp_path / "marketplaces" / "acme"
+    manifest = checkout / ".claude-plugin" / "marketplace.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(json.dumps({"plugins": "nope"}), encoding="utf-8")
+    assert scan_plugin_dirs(tmp_path) == [checkout]
+    manifest.write_text(json.dumps([]), encoding="utf-8")
+    assert scan_plugin_dirs(tmp_path) == [checkout]
+
+
 def test_scan_plugin_dirs_prefers_the_installed_copy(tmp_path):
     "A later directory wins a collision, so the version Claude Code loads comes last."
     checkout = tmp_path / "marketplaces" / "market"

@@ -172,3 +172,16 @@ def test_installed_plugin_skills_are_scanned(tmp_path):
     )
     skills = _scan_home_skills(home, tmp_path)
     assert skills["pdf"].description == "from a plugin"
+
+
+def test_marketplace_plugin_skills_are_scanned(tmp_path):
+    "A marketplace keeps its plugins in plugins/<name>/, not at its own root."
+    home = tmp_path / "home"
+    plugin = (
+        home / ".claude" / "plugins" / "marketplaces" / "acme" / "plugins" / "documents"
+    )
+    (plugin / ".claude-plugin").mkdir(parents=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    _write_skill(plugin / "skills" / "pdf", "pdf", "from a marketplace")
+    skills = _scan_home_skills(home, tmp_path)
+    assert skills["pdf"].description == "from a marketplace"

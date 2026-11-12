@@ -217,7 +217,7 @@ Each listed path is a directory **of** plugins. A plugin is a subdirectory carry
     └── agents/
 ```
 
-Claude's own plugins root follows the same shape in more than one place, and zrb reads all of them: a plugin checked out directly, a marketplace checkout under `marketplaces/<name>/`, and an installed plugin unpacked under `cache/` — the last located through the `installPath` that `installed_plugins.json` records, because the cache path carries a version directory no fixed pattern can guess. When a marketplace checkout and an installed copy publish the same skill, the installed copy wins.
+Claude's own plugins root follows the same shape in more than one place, and zrb reads all of them: a plugin checked out directly, a plugin a marketplace checkout publishes under `plugins/<plugin>/` (the marketplace manifest's `source` is what decides; a marketplace may also publish skills from its own root), and an installed plugin unpacked under `cache/` — the last located through the `installPath` that `installed_plugins.json` records, because the cache path carries a version directory no fixed pattern can guess. When a marketplace checkout and an installed copy publish the same skill, the installed copy wins.
 
 Hooks are the exception: they are read from `hooks.json` and `hooks/` directly under each listed path, not from inside each plugin (see [Hook Locations](./hooks.md#hook-locations)).
 

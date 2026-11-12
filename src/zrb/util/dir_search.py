@@ -20,6 +20,8 @@ BUILTIN_PLUGIN_DIR = (
 # place, or unpacked under `cache/` by a marketplace install — in which case
 # `installed_plugins.json` is what records where it actually lives.
 PLUGIN_MANIFEST = Path(".claude-plugin") / "plugin.json"
+MARKETPLACE_MANIFEST = Path(".claude-plugin") / "marketplace.json"
+PLUGINS_DIR = "plugins"
 INSTALLED_PLUGINS_INDEX = "installed_plugins.json"
 MARKETPLACES_DIR = "marketplaces"
 
@@ -71,7 +73,7 @@ def scan_plugin_dirs(plugins_root: Path) -> list[Path]:
     plugin, so the version Claude Code actually loads wins:
 
     1. an immediate child carrying ``.claude-plugin/plugin.json``
-    2. every marketplace checkout under ``marketplaces/``
+    2. the plugins each checkout under ``marketplaces/`` publishes
     3. the ``installPath`` of every plugin ``installed_plugins.json`` records
 
     Hidden entries, missing sources and an unreadable index contribute nothing
@@ -87,37 +89,85 @@ def scan_plugin_dirs(plugins_root: Path) -> list[Path]:
 
 def _direct_plugin_dirs(plugins_root: Path) -> list[Path]:
     """Immediate children that carry a plugin manifest of their own."""
-    try:
-        return [
-            item
-            for item in plugins_root.iterdir()
-            if item.is_dir()
-            and not item.name.startswith(".")
-            and (item / PLUGIN_MANIFEST).exists()
-        ]
-    except OSError:
-        # Best-effort: a bad plugin root must not stop the rest.
-        _LOGGER.warning(
-            "Failed to scan plugin directories: %s", plugins_root, exc_info=True
-        )
-        return []
+    return _children_with_manifest(_subdirectories(plugins_root))
 
 
 def _marketplace_dirs(plugins_root: Path) -> list[Path]:
-    """Marketplace checkouts, each of which carries the skills it publishes."""
-    marketplaces_root = plugins_root / MARKETPLACES_DIR
-    if not marketplaces_root.is_dir():
+    """The plugin directories every marketplace checkout publishes."""
+    plugin_dirs: list[Path] = []
+    for checkout in _subdirectories(plugins_root / MARKETPLACES_DIR):
+        for plugin_dir in _checkout_plugin_dirs(checkout):
+            if plugin_dir not in plugin_dirs:
+                plugin_dirs.append(plugin_dir)
+    return plugin_dirs
+
+
+def _checkout_plugin_dirs(checkout: Path) -> list[Path]:
+    """The plugin directories one marketplace checkout publishes.
+
+    A marketplace almost always keeps its plugins in a ``plugins/`` folder, but
+    the manifest is what actually says where each one is: ``source`` names the
+    directory, relative to the checkout. That path is what a plugin is read
+    from — a marketplace can publish skills from its own root, and an entry can
+    point at a directory carrying no manifest of its own. The conventional
+    ``plugins/*/`` children are added for a checkout whose manifest does not
+    list them, and the root itself is kept last.
+    """
+    plugin_dirs = _declared_plugin_dirs(checkout)
+    plugins_dir = checkout / PLUGINS_DIR
+    if plugins_dir.is_dir():
+        plugin_dirs.extend(_children_with_manifest(_subdirectories(plugins_dir)))
+    plugin_dirs.append(checkout)
+    return plugin_dirs
+
+
+def _declared_plugin_dirs(checkout: Path) -> list[Path]:
+    """The local ``source`` of every plugin a marketplace manifest lists."""
+    manifest_path = checkout / MARKETPLACE_MANIFEST
+    if not manifest_path.is_file():
         return []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        _LOGGER.warning(
+            "Failed to read marketplace manifest: %s", manifest_path, exc_info=True
+        )
+        return []
+    entries = manifest.get("plugins", []) if isinstance(manifest, dict) else []
+    if not isinstance(entries, list):
+        return []
+    plugin_dirs: list[Path] = []
+    for entry in entries:
+        # A source that is not a path string lives somewhere else — a git repo,
+        # an npm package — and is not on this disk to read. A path string that
+        # names nothing is dropped the same way.
+        source = entry.get("source") if isinstance(entry, dict) else None
+        if not isinstance(source, str):
+            continue
+        plugin_dir = checkout / source
+        if plugin_dir.is_dir() and plugin_dir not in plugin_dirs:
+            plugin_dirs.append(plugin_dir)
+    return plugin_dirs
+
+
+def _children_with_manifest(directories: list[Path]) -> list[Path]:
+    """The *directories* that carry a ``.claude-plugin/plugin.json``."""
+    return [
+        directory for directory in directories if (directory / PLUGIN_MANIFEST).exists()
+    ]
+
+
+def _subdirectories(directory: Path) -> list[Path]:
+    """The immediate, non-hidden children of *directory*; empty when unreadable."""
     try:
         return [
             item
-            for item in marketplaces_root.iterdir()
+            for item in directory.iterdir()
             if item.is_dir() and not item.name.startswith(".")
         ]
     except OSError:
-        _LOGGER.warning(
-            "Failed to scan marketplaces: %s", marketplaces_root, exc_info=True
-        )
+        # Best-effort: one bad directory must not stop the rest.
+        _LOGGER.warning("Failed to read directory: %s", directory, exc_info=True)
         return []
 
 
