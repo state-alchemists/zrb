@@ -62,7 +62,11 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         from pydantic_ai import Tool as PydanticTool
 
         original_func = getattr(tool, "function")
-        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name", None))
+        safe_func = create_safe_wrapper(
+            original_func,
+            name=getattr(tool, "name", None),
+            takes_context=bool(getattr(tool, "takes_ctx", False)),
+        )
         metadata = {
             **(getattr(tool, "metadata", None) or {}),
             **capability_metadata(tool_capability(tool)),
@@ -156,7 +160,9 @@ def _oversize_metadata(value: object) -> dict[str, object]:
     return {"oversized": True, "original_chars": len(rendered)}
 
 
-def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
+def create_safe_wrapper(
+    func: Callable, name: str | None = None, takes_context: bool = False
+) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
@@ -168,6 +174,23 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     capability = tool_capability(func)
     tool_name = name or func.__name__
 
+    # A tool a user wrote, or a plugin's, has never heard of the narrator — but
+    # the model has read "Always fill this" once and obeys it on every call it
+    # makes. A schema with nowhere to put the line does not get a call without
+    # it: pydantic answers `extra_forbidden`, the work never runs, and the round
+    # is spent again with the whole context re-sent. Every tool a run can reach
+    # comes through here, so this is the one place that closes it.
+    from zrb.llm.tool.purpose import Purpose, add_optional_purpose, has_purpose
+
+    passes_purpose = has_purpose(func)
+    signature = None if passes_purpose else inspect.signature(func)
+    if signature is not None and takes_context and not signature.parameters:
+        # A context tool takes the run as its first argument. With nothing else
+        # declared, the line would be read as that argument, and pydantic refuses
+        # a tool whose first parameter is not the context — so this one keeps the
+        # signature it had.
+        signature = None
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -177,6 +200,11 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             blocked = sandbox_gate(tool_name, capability, kwargs)
             if blocked is not None:
                 return blocked
+
+            if not passes_purpose:
+                # Nothing in the tool's body reads it and the body does not take
+                # it: the narrator took the line from the arguments already.
+                kwargs.pop("purpose", None)
 
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
@@ -204,6 +232,15 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             error_msg = f"Error executing tool {func.__name__}: {e}"
             return tool_return(error_msg, error=True)
 
+    # Set explicitly rather than left to `wraps`: a second wrap of an already
+    # wrapped tool came back with no annotations at all under Python 3.14, and
+    # pydantic-ai reads each parameter's type from here rather than from the
+    # signature object.
+    annotations = dict(getattr(func, "__annotations__", {}))
+    if signature is not None:
+        annotations["purpose"] = Purpose
+        setattr(wrapper, "__signature__", add_optional_purpose(signature))
+    setattr(wrapper, "__annotations__", annotations)
     return wrapper
 
 

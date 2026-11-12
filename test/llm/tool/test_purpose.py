@@ -14,11 +14,14 @@ writes the argument on every call, and a tool whose schema omits it answers that
 obedience with `extra_forbidden` instead of doing the work.
 """
 
+import asyncio
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai import Tool
 
+from zrb.llm.agent.common import create_safe_wrapper, wrap_tool
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.tool.delegate.background import create_get_delegation_result_tool
@@ -146,3 +149,62 @@ async def test_calling_one_with_a_purpose_returns_normally(name, call):
     result = await call("Checking what exists")
     assert isinstance(result, str), result
     assert result
+
+
+# Naming the tools one by one does not close it: a tool a user writes, or a
+# plugin ships, has never read the instruction and is still obeyed. Every tool
+# a run can reach is wrapped once, so that is where the line has to be welcome.
+
+
+def _schema(fn: object) -> dict:
+    """The JSON schema pydantic-ai builds for a tool once the wrapper has built it.
+
+    `wrap_tool` is typed to return the tool it was given — a `Tool` or a bare
+    function — so the schema is reached through a cast rather than pretending the
+    return type is narrower than it is."""
+    wrapped: Any = cast(Any, wrap_tool)(fn)
+    return wrapped.function_schema.json_schema
+
+
+def test_a_tool_a_user_wrote_still_accepts_the_line():
+    """A tool that knows nothing about the narrator — no `purpose` parameter, no
+    idea that a listener exists. The model fills the field anyway, because the
+    shared description tells it to on every call; before this, pydantic answered
+    `extra_forbidden` and the tool never ran."""
+
+    def read_one(path: str) -> str:
+        """Read one path."""
+        return f"read {path}"
+
+    schema = _schema(read_one)
+    assert "purpose" in schema["properties"], schema["properties"].keys()
+    assert "purpose" not in schema.get("required", []), schema.get("required")
+    assert "FOR" in schema["properties"]["purpose"]["description"]
+    # The tool's own parameter is untouched by the addition.
+    assert "path" in schema["required"], schema
+
+    # And the call carrying the line reaches the body, which never asked for it.
+    wrapped = create_safe_wrapper(read_one)
+    answer = asyncio.run(wrapped(path="a.txt", purpose="Reading a.txt"))
+    assert "read a.txt" in str(getattr(answer, "return_value", answer))
+
+
+def test_a_tool_that_takes_any_keyword_keeps_a_valid_signature():
+    """`**kwargs` has to stay last: a signature with a keyword-only parameter
+    after it is a ValueError, and a tool that takes anything is exactly what a
+    new one most often looks like."""
+
+    def anything(**kwargs) -> str:
+        """Take anything."""
+        return "ok"
+
+    schema = _schema(anything)
+    assert "purpose" in schema["properties"], schema["properties"].keys()
+    answer = asyncio.run(create_safe_wrapper(anything)(purpose="Trying it"))
+    assert "ok" in str(getattr(answer, "return_value", answer))
+
+
+def test_wrapping_does_not_make_a_required_line_optional():
+    """A tool that acts declares `purpose` without a default, and wrapping it must
+    not quietly offer the model a way to skip what the narrator reads aloud."""
+    assert "purpose" in _schema(_tool)["required"]
