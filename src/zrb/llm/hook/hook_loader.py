@@ -2,7 +2,11 @@ import logging
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs
+from zrb.util.dir_search import (
+    BUILTIN_PLUGIN_DIR,
+    get_upward_dirs,
+    split_config_dir_patterns,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,32 +53,58 @@ def _dedup_paths(paths: list[str | Path]) -> list[str | Path]:
 
 
 def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
-    """Collect ``hooks.json`` and ``hooks/`` under *base_dir* for both Claude and Zrb styles."""
+    """Hook config under *base_dir*, for every configured config dir name.
+
+    A name in ``LLM_CONFIG_DIR_NAMES`` is looked for under *base_dir*: the Zrb
+    one is read as ``hooks.json`` / ``hooks/``, every other as Claude Code's
+    config directory. The Zrb directory is always read, listed or not — it is
+    zrb's own, not the user's to switch off.
+    """
+    names, _ = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
+    zrb_name = _zrb_dir_name()
     paths: list[str | Path] = []
+    for name in names:
+        root = base_dir / name
+        if name == zrb_name:
+            paths.extend(_collect_zrb_hook_paths(root))
+        else:
+            paths.extend(_collect_claude_hook_paths(root))
+    if zrb_name not in names:
+        paths.extend(_collect_zrb_hook_paths(base_dir / zrb_name))
+    return paths
 
-    claude_file = base_dir / ".claude" / "hooks.json"
-    if claude_file.exists() and claude_file.is_file():
-        paths.append(claude_file)
 
-    claude_dir = base_dir / ".claude" / "hooks"
-    if claude_dir.exists() and claude_dir.is_dir():
-        paths.append(claude_dir)
+def _collect_claude_hook_paths(root: Path) -> list[str | Path]:
+    """Claude Code's hook config directly under *root*.
 
+    *root* is the Claude config directory itself — ``~/.claude``, or whatever
+    ``$CLAUDE_CONFIG_DIR`` points at.
+    """
+    paths: list[str | Path] = []
+    hooks_file = root / "hooks.json"
+    if hooks_file.is_file():
+        paths.append(hooks_file)
+    hooks_dir = root / "hooks"
+    if hooks_dir.is_dir():
+        paths.append(hooks_dir)
     # Claude Code also registers hooks under a "hooks" key in settings*.json
     # (where tools like peon-ping install themselves); other keys are ignored.
     for settings_name in ("settings.json", "settings.local.json"):
-        settings_file = base_dir / ".claude" / settings_name
-        if settings_file.exists() and settings_file.is_file():
+        settings_file = root / settings_name
+        if settings_file.is_file():
             paths.append(settings_file)
+    return paths
 
-    zrb_file = base_dir / _zrb_dir_name() / "hooks.json"
-    if zrb_file.exists() and zrb_file.is_file():
-        paths.append(zrb_file)
 
-    zrb_dir = base_dir / _zrb_dir_name() / "hooks"
-    if zrb_dir.exists() and zrb_dir.is_dir():
-        paths.append(zrb_dir)
-
+def _collect_zrb_hook_paths(root: Path) -> list[str | Path]:
+    """Zrb's own ``hooks.json`` and ``hooks/`` directly under *root*."""
+    paths: list[str | Path] = []
+    hooks_file = root / "hooks.json"
+    if hooks_file.is_file():
+        paths.append(hooks_file)
+    hooks_dir = root / "hooks"
+    if hooks_dir.is_dir():
+        paths.append(hooks_dir)
     return paths
 
 
@@ -105,9 +135,13 @@ def _get_plugin_hook_dirs() -> list[str | Path]:
 
 
 def _get_home_hook_dirs() -> list[str | Path]:
-    """User global config — ~/.claude/ and ~/.zrb/."""
+    """User global config — ~/.claude/, ~/.zrb/, and any absolute config root."""
     try:
-        return _collect_hook_paths(Path.home())
+        paths = _collect_hook_paths(Path.home())
+        _, roots = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
+        for root in roots:
+            paths.extend(_collect_claude_hook_paths(root))
+        return paths
     except Exception:
         # Hook discovery must never abort startup (e.g. HOME unset).
         logger.warning("Failed to search global hook directories", exc_info=True)

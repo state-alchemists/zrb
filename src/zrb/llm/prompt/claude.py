@@ -10,6 +10,7 @@ from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.llm.util.prompt import get_path_references
 from zrb.llm.util.roster import cap_items
+from zrb.util.dir_search import split_config_dir_patterns
 from zrb.util.markdown import make_markdown_section
 
 
@@ -548,13 +549,21 @@ def _listing_note(path: Path, inlined: set[Path], pointers: dict[Path, Path]) ->
 
 
 def _is_user_level_dir(directory: Path) -> bool:
-    """True for home itself or ``~/.claude``; ``False`` when home cannot be resolved."""
+    """True for home itself or a home-level config directory.
+
+    A home-level directory is one ``LLM_CONFIG_DIR_NAMES`` names under home —
+    ``~/.claude``, ``~/.zrb`` — or an absolute config root such as the one
+    ``$CLAUDE_CONFIG_DIR`` points at. ``False`` when home cannot be resolved.
+    """
+    names, roots = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
     try:
         home = Path.home().resolve()
         resolved = directory.resolve()
+        home_dirs = [(home / name).resolve() for name in names]
+        absolute_roots = [root.resolve() for root in roots]
     except Exception:
         return False
-    return resolved == home or resolved == home / ".claude"
+    return resolved == home or resolved in home_dirs or resolved in absolute_roots
 
 
 def get_search_directories() -> list[Path]:
@@ -566,15 +575,25 @@ def get_search_directories() -> list[Path]:
         cwd_str = str(Path.cwd())
     except Exception:
         cwd_str = ""
-    return [Path(p) for p in _get_search_directories_cached(home_str, cwd_str)]
+    names, roots = split_config_dir_patterns(CFG.LLM_CONFIG_DIR_NAMES)
+    return [
+        Path(p)
+        for p in _get_search_directories_cached(
+            home_str, cwd_str, tuple(names), tuple(str(root) for root in roots)
+        )
+    ]
 
 
 @lru_cache(maxsize=8)
-def _get_search_directories_cached(home_str: str, cwd_str: str) -> tuple[str, ...]:
-    """Compute the project-doc search path once per (home, cwd) pair."""
+def _get_search_directories_cached(
+    home_str: str, cwd_str: str, names: tuple[str, ...], roots: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Compute the project-doc search path once per (home, cwd, config) tuple."""
     dirs: list[str] = []
     if home_str:
-        dirs.append(str(Path(home_str) / ".claude"))
+        home = Path(home_str)
+        dirs.extend(str(home / name) for name in names)
+    dirs.extend(roots)
     if cwd_str:
         cwd = Path(cwd_str)
         # Root first, so configs closer to cwd override general ones.

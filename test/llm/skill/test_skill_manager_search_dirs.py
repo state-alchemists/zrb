@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -185,3 +186,57 @@ def test_marketplace_plugin_skills_are_scanned(tmp_path):
     _write_skill(plugin / "skills" / "pdf", "pdf", "from a marketplace")
     skills = _scan_home_skills(home, tmp_path)
     assert skills["pdf"].description == "from a marketplace"
+
+
+def test_an_absolute_config_root_is_scanned_as_a_user_tier(tmp_path, tmp_path_factory):
+    "Pointing the list at $CLAUDE_CONFIG_DIR loads its skills without any name."
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    _write_skill(config_root / "skills" / "pdf", "pdf", "from the config dir")
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _mock_cfg(
+            mock_cfg,
+            LLM_SEARCH_HOME_ENABLED=True,
+            LLM_CONFIG_DIR_NAMES=[str(config_root)],
+        )
+        with patch("zrb.llm.skill.manager.Path.home", return_value=tmp_path / "home"):
+            skills = {skill.name: skill for skill in manager.scan()}
+    assert skills["pdf"].description == "from the config dir"
+
+
+def test_an_absolute_config_root_does_not_outrank_a_project_skill(
+    tmp_path, tmp_path_factory
+):
+    "Scanned twice, a user root would land after the project and win the name."
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    _write_skill(config_root / "skills" / "pdf", "pdf", "from the config dir")
+    _write_skill(tmp_path / ".claude" / "skills" / "pdf", "pdf", "mine")
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _mock_cfg(
+            mock_cfg,
+            LLM_SEARCH_HOME_ENABLED=True,
+            LLM_SEARCH_PROJECT_ENABLED=True,
+            LLM_CONFIG_DIR_NAMES=[".claude", str(config_root)],
+        )
+        with patch("zrb.llm.skill.manager.Path.home", return_value=tmp_path / "home"):
+            skills = {skill.name: skill for skill in manager.scan()}
+    assert skills["pdf"].description == "mine"
+
+
+def test_an_absolute_config_root_appears_once_in_the_search_path(
+    tmp_path, tmp_path_factory
+):
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    (config_root / "skills").mkdir()
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _mock_cfg(
+            mock_cfg,
+            LLM_SEARCH_HOME_ENABLED=True,
+            LLM_SEARCH_PROJECT_ENABLED=True,
+            LLM_CONFIG_DIR_NAMES=[str(config_root)],
+        )
+        with patch("zrb.llm.skill.manager.Path.home", return_value=tmp_path / "home"):
+            dirs = [Path(str(d)).as_posix() for d in manager.search_dirs]
+    assert dirs.count((config_root / "skills").as_posix()) == 1

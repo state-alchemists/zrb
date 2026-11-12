@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.prompt.claude import create_project_context_prompt
+from zrb.llm.prompt.claude import create_project_context_prompt, get_search_directories
 
 
 def _make_ctx():
@@ -251,3 +251,33 @@ def test_get_search_directories_includes_cwd(tmp_path):
 
     assert isinstance(result, str)
     assert "probe-prompt" in result
+
+
+def test_create_project_context_prompt_config_root_docs_are_user_level(
+    tmp_path_factory, monkeypatch
+):
+    "$CLAUDE_CONFIG_DIR moves the user-level CLAUDE.md with the rest of the config."
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    (config_root / "CLAUDE.md").write_text("moved cross-project habits")
+    monkeypatch.setenv("ZRB_LLM_CONFIG_DIR_NAMES", str(config_root))
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories",
+        return_value=[config_root],
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "User-Level Guidance" in result
+    assert "Documentation Files Found" not in result
+    assert str(config_root / "CLAUDE.md") in result
+
+
+def test_get_search_directories_includes_an_absolute_config_root(
+    tmp_path_factory, monkeypatch
+):
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    monkeypatch.setenv("ZRB_LLM_CONFIG_DIR_NAMES", str(config_root))
+    assert config_root in get_search_directories()

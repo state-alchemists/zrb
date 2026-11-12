@@ -83,7 +83,7 @@ Where Zrb looks for skills and agents, and whether built-in ones load.
 | `ZRB_LLM_BUILTIN_AGENTS_ENABLED` | Load optional built-in sub-agents (`llm_plugin/agents`). Core agents (`core_agents/`) are always on; user/project/plugin agents are unaffected | `on` |
 | `ZRB_LLM_SKILLS` | Name allowlist for the visible skill catalogue — the env twin of `skill_registry`. Empty means all discovered + built-in skills; non-empty keeps only the named ones (`LLM_BUILTIN_SKILLS_ENABLED` still gates built-ins independently). See [LLM Component Collections](./llm-collections.md). | (empty) |
 | `ZRB_LLM_AGENTS` | Name allowlist for the sub-agent roster — the env twin of `sub_agent_registry`. Empty means all discovered + built-in agents; non-empty keeps only the named ones. See [LLM Component Collections](./llm-collections.md). | (empty) |
-| `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated; semicolon on Windows) | `.claude:.zrb` |
+| `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated; semicolon on Windows). An absolute path is a root of its own, scanned once in the home tier — `$CLAUDE_CONFIG_DIR` belongs here | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
 | `ZRB_LLM_EXTRA_AGENT_DIRS` | Additional direct agent directories | (empty) |

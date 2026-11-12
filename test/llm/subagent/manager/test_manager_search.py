@@ -154,3 +154,42 @@ def test_project_agent_overrides_builtin_agent_of_same_name(tmp_path):
         definition = manager.get_agent_definition("generalist")
     assert definition is not None
     assert definition.description == "Project generalist"
+
+
+def test_an_absolute_config_root_is_scanned_as_a_user_tier(
+    manager, tmp_path, tmp_path_factory
+):
+    "An absolute entry is a root of its own — no directory name involved."
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    (config_root / "agents").mkdir()
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
+        cfg.LLM_SEARCH_HOME_ENABLED = True
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
+        cfg.LLM_BUILTIN_AGENTS_ENABLED = False
+        cfg.LLM_CONFIG_DIR_NAMES = [str(config_root)]
+        cfg.LLM_PLUGIN_DIRS = []
+        cfg.LLM_BASE_SEARCH_DIRS = []
+        cfg.LLM_EXTRA_AGENT_DIRS = []
+        dirs = _posix(manager.search_dirs)
+    assert (config_root / "agents").as_posix() in dirs
+
+
+def test_an_absolute_config_root_is_not_repeated_in_the_project_walk(
+    manager, tmp_path, tmp_path_factory
+):
+    config_root = tmp_path_factory.mktemp("claude-alt")
+    (config_root / "agents").mkdir()
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
+        cfg.LLM_SEARCH_HOME_ENABLED = True
+        cfg.LLM_SEARCH_PROJECT_ENABLED = True
+        cfg.LLM_BUILTIN_AGENTS_ENABLED = False
+        cfg.LLM_CONFIG_DIR_NAMES = [str(config_root)]
+        cfg.LLM_PLUGIN_DIRS = []
+        cfg.LLM_BASE_SEARCH_DIRS = []
+        cfg.LLM_EXTRA_AGENT_DIRS = []
+        with patch(
+            "zrb.llm.subagent.manager.search.get_upward_dirs",
+            return_value=[tmp_path],
+        ):
+            dirs = _posix(manager.search_dirs)
+    assert dirs.count((config_root / "agents").as_posix()) == 1
