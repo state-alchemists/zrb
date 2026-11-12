@@ -9,6 +9,7 @@ Timeouts, polling intervals and size caps across the agent.
 - [Timeout Configuration](#timeout-configuration)
 - [Interval & Delay Configuration](#interval--delay-configuration)
 - [Size & Limit Configuration](#size--limit-configuration)
+- [`/usage` Resume Line](#usage-resume-line)
 
 ---
 
@@ -66,3 +67,14 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_PARALLEL_DELEGATIONS` | Max sub-agent tasks one `DelegateToAgent` fan-out (`tasks=[...]`) runs at once. Each is its own LLM run on the shared rate limiter (and, with `isolate_worktree`, its own git worktree). Paces concurrency, not total: a 50-task call still runs all 50, at most N in flight. `0` or negative disables. | `10` |
 
 > 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see [Voice and Camera → Camera](llm-voice-camera.md#camera)), which are downscaled and re-encoded like pasted or attached images.
+
+## `/usage` Resume Line
+
+`/usage` reads the local log, so every number it prints describes a turn already paid for — except one line, and this is the pair that decides when it appears. It warns when the conversation's saved history is large and its newest message is old. Past a provider's prompt-cache lifetime the prefix is re-sent whole, which costs about as many fresh input tokens as the history holds; a new session instead pays only its own system prompt (18–24k). Measured on 2026-11-12: three turns resuming after 37, 21 and 127 idle minutes paid 351,517 fresh input tokens to produce 5,484 output tokens — a fifth of that day's fresh input.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_UI_USAGE_RESUME_GAP_SECONDS` | How long the conversation must have been idle, measured from the newest message in its saved history, before `/usage` adds the line. `1200` (20 minutes) is four times the five-minute lifetime a prompt cache has by default, so an ordinary pause stays quiet. `0` or negative turns the line off. | `1200` |
+| `ZRB_LLM_UI_USAGE_RESUME_HISTORY_TOKENS` | How large the history must be, in tokens, for the line to appear. Below it, picking the thread back up costs little more than opening a new session. `0` or negative turns the line off. | `100000` |
+
+The estimate is an upper bound: it charges the whole history, so a provider still holding part of the prefix cached makes resuming cheaper than the line says.

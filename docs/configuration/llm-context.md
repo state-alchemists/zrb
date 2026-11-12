@@ -110,6 +110,8 @@ A streak that mixed the tools names none of them: the same sentence reads `…ea
 
 `/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
+The same arithmetic is what `/usage`'s one forward-looking line measures. A conversation left idle past the provider's prompt-cache lifetime re-sends its whole history on the next turn. On 2026-11-12 three turns began 37, 21 and 127 minutes after the previous one, at 67.0%, 49.9% and 49.8% cached, and paid 351,517 fresh input tokens to produce 5,484 output — a fifth of that day's fresh input — where a cold session pays 18–24k before the first word. When the history holds more than [`ZRB_LLM_UI_USAGE_RESUME_HISTORY_TOKENS`](llm-limits.md#usage-resume-line) and its newest message is older than `ZRB_LLM_UI_USAGE_RESUME_GAP_SECONDS`, `/usage` prints what each choice costs next.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED` | Remind the model, once, that three consecutive rounds each carried a single lookup call — `Read`, `Grep`, `Glob` or `LS`, in any mix — on different arguments. `off` leaves the conversation untouched: the reminder is never injected. It is withheld too for a model whose `supports_parallel_tool_calls` is `False` | `on` |

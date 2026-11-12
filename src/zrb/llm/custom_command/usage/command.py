@@ -7,6 +7,10 @@ reads, request and tool-call counts, and a cost when the model is priced. A
 compaction writes a line of its own (`summarization`), so the summarizer's spend
 is reported beside the turns instead of disappearing into them.
 
+One line is not from the log: the resume line reads the session's own history
+and says what the next turn would cost to pick it back up (`read_resume`). Every
+other number here describes a turn that has already been paid for.
+
 No argument means every recorded run, not just this conversation — "what have I
 spent" is asked far more often than "what did this conversation spend", and
 `session` is one word away.
@@ -22,6 +26,11 @@ from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.usage.memory import render_memory_section
+from zrb.llm.custom_command.usage.resume import (
+    FRESH_SESSION_TOKENS,
+    ResumeReading,
+    read_resume,
+)
 from zrb.llm.custom_command.usage.tools import (
     get_registered_tool_names,
     render_tools_section,
@@ -90,13 +99,21 @@ def render_usage(
     records: list[UsageRecord],
     label: str,
     registered_tools: list[str] | None = None,
+    resume: ResumeReading | None = None,
 ) -> str:
     """The body for one window: its label, the table, the footer, then the
-    Compaction, Tools and Memory sections when each has data for it.
+    resume line and the Compaction, Tools and Memory sections when each has
+    data for it.
 
     The panel draws the title, so the body opens with the window it covers
     rather than repeating the word "Usage". A window with no runs still reports
     the store: the table describes runs, and the store needs none to exist.
+
+    *resume* is the one line about the next turn instead of the last, and the
+    only one read from the session rather than the log. It sits directly under
+    the footer, where a `/usage` typed after a break asks its question before
+    the per-tool and per-store detail below it; the reader decides whether to
+    continue, not how a past turn broke down.
 
     Compaction lines stay out of the table and the footer. A compaction is not a
     turn: it is a separate charge, it is often carried by the small model
@@ -109,12 +126,17 @@ def render_usage(
     turns = [record for record in records if record.kind != KIND_SUMMARIZATION]
     memory = render_memory_section(turns)
     if not records:
-        return _no_usage(label, memory)
+        return _no_usage(label, memory, resume)
     sections = [f"  {label}", ""]
     if turns:
         sections.extend([_table(turns), "", *_footer(turns)])
     else:
         sections.append("  No turn recorded for this window.")
+    # After the table and its footer, and outside that branch: the line is about
+    # the session, so a window holding only a compaction still gets it.
+    resume_line = _resume_line(resume)
+    if resume_line:
+        sections.append(resume_line)
     for extra in (
         _compaction_section(records),
         render_tools_section(
@@ -191,15 +213,20 @@ def _fire_line(record: UsageRecord) -> str:
     )
 
 
-def _no_usage(label: str, memory: list[str]) -> str:
+def _no_usage(label: str, memory: list[str], resume: ResumeReading | None) -> str:
     """The window said nothing about runs; the store may still have something.
 
     `writes` and `recall` are window numbers and are already absent from an
-    empty record list, so what can appear here is the store as it is now.
+    empty record list, so what can appear here is the store as it is now. The
+    resume line belongs above them for the same reason it belongs in the main
+    body: it describes the session, not the window, and a `today` window read
+    after midnight would otherwise keep the one line worth acting on out of the
+    answer.
     """
     lines = [f"  No usage recorded for {label}."]
-    if memory:
-        lines.extend(["", *memory])
+    for extra in (_resume_line(resume), *memory):
+        if extra:
+            lines.extend(["", extra])
     return "\n".join(lines)
 
 
@@ -208,7 +235,7 @@ def _handle_usage(kwargs: dict[str, str], ui: "AnyUI | None") -> str:
     if period not in PERIODS:
         return f"  /usage takes one of: {', '.join(PERIODS)}"
     records, label = _select(period, ui)
-    return render_usage(records, label)
+    return render_usage(records, label, resume=read_resume(ui))
 
 
 @dataclass(frozen=True)
@@ -314,6 +341,24 @@ def _footer(records: list[UsageRecord]) -> list[str]:
     return lines
 
 
+def _resume_line(resume: ResumeReading | None) -> str:
+    """The one line about the next turn, or an empty string when none is due.
+
+    Three facts, because deciding whether to continue needs all three: how long
+    the conversation has sat, how much history is in it, and what each choice
+    costs next. The resume figure is the history itself — a lapsed cache is
+    re-sent whole — so it is not computed a second time.
+    """
+    if resume is None:
+        return ""
+    history = _tokens(resume.history_tokens)
+    return (
+        f"  {'resume':<8}last turn {_idle(resume.idle_seconds)} ago · "
+        f"{history} tokens of history · ~{history} fresh to resume vs "
+        f"~{_tokens(FRESH_SESSION_TOKENS)} to start over"
+    )
+
+
 def _group_by_model(records: list[UsageRecord]) -> dict[str, list[UsageRecord]]:
     grouped: dict[str, list[UsageRecord]] = {}
     for record in records:
@@ -374,6 +419,23 @@ def _duration(milliseconds: int) -> str:
         return f"{minutes}m {seconds}s"
     hours, minutes = divmod(minutes, 60)
     return f"{hours}h {minutes}m"
+
+
+def _idle(seconds: float) -> str:
+    """A gap between turns, coarser than `_duration`.
+
+    A silence is read at a glance — "2h 7m" answers it, and its seconds add
+    noise rather than precision; a run's wall time is the opposite, where the
+    seconds are the point.
+    """
+    whole = max(0, int(seconds))
+    if whole < 60:
+        return f"{whole}s"
+    minutes = whole // 60
+    if minutes < 60:
+        return f"{minutes}m"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes}m" if minutes else f"{hours}h"
 
 
 def _ellipsize(model: str) -> str:

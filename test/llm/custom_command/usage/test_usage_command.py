@@ -36,10 +36,17 @@ def command():
 
 
 class _FakeUI:
-    """The parts of a UI `/usage` touches: the session name and the panel."""
+    """The parts of a UI `/usage` touches: the session name and the panel.
+
+    `history_manager` is None and no turn is running: the resume line reads the
+    session's saved history, and a UI with none has nothing to warn about, which
+    keeps these tests about the log.
+    """
 
     display = input = tools = property(lambda self: self)
     session = property(lambda self: self)
+    history_manager = None
+    is_turn_running = False
 
     def __init__(self, session: str = "") -> None:
         self.conversation_session_name = session

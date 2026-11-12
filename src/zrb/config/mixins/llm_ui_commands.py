@@ -1,4 +1,4 @@
-"""LLM UI slash-command aliases."""
+"""LLM UI slash-command aliases, and the thresholds `/usage` warns on."""
 
 from __future__ import annotations
 
@@ -26,6 +26,11 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
         self.DEFAULT_LLM_UI_COMMAND_USAGE: str = "/usage"
         self.DEFAULT_LLM_UI_COMMAND_VOLUME: str = "/volume"
+        # 20 minutes: four times the five-minute lifetime a provider's prompt
+        # cache has by default, so the line stays quiet through an ordinary
+        # pause and speaks once the cache has most likely gone.
+        self.DEFAULT_LLM_UI_USAGE_RESUME_GAP_SECONDS: str = "1200"
+        self.DEFAULT_LLM_UI_USAGE_RESUME_HISTORY_TOKENS: str = "100000"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -145,5 +150,27 @@ class LLMUICommandsMixin:
             "Comma-separated command aliases to change the speech volume "
             "(`<alias> +++` raises it three steps, `<alias> --` lowers two, and "
             "`<alias>` alone reports the level)."
+        ),
+    )
+
+    LLM_UI_USAGE_RESUME_GAP_SECONDS = EnvField(
+        int,
+        doc=(
+            "How long the conversation must have been idle — since the newest "
+            "message in its saved history — before `/usage` adds its resume "
+            "line. 1200 seconds is four times the five-minute lifetime a "
+            "provider's prompt cache has by default: a shorter pause is usually "
+            "still cached, so warning about it would be noise. 0 or negative "
+            "turns the line off."
+        ),
+    )
+
+    LLM_UI_USAGE_RESUME_HISTORY_TOKENS = EnvField(
+        int,
+        doc=(
+            "How large the conversation's history must be, in tokens, for "
+            "`/usage` to add its resume line. Below it, picking the thread back "
+            "up costs little more than opening a new session, so there is "
+            "nothing to warn about. 0 or negative turns the line off."
         ),
     )
