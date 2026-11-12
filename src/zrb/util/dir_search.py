@@ -112,13 +112,28 @@ def _checkout_plugin_dirs(checkout: Path) -> list[Path]:
     point at a directory carrying no manifest of its own. The conventional
     ``plugins/*/`` children are added for a checkout whose manifest does not
     list them, and the root itself is kept last.
+
+    Every candidate must resolve to a directory inside the checkout. A manifest
+    is data that arrives with the checkout, not a grant: an absolute ``source``,
+    a ``..`` that climbs out, or a symlink that leaves the checkout would let it
+    make zrb import skills and agents from anywhere on the machine.
     """
-    plugin_dirs = _declared_plugin_dirs(checkout)
+    candidates = _declared_plugin_dirs(checkout)
     plugins_dir = checkout / PLUGINS_DIR
     if plugins_dir.is_dir():
-        plugin_dirs.extend(_children_with_manifest(_subdirectories(plugins_dir)))
-    plugin_dirs.append(checkout)
-    return plugin_dirs
+        candidates.extend(_children_with_manifest(_subdirectories(plugins_dir)))
+    candidates.append(checkout)
+    return [path for path in candidates if _is_within(path, checkout)]
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    """True when *path*, resolved, stays inside *root* — symlinks included."""
+    try:
+        path.resolve().relative_to(root.resolve())
+    except (OSError, ValueError):
+        _LOGGER.warning("Ignoring a plugin source outside its marketplace: %s", path)
+        return False
+    return True
 
 
 def _declared_plugin_dirs(checkout: Path) -> list[Path]:

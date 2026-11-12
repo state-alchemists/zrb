@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from zrb.util.dir_search import (
     get_dirs_up_to_home,
     get_upward_dirs,
@@ -137,6 +139,47 @@ def test_scan_plugin_dirs_ignores_a_malformed_marketplace_manifest(tmp_path):
         "{not json", encoding="utf-8"
     )
     assert scan_plugin_dirs(tmp_path) == [checkout]
+
+
+def test_scan_plugin_dirs_rejects_a_source_outside_the_checkout(
+    tmp_path, tmp_path_factory
+):
+    "A manifest is data, not a grant: it may not name a directory it does not own."
+    outside = tmp_path_factory.mktemp("outside")
+    (outside / "skills" / "pdf").mkdir(parents=True)
+    checkout = tmp_path / "marketplaces" / "acme"
+    (checkout / ".claude-plugin").mkdir(parents=True)
+    (checkout / ".claude-plugin" / "marketplace.json").write_text(
+        json.dumps(
+            {
+                "name": "acme",
+                "plugins": [
+                    {"name": "absolute", "source": str(outside)},
+                    {"name": "climbing", "source": "../outside"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plugin_dirs = [path.resolve() for path in scan_plugin_dirs(tmp_path)]
+    assert outside.resolve() not in plugin_dirs
+    assert plugin_dirs == [checkout.resolve()]
+
+
+def test_scan_plugin_dirs_rejects_a_symlink_out_of_the_checkout(
+    tmp_path, tmp_path_factory
+):
+    outside = tmp_path_factory.mktemp("outside")
+    (outside / ".claude-plugin").mkdir(parents=True)
+    (outside / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    checkout = tmp_path / "marketplaces" / "acme"
+    (checkout / "plugins").mkdir(parents=True)
+    try:
+        (checkout / "plugins" / "escape").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks are not available in this environment")
+    plugin_dirs = [path.resolve() for path in scan_plugin_dirs(tmp_path)]
+    assert outside.resolve() not in plugin_dirs
 
 
 def test_scan_plugin_dirs_tolerates_unexpected_marketplace_shapes(tmp_path):
