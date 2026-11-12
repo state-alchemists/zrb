@@ -8,6 +8,7 @@ from zrb.llm.skill.activation import build_activation_block
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.skill.preload import format_preload_problems, resolve_preload
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.util.roster import cap_items, search_roster
 
 
@@ -26,6 +27,7 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
                 )
             ),
         ],
+        purpose: Purpose = "",
     ) -> str:
         found = skill_manager.get_skill(skill)
 
@@ -88,6 +90,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
                 )
             ),
         ] = "",
+        purpose: Purpose = "",
     ) -> str:
         skills = [s for s in skill_manager.get_skills() if s.model_invocable]
         return search_roster(skills, query) or _no_skill_match_message(query)

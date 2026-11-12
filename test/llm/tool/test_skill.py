@@ -108,15 +108,21 @@ class TestCreateActivateSkillTool:
 class TestActivateSkillSchema:
     """The parameter models actually reach for, exposed as strictly as before."""
 
-    def test_parameter_is_named_skill_and_stays_the_only_one(self):
-        """Models guess `skill`; aliases would lose ``additionalProperties: false``."""
+    def test_parameter_is_named_skill_and_carries_no_alias(self):
+        """Models guess `skill`; aliases would lose ``additionalProperties: false``.
+
+        `purpose` is the one other property the schema offers: it is narration the
+        model is told to fill in on every call, so `ActivateSkill` has to accept
+        it or the call is rejected before it runs. It is not a second way to name
+        the skill — that argument is still `skill`, and still the only required
+        one."""
         from pydantic_ai import Tool
 
         from zrb.llm.tool.skill import create_activate_skill_tool
 
         schema = Tool(create_activate_skill_tool()).function_schema.json_schema
 
-        assert list(schema["properties"]) == ["skill"]
+        assert list(schema["properties"]) == ["skill", "purpose"]
         assert schema["required"] == ["skill"]
         assert schema["additionalProperties"] is False
 
