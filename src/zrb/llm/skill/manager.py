@@ -196,6 +196,7 @@ class SkillManager:
 
     _SKILL_ASSET = "skills"
     _PLUGIN_ASSET = "plugins"
+    _SYNCED_ASSET = "synced"
 
     def _default_search_dirs(self) -> list[str | Path]:
         """Compute the default skill search directories in priority order.
@@ -275,13 +276,43 @@ class SkillManager:
             self.scan()
 
     def _collect_skill_and_plugin_dirs(self, root: Path) -> list[Path]:
-        """Collect ``skills/`` and plugin ``skills/`` directories under *root*."""
+        """Collect ``skills/``, ``skills/synced/*`` and plugin ``skills/`` under *root*.
+
+        Synced skills come before ``skills/`` itself: the scan lets a later
+        directory override an earlier one, and a skill the user wrote must beat
+        the same name downloaded from claude.ai.
+        """
         dirs: list[Path] = []
         skill_path = root / self._SKILL_ASSET
         if skill_path.exists() and skill_path.is_dir():
+            dirs.extend(self._collect_synced_skill_dirs(skill_path))
             dirs.append(skill_path)
         dirs.extend(self._collect_plugin_skill_dirs(root / self._PLUGIN_ASSET))
         return dirs
+
+    def _collect_synced_skill_dirs(self, skills_dir: Path) -> list[Path]:
+        """``skills/synced/*`` — the claude.ai downloads, one bucket deep.
+
+        Claude Code writes them to ``synced/<bucket>/<name>/SKILL.md``, one level
+        below what the default scan reaches, so it stops at the bucket and no
+        synced skill is ever loaded. Each bucket is scanned as its own root,
+        which also covers a bucket-less ``synced/<name>/SKILL.md``. The walk is
+        bounded by the number of buckets, not by the size of the tree.
+        """
+        synced_dir = skills_dir / self._SYNCED_ASSET
+        if not synced_dir.is_dir():
+            return []
+        try:
+            return [
+                item
+                for item in sorted(synced_dir.iterdir())
+                if item.is_dir() and not item.name.startswith(".")
+            ]
+        except OSError:
+            CFG.LOGGER.warning(
+                f"Failed to scan synced skills: {synced_dir}", exc_info=True
+            )
+            return []
 
     def _collect_plugin_skill_dirs(self, plugins_dir: Path) -> list[Path]:
         """Each plugin's ``skills/`` directory under *plugins_dir*."""

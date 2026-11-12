@@ -19,7 +19,9 @@ _BROAD = {"Exception", "BaseException"}
 # wrapper around `summarize_messages`, which already catches everything; the
 # construction of a `ModelRequest`; `os.path.isdir`).
 # -1 (301->300): the two prompt-file reads share one handler.
-SWALLOWED_BROAD_EXCEPTS = 299
+# -1 (299->298): the plugin scan catches `OSError`, which is what a root
+# directory, a marketplace directory and the installed-plugin index raise.
+SWALLOWED_BROAD_EXCEPTS = 298
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

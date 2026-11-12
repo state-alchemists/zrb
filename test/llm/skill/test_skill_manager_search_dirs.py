@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import pytest
@@ -108,3 +109,66 @@ def test_builtin_utility_skills_searched_when_enabled(tmp_path):
         dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert any(d.endswith("llm_plugin/skills") for d in dirs)
+
+
+def _write_skill(skill_dir, name, description):
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: {description}\n---\n# {name}\n",
+        encoding="utf-8",
+    )
+
+
+def _scan_home_skills(home, tmp_path):
+    "Scan with the home search pointed at *home* and every other source off."
+    manager = SkillManager(root_dir=str(tmp_path))
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        _mock_cfg(mock_cfg, LLM_SEARCH_HOME_ENABLED=True)
+        with patch("zrb.llm.skill.manager.Path.home", return_value=home):
+            return {skill.name: skill for skill in manager.scan()}
+
+
+def test_synced_skills_are_scanned(tmp_path):
+    "claude.ai downloads sit in synced/<bucket>/<name>/SKILL.md, one level deeper."
+    home = tmp_path / "home"
+    bucket = home / ".claude" / "skills" / "synced" / "bucket-id"
+    _write_skill(bucket / "pdf", "pdf", "from claude.ai")
+    skills = _scan_home_skills(home, tmp_path)
+    assert skills["pdf"].description == "from claude.ai"
+
+
+def test_a_written_skill_beats_the_synced_one(tmp_path):
+    home = tmp_path / "home"
+    skills_root = home / ".claude" / "skills"
+    _write_skill(skills_root / "synced" / "bucket-id" / "pdf", "pdf", "from claude.ai")
+    _write_skill(skills_root / "pdf", "pdf", "mine")
+    skills = _scan_home_skills(home, tmp_path)
+    assert skills["pdf"].description == "mine"
+
+
+def test_synced_dot_directories_are_skipped(tmp_path):
+    "Claude keeps .staging and .trash beside the buckets."
+    home = tmp_path / "home"
+    synced = home / ".claude" / "skills" / "synced"
+    _write_skill(synced / ".trash" / "pdf", "pdf", "trashed")
+    skills = _scan_home_skills(home, tmp_path)
+    assert "pdf" not in skills
+
+
+def test_installed_plugin_skills_are_scanned(tmp_path):
+    home = tmp_path / "home"
+    plugins_root = home / ".claude" / "plugins"
+    installed = plugins_root / "cache" / "market" / "documents" / "abc123"
+    _write_skill(installed / "skills" / "pdf", "pdf", "from a plugin")
+    plugins_root.mkdir(parents=True, exist_ok=True)
+    (plugins_root / "installed_plugins.json").write_text(
+        json.dumps(
+            {
+                "version": 2,
+                "plugins": {"documents@market": [{"installPath": str(installed)}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    skills = _scan_home_skills(home, tmp_path)
+    assert skills["pdf"].description == "from a plugin"

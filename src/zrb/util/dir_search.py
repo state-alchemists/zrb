@@ -4,6 +4,7 @@ Used by both the skill loader and hook loader to search in priority order:
 user home → project directories (root→cwd) → plugins → extras → builtin.
 """
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -14,6 +15,13 @@ _LOGGER = logging.getLogger(__name__)
 BUILTIN_PLUGIN_DIR = (
     next(p for p in Path(__file__).resolve().parents if p.name == "zrb") / "llm_plugin"
 )
+
+# A plugins root is not a flat list of plugins. A plugin can be checked out in
+# place, or unpacked under `cache/` by a marketplace install — in which case
+# `installed_plugins.json` is what records where it actually lives.
+PLUGIN_MANIFEST = Path(".claude-plugin") / "plugin.json"
+INSTALLED_PLUGINS_INDEX = "installed_plugins.json"
+MARKETPLACES_DIR = "marketplaces"
 
 
 def get_upward_dirs(start_dir: str | Path) -> list[Path]:
@@ -56,20 +64,84 @@ def get_dirs_up_to_home(start_dir: str, home_dir: str) -> list[str]:
 
 
 def scan_plugin_dirs(plugins_root: Path) -> list[Path]:
-    """Scan *plugins_root* for plugin directories that carry a ``.claude-plugin/plugin.json`` manifest.
+    """Every plugin directory under *plugins_root*, from all of Claude Code's layouts.
 
-    Returns paths to valid plugin directories (manifest present), excluding hidden dirs.
+    Three sources are read, in the order a caller should let them lose a name
+    collision — a marketplace checkout before the installed copy of the same
+    plugin, so the version Claude Code actually loads wins:
+
+    1. an immediate child carrying ``.claude-plugin/plugin.json``
+    2. every marketplace checkout under ``marketplaces/``
+    3. the ``installPath`` of every plugin ``installed_plugins.json`` records
+
+    Hidden entries, missing sources and an unreadable index contribute nothing
+    rather than raising.
     """
     plugin_dirs: list[Path] = []
+    for source in (_direct_plugin_dirs, _marketplace_dirs, _installed_plugin_dirs):
+        for plugin_dir in source(plugins_root):
+            if plugin_dir not in plugin_dirs:
+                plugin_dirs.append(plugin_dir)
+    return plugin_dirs
+
+
+def _direct_plugin_dirs(plugins_root: Path) -> list[Path]:
+    """Immediate children that carry a plugin manifest of their own."""
     try:
-        for item in plugins_root.iterdir():
-            if item.is_dir() and not item.name.startswith("."):
-                manifest = item / ".claude-plugin" / "plugin.json"
-                if manifest.exists():
-                    plugin_dirs.append(item)
-    except Exception:
+        return [
+            item
+            for item in plugins_root.iterdir()
+            if item.is_dir()
+            and not item.name.startswith(".")
+            and (item / PLUGIN_MANIFEST).exists()
+        ]
+    except OSError:
         # Best-effort: a bad plugin root must not stop the rest.
         _LOGGER.warning(
             "Failed to scan plugin directories: %s", plugins_root, exc_info=True
         )
+        return []
+
+
+def _marketplace_dirs(plugins_root: Path) -> list[Path]:
+    """Marketplace checkouts, each of which carries the skills it publishes."""
+    marketplaces_root = plugins_root / MARKETPLACES_DIR
+    if not marketplaces_root.is_dir():
+        return []
+    try:
+        return [
+            item
+            for item in marketplaces_root.iterdir()
+            if item.is_dir() and not item.name.startswith(".")
+        ]
+    except OSError:
+        _LOGGER.warning(
+            "Failed to scan marketplaces: %s", marketplaces_root, exc_info=True
+        )
+        return []
+
+
+def _installed_plugin_dirs(plugins_root: Path) -> list[Path]:
+    """The ``installPath`` of every plugin ``installed_plugins.json`` records."""
+    index_path = plugins_root / INSTALLED_PLUGINS_INDEX
+    if not index_path.is_file():
+        return []
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        _LOGGER.warning("Failed to read plugin index: %s", index_path, exc_info=True)
+        return []
+    plugins = index.get("plugins", {}) if isinstance(index, dict) else {}
+    if not isinstance(plugins, dict):
+        return []
+    plugin_dirs: list[Path] = []
+    for entries in plugins.values():
+        # v2 indexes a list of scoped entries; accept a bare entry too.
+        for entry in entries if isinstance(entries, list) else [entries]:
+            install_path = entry.get("installPath") if isinstance(entry, dict) else None
+            if not isinstance(install_path, str):
+                continue
+            plugin_dir = Path(install_path).expanduser()
+            if plugin_dir.is_dir() and plugin_dir not in plugin_dirs:
+                plugin_dirs.append(plugin_dir)
     return plugin_dirs

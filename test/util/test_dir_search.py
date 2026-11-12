@@ -1,5 +1,6 @@
 """Tests for util/dir_search.py — covers happy paths and exception fallbacks."""
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -50,6 +51,87 @@ def test_scan_plugin_dirs_returns_empty_on_error():
     bogus = Path("/no/such/dir/anywhere/123")
     # iterdir() on a nonexistent dir raises FileNotFoundError; helper must swallow.
     assert scan_plugin_dirs(bogus) == []
+
+
+def _write_plugin_index(plugins_root: Path, plugins: dict) -> None:
+    plugins_root.mkdir(parents=True, exist_ok=True)
+    (plugins_root / "installed_plugins.json").write_text(
+        json.dumps({"version": 2, "plugins": plugins}), encoding="utf-8"
+    )
+
+
+def test_scan_plugin_dirs_follows_installed_plugin_index(tmp_path):
+    installed = tmp_path / "cache" / "market" / "documents" / "abc123"
+    (installed / "skills" / "pdf").mkdir(parents=True)
+    _write_plugin_index(
+        tmp_path,
+        {"documents@market": [{"scope": "user", "installPath": str(installed)}]},
+    )
+    assert installed in scan_plugin_dirs(tmp_path)
+
+
+def test_scan_plugin_dirs_accepts_a_bare_entry(tmp_path):
+    "A plugin indexed as one entry rather than a list of scoped entries."
+    installed = tmp_path / "cache" / "documents"
+    installed.mkdir(parents=True)
+    _write_plugin_index(tmp_path, {"documents@market": {"installPath": str(installed)}})
+    assert installed in scan_plugin_dirs(tmp_path)
+
+
+def test_scan_plugin_dirs_lists_marketplace_checkouts(tmp_path):
+    checkout = tmp_path / "marketplaces" / "anthropic-skills"
+    (checkout / "skills" / "pdf").mkdir(parents=True)
+    assert checkout in scan_plugin_dirs(tmp_path)
+
+
+def test_scan_plugin_dirs_prefers_the_installed_copy(tmp_path):
+    "A later directory wins a collision, so the version Claude Code loads comes last."
+    checkout = tmp_path / "marketplaces" / "market"
+    (checkout / "skills").mkdir(parents=True)
+    installed = tmp_path / "cache" / "market" / "documents" / "abc123"
+    installed.mkdir(parents=True)
+    _write_plugin_index(
+        tmp_path, {"documents@market": [{"installPath": str(installed)}]}
+    )
+    plugin_dirs = scan_plugin_dirs(tmp_path)
+    assert plugin_dirs.index(installed) > plugin_dirs.index(checkout)
+
+
+def test_scan_plugin_dirs_skips_install_paths_that_are_gone(tmp_path):
+    _write_plugin_index(
+        tmp_path, {"documents@market": [{"installPath": str(tmp_path / "uninstalled")}]}
+    )
+    assert scan_plugin_dirs(tmp_path) == []
+
+
+def test_scan_plugin_dirs_ignores_a_malformed_index(tmp_path):
+    (tmp_path / "installed_plugins.json").write_text("{not json", encoding="utf-8")
+    assert scan_plugin_dirs(tmp_path) == []
+
+
+def test_scan_plugin_dirs_tolerates_unexpected_index_shapes(tmp_path):
+    index_path = tmp_path / "installed_plugins.json"
+    index_path.write_text(json.dumps({"plugins": ["nope"]}), encoding="utf-8")
+    assert scan_plugin_dirs(tmp_path) == []
+    index_path.write_text(json.dumps([]), encoding="utf-8")
+    assert scan_plugin_dirs(tmp_path) == []
+    index_path.write_text(
+        json.dumps({"plugins": {"p": [{"installPath": 3}, "not-a-dict"]}}),
+        encoding="utf-8",
+    )
+    assert scan_plugin_dirs(tmp_path) == []
+
+
+def test_scan_plugin_dirs_survives_an_unreadable_index(tmp_path):
+    (tmp_path / "installed_plugins.json").write_text("{}", encoding="utf-8")
+    with patch.object(Path, "read_text", side_effect=OSError("denied")):
+        assert scan_plugin_dirs(tmp_path) == []
+
+
+def test_scan_plugin_dirs_survives_an_unreadable_root(tmp_path):
+    (tmp_path / "marketplaces").mkdir()
+    with patch.object(Path, "iterdir", side_effect=OSError("denied")):
+        assert scan_plugin_dirs(tmp_path) == []
 
 
 def test_get_dirs_up_to_home_walks_nearest_first(tmp_path):
