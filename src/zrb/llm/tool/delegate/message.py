@@ -16,6 +16,7 @@ from zrb.llm.shared.ambient_state import (
     get_session_ownership_key,
 )
 from zrb.llm.shared.delegation_api import get_live_session_registry
+from zrb.llm.tool.purpose import Purpose
 
 
 def create_send_message_to_subagent_tool():
@@ -24,6 +25,7 @@ def create_send_message_to_subagent_tool():
             str, Field(description="The sub-agent's id, as shown in its delegation.")
         ],
         message: Annotated[str, Field(description="What to tell the sub-agent.")],
+        purpose: Purpose = "",
     ) -> str:
         """Send a message to a delegated sub-agent that is still running or idle.
 

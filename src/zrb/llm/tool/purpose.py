@@ -9,10 +9,23 @@ to the tool's phrase.
 frame around it: the narrator reads it from the call's arguments before the
 tool runs, so a declaration is the whole implementation.
 
+A tool that acts declares one through `requires_purpose`, so the model must
+write the line. A tool that does not act declares it too, with a default: the
+description below is a standing instruction, and a model that reads it fills the
+argument on every call — including on a lookup, where the tool never asked. A
+schema that leaves it out turns that instruction into a validation error instead
+of the work: on 2026-11-12, 7 of the 13 tool errors in 517 calls were exactly
+`extra_forbidden` on `purpose`, 5 of them `SearchSkill`'s, and each one cost a
+retried round plus a full context re-send. `zrb.llm.speech.progress` speaks the
+line whenever a call carries one, so declaring it on a tool that does not act
+adds nothing a listener hears and removes what the model cannot say.
+
 The wording lives here rather than beside each tool because it is one contract
 read at one place: it is folded into every declaring tool's schema, so editing
 it changes what the model is asked for everywhere at once. Which tools must
-declare one is `test_every_tool_that_acts_says_what_the_call_is_for`.
+declare one is
+`test_every_tool_outside_the_harness_says_what_the_call_is_for` in
+`test/llm/test_common_tools.py`.
 """
 
 from __future__ import annotations
