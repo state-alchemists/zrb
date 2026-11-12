@@ -47,10 +47,16 @@ Zrb supports Claude-style skills. A skill is defined by a `SKILL.md` (or `*.skil
 | Location | Type |
 |----------|------|
 | `~/.claude/skills/` | User-level (Claude) |
+| `~/.claude/skills/synced/<bucket>/<name>/SKILL.md` | Skills downloaded from claude.ai |
 | `~/.zrb/skills/` | User-level (Zrb) |
 | `.claude/skills/`, `.zrb/skills/` in every directory from the filesystem root down to the current directory | Project-level |
 | `<config dir>/plugins/<plugin>/skills/` | Plugins inside any of the config dirs above |
+| `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/` | Installed plugins, located through `installed_plugins.json` |
+| `~/.claude/plugins/marketplaces/<marketplace>/skills/` | Marketplace checkouts |
 | `ZRB_LLM_PLUGIN_DIRS` | Plugin directories (see [Plugins](#5-plugins)) |
+
+Claude Code downloads the skills enabled on a claude.ai account into `~/.claude/skills/synced/`, one bucket directory per account or workspace: `synced/<bucket>/<name>/SKILL.md`. Zrb scans each bucket as its own root, so it reads them without widening the scan of any other directory — the walk is bounded by the number of buckets, not by the size of the tree. A skill you wrote yourself wins the name: synced skills are scanned first, and a later directory overrides an earlier one. These are **remote** files — Anthropic ships and rewrites them — so a skill from `synced/` carries the same trust as anything else on disk; zrb does not sandbox the commands a skill asks for.
+
 
 ### Skill Format
 
@@ -211,6 +217,8 @@ Each listed path is a directory **of** plugins. A plugin is a subdirectory carry
     └── agents/
 ```
 
+Claude's own plugins root follows the same shape in more than one place, and zrb reads all of them: a plugin checked out directly, a plugin a marketplace checkout publishes under `plugins/<plugin>/` (the marketplace manifest's `source` is what decides; a marketplace may also publish skills from its own root), and an installed plugin unpacked under `cache/` — the last located through the `installPath` that `installed_plugins.json` records, because the cache path carries a version directory no fixed pattern can guess. When a marketplace checkout and an installed copy publish the same skill, the installed copy wins.
+
 Hooks are the exception: they are read from `hooks.json` and `hooks/` directly under each listed path, not from inside each plugin (see [Hook Locations](./hooks.md#hook-locations)).
 
 ---
@@ -220,7 +228,7 @@ Hooks are the exception: they are read from `hooks.json` and `hooks/` directly u
 | Feature | File Pattern | Discovery Path |
 |---------|--------------|----------------|
 | Project Instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `README.md` | `~/.claude/`, then root → current dir (instruction files inlined within a byte budget; `README.md` listed only) |
-| Skills | `SKILL.md`, `*.skill.md`, `SKILL.py`, `*.skill.py` | `skills/` directories |
+| Skills | `SKILL.md`, `*.skill.md`, `SKILL.py`, `*.skill.py` | `skills/` directories, `skills/synced/<bucket>/`, and each plugin's `skills/` |
 | Agents | `AGENT.md`, `*.agent.md`, `*.md` in `agents/`, `AGENT.py`, `*.agent.py` | `agents/` directories (plus zrb's built-in `core_agents/`) |
 | Hooks | `hooks.json`, `*.json`/`*.yaml`/`*.hook.py`, `settings.json` `hooks` block | `.claude/`, `.zrb/`, `hooks/` directories |
 
