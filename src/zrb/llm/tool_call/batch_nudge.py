@@ -3,7 +3,10 @@
 Every round re-sends the whole conversation, so three `Read` calls made in
 three rounds cost three request bodies where one would do. The rule asking the
 model to batch is in the prompt already; this is the check that notices when it
-was ignored, and says so once rather than every round after.
+was ignored, and says so once rather than every round after — once in the user
+turn that ignored it. A nudge silences the rest of its own turn and nothing
+past it: the turn after may be a new question, may arrive an hour later, or may
+be a conversation resumed from a compaction, and the model is told again.
 
 Only calls that are certainly independent are counted: a lookup tool calling
 once per round, over consecutive rounds, on *different* arguments. The tools
@@ -20,6 +23,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.config.limiter import is_turn_start
 from zrb.llm.shared.agent_state import get_current_model
 from zrb.llm.util.capabilities import model_capabilities
 
@@ -81,15 +85,15 @@ def _single_call_streak_tools(messages: "list[ModelMessage]") -> list[str] | Non
     The tools may differ: three lookups issued one round apart are the same
     waste whether or not they are the same lookup. Walking backwards, a final
     answer with no tool calls ends the tail the question is about, a round that
-    already carried several calls shows the model is batching, a nudge already
-    in the history means this streak has been mentioned once, and a call that
-    is not a lookup ends it too — any of the four answers ``None``.
+    already carried several calls shows the model is batching, and a call that
+    is not a lookup ends it too — any of the three answers ``None``. A nudge
+    already in this turn answers ``None`` as well; one from an earlier turn does
+    not, because the model has been asked something else since.
     """
+    if _is_reminded_this_turn(messages):
+        return None
     collected: list[tuple[str, str]] = []
     for message in reversed(messages):
-        texts = _message_texts(message)
-        if any(NUDGE_MARKER in text for text in texts):
-            return None
         calls = _tool_calls(message)
         if calls is None:
             continue
@@ -104,6 +108,45 @@ def _single_call_streak_tools(messages: "list[ModelMessage]") -> list[str] | Non
                 return None
             return [name for name, _ in collected]
     return None
+
+
+def _is_reminded_this_turn(messages: "list[ModelMessage]") -> bool:
+    """Whether a nudge already sits in the user turn the next request belongs to.
+
+    The turn starts at the latest user prompt, which is `is_turn_start` — the
+    boundary the limiter prunes by, the summarizer splits by and the retry
+    prunes to: a request carrying a `UserPromptPart` and no tool return. Context
+    zrb injects rides inside the request that carries the person's own words
+    (`runner.run_agent` prepends a hook's `additionalContext` to their message,
+    and the live-context block is appended to it), so that request is their
+    turn. A request that merges a prompt with tool returns is a tool result —
+    often an image — rather than someone speaking, and no turn starts there. A
+    block zrb injects standing alone does start one: telling those apart would
+    take a list of their opening words to maintain, and each is the model being
+    addressed afresh rather than a streak the reminder already covers.
+
+    The scan covers the whole turn, not the rounds the streak walk collects: the
+    walk stops as soon as it has its three, so a nudge four rounds back would
+    never be reached, and it is still this turn's reminder.
+    """
+    turn: list[object] = []
+    for message in reversed(messages):
+        turn.append(message)
+        if is_turn_start(message):
+            break
+    # With no user prompt anywhere there is nothing to separate turns by, so the
+    # whole history is one.
+    return any(_is_nudge(seen) for seen in turn)
+
+
+def _is_nudge(message: object) -> bool:
+    """Whether the message is a nudge zrb injected.
+
+    Only a user prompt can carry one, that being the role the nudge is injected
+    as. A tool result that quotes this module — a `Read` of its own source —
+    mentions the marker without being a reminder.
+    """
+    return any(NUDGE_MARKER in text for text in _prompt_texts(message))
 
 
 def _tool_calls(message: object) -> list[tuple[str, str]] | None:
@@ -147,10 +190,16 @@ def _is_each_call_distinct(collected: list[tuple[str, str]]) -> bool:
     return len(set(collected)) == len(collected)
 
 
-def _message_texts(message: object) -> list[str]:
-    """The textual parts of a message, for spotting an earlier nudge."""
+def _prompt_texts(message: object) -> list[str]:
+    """The textual user prompts a message carries.
+
+    Parts are read by `part_kind`, as `_tool_calls` does, so this needs no
+    pydantic-ai type.
+    """
     texts: list[str] = []
     for part in getattr(message, "parts", None) or ():
+        if getattr(part, "part_kind", "") != "user-prompt":
+            continue
         content = getattr(part, "content", None)
         if isinstance(content, str):
             texts.append(content)

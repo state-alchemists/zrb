@@ -106,7 +106,7 @@ The prompt asks the model to batch; when that is ignored, zrb injects one remind
 
 A streak that mixed the tools names none of them: the same sentence reads `…each carried a single lookup on different arguments.` The tool is part of what was asked, so `Grep x` after `Glob x` counts as two lookups, while the same tool on the same arguments is one lookup repeated and is not counted.
 
-`Shell`, `Write` and `Edit` are never counted — there the next call usually depends on what the previous one printed, so batching them would be wrong — and the reminder is not repeated for a streak already mentioned: the scan stops at a marker already in the conversation, so a streak that keeps going after the reminder stays silent. It reaches sub-agents too, since a delegated run pays the same price.
+`Shell`, `Write` and `Edit` are never counted — there the next call usually depends on what the previous one printed, so batching them would be wrong — and the reminder is said at most once per user turn: a turn that keeps issuing one lookup per round after being told stays silent for the rest of that turn, and a turn that begins after it is told again. The turn is the boundary, so an hour later, a new topic, or a conversation resumed after a compaction hears the rule afresh. It reaches sub-agents too, since a delegated run pays the same price.
 
 `/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
@@ -114,7 +114,7 @@ The same arithmetic is what `/usage`'s one forward-looking line measures. A conv
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED` | Remind the model, once, that three consecutive rounds each carried a single lookup call — `Read`, `Grep`, `Glob` or `LS`, in any mix — on different arguments. `off` leaves the conversation untouched: the reminder is never injected. It is withheld too for a model whose `supports_parallel_tool_calls` is `False` | `on` |
+| `ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED` | Remind the model, once per user turn, that three consecutive rounds each carried a single lookup call — `Read`, `Grep`, `Glob` or `LS`, in any mix — on different arguments. `off` leaves the conversation untouched: the reminder is never injected. It is withheld too for a model whose `supports_parallel_tool_calls` is `False` | `on` |
 
 The reminder is withheld for a model on zrb's parallel-call deny-list (`supports_parallel_tool_calls` is `False`): the System Context already tells such a model to issue exactly one call per response, and a reminder arguing the other way would cost it both calls in the round. An unrecognised model is treated as able, since the list names only models known to malform.
 
