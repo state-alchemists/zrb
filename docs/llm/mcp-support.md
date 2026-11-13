@@ -74,6 +74,12 @@ Any entry may also set `"prefix"` (1–62 letters, digits, `_` or `-`; `${VAR}` 
 
 Environment variable placeholders — `${VAR_NAME}`, or `${VAR_NAME:-default}` — in `command`, `args`, `env`, and `url` values are expanded when the config is loaded. A placeholder whose variable is unset and has no default makes zrb skip that server with a warning.
 
+### What a call says it is for
+
+zrb's own tools take a `purpose` argument — the line the narrator reads aloud instead of the tool's generic sentence — and an MCP server's tools are given one too. The server owns its tool schemas, so zrb adds a required `purpose` to each tool's schema on the way in, then drops the argument before the call is forwarded: the line is spoken, and the server never receives an argument it did not ask for.
+
+A server that declares `purpose` itself is left alone — its schema is not touched and the value is forwarded, because that parameter is the server's own.
+
 ---
 
 ## Server Types

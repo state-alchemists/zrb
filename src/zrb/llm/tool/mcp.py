@@ -2,10 +2,11 @@ import json
 import os
 import re
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.tool.purpose import DECLARED_PURPOSE_KEY, with_declared_purpose
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from pydantic_ai import RunContext
     from pydantic_ai.mcp import CallToolFunc, ToolResult
     from pydantic_ai.tools import ToolDefinition
+    from pydantic_ai.toolsets.abstract import ToolsetTool
 
     from zrb.llm.agent.types import AbstractToolset
 
@@ -106,11 +108,13 @@ def _create_mcp_toolsets(
                 target = _expanded_text(config["url"], "'url'")
             else:
                 continue
-            toolset: "AbstractToolset" = MCPToolset(
-                target,
-                id=server_name,
-                max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                process_tool_call=_truncating_process_tool_call,
+            toolset: "AbstractToolset" = add_purpose_to_mcp_tools(
+                MCPToolset(
+                    target,
+                    id=server_name,
+                    max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                    process_tool_call=_truncating_process_tool_call,
+                )
             )
             # Two servers exposing the same tool name abort the whole run.
             if (prefix := config.get("prefix")) is not None:
@@ -128,6 +132,74 @@ def _create_mcp_toolsets(
             )
 
     return toolsets
+
+
+def add_purpose_to_mcp_tools(toolset: "AbstractToolset") -> "AbstractToolset":
+    """Wrap *toolset* so a tool call served by it can say what it is for.
+
+    `agent.common.create_safe_wrapper` gives every tool zrb builds an optional
+    ``purpose``, but an MCP server owns its schema: the model's line has nowhere
+    to go, and a call that carries one anyway is refused by the server's own
+    validation, spending a round. Two halves close it, and neither works alone —
+    the schema (so the model may write the line) and the drop below (so the
+    server never sees an argument it did not ask for).
+
+    A server that declares ``purpose`` itself keeps its own: the schema is left
+    alone and the value is forwarded, because that parameter is the server's
+    meaning rather than the narrator's line.
+    """
+    # lazy: heavy third-party
+    from dataclasses import replace
+
+    from pydantic_ai.toolsets import WrapperToolset
+
+    class PurposeToolset(WrapperToolset[None]):
+        @property
+        def id(self) -> str | None:
+            # The server's own id: zrb names the toolset after its server, and a
+            # wrapper that answers None would rename every MCP server to nothing.
+            return self.wrapped.id
+
+        async def get_tools(
+            self, ctx: "RunContext[None]"
+        ) -> "dict[str, ToolsetTool[None]]":
+            tools = await super().get_tools(ctx)
+            declared: "dict[str, ToolsetTool[None]]" = {}
+            for name, tool in tools.items():
+                schema = with_declared_purpose(
+                    tool.tool_def.parameters_json_schema or {}
+                )
+                if schema is None:
+                    declared[name] = tool
+                    continue
+                metadata = {
+                    **(tool.tool_def.metadata or {}),
+                    DECLARED_PURPOSE_KEY: True,
+                }
+                declared[name] = replace(
+                    tool,
+                    tool_def=replace(
+                        tool.tool_def,
+                        parameters_json_schema=schema,
+                        metadata=metadata,
+                    ),
+                )
+            return declared
+
+        async def call_tool(
+            self,
+            name: str,
+            tool_args: "dict[str, object]",
+            ctx: "RunContext[None]",
+            tool: "ToolsetTool[None]",
+        ) -> "ToolResult":
+            if (tool.tool_def.metadata or {}).get(DECLARED_PURPOSE_KEY):
+                tool_args = {
+                    key: value for key, value in tool_args.items() if key != "purpose"
+                }
+            return await super().call_tool(name, tool_args, ctx, tool)
+
+    return cast("AbstractToolset", PurposeToolset(toolset))
 
 
 def _expanded_text(value: object, field: str) -> str:
