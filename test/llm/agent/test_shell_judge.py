@@ -14,9 +14,9 @@ from zrb.llm.agent.shell_judge import (
     judge_or_unknown,
     judge_shell_command,
     parse_verdict,
+    shell_command_args,
     uncommitted_files,
 )
-from zrb.llm.permission.capability import CAPABILITY_ATTR, Capability
 from zrb.llm.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
@@ -29,14 +29,14 @@ _DIRT = "zrb.llm.agent.shell_judge.uncommitted_files"
 _TIMEOUT = "zrb.llm.agent.shell_judge.JUDGE_TIMEOUT_SECONDS"
 
 
-def _call(command: object = "ls", capability: Capability = Capability.EXECUTE):
+def _call(command: object = "ls", tool_name: str = "Shell"):
+    """A call exactly as the approval cascade receives one: a bare
+    `ToolCallPart`, carrying no capability metadata."""
     from zrb.llm.agent.types import ToolCallPart
 
-    call = ToolCallPart(
-        tool_name="Shell", args={"command": command}, tool_call_id="call-1"
+    return ToolCallPart(
+        tool_name=tool_name, args={"command": command}, tool_call_id="call-1"
     )
-    setattr(call, CAPABILITY_ATTR, capability)
-    return call
 
 
 def _answering(output: str):
@@ -63,7 +63,11 @@ def _agent_that_raises(error: Exception):
             JUDGE_DANGEROUS,
             "pipes a remote script into sh",
         ),
-        ("  Safe — regenerates what it removes", JUDGE_SAFE, "regenerates what it removes"),
+        (
+            "  Safe — regenerates what it removes",
+            JUDGE_SAFE,
+            "regenerates what it removes",
+        ),
         ("CAUTION - rewrites history", JUDGE_CAUTION, "rewrites history"),
     ],
 )
@@ -85,6 +89,22 @@ def test_an_unreadable_answer_is_unknown_never_safe(answer):
     verdict = parse_verdict(answer)
     assert verdict.level == JUDGE_UNKNOWN
     assert not verdict.is_safe
+
+
+@pytest.mark.parametrize("answer", ["SAFE:", "SAFE: ", "SAFE -", "safe —"])
+def test_a_level_with_no_reason_is_not_a_verdict(answer):
+    """The one word must not be enough to skip a prompt: a truncated answer
+    names a level with nothing behind it."""
+    verdict = parse_verdict(answer)
+    assert verdict.level == JUDGE_UNKNOWN
+    assert not verdict.is_safe
+    assert verdict.reason == "the judge named a verdict without saying why"
+
+
+def test_a_safe_verdict_built_by_hand_still_needs_a_reason():
+    assert ShellVerdict(JUDGE_SAFE, "read-only").is_safe
+    assert not ShellVerdict(JUDGE_SAFE, "").is_safe
+    assert not ShellVerdict(JUDGE_SAFE, "   ").is_safe
 
 
 def test_the_first_verdict_line_wins():
@@ -185,29 +205,38 @@ async def test_the_judge_is_told_when_the_sandbox_is_off():
     assert "Sandbox: off" in seen["payload"]
 
 
-def test_only_a_shell_command_is_judged():
-    assert is_judgeable_shell_call(_call("ls"))
-    assert not is_judgeable_shell_call(_call("ls", Capability.READ))
-    assert not is_judgeable_shell_call(_call(""))
+@pytest.mark.asyncio
+async def test_the_call_s_usage_is_logged_when_it_reports_one():
+    """The judge's spend is only in the log until M0 attributes it."""
+    usage = SimpleNamespace(input_tokens=11, output_tokens=2, cache_read_tokens=0)
+    agent = SimpleNamespace(
+        run=AsyncMock(
+            return_value=SimpleNamespace(output="SAFE: read-only", usage=usage)
+        )
+    )
+    with patch(_CREATE_AGENT, lambda **kwargs: agent), patch(
+        _DIRT, return_value="0"
+    ), patch("zrb.llm.agent.shell_judge.CFG.LOGGER.debug") as debug:
+        verdict = await judge_shell_command("ls")
+    assert verdict.level == JUDGE_SAFE
+    assert any("Shell judge usage" in str(call) for call in debug.call_args_list)
+
+
+def test_a_bare_deferred_call_is_judged():
+    """The regression the review of #908 caught: a deferred `ToolCallPart`
+    carries no capability metadata, so a gate that asks `tool_capability` never
+    matches and the judge silently never runs."""
+    call = _call("ls")
+    assert shell_command_args(call) == {"command": "ls"}
+    assert is_judgeable_shell_call(call)
+
+
+def test_only_the_shell_tool_is_judged():
+    assert not is_judgeable_shell_call(_call("ls", tool_name="RunZrbTask"))
+    assert not is_judgeable_shell_call(_call("", tool_name="Shell"))
     assert not is_judgeable_shell_call(_call("   "))
     assert not is_judgeable_shell_call(_call(None))
     assert not is_judgeable_shell_call(_call(42))
-
-
-def test_a_task_runner_is_not_a_shell_command():
-    """`RunZrbTask` carries a task name, not a command; judging the name would
-    read noise as risk."""
-    from zrb.llm.agent.types import ToolCallPart
-
-    call = ToolCallPart(
-        tool_name="RunZrbTask", args={"task": "docker build"}, tool_call_id="c"
-    )
-    setattr(call, CAPABILITY_ATTR, Capability.EXECUTE)
-    assert not is_judgeable_shell_call(call)
-
-
-def test_a_timeout_is_a_number_of_seconds():
-    assert JUDGE_TIMEOUT_SECONDS > 0
 
 
 def test_args_that_are_not_an_object_are_not_a_shell_command():
@@ -216,7 +245,6 @@ def test_args_that_are_not_an_object_are_not_a_shell_command():
     from zrb.llm.agent.types import ToolCallPart
 
     call = ToolCallPart(tool_name="Shell", args='["ls"]', tool_call_id="c")
-    setattr(call, CAPABILITY_ATTR, Capability.EXECUTE)
     assert not is_judgeable_shell_call(call)
 
 
@@ -236,21 +264,5 @@ def test_uncommitted_files_says_when_the_directory_is_gone(tmp_path):
     assert uncommitted_files(str(missing)) == "unknown (not a readable repository)"
 
 
-@pytest.mark.asyncio
-async def test_the_call_s_usage_is_logged_when_it_reports_one():
-    """The judge's spend is only in the log until M0 attributes it."""
-    usage = SimpleNamespace(input_tokens=11, output_tokens=2, cache_read_tokens=0)
-    agent = SimpleNamespace(
-        run=AsyncMock(
-            return_value=SimpleNamespace(
-                output="SAFE: read-only", usage=usage
-            )
-        )
-    )
-    with patch(_CREATE_AGENT, lambda **kwargs: agent), patch(
-        _DIRT, return_value="0"
-    ), patch("zrb.llm.agent.shell_judge.CFG.LOGGER.debug") as debug:
-        verdict = await judge_shell_command("ls")
-    assert verdict.level == JUDGE_SAFE
-    assert any("Shell judge usage" in str(call) for call in debug.call_args_list)
-
+def test_a_timeout_is_a_number_of_seconds():
+    assert JUDGE_TIMEOUT_SECONDS > 0

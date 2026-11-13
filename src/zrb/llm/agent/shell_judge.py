@@ -69,9 +69,16 @@ _VERDICT_LINE = re.compile(
     r"^\s*(safe|caution|dangerous)\s*[:\-—–]\s*(.*)$", re.IGNORECASE
 )
 
-# Anything outside this set is not a shell command in the sense this judges:
-# `Shell` carries a `command` string; `RunZrbTask` carries a task name, and
-# judging a task name against a shell-command rubric reads noise as risk.
+# The shell tool's runtime name. A deferred `ToolCallPart` carries no capability
+# tag — `tool_capability` answers UNKNOWN for one, since the tag lives on the
+# registered callable — so this gate cannot ask about capability. It asks about
+# the name, which is what `shell_formatter` and `bash_safe_command_policy`
+# already do for the same call.
+_SHELL_TOOL_NAME = "Shell"
+
+# The argument that makes a call a shell command rather than something else that
+# happens to be an `EXECUTE` tool: `RunZrbTask` carries a task name, and judging
+# a task name against a shell-command rubric reads noise as risk.
 _SHELL_ARG = "command"
 
 
@@ -84,7 +91,10 @@ class ShellVerdict:
 
     @property
     def is_safe(self) -> bool:
-        return self.level == JUDGE_SAFE
+        """A `safe` verdict *that says why*. A bare word is not enough to skip
+        a prompt: a truncated or malformed answer can name a level with nothing
+        behind it, and that is a judge that did not decide."""
+        return self.level == JUDGE_SAFE and bool(self.reason.strip())
 
 
 def shell_command_args(call: "ToolCallPart") -> dict | None:
@@ -94,17 +104,15 @@ def shell_command_args(call: "ToolCallPart") -> dict | None:
     parsing the same arguments twice to ask two questions about them.
     """
     # lazy: heavy third-party
-    from zrb.llm.permission import Capability
-    from zrb.llm.permission.capability import tool_capability
     from zrb.llm.util.tool_args import parse_tool_args
 
+    if call.tool_name != _SHELL_TOOL_NAME:
+        return None
     args = parse_tool_args(call)
     if not isinstance(args, dict):
         return None
     command = args.get(_SHELL_ARG)
     if not isinstance(command, str) or not command.strip():
-        return None
-    if tool_capability(call) != Capability.EXECUTE:
         return None
     return args
 
@@ -127,6 +135,14 @@ def parse_verdict(output: str) -> ShellVerdict:
             continue
         level = match.group(1).lower()
         reason = " ".join(match.group(2).split())
+        if not reason:
+            # `SAFE:` with nothing after it is a truncation or a model that
+            # ignored the format, not a judgement — and the one word must not
+            # be enough to skip a prompt.
+            return ShellVerdict(
+                level=JUDGE_UNKNOWN,
+                reason="the judge named a verdict without saying why",
+            )
         reason = truncate_display(reason, MAX_JUDGE_REASON_CHARS)
         return ShellVerdict(level=level, reason=reason)
     return ShellVerdict(
