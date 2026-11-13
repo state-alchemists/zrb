@@ -178,8 +178,10 @@ def create_safe_wrapper(
     # the model has read "Always fill this" once and obeys it on every call it
     # makes. A schema with nowhere to put the line does not get a call without
     # it: pydantic answers `extra_forbidden`, the work never runs, and the round
-    # is spent again with the whole context re-sent. Every tool a run can reach
-    # comes through here, so this is the one place that closes it.
+    # is spent again with the whole context re-sent. Every tool zrb builds comes
+    # through here, so this is the one place that closes it. A toolset that owns
+    # its own schema — an MCP server's — never reaches this function; that edge is
+    # closed in `zrb.llm.tool.mcp.add_purpose_to_mcp_tools`.
     from zrb.llm.tool.purpose import Purpose, add_optional_purpose, has_purpose
 
     passes_purpose = has_purpose(func)

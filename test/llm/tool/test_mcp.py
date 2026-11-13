@@ -1,17 +1,32 @@
 import json
 import os
 import tempfile
-from unittest.mock import patch
+from typing import cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastmcp.client.transports import StdioTransport
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.tools import RunContext, ToolDefinition
+from pydantic_ai.toolsets import AbstractToolset
+from pydantic_ai.toolsets.abstract import ToolsetTool
+from pydantic_ai.usage import RunUsage
+from pydantic_core import SchemaValidator, core_schema
 
 from zrb.config.config import CFG
-from zrb.llm.tool.mcp import cap_mcp_result, frame_mcp_result, load_mcp_config
+from zrb.llm.tool.mcp import (
+    add_purpose_to_mcp_tools,
+    cap_mcp_result,
+    frame_mcp_result,
+    load_mcp_config,
+)
+from zrb.llm.tool.purpose import (
+    DECLARED_PURPOSE_KEY,
+    PURPOSE_DESCRIPTION,
+    with_declared_purpose,
+)
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 
 
@@ -137,6 +152,11 @@ def mock_fs():
         yield home_dir, project_dir, sub_dir
 
 
+def _mcp_toolset(toolset: AbstractToolset) -> MCPToolset:
+    """The MCPToolset under the purpose wrapper `load_mcp_config` puts around it."""
+    return cast("MCPToolset", getattr(toolset, "wrapped", toolset))
+
+
 def test_mcp_toolset_factory_instantiation(mock_fs):
     home_dir, project_dir, sub_dir = mock_fs
 
@@ -170,13 +190,13 @@ def test_mcp_toolset_factory_instantiation(mock_fs):
         toolsets = load_mcp_config()
 
         assert len(toolsets) == 2
-        assert all(isinstance(t, MCPToolset) for t in toolsets)
+        assert all(isinstance(_mcp_toolset(t), MCPToolset) for t in toolsets)
 
         by_id = {t.id: t for t in toolsets}
         assert set(by_id) == {"stdio_server", "sse_server"}
 
         # Stdio: transport is a StdioTransport built from command/args/env
-        stdio_transport = by_id["stdio_server"].client.transport
+        stdio_transport = _mcp_toolset(by_id["stdio_server"]).client.transport
         assert isinstance(stdio_transport, StdioTransport)
         assert stdio_transport.command == "echo"
         # MY_VAR not set → falls back to default "hello"
@@ -205,23 +225,45 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         toolsets = load_mcp_config()
 
         assert len(toolsets) == 1
-        assert isinstance(toolsets[0], MCPToolset)
-        transport = toolsets[0].client.transport
+        assert isinstance(_mcp_toolset(toolsets[0]), MCPToolset)
+        transport = _mcp_toolset(toolsets[0]).client.transport
         assert isinstance(transport, StdioTransport)
         assert transport.command == "cmd2"
 
 
+class _FakeMCPToolset(AbstractToolset[None]):
+    """A stand-in server: named tools, permissive argument validation — as MCP's
+    own tools are, which is why a `purpose` added to their schema survives to the
+    drop step instead of being refused before the toolset is reached."""
+
+    def __init__(self, id: str, names: "list[str]") -> None:
+        self._id = id
+        self.names = names
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    async def get_tools(self, ctx):
+        return {
+            name: ToolsetTool(
+                toolset=self,
+                tool_def=ToolDefinition(
+                    name=name,
+                    parameters_json_schema={"type": "object", "properties": {}},
+                ),
+                max_retries=1,
+                args_validator=SchemaValidator(core_schema.any_schema()),
+            )
+            for name in self.names
+        }
+
+    async def call_tool(self, name, tool_args, ctx, tool):
+        return "ok"
+
+
 def _fake_mcp_toolset(*_args, id, **_kwargs):
-    def short_tool() -> str:
-        return "ok"
-
-    def long_tool() -> str:
-        return "ok"
-
-    toolset = FunctionToolset(id=id)
-    toolset.add_function(short_tool, name="type_text")
-    toolset.add_function(long_tool, name="t" * 60)
-    return toolset
+    return _FakeMCPToolset(id=id, names=["type_text", "t" * 60])
 
 
 def test_mcp_config_prefix_renames_tools_and_skips_overlong_names(mock_fs):
@@ -283,3 +325,138 @@ def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):
         toolsets = load_mcp_config()
 
     assert toolsets == []
+
+
+def _purpose_schema(**extra: object) -> dict:
+    """An MCP tool's input schema: one required text argument, closed object."""
+    return {
+        "type": "object",
+        "properties": {"text": {"type": "string"}},
+        "required": ["text"],
+        "additionalProperties": False,
+        **extra,
+    }
+
+
+def test_with_declared_purpose_adds_a_required_argument():
+    schema = with_declared_purpose(_purpose_schema())
+    assert schema is not None
+    assert schema["properties"]["purpose"]["type"] == "string"
+    assert schema["properties"]["purpose"]["description"] == PURPOSE_DESCRIPTION
+    # Required, not optional: an optional property turns a provider's strict
+    # mode off for the whole tool.
+    assert schema["required"] == ["text", "purpose"]
+    assert schema["additionalProperties"] is False
+
+
+def test_with_declared_purpose_leaves_a_servers_own_purpose_alone():
+    """A server that declares `purpose` means it — forwarding it is the point."""
+    own = _purpose_schema(
+        properties={"text": {"type": "string"}, "purpose": {"type": "string"}}
+    )
+    assert with_declared_purpose(own) is None
+
+
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {"$ref": "#/$defs/args"},
+        {"type": "array", "items": {"type": "string"}},
+        {"type": "object", "properties": "not-a-mapping"},
+        {},
+    ],
+)
+def test_with_declared_purpose_leaves_an_unsafe_schema_alone(schema):
+    assert with_declared_purpose(schema) is None
+
+
+class _RecordingToolset(AbstractToolset[None]):
+    """A stand-in for an MCP server: one tool, and what it was called with."""
+
+    def __init__(self, tool_def: ToolDefinition) -> None:
+        self.tool_def = tool_def
+        self.calls: "list[tuple[str, dict]]" = []
+
+    @property
+    def id(self) -> str | None:
+        return "recording"
+
+    async def get_tools(self, ctx):
+        return {
+            self.tool_def.name: ToolsetTool(
+                toolset=self,
+                tool_def=self.tool_def,
+                max_retries=1,
+                args_validator=SchemaValidator(core_schema.any_schema()),
+            )
+        }
+
+    async def call_tool(self, name, tool_args, ctx, tool):
+        self.calls.append((name, tool_args))
+        return "ok"
+
+
+def _run_context() -> RunContext[None]:
+    return RunContext(deps=None, model=MagicMock(), usage=RunUsage())
+
+
+def _tool_def(with_own_purpose: bool) -> ToolDefinition:
+    schema = _purpose_schema()
+    if with_own_purpose:
+        schema["properties"]["purpose"] = {"type": "string"}
+    return ToolDefinition(name="echo", parameters_json_schema=schema)
+
+
+@pytest.mark.asyncio
+async def test_purpose_is_offered_and_then_dropped_before_the_server():
+    """Both halves: the model may write the line, the server never sees it."""
+    inner = _RecordingToolset(_tool_def(with_own_purpose=False))
+    toolset = add_purpose_to_mcp_tools(inner)
+    tools = await toolset.get_tools(_run_context())
+
+    tool_def = tools["echo"].tool_def
+    assert "purpose" in tool_def.parameters_json_schema["properties"]
+    assert tool_def.metadata[DECLARED_PURPOSE_KEY] is True
+
+    await toolset.call_tool(
+        "echo",
+        {"text": "hi", "purpose": "Echoing the probe"},
+        _run_context(),
+        tools["echo"],
+    )
+    assert inner.calls == [("echo", {"text": "hi"})]
+
+
+@pytest.mark.asyncio
+async def test_a_servers_own_purpose_is_forwarded():
+    inner = _RecordingToolset(_tool_def(with_own_purpose=True))
+    toolset = add_purpose_to_mcp_tools(inner)
+    tools = await toolset.get_tools(_run_context())
+
+    tool_def = tools["echo"].tool_def
+    assert tool_def.parameters_json_schema["properties"]["purpose"] == {
+        "type": "string"
+    }
+    assert DECLARED_PURPOSE_KEY not in (tool_def.metadata or {})
+
+    await toolset.call_tool(
+        "echo",
+        {"text": "hi", "purpose": "the server's own"},
+        _run_context(),
+        tools["echo"],
+    )
+    assert inner.calls == [("echo", {"text": "hi", "purpose": "the server's own"})]
+
+
+@pytest.mark.asyncio
+async def test_an_unsafe_schema_keeps_its_call_arguments_untouched():
+    """Nothing was declared, so nothing may be dropped."""
+    odd = ToolDefinition(name="echo", parameters_json_schema={"$ref": "#/$defs/a"})
+    inner = _RecordingToolset(odd)
+    toolset = add_purpose_to_mcp_tools(inner)
+    tools = await toolset.get_tools(_run_context())
+
+    await toolset.call_tool(
+        "echo", {"text": "hi", "purpose": "kept"}, _run_context(), tools["echo"]
+    )
+    assert inner.calls == [("echo", {"text": "hi", "purpose": "kept"})]
