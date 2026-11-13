@@ -6,9 +6,12 @@ When the agent wants to run a tool that needs your approval, zrb shows a prompt 
 
 ```
   🎰 Executing tool 'Shell'
+       🎯 Deleting the build directory before a clean rebuild
        rm -rf build
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
+
+The `🎯` line is the call's `purpose`: one short phrase, written by the model, saying what the call is *for*. Every tool that carries one shows it, above whatever body the tool has, and it is the same line a listener hears when [speech](voice-camera.md) narrates the call — so the dialog and the voice cannot disagree about why it runs. It is taken out of the arguments below it, so the prompt says it once.
 
 What that shows depends on the tool. `Shell`'s command is syntax-highlighted for the shell that will run it — the fence grows past any backtick line the command carries, so the command is shown whole rather than partly re-read as Markdown — and any argument that departs from its default — `cwd`, `timeout`, `max_chars`, `shell`, `background`, `dangerously_skip_sandbox` — is listed under it. `Write` and `Edit` show a diff; trailing whitespace and tabs are marked (`·` and `→`) so a change that only removes whitespace is visible rather than looking like a line deleted and added back. Any other tool shows its arguments as YAML.
 
@@ -58,11 +61,14 @@ The prompt now reads:
 
 ```
   🎰 Executing tool 'Shell'
+       🎯 Deleting the build directory before a clean rebuild
        $ rm -rf build
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
 
 `Shell` already ships with more than this — `shell_formatter` fences the command for the shell that runs it and lists the non-default arguments — so read the example as the mechanics of a formatter, not as a gap to fill.
+
+The section a formatter receives never contains the `🎯` purpose line: that line is drawn above the section and taken out of the arguments, so a formatter that replaces the body wholly cannot lose it, and none has to add it.
 
 **Every formatter runs, in list order, and the last non-`None` result wins.** Each one receives the section as the previous formatter left it, so a formatter can also decorate rather than replace (`return args_section + "       ⚠️ destructive\n"`).
 

@@ -22,24 +22,19 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.speech.player import IsStale
-from zrb.llm.speech.text import match_tool_phrase, tool_arguments
-
-PURPOSE_ARGUMENT = "purpose"
-"""The argument a tool call may carry to say, in plain words, what it is for."""
+from zrb.llm.speech.text import match_tool_phrase
+from zrb.llm.util.tool_args import read_purpose
 
 
 def describe_purpose(args: object) -> str | None:
     """The ``purpose`` a tool call's *args* carry, as written; ``None`` when
     they carry none, or an empty one, which leaves the tool's phrase to say it.
 
-    *args* is a call's arguments, which pydantic-ai holds either as a dict or as
-    the JSON string a provider streamed, so a purpose is read the same way by
-    whichever line speaks it.
+    Read by `zrb.llm.util.tool_args.read_purpose`, which the approval prompt
+    uses too: what a listener hears and what a reader is asked to approve
+    answer the same call the same way.
     """
-    purpose = tool_arguments(args).get(PURPOSE_ARGUMENT)
-    if not isinstance(purpose, str):
-        return None
-    return purpose.strip() or None
+    return read_purpose(args)
 
 
 def describe_tool_purpose(part: object) -> str | None:
