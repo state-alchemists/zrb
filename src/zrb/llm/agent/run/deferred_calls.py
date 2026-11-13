@@ -93,43 +93,47 @@ async def process_deferred_requests(
     current_results = DeferredToolResults()
 
     for call in all_requests:
-        # PreToolUse may deny, allow, or rewrite args. Auto-approved tools never
-        # reach here and fire it at execution time instead (no double-fire).
-        pre = await _apply_pre_tool_use_hook(call, hook_manager)
-        if pre.deny:
-            current_results.approvals[call.tool_call_id] = ToolDenied(
-                pre.reason or "Tool execution blocked by PreToolUse hook"
+        # The judge's line is released however this call ends, including a turn
+        # cancelled while the prompt was waiting: the registry is process-global,
+        # so a note left behind outlives the approval that never happened.
+        try:
+            # PreToolUse may deny, allow, or rewrite args. Auto-approved tools never
+            # reach here and fire it at execution time instead (no double-fire).
+            pre = await _apply_pre_tool_use_hook(call, hook_manager)
+            if pre.deny:
+                current_results.approvals[call.tool_call_id] = ToolDenied(
+                    pre.reason or "Tool execution blocked by PreToolUse hook"
+                )
+                _discard_denied_call(current_results, call.tool_call_id)
+                continue
+
+            result: "ToolApproved | ToolDenied | None" = (
+                ToolApproved()
+                if pre.allow
+                else await _resolve_approval(
+                    call,
+                    ui,
+                    effective_tool_confirmation,
+                    approval_channel,
+                    hook_manager,
+                    force_ask=pre.force_prompt,
+                )
             )
-            _discard_denied_call(current_results, call.tool_call_id)
-            continue
-
-        if pre.allow:
-            result: "ToolApproved | ToolDenied | None" = ToolApproved()
-        else:
-            result = await _resolve_approval(
-                call,
-                ui,
-                effective_tool_confirmation,
-                approval_channel,
-                hook_manager,
-                force_ask=pre.force_prompt,
+            # A path that resolved nothing stores None: pydantic-ai reads that as
+            # "no verdict", which is what the approval cascade means by falling
+            # through without one.
+            current_results.approvals[call.tool_call_id] = cast(
+                "ToolApproved | ToolDenied", result
             )
-        # A path that resolved nothing stores None: pydantic-ai reads that as
-        # "no verdict", which is what the approval cascade means by falling
-        # through without one.
-        current_results.approvals[call.tool_call_id] = cast(
-            "ToolApproved | ToolDenied", result
-        )
-        _record_override_if_edited(call, result)
-        # The prompt that needed the judge's line has been drawn; a call cannot
-        # be asked twice, so the line goes with it.
-        discard_judge_note(call.tool_call_id)
+            _record_override_if_edited(call, result)
 
-        if isinstance(result, ToolDenied):
-            _discard_denied_call(current_results, call.tool_call_id)
-            CFG.LOGGER.debug("Tool denied, removed from calls")
+            if isinstance(result, ToolDenied):
+                _discard_denied_call(current_results, call.tool_call_id)
+                CFG.LOGGER.debug("Tool denied, removed from calls")
 
-        # PostToolUse fires at execution, not approval.
+            # PostToolUse fires at execution, not approval.
+        finally:
+            discard_judge_note(call.tool_call_id)
 
     return current_results
 

@@ -1,5 +1,6 @@
 """Where the shell judge sits, and what its two knobs actually grant (ADR-0141)."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -160,6 +161,40 @@ async def test_the_judge_is_told_the_sandbox_is_off_for_such_a_call(monkeypatch)
     ), _is_shell(sandbox_off=True):
         await _apply_shell_judge(_call(), None, False)
     assert seen["sandbox_off"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_approval_does_not_leave_the_line_behind(monkeypatch):
+    """The registry is process-global: a turn cancelled while the prompt waited
+    must not keep the note for the rest of the run."""
+    from types import SimpleNamespace
+
+    from pydantic_ai import DeferredToolRequests
+
+    from zrb.llm.agent.run import deferred_calls
+    from zrb.llm.tool_call.judge_note import record_judge_note
+
+    async def _cancel(*args, **kwargs):
+        record_judge_note(_CALL_ID, JUDGE_CAUTION, "why it would matter")
+        raise asyncio.CancelledError()
+
+    with patch.object(
+        deferred_calls,
+        "_apply_pre_tool_use_hook",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                deny=False, allow=False, force_prompt=False, updated_input=None
+            )
+        ),
+    ), patch.object(deferred_calls, "_resolve_approval", _cancel):
+        with pytest.raises(asyncio.CancelledError):
+            await deferred_calls.process_deferred_requests(
+                DeferredToolRequests(approvals=[_call()]),
+                None,
+                MagicMock(),
+                MagicMock(),
+            )
+    assert read_judge_note(_CALL_ID) is None
 
 
 @pytest.mark.asyncio
