@@ -87,8 +87,12 @@ class ShellVerdict:
         return self.level == JUDGE_SAFE
 
 
-def is_judgeable_shell_call(call: "ToolCallPart") -> bool:
-    """Whether *call* is a shell command with text worth judging."""
+def shell_command_args(call: "ToolCallPart") -> dict | None:
+    """The arguments of *call* when it is a shell command worth judging.
+
+    Returning the parsed dict rather than a boolean keeps the cascade from
+    parsing the same arguments twice to ask two questions about them.
+    """
     # lazy: heavy third-party
     from zrb.llm.permission import Capability
     from zrb.llm.permission.capability import tool_capability
@@ -96,11 +100,18 @@ def is_judgeable_shell_call(call: "ToolCallPart") -> bool:
 
     args = parse_tool_args(call)
     if not isinstance(args, dict):
-        return False
+        return None
     command = args.get(_SHELL_ARG)
     if not isinstance(command, str) or not command.strip():
-        return False
-    return tool_capability(call) == Capability.EXECUTE
+        return None
+    if tool_capability(call) != Capability.EXECUTE:
+        return None
+    return args
+
+
+def is_judgeable_shell_call(call: "ToolCallPart") -> bool:
+    """Whether *call* is a shell command with text worth judging."""
+    return shell_command_args(call) is not None
 
 
 def parse_verdict(output: str) -> ShellVerdict:
@@ -247,6 +258,7 @@ __all__ = [
     "ShellJudgeError",
     "JUDGE_TIMEOUT_SECONDS",
     "is_judgeable_shell_call",
+    "shell_command_args",
     "judge_or_unknown",
     "judge_shell_command",
     "parse_verdict",

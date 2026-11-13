@@ -17,7 +17,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.agent.shell_judge import is_judgeable_shell_call, judge_or_unknown
+from zrb.llm.agent.shell_judge import judge_or_unknown, shell_command_args
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
@@ -410,24 +410,30 @@ async def _apply_shell_judge(
 
     The last thing consulted before a person is asked. It can approve a command
     the judge calls `safe` — and only when `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED`
-    is on and no rule of the user's said ask. Otherwise it records one line for
-    the prompt, so whoever answers sees what the judge saw.
+    is on, no rule of the user's said ask, and the call is not asking to leave
+    the sandbox. Otherwise it records one line for the prompt, so whoever
+    answers sees what the judge saw.
 
     A judge that failed records `unknown`, which is not safe: the prompt is
     still asked, now saying the command went unjudged.
     """
-    if not CFG.LLM_SHELL_JUDGE_ENABLED or not is_judgeable_shell_call(call):
+    if not CFG.LLM_SHELL_JUDGE_ENABLED:
         return None
-    args = parse_tool_args(call)
-    if not isinstance(args, dict):
+    args = shell_command_args(call)
+    if args is None:
         return None
+    # The invariant every other approval path in this cascade keeps: a request
+    # to leave the sandbox is a request for a human, however ordinary the
+    # command is. `ls /etc` with `dangerously_skip_sandbox` is not "safe".
+    sandbox_off = bool(args.get("dangerously_skip_sandbox"))
     verdict = await judge_or_unknown(
         str(args.get("command", "")),
         cwd=str(args.get("cwd") or ""),
-        sandbox_off=bool(args.get("dangerously_skip_sandbox")),
+        sandbox_off=sandbox_off,
     )
     if (
         verdict.is_safe
+        and not sandbox_off
         and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
         and not force_ask
         and policy_decision != ASK

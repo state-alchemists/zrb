@@ -45,10 +45,17 @@ def _judging(verdict: ShellVerdict):
     )
 
 
-def _is_shell(value: bool = True):
+def _shell_args(sandbox_off: bool = False) -> dict[str, object]:
+    args: dict[str, object] = {"command": "ls"}
+    if sandbox_off:
+        args["dangerously_skip_sandbox"] = True
+    return args
+
+
+def _is_shell(value: bool = True, sandbox_off: bool = False):
     return patch(
-        "zrb.llm.agent.run.deferred_calls.is_judgeable_shell_call",
-        MagicMock(return_value=value),
+        "zrb.llm.agent.run.deferred_calls.shell_command_args",
+        MagicMock(return_value=_shell_args(sandbox_off) if value else None),
     )
 
 
@@ -124,6 +131,35 @@ async def test_a_hook_that_forces_the_prompt_outranks_the_judge(monkeypatch):
         verdict = await _apply_shell_judge(_call(), ALLOW, True)
     assert verdict is None
     assert read_judge_note(_CALL_ID) is not None
+
+
+@pytest.mark.asyncio
+async def test_a_sandbox_escape_is_never_auto_approved(monkeypatch):
+    """`ls /etc` with `dangerously_skip_sandbox` is not "safe": every other path
+    in the cascade leaves a request to leave the sandbox for a human."""
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only listing")), _is_shell(
+        sandbox_off=True
+    ):
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is None
+    assert read_judge_note(_CALL_ID) is not None
+
+
+@pytest.mark.asyncio
+async def test_the_judge_is_told_the_sandbox_is_off_for_such_a_call(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=False)
+    seen: dict[str, object] = {}
+
+    async def _judge(command: str, **kwargs: object) -> ShellVerdict:
+        seen.update(kwargs)
+        return ShellVerdict(JUDGE_CAUTION, "leaves the sandbox")
+
+    with patch(
+        "zrb.llm.agent.run.deferred_calls.judge_or_unknown", _judge
+    ), _is_shell(sandbox_off=True):
+        await _apply_shell_judge(_call(), None, False)
+    assert seen["sandbox_off"] is True
 
 
 @pytest.mark.asyncio
