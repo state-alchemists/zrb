@@ -76,7 +76,7 @@ Environment variable placeholders — `${VAR_NAME}`, or `${VAR_NAME:-default}` �
 
 ### What a call says it is for
 
-zrb's own tools take a `purpose` argument — the line the narrator reads aloud instead of the tool's generic sentence — and an MCP server's tools are given one too. The server owns its tool schemas, so zrb adds a required `purpose` to each tool's schema on the way in, then drops the argument before the call is forwarded: the line is spoken, and the server never receives an argument it did not ask for.
+zrb's own tools take a `purpose` argument — the line the narrator reads aloud instead of the tool's generic sentence, and the `🎯` line [the approval prompt](tool-approval.md) shows — and an MCP server's tools are given one too. The server owns its tool schemas, so zrb adds a required `purpose` to each tool's schema on the way in, then drops the argument before the call is forwarded: the line is spoken and shown, and the server never receives an argument it did not ask for.
 
 A server that declares `purpose` itself is left alone — its schema is not touched and the value is forwarded, because that parameter is the server's own.
 

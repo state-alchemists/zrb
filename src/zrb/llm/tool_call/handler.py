@@ -10,8 +10,9 @@ from zrb.llm.tool_call.middleware import (
     ResponseHandler,
     ToolPolicy,
 )
+from zrb.llm.util.tool_args import parse_tool_args_value, read_purpose, without_purpose
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.truncate import truncate_chars
+from zrb.util.truncate import truncate_chars, truncate_display
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
@@ -26,6 +27,26 @@ MAX_DENIAL_REASON_CHARS = 500
 # What a user types at an approval prompt to approve or deny, case-insensitively.
 APPROVE_RESPONSES = frozenset({"y", "yes", "ok", "accept", "✅", ""})
 DENY_RESPONSES = frozenset({"n", "no", "deny", "cancel", "🛑"})
+
+# A purpose is one short phrase. A model that writes a paragraph into it would
+# otherwise push the arguments it is meant to introduce off the screen.
+MAX_PURPOSE_CHARS = 200
+
+
+def format_purpose_line(purpose: str | None) -> str:
+    """*purpose* as one indented line of the prompt, or `""` for none.
+
+    One line on purpose: a purpose spread over several would read as part of
+    the arguments below it, and a control character could rewrite the prompt
+    the user is about to answer.
+    """
+    if not purpose:
+        return ""
+    printable = "".join(char if char.isprintable() else " " for char in purpose)
+    shown = " ".join(printable.split())
+    if not shown:
+        return ""
+    return f"       🎯 {truncate_display(shown, MAX_PURPOSE_CHARS)}\n"
 
 
 async def check_tool_policies(
@@ -138,11 +159,20 @@ class ToolCallHandler:
         call: ToolCallPart,
         approval_instruction: str | None = None,
     ) -> str:
-        """Format the approval request message for a tool call."""
+        """Format the approval request message for a tool call.
+
+        The call's ``purpose`` gets a line of its own, above the arguments and
+        outside the section a formatter may replace: it says what the call is
+        *for*, which is what the person answering needs first, and `Shell`,
+        `Write` and `Edit` each show a body of their own that would drop it. It
+        is taken out of the arguments below, so the prompt says it once.
+        """
+        args = parse_tool_args_value(call.args)
+        display_args = without_purpose(args) if args is not None else call.args
         args_section = ""
-        if f"{call.args}" != "{}":
+        if f"{display_args}" != "{}":
             # Blocking CPU (~700ms on a large Write); inline it freezes the TUI.
-            args_str = await asyncio.to_thread(self._format_args, call.args)
+            args_str = await asyncio.to_thread(self._format_args, display_args)
             args_section = f"{args_str}\n"
 
         for formatter in self._argument_formatters:
@@ -156,6 +186,7 @@ class ToolCallHandler:
 
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"
+            f"{format_purpose_line(read_purpose(call.args))}"
             f"{args_section}"
             f"{instruction}"
         )

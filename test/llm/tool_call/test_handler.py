@@ -4,6 +4,7 @@ import pytest
 from pydantic_ai import ToolApproved, ToolDenied
 
 from zrb.llm.tool_call import ToolCallHandler
+from zrb.util.cli.ansi import strip_ansi
 
 
 @pytest.mark.asyncio
@@ -114,14 +115,6 @@ async def test_post_confirmation_middleware():
     assert isinstance(result, ToolDenied)
 
 
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-from pydantic_ai import ToolApproved, ToolDenied
-
-from zrb.llm.tool_call import ToolCallHandler
-
-
 @pytest.mark.asyncio
 async def test_handler_explicit_approval():
     ui = MagicMock()
@@ -230,3 +223,98 @@ async def test_a_response_handler_that_answers_skips_the_rest_and_the_fallback()
     result = await run_response_handlers([answers, never], None, None, "r", fallback)
 
     assert isinstance(result, ToolDenied)
+
+
+# --- The prompt says what the call is for ------------------------------------
+#
+# `purpose` is the one line saying why a call runs. A formatter replaces the
+# arguments section with a body of its own — a command, a diff — so the line is
+# drawn outside that section, above it, and taken out of the arguments below.
+
+
+def _call(tool_name: str, args) -> MagicMock:
+    call = MagicMock()
+    call.tool_name = tool_name
+    call.args = args
+    return call
+
+
+@pytest.mark.asyncio
+async def test_the_prompt_shows_the_purpose_the_call_carries():
+    from zrb.llm.tool_call import ToolCallHandler
+
+    handler = ToolCallHandler()
+    message = await handler.format_approval_message(
+        None, _call("BoardWrite", {"name": "0003", "purpose": "Recording a fact"})
+    )
+
+    assert "       🎯 Recording a fact\n" in message
+    # Said once: the arguments under it do not carry the line as well.
+    assert "purpose" not in message
+    assert "name: '0003'" in strip_ansi(message)
+
+
+@pytest.mark.asyncio
+async def test_a_body_that_replaces_the_arguments_keeps_the_purpose():
+    """`Shell` shows its command in place of the arguments; the line survives."""
+    from zrb.llm.tool_call import ToolCallHandler
+    from zrb.llm.tool_call.argument_formatter.shell_formatter import shell_formatter
+
+    handler = ToolCallHandler(argument_formatters=[shell_formatter])
+    message = await handler.format_approval_message(
+        None, _call("Shell", {"command": "ls -la", "purpose": "Listing the directory"})
+    )
+
+    assert "       🎯 Listing the directory\n" in message
+    assert "ls -la" in strip_ansi(message)
+
+
+@pytest.mark.asyncio
+async def test_a_prompt_without_a_purpose_is_what_it_was():
+    from zrb.llm.tool_call import ToolCallHandler
+
+    handler = ToolCallHandler()
+    message = await handler.format_approval_message(None, _call("BoardState", {}))
+
+    assert "🎯" not in message
+    assert message.startswith("  🎰 Executing tool 'BoardState'\n")
+
+
+@pytest.mark.asyncio
+async def test_a_purpose_in_streamed_json_arguments_is_read_too():
+    from zrb.llm.tool_call import ToolCallHandler
+
+    handler = ToolCallHandler()
+    message = await handler.format_approval_message(
+        None, _call("BoardRead", '{"name": "0003", "purpose": "Reading the record"}')
+    )
+
+    assert "       🎯 Reading the record\n" in message
+    assert "name: '0003'" in strip_ansi(message)
+
+
+def test_a_purpose_stays_on_one_line_and_keeps_no_control_characters():
+    from zrb.llm.tool_call.handler import format_purpose_line
+
+    # A newline would read as another argument, and an escape could rewrite the
+    # prompt the user is about to answer.
+    assert format_purpose_line("Line one\nLine two\x1b[2J") == (
+        "       🎯 Line one Line two [2J\n"
+    )
+
+
+def test_a_purpose_that_is_a_paragraph_is_cut():
+    from zrb.llm.tool_call.handler import MAX_PURPOSE_CHARS, format_purpose_line
+
+    line = format_purpose_line("x" * (MAX_PURPOSE_CHARS + 50))
+
+    assert line.endswith("...\n")
+    assert len(line) == len("       🎯 ") + MAX_PURPOSE_CHARS + 1
+
+
+def test_an_absent_or_empty_purpose_draws_no_line():
+    from zrb.llm.tool_call.handler import format_purpose_line
+
+    assert format_purpose_line(None) == ""
+    assert format_purpose_line("") == ""
+    assert format_purpose_line("   ") == ""

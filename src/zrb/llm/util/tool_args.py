@@ -2,11 +2,17 @@
 
 pydantic-ai gives `args` as a dict, a JSON string, or occasionally something
 else.
+
+The one exception to "just parse it" is `purpose`: one line saying what a call
+is for, which the narrator speaks and the approval prompt shows. `read_purpose`
+is the single reading of it — a spoken line and a shown one must not disagree
+about what counts as an answer.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from zrb.util.truncate import truncate_display
@@ -30,6 +36,34 @@ def parse_tool_args_value(args: Any) -> dict[str, Any] | None:
 def parse_tool_args(call: "ToolCallPart") -> dict[str, Any] | None:
     """`call.args` as a dict, or `None` if it isn't one. See `parse_tool_args_value`."""
     return parse_tool_args_value(call.args)
+
+
+PURPOSE_ARGUMENT = "purpose"
+"""The argument a tool call may carry to say, in plain words, what it is for."""
+
+
+def read_purpose(args: object) -> str | None:
+    """The ``purpose`` *args* carry, as written; ``None`` when they carry none,
+    or an empty one, which leaves the tool's own sentence to say it.
+
+    *args* is a call's arguments, which pydantic-ai holds either as a dict or as
+    the JSON string a provider streamed, so a purpose is read the same way by
+    whichever line speaks it — the spoken progress line, the spoken approval,
+    and the approval prompt.
+    """
+    purpose = (parse_tool_args_value(args) or {}).get(PURPOSE_ARGUMENT)
+    if not isinstance(purpose, str):
+        return None
+    return purpose.strip() or None
+
+
+def without_purpose(args: Mapping[str, object]) -> dict[str, object]:
+    """*args* with ``purpose`` taken out, for display beside a purpose line.
+
+    The prompt shows the line on its own, so leaving it in the arguments too
+    would say the same sentence twice.
+    """
+    return {key: value for key, value in args.items() if key != PURPOSE_ARGUMENT}
 
 
 def is_empty_tool_args(args: Any) -> bool:
