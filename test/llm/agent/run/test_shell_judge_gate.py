@@ -1,0 +1,142 @@
+"""Where the shell judge sits, and what its two knobs actually grant (ADR-0141)."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from zrb.config.config import CFG
+from zrb.llm.agent.run.deferred_calls import _apply_shell_judge, _resolve_approval
+from zrb.llm.agent.shell_judge import ShellVerdict
+from zrb.llm.permission import ALLOW, ASK
+from zrb.llm.tool_call.judge_note import (
+    JUDGE_CAUTION,
+    JUDGE_DANGEROUS,
+    JUDGE_SAFE,
+    JUDGE_UNKNOWN,
+    discard_judge_note,
+    format_judge_line,
+    read_judge_note,
+)
+
+# The note registry is process-global and keyed by call id, so every test here
+# names its own call: an id another module uses would be a line this file reads.
+_CALL_ID = "gate-test-call"
+
+
+def _call(tool_call_id: str = _CALL_ID):
+    from zrb.llm.agent.types import ToolCallPart
+
+    return ToolCallPart(
+        tool_name="Shell", args={"command": "ls"}, tool_call_id=tool_call_id
+    )
+
+
+def _knobs(monkeypatch, *, judge: bool, auto_approve: bool = False):
+    monkeypatch.setattr(CFG, "LLM_SHELL_JUDGE_ENABLED", judge, raising=False)
+    monkeypatch.setattr(
+        CFG, "LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED", auto_approve, raising=False
+    )
+
+
+def _judging(verdict: ShellVerdict):
+    return patch(
+        "zrb.llm.agent.run.deferred_calls.judge_or_unknown",
+        AsyncMock(return_value=verdict),
+    )
+
+
+def _is_shell(value: bool = True):
+    return patch(
+        "zrb.llm.agent.run.deferred_calls.is_judgeable_shell_call",
+        MagicMock(return_value=value),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _release_call():
+    discard_judge_note(_CALL_ID)
+    yield
+    discard_judge_note(_CALL_ID)
+
+
+@pytest.mark.asyncio
+async def test_the_knob_being_off_means_no_call_and_no_line(monkeypatch):
+    _knobs(monkeypatch, judge=False)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")) as judge, _is_shell():
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is None
+    judge.assert_not_called()
+    assert read_judge_note(_CALL_ID) is None
+
+
+@pytest.mark.asyncio
+async def test_a_tool_that_is_not_a_shell_command_is_not_judged(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")) as judge, _is_shell(False):
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is None
+    judge.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_an_enabled_judge_alone_only_annotates_the_prompt(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=False)
+    with _judging(ShellVerdict(JUDGE_SAFE, "rebuilds build/ from source")), _is_shell():
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is None
+    assert read_judge_note(_CALL_ID) == (JUDGE_SAFE, "rebuilds build/ from source")
+    assert "⚖" in format_judge_line(_CALL_ID)
+
+
+@pytest.mark.asyncio
+async def test_a_safe_verdict_is_approved_when_the_second_knob_is_on(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only listing")), _is_shell():
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is not None
+    assert read_judge_note(_CALL_ID) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("level", [JUDGE_CAUTION, JUDGE_DANGEROUS, JUDGE_UNKNOWN])
+async def test_only_a_safe_verdict_may_skip_the_prompt(monkeypatch, level):
+    """Caution, danger and a judge that failed all still ask."""
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(level, "something to weigh")), _is_shell():
+        verdict = await _apply_shell_judge(_call(), None, False)
+    assert verdict is None
+    assert read_judge_note(_CALL_ID) == (level, "something to weigh")
+
+
+@pytest.mark.asyncio
+async def test_a_rule_that_says_ask_outranks_the_judge(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")), _is_shell():
+        verdict = await _apply_shell_judge(_call(), ASK, False)
+    assert verdict is None
+    assert read_judge_note(_CALL_ID) is not None
+
+
+@pytest.mark.asyncio
+async def test_a_hook_that_forces_the_prompt_outranks_the_judge(monkeypatch):
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")), _is_shell():
+        verdict = await _apply_shell_judge(_call(), ALLOW, True)
+    assert verdict is None
+    assert read_judge_note(_CALL_ID) is not None
+
+
+@pytest.mark.asyncio
+async def test_the_judge_is_the_last_stage_before_the_prompt(monkeypatch):
+    """Whatever the judge decides, the channel is not asked until it has."""
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    channel = MagicMock()
+    channel.request_approval = AsyncMock()
+    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")), _is_shell(), patch(
+        "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+    ), patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False):
+        verdict = await _resolve_approval(
+            _call(), MagicMock(), None, channel, None, force_ask=False
+        )
+    assert verdict is not None
+    channel.request_approval.assert_not_called()

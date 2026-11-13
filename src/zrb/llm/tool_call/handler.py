@@ -5,6 +5,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
+from zrb.llm.tool_call.judge_note import format_judge_line
 from zrb.llm.tool_call.middleware import (
     ArgumentFormatter,
     ResponseHandler,
@@ -166,6 +167,10 @@ class ToolCallHandler:
         *for*, which is what the person answering needs first, and `Shell`,
         `Write` and `Edit` each show a body of their own that would drop it. It
         is taken out of the arguments below, so the prompt says it once.
+
+        The shell judge's verdict gets the next line, drawn the same way and for
+        the same reason: it is decided in ``agent/run/deferred_calls.py``, which
+        reaches this method only through ``tool_call_id`` (ADR-0141).
         """
         args = parse_tool_args_value(call.args)
         display_args = without_purpose(args) if args is not None else call.args
@@ -187,6 +192,7 @@ class ToolCallHandler:
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"
             f"{format_purpose_line(read_purpose(call.args))}"
+            f"{format_judge_line(call.tool_call_id)}"
             f"{args_section}"
             f"{instruction}"
         )

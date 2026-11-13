@@ -17,6 +17,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.agent.shell_judge import is_judgeable_shell_call, judge_or_unknown
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
@@ -27,6 +28,7 @@ from zrb.llm.tool_call.always_approve import (
     is_default_auto_approve,
 )
 from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool_call.judge_note import discard_judge_note, record_judge_note
 from zrb.llm.tool_call.override_registry import discard_override, record_override
 from zrb.llm.util.tool_args import parse_tool_args
 
@@ -119,6 +121,9 @@ async def process_deferred_requests(
             "ToolApproved | ToolDenied", result
         )
         _record_override_if_edited(call, result)
+        # The prompt that needed the judge's line has been drawn; a call cannot
+        # be asked twice, so the line goes with it.
+        discard_judge_note(call.tool_call_id)
 
         if isinstance(result, ToolDenied):
             _discard_denied_call(current_results, call.tool_call_id)
@@ -197,6 +202,8 @@ async def _resolve_approval(
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
       3. YOLO (only with no policy ASK)
+      3b. The shell judge (may skip the prompt for a `safe` command, when the
+          auto-approve knob is on; otherwise only annotates the prompt)
       4. Approval channel
       5. CLI prompt
 
@@ -231,6 +238,10 @@ async def _resolve_approval(
         return verdict
 
     verdict = await _apply_permission_request_hook(call, hook_manager)
+    if verdict is not None:
+        return verdict
+
+    verdict = await _apply_shell_judge(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
@@ -390,6 +401,45 @@ def _approve_via_yolo(
     from pydantic_ai import ToolApproved
 
     return ToolApproved()
+
+
+async def _apply_shell_judge(
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
+) -> "ToolApproved | None":
+    """Priority 3b: one model's opinion on a shell command, and nothing more.
+
+    The last thing consulted before a person is asked. It can approve a command
+    the judge calls `safe` — and only when `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED`
+    is on and no rule of the user's said ask. Otherwise it records one line for
+    the prompt, so whoever answers sees what the judge saw.
+
+    A judge that failed records `unknown`, which is not safe: the prompt is
+    still asked, now saying the command went unjudged.
+    """
+    if not CFG.LLM_SHELL_JUDGE_ENABLED or not is_judgeable_shell_call(call):
+        return None
+    args = parse_tool_args(call)
+    if not isinstance(args, dict):
+        return None
+    verdict = await judge_or_unknown(
+        str(args.get("command", "")),
+        cwd=str(args.get("cwd") or ""),
+        sandbox_off=bool(args.get("dangerously_skip_sandbox")),
+    )
+    if (
+        verdict.is_safe
+        and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
+        and not force_ask
+        and policy_decision != ASK
+    ):
+        CFG.LOGGER.debug(f"Shell judge approved a call: {verdict.reason}")
+        discard_judge_note(call.tool_call_id)
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
+    record_judge_note(call.tool_call_id, verdict.level, verdict.reason)
+    return None
 
 
 async def _apply_permission_request_hook(
