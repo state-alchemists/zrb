@@ -27,7 +27,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import unicodedata
 import uuid
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
@@ -47,6 +46,13 @@ from zrb.llm.snapshot.listing import (
     get_out_of_scope_paths,
     list_snapshot_paths,
 )
+from zrb.llm.snapshot.restore import (
+    RestoreTarget,
+    find_clashes,
+    find_created_since,
+    find_lacking,
+    plan_restore,
+)
 
 _BYTE_EXACT_ATTRIBUTES = "* -text -filter -ident -working-tree-encoding\n"
 
@@ -58,8 +64,6 @@ _IDENTITY_ENV = {
 }
 
 _GITLINK_MODE = "160000"
-# `FILE_ATTRIBUTE_REPARSE_POINT`: set on a Windows junction or symlink.
-_REPARSE_POINT = 0x400
 
 # HEAD holds either `ref: <a branch>` or the object it points at (SHA-1, or
 # SHA-256 in a repository made with it).
@@ -172,6 +176,10 @@ class SnapshotStore:
         """The snapshotted directory; snapshot paths are relative to it."""
         return self._workdir
 
+    def _absolute(self, rel: str) -> str:
+        """*rel*, a `/`-separated snapshot path, as a path on this filesystem."""
+        return os.path.join(self._workdir, *rel.split("/"))
+
     def delete(self) -> None:
         """Remove the store and every object its snapshots wrote.
 
@@ -275,16 +283,31 @@ class SnapshotStore:
             current = _index_entries(
                 self.git(["ls-files", "--stage", "-z"], index=index, deadline=deadline)
             )
-            target, in_the_way = self._create_restore_target(
-                snapshot.tree, listing, unreadable, current, deadline
+            plan = plan_restore(
+                RestoreTarget(
+                    workdir=self._workdir,
+                    paths=self._list_tree(snapshot.tree, deadline),
+                    listing=listing,
+                    unreadable=unreadable,
+                    current=current,
+                    ignore_dirs=self._ignore_dirs,
+                    exclude_paths=self._exclude_paths,
+                    deadline=deadline,
+                )
+            )
+            in_the_way = set(plan.in_the_way)
+            target = self._edit_tree(
+                snapshot.tree,
+                remove=sorted(plan.left_alone | plan.in_the_way),
+                deadline=deadline,
             )
             wanted = self._list_tree(target, deadline)
-            lacking = self._find_lacking(current, set(wanted))
-            created = set(_find_created_since(lacking, snapshot, listing.repositories))
+            lacking = find_lacking(self._workdir, current, set(wanted))
+            created = set(find_created_since(lacking, snapshot, listing.repositories))
             kept = [path for path in lacking if path not in created]
             # A kept file where the snapshot has a directory, or under a path
             # it has as a file: the tree cannot hold both, and the file stays.
-            clashing = _find_clashes(wanted, kept)
+            clashing = find_clashes(wanted, kept)
             in_the_way |= clashing
             final = self._edit_tree(
                 target,
@@ -300,130 +323,6 @@ class SnapshotStore:
                 logger.warning(f"Restore stopped partway: {e}")
                 left_behind = meant
             return sorted(set(left_behind) | in_the_way)
-
-    def _create_restore_target(
-        self,
-        treeish: str,
-        listing: Listing,
-        unreadable: list[str],
-        current: dict[str, tuple[str, str]],
-        deadline: float | None,
-    ) -> tuple[str, set[str]]:
-        """*treeish*'s tree minus every path a restore must leave alone —
-        those out of scope now, the files git cannot read now, and, when not
-        listed, the ones under a directory that cannot be read — and minus
-        the paths something unlisted stands in the way of, which it also
-        returns: they are left behind (`_find_in_the_way`)."""
-        paths = self._list_tree(treeish, deadline)
-        out = get_out_of_scope_paths(
-            self._workdir,
-            paths,
-            listing.repositories,
-            self._ignore_dirs,
-            self._exclude_paths,
-            deadline,
-        )
-        unseen = [
-            path
-            for path in paths
-            if path not in current and self._is_under_unreadable_directory(path)
-        ]
-        # `left_out` adds the files too large to snapshot: ignored ones are in
-        # `out` already.
-        left_alone = out | set(unreadable) | set(unseen) | set(listing.left_out)
-        in_the_way = self._find_in_the_way(
-            [path for path in paths if path not in left_alone], current
-        )
-        target = self._edit_tree(
-            treeish, remove=sorted(left_alone | in_the_way), deadline=deadline
-        )
-        return target, in_the_way
-
-    def _find_in_the_way(
-        self, paths: list[str], current: dict[str, tuple[str, str]]
-    ) -> set[str]:
-        """The *paths* git could write only by destroying something no
-        snapshot holds. `read-tree -u --reset` removes an untracked file or
-        directory in the way of what it writes, and anything the operation
-        index lacks is untracked to it: a directory holding an ignored file
-        where the snapshot has a file or symlink, an ignored file or a FIFO
-        where it has a file or needs a directory. A listed path in the way is
-        the restore's own to replace, and so is a directory holding only
-        listed files; a real directory above a path is not in its way."""
-        listed = {_fold(path) for path in current}
-        verdicts: dict[str, bool] = {}  # an ancestor: whether it blocks
-
-        def is_in_the_way(rel: str, is_ancestor: bool) -> bool:
-            if _fold(rel) in listed:
-                return False
-            try:
-                info = os.lstat(self._absolute(rel))
-            except (FileNotFoundError, NotADirectoryError):
-                return False  # nothing there, or under a listed file
-            except OSError:
-                return True  # cannot tell: left alone
-            if _is_real_directory(info):
-                return not is_ancestor and self._has_unlisted(rel, listed)
-            return True
-
-        in_the_way = set()
-        for path in paths:
-            parts = path.split("/")
-            for depth in range(1, len(parts)):
-                ancestor = "/".join(parts[:depth])
-                if ancestor not in verdicts:
-                    verdicts[ancestor] = is_in_the_way(ancestor, is_ancestor=True)
-                if verdicts[ancestor]:
-                    in_the_way.add(path)
-                    break
-            else:
-                if is_in_the_way(path, is_ancestor=False):
-                    in_the_way.add(path)
-        return in_the_way
-
-    def _has_unlisted(self, rel: str, listed: set[str]) -> bool:
-        """Whether the directory at *rel* holds anything the listing does
-        not — or anything it cannot look into, which counts the same."""
-        pending = [rel]
-        while pending:
-            directory = pending.pop()
-            try:
-                with os.scandir(self._absolute(directory)) as it:
-                    entries = list(it)
-            except OSError:
-                return True
-            for entry in entries:
-                child = f"{directory}/{entry.name}"
-                try:
-                    info = entry.stat(follow_symlinks=False)
-                except OSError:
-                    return True
-                if _is_real_directory(info):
-                    pending.append(child)
-                elif _fold(child) not in listed:
-                    return True
-        return False
-
-    def _absolute(self, rel: str) -> str:
-        return os.path.join(self._workdir, *rel.split("/"))
-
-    def _find_lacking(
-        self, current: dict[str, tuple[str, str]], wanted: set[str]
-    ) -> list[str]:
-        """The current paths the target lacks. On a filesystem that ignores
-        letter case or Unicode normalization (macOS, Windows), a current path
-        the target holds in another case or form is the same file: the
-        target's version is written to it, and it is not lacking, so it is
-        never removed as created since — which would delete that file."""
-        missing = {_fold(path): path for path in wanted if path not in current}
-        twins = {
-            path
-            for path in current
-            if (twin := missing.get(_fold(path))) is not None
-            and twin != path
-            and os.path.lexists(self._absolute(twin))
-        }
-        return sorted(path for path in current if path not in wanted | twins)
 
     def _list_tree(self, treeish: str, deadline: float | None) -> list[str]:
         return _tree_paths(
@@ -443,18 +342,6 @@ class SnapshotStore:
             for path in self._changed_paths(final, actual, deadline)
             if path in meant
         ]
-
-    def _is_under_unreadable_directory(self, path: str) -> bool:
-        """Whether an existing directory on *path*'s way down from the work
-        tree cannot be read — the listing could not see what it holds."""
-        parts = path.split("/")[:-1]
-        for depth in range(1, len(parts) + 1):
-            directory = os.path.join(self._workdir, *parts[:depth])
-            if not os.path.isdir(directory):
-                return False
-            if not os.access(directory, os.R_OK | os.X_OK):
-                return True
-        return False
 
     def _write_tree_to_disk(
         self, tree: str, index: str, deadline: float | None
@@ -945,83 +832,3 @@ def _read_from(store: SnapshotStore, other_git_dir: str) -> None:
     other_index = os.path.join(other_git_dir, "index")
     if os.path.exists(other_index):
         shutil.copy2(other_index, store.index)
-
-
-def _find_created_since(
-    lacking: list[str], snapshot: Snapshot, repositories: list[str]
-) -> list[str]:
-    """The *lacking* files *snapshot* shows did not exist when it was taken:
-    it would have listed them, since it neither left them out nor failed to
-    read them. The files of a repository listed now (*repositories*) that it
-    did not list are kept instead: a worktree or clone made since, whose own
-    history holds its work.
-
-    Left-out paths are matched with `_fold`; repositories exactly. Both err
-    toward keeping."""
-    then = {_fold(repository) for repository in snapshot.repositories}
-    files = {
-        _fold(path)
-        for path in (*snapshot.unreadable, *snapshot.left_out)
-        if not path.endswith("/")
-    }
-    directories = [_fold(path[:-1]) for path in snapshot.left_out if path.endswith("/")]
-
-    def is_recorded(path: str) -> bool:
-        key = _fold(path)
-        if key in files:
-            return True
-        # A left-out directory covers what its own repository would list
-        # there, not a repository inside it, which listed itself.
-        owner = _find_repository(key, then)
-        return any(
-            key.startswith(f"{directory}/")
-            and _find_repository(directory, then) == owner
-            for directory in directories
-        )
-
-    def is_in_new_repository(path: str) -> bool:
-        repository = _find_repository(path, repositories)
-        return bool(repository) and repository not in snapshot.repositories
-
-    return [
-        path
-        for path in lacking
-        if not is_recorded(path) and not is_in_new_repository(path)
-    ]
-
-
-def _find_repository(path: str, repositories: Iterable[str]) -> str | None:
-    """The deepest of *repositories* holding *path*, or None when none does."""
-    holding = [r for r in repositories if not r or path.startswith(f"{r}/")]
-    return max(holding, key=len, default=None)
-
-
-def _fold(path: str) -> str:
-    """*path* as a filesystem that ignores letter case and Unicode
-    normalization (macOS, Windows) sees it: `é` composed or not, any case."""
-    return unicodedata.normalize("NFC", path).casefold()
-
-
-def _is_real_directory(info: os.stat_result) -> bool:
-    """A directory, not a symlink or a Windows junction to one."""
-    attributes = getattr(info, "st_file_attributes", 0)
-    return stat.S_ISDIR(info.st_mode) and not attributes & _REPARSE_POINT
-
-
-def _find_clashes(wanted: list[str], kept: list[str]) -> set[str]:
-    """The *wanted* paths a *kept* file stands in the way of: one under a
-    kept file, or a file where a kept one needs a directory."""
-    kept_files = {_fold(path) for path in kept}
-    kept_directories = {parent for path in kept for parent in _parents(_fold(path))}
-    return {
-        path
-        for path in wanted
-        if _fold(path) in kept_directories
-        or any(parent in kept_files for parent in _parents(_fold(path)))
-    }
-
-
-def _parents(path: str) -> list[str]:
-    """`a/b/c` → `a`, `a/b`."""
-    parts = path.split("/")
-    return ["/".join(parts[:depth]) for depth in range(1, len(parts))]
