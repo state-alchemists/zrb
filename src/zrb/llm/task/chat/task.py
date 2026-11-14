@@ -36,6 +36,7 @@ from zrb.llm.tool_call import (
     shell_formatter,
     write_file_formatter,
 )
+from zrb.llm.ui.ui_config import UIConfig
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
 
@@ -61,7 +62,6 @@ if TYPE_CHECKING:
         UIFactory,
     )
     from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.ui_config import UIConfig
 
 #: Builds pydantic-ai capabilities for one run from the task context; an
 #: empty list adds none.
@@ -280,8 +280,6 @@ class LLMChatTask(BaseTask):
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
-        # Materialized by the `ui_config` property: UIConfig is heavy and the
-        # built-in `llm_chat` task is constructed on every `import zrb`.
         self._ui_config = ui_config
         self._init_command_surface(
             custom_commands,
@@ -869,22 +867,14 @@ class LLMChatTask(BaseTask):
 
     @property
     def ui_config(self) -> "UIConfig":
-        """UI-backend settings, materialized on first read to keep `import zrb` light."""
+        """UI-backend settings, built on first read for a task that never chats."""
         if self._ui_config is None:
-            # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai and
-            # prompt_toolkit via its package __init__.
-            from zrb.llm.ui.ui_config import UIConfig
-
             self._ui_config = UIConfig()
         return self._ui_config
 
     @ui_config.setter
     def ui_config(self, value: "UIConfig") -> None:
         """Replace the UI config wholesale."""
-        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai and
-        # prompt_toolkit via its package __init__.
-        from zrb.llm.ui.ui_config import UIConfig
-
         if not isinstance(value, UIConfig):
             raise TypeError(
                 f"{self.name}.ui_config must be a UIConfig, "

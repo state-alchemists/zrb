@@ -11,9 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.resolver import (
-    get_custom_command_match,
     resolve_custom_commands,
     run_custom_command,
 )
@@ -22,7 +20,7 @@ from zrb.llm.shared.feature_config import (
     reset_session_ui,
     set_session_ui,
 )
-from zrb.llm.task.chat.agent_mention import resolve_agent_mention
+from zrb.llm.task.chat.message_expansion import expand_message, is_action_command
 from zrb.llm.ui.assembly import assemble_ui
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
@@ -106,7 +104,7 @@ class ChatRunning:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> object:
-        effective_message, reply = _expand_message(
+        effective_message, reply = expand_message(
             initial_message, self._resolve_custom_commands()
         )
         if effective_message is None:
@@ -204,10 +202,10 @@ class ChatRunning:
         # An action may need the UI (`/photo` attaches to it), which does not
         # exist yet: run it once the UI does.
         initial_action = ""
-        if _is_action_command(initial_message, resolved_custom_commands):
+        if is_action_command(initial_message, resolved_custom_commands):
             initial_action, initial_message, reply = initial_message, "", None
         else:
-            initial_message, reply = _expand_message(
+            initial_message, reply = expand_message(
                 initial_message, resolved_custom_commands
             )
         if initial_message is None:
@@ -379,29 +377,3 @@ def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
     an interactive session sits in the column.
     """
     ui.display.append_answer(shown)
-
-
-def _is_action_command(
-    message: str | None, custom_commands: "list[AnyCustomCommand]"
-) -> bool:
-    if not isinstance(message, str):
-        return False
-    match = get_custom_command_match(message, custom_commands)
-    return match is not None and isinstance(match[0], ActionCommand)
-
-
-def _expand_message(
-    message: str | None, custom_commands: "list[AnyCustomCommand]"
-) -> tuple[str | None, str | None]:
-    """Expand a slash command, else an @agent mention, in a string message.
-
-    Returns ``(message, reply)``; an `ActionCommand` handled in-process
-    returns ``(None, reply)`` since there is no turn to run.
-    """
-    if not isinstance(message, str):
-        return message, None
-    outcome = run_custom_command(message, custom_commands, None)
-    if outcome is not None:
-        return outcome.prompt, outcome.reply
-    mentioned = resolve_agent_mention(message)
-    return (message if mentioned is None else mentioned), None

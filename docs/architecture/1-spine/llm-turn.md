@@ -137,6 +137,7 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | Change how the inner task is built per session | `src/zrb/llm/task/chat/execution.py` | `test/llm/task/chat/test_execution.py` |
 | Change UI selection or session replay | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/` |
 | Change what a session releases at exit, or in what order | `src/zrb/llm/task/chat/teardown.py` | `test/llm/task/chat/test_llm_chat_task_teardown.py` |
+| Change how a typed message becomes a command, an action, or an `@agent` nudge | `src/zrb/llm/task/chat/message_expansion.py` | `test/llm/task/chat/test_message_expansion.py` |
 | Change what a turn loads, sends or saves | `src/zrb/llm/task/llm_task.py` | `test/llm/task/test_llm_task.py` |
 | Change the round loop or the `Stop` handling | `src/zrb/llm/agent/run/runner.py` | `test/llm/agent/run/` |
 | Change the state carried between rounds | `src/zrb/llm/agent/run/turn_cursor.py` | `test/llm/agent/run/test_turn_cursor.py` |
