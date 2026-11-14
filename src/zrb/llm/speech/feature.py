@@ -86,6 +86,19 @@ def _volume_delta(argument: str) -> int | None:
     return step if sign == "+" else -step
 
 
+def _volume_level(argument: str) -> int | None:
+    """The level *argument* names outright, or ``None`` when it names none.
+
+    `15` and `15%` both ask for fifteen percent. Digits are read only when they
+    are the whole argument: `-15` is neither a bare number nor a run of signs, so
+    it is refused rather than read as a level named from below.
+    """
+    text = argument.strip().removesuffix("%").strip()
+    if not text.isdecimal():
+        return None
+    return int(text)
+
+
 def _volume_reply(speaker: "Speaker") -> str:
     """The level, and where it cannot apply, why.
 
@@ -298,8 +311,9 @@ class SpeechSession:
                 self.change_volume,
                 args=["level"],
                 description=(
-                    "Change the voice's volume: +++ raises three steps, -- lowers "
-                    "two, and no argument reports the level"
+                    "Change the voice's volume: `15` sets it to fifteen percent, "
+                    "+++ raises three steps, -- lowers two, and no argument "
+                    "reports the level"
                 ),
                 can_run_while_thinking=True,
             )
@@ -308,20 +322,24 @@ class SpeechSession:
         return commands
 
     def change_volume(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
-        """Move the volume by the number of signs given, or report it.
+        """Set the volume to the level a number names, move it by the number of
+        signs given, or report it.
 
-        `+++` is three steps up and `--` two down; a step is a percentage
-        point, and the speaker holds the result inside 0-200%. Silence is a
-        level like any other, so `-` at 0 stays there rather than wrapping.
+        `15` is fifteen percent and `+++` is three steps up, one step being a
+        percentage point; a level is held inside 0-200%. Silence is a level like
+        any other, so `-` at 0 stays there rather than wrapping.
         """
         argument = (kwargs.get("level") or "").strip()
+        level = _volume_level(argument)
         delta = _volume_delta(argument)
-        if argument and delta is None:
+        if argument and level is None and delta is None:
             return (
-                "  Use a run of + or -: `+++` raises the volume three steps, "
-                "`--` lowers two"
+                "  Give a level as a number (`15` for fifteen percent), or a run "
+                "of + or -: `+++` raises three steps, `--` lowers two"
             )
-        if delta is not None:
+        if level is not None:
+            self.speaker.set_volume(level)
+        elif delta is not None:
             self.speaker.set_volume(self.speaker.volume + delta)
         return _volume_reply(self.speaker)
 

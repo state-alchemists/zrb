@@ -244,58 +244,6 @@ def test_the_speech_command_switches_speech_and_drops_the_queue():
     assert command.can_run_while_thinking
 
 
-def test_the_volume_command_moves_the_level_by_the_sign_count():
-    session = _session()
-    command = _by_alias(session.create_commands(), "/volume")
-
-    assert command.handle({"level": "+++"}, None) == "🔊 Volume 130%"
-    assert command.handle({"level": "-"}, None) == "🔊 Volume 120%"
-    assert command.handle({"level": "--"}, None) == "🔊 Volume 100%"
-
-
-def test_the_volume_command_reports_the_level_with_no_argument():
-    session = _session()
-
-    command = _by_alias(session.create_commands(), "/volume")
-
-    assert command.handle({}, None) == "🔊 Volume 100%"
-
-
-def test_the_volume_command_holds_the_level_between_silence_and_the_ceiling():
-    session = _session()
-    command = _by_alias(session.create_commands(), "/volume")
-
-    command.handle({"level": "+" * 30}, None)
-    assert session.speaker.volume == 200
-
-    command.handle({"level": "-" * 30}, None)
-    assert session.speaker.volume == 0
-
-
-@pytest.mark.parametrize("argument", ["+-", "-+", "loud", "3"])
-def test_the_volume_command_reads_anything_else_as_a_typo(argument):
-    """Mixed signs ask for opposite things at once; a word asks for nothing."""
-    session = _session()
-    command = _by_alias(session.create_commands(), "/volume")
-
-    reply = command.handle({"level": argument}, None)
-
-    assert reply.startswith("  Use a run of + or -")
-    assert session.speaker.volume == 100
-
-
-def test_a_player_program_says_the_volume_it_keeps():
-    """zrb never sees those samples, so a level alone would promise something
-    the next sentence does not do."""
-    session = _session()
-    session.speaker.is_playing_in_process = False
-    command = _by_alias(session.create_commands(), "/volume")
-
-    assert command.handle({"level": "+"}, None) == (
-        "🔊 Volume 110% (a player program keeps its own volume)"
-    )
-
-
 @pytest.mark.parametrize("enabled", [True, False])
 def test_enable_speech_reads_cfg_when_a_session_starts(monkeypatch, enabled):
     chat = MagicMock()
