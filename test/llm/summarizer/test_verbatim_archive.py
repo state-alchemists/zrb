@@ -159,6 +159,39 @@ async def test_a_failed_summary_archives_nothing(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_an_archive_the_summary_cannot_name_is_not_written(tmp_path, monkeypatch):
+    """A file no summary names is one the cleanup may delete while it is unique.
+
+    The pointer is measured against the cap beside the summary, and it is the
+    only record of where the archive went. In practice the 1,000-token floor
+    always leaves room for the 205-token note, so the cap is pinned here just
+    under it: the rule has to hold by itself, not by the size of a constant
+    someone may tune next year.
+    """
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    monkeypatch.setattr(
+        "zrb.llm.summarizer.history_summarizer.summary_cap", lambda threshold: 150
+    )
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import summarize_history
+
+    history = await summarize_history(
+        _messages(),
+        agent=agent,
+        summary_window=1,
+        conversational_token_threshold=1000,
+        session_name="unnameable",
+    )
+
+    summary_text = history[0].parts[0].content
+    assert "## Verbatim history archive" not in summary_text
+    assert not os.path.exists(verbatim_archive_path("unnameable", str(tmp_path)))
+
+
+@pytest.mark.asyncio
 async def test_the_session_name_is_resolved_on_every_call(tmp_path, monkeypatch):
     """`/save` renames a conversation while its task is still running; the next
     compaction must archive under the name it now has."""
