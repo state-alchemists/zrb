@@ -4,6 +4,7 @@
 
   execution.py - build the inner LLMTask per turn; teardown.py releases at exit
   running.py   - resolve UIs/triggers/custom commands, run the loop
+  persistence.py - the session's history manager and name, and its replay
 
 See docs/task-types/llmchat-task.md and docs/llm/llm-chat-lifecycle.md.
 """
