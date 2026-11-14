@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
     from zrb.llm.agent.run.typing_aliases import History, PromptMessage
+    from zrb.llm.shared.usage_log import ContextComposition
 
 
 @dataclass
@@ -42,6 +43,19 @@ class TurnCursor:
     # `turn_id`). Unique, unlike the run scope, which is the conversation's
     # name and may be shared by concurrent sessions.
     turn_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    # Where the turn's opening request's input went, until the first round
+    # writes it down. Only that round carries it: the request it describes is
+    # the one prepared before the loop started.
+    composition: "ContextComposition | None" = field(default=None, repr=False)
+
+    def take_composition(self) -> "ContextComposition | None":
+        """The composition, once — the round that sends the prepared request takes it.
+
+        Cleared on read so a later round cannot file it under a request it does
+        not describe: by then the history has grown by this round's own answer.
+        """
+        composition, self.composition = self.composition, None
+        return composition
 
     def begin_round(self, sanitized_history: History) -> None:
         """Start one `agent.run()` round: install the sanitized history and

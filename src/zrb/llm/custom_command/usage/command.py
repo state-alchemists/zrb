@@ -140,6 +140,7 @@ def render_usage(
         sections.append(resume_line)
     for extra in (
         _component_section(records),
+        _context_section(turns),
         _compaction_section(records),
         render_tools_section(
             turns,
@@ -204,6 +205,47 @@ def _group_by_component(records: list[UsageRecord]) -> dict[str, list[UsageRecor
     for record in records:
         grouped.setdefault(record.component or "other", []).append(record)
     return grouped
+
+
+def _context_section(records: list[UsageRecord]) -> list[str]:
+    """Where the turns' opening requests spent their input, by our own counter.
+
+    Only the first round of a turn carries a composition — the request it
+    describes is the one prepared before the loop started — so this covers the
+    turns whose opening request was measured, and says how many that is. The
+    provider's own input for those same requests sits beside the estimate,
+    because a counter that drifts from what was billed is worth seeing. The gap
+    between the two is the framing a provider adds and no local count can know.
+
+    Tool definitions are not in it. They are constant per configuration and
+    priced separately (ADR-0058), so folding them in would make a fixed cost
+    look like a moving one.
+    """
+    parts = [
+        part for part in (record.context for record in records) if part is not None
+    ]
+    if not parts:
+        return []
+    prompt = sum(part.prompt_tokens for part in parts)
+    history = sum(part.history_tokens for part in parts)
+    message = sum(part.message_tokens for part in parts)
+    estimated = prompt + history + message
+    reported = sum(
+        record.input_tokens for record in records if record.context is not None
+    )
+    return [
+        "  Where the input went",
+        _context_row("system prompt", prompt, estimated),
+        _context_row("history", history, estimated),
+        _context_row("your message", message, estimated),
+        f"    {len(parts)} turn(s) · provider reported {_tokens(reported)} for them",
+    ]
+
+
+def _context_row(label: str, tokens: int, total: int) -> str:
+    """One row of the composition: what a part is, its tokens, and its share."""
+    share = f"{tokens / total:.0%}" if total else _UNPRICED
+    return f"    {label:<{_COMPONENT_WIDTH}}{_tokens(tokens):>10}{share:>7}"
 
 
 def _compaction_section(records: list[UsageRecord]) -> list[str]:

@@ -93,7 +93,11 @@ from zrb.llm.shared.shell_cut import (
     signal_for_run,
 )
 from zrb.llm.shared.stream_observer import StreamObserver, create_observed_event_handler
-from zrb.llm.shared.usage_log import count_tool_calls, record_usage
+from zrb.llm.shared.usage_log import (
+    ContextComposition,
+    count_tool_calls,
+    record_usage,
+)
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.util.live_context_block import append_live_context
 from zrb.llm.util.prompt import expand_prompt
@@ -270,7 +274,7 @@ async def run_agent(
         # stays byte-stable across turns.
         prompt_content = append_live_context(prompt_content, live_context)
 
-        current_history = await _prepare_history(
+        prepared = await _prepare_history(
             agent,
             message_history,
             prompt_content,
@@ -283,6 +287,7 @@ async def run_agent(
             # stored record must not present that as the user's words.
             typed_prompt=message or "",
         )
+        current_history = prepared.history
 
         current_message = merge_consecutive_messages(current_history, prompt_content)
 
@@ -299,6 +304,7 @@ async def run_agent(
             checkpoint_fn=checkpoint_fn,
             sandbox_deps=sandbox_deps,
             nested_run=nested_run,
+            composition=prepared.composition,
         )
     finally:
         stack.close()
@@ -402,6 +408,15 @@ class _PreparedRequest:
     message_tokens: int = 0
     has_processors: bool = False
 
+    @property
+    def composition(self) -> "ContextComposition":
+        """Where this request's input went, as the counter measured it."""
+        return ContextComposition(
+            prompt_tokens=self.reserved_tokens,
+            history_tokens=self.tokens,
+            message_tokens=self.message_tokens,
+        )
+
 
 async def _prepare_history(
     agent: "Agent[None, Any]",
@@ -412,7 +427,7 @@ async def _prepare_history(
     print_fn: PrintFn,
     effective_hook_manager: HookManager,
     typed_prompt: str = "",
-) -> History:
+) -> "_PreparedRequest":
     """Everything between the typed message and the request the model is handed.
 
     Four stages, one per reason to change: reserve what the system prompt costs,
@@ -431,7 +446,7 @@ async def _prepare_history(
         prepared, limiter, typed_prompt, effective_hook_manager
     )
     await _pace_request(prepared, limiter, prompt_content, print_fn)
-    return prepared.history
+    return prepared
 
 
 async def _compact_history(
@@ -622,6 +637,7 @@ async def _execution_loop(
     checkpoint_fn: CheckpointFn | None = None,
     sandbox_deps: "SandboxPolicy | None" = None,
     nested_run: bool = False,
+    composition: "ContextComposition | None" = None,
 ) -> AgentRunOutput:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
@@ -630,6 +646,7 @@ async def _execution_loop(
         history=current_history,
         message=current_message,
         run_history=current_history,
+        composition=composition,
     )
     cursor.snapshot = _create_turn_snapshot(nested_run)
     retry_state = RetryState()
@@ -758,6 +775,9 @@ async def _stream_one_round(
             effective_ui,
             started_at,
             result.new_messages(),
+            # Taken, not read: only the round that sends the prepared request
+            # describes it, and this is that round the first time round.
+            composition=cursor.take_composition(),
         )
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
@@ -774,12 +794,16 @@ def _record_run_usage(
     effective_ui: "AnyUI | None",
     started_at: float,
     new_messages: History | None = None,
+    composition: "ContextComposition | None" = None,
 ) -> None:
     """Write one usage-log line for the round that just finished.
 
     *new_messages* are this round's own messages, where each tool call and its
     result already sit, so the per-tool counts cost one pass at the end of the
     round instead of a hook on every call.
+
+    *composition* is where this request's input went. Only the round that sends
+    the prepared request has one; the others omit it rather than repeat it.
 
     The session name is the UI's, because that is where a conversation's
     identity lives; a headless run records an empty one and `/usage` still sees
@@ -798,6 +822,7 @@ def _record_run_usage(
         duration_ms=int((time.monotonic() - started_at) * 1000),
         tool_counts=calls,
         tool_errors=errors,
+        context=composition,
     )
 
 
@@ -1164,7 +1189,10 @@ async def _wait_for_rate_limit(
 
     if request_tokens <= 0:
         return
-    await limiter.acquire_for_tokens(request_tokens, notifier=notify_throttling)
+    # No content: the size is already counted, and `acquire` takes it as given.
+    await limiter.acquire(
+        None, notifier=notify_throttling, estimated_tokens=request_tokens
+    )
 
 
 async def _apply_multimodal_fallback(

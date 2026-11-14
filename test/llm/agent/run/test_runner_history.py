@@ -482,12 +482,12 @@ async def test_a_turn_fits_the_history_once_and_paces_the_counted_request():
     limiter.get_effective_context_window.return_value = 1_000_000
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda history, *args, **kwargs: history
-    limiter.acquire_for_tokens = AsyncMock()
+    limiter.acquire = AsyncMock()
 
     await run_agent(agent=agent, message="Hi", message_history=[], limiter=limiter)
 
     assert limiter.fit_context_window.call_count == 1
-    limiter.acquire_for_tokens.assert_awaited_once()
+    limiter.acquire.assert_awaited_once()
     # The history's 10 and the message's 10, added up rather than serializing
     # the pair again for the pacing estimate.
-    assert limiter.acquire_for_tokens.await_args.args[0] == 20
+    assert limiter.acquire.await_args.kwargs["estimated_tokens"] == 20

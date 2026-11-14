@@ -191,6 +191,35 @@ class CompactionDetail:
 
 
 @dataclass(frozen=True)
+class ContextComposition:
+    """What the request a turn opened with was made of, by zrb's own counter.
+
+    An estimate, not a bill: `input_tokens` on the same record is what the
+    provider reported for that request, and the two differ by whatever framing
+    the provider adds. Kept beside those totals rather than in them, because the
+    question this answers — *where* the input went — is one a single number
+    cannot.
+
+    Recorded on the first round of a turn, since that is the request it
+    describes: later rounds carry the messages this one's answer produced, so a
+    composition copied onto them would describe a history that no longer exists.
+
+    Tool definitions are not counted here. They are constant per configuration
+    and priced separately (ADR-0058), and folding them into a per-turn estimate
+    would make a fixed cost look like a moving one.
+    """
+
+    prompt_tokens: int
+    history_tokens: int
+    message_tokens: int
+
+    @property
+    def total_tokens(self) -> int:
+        """What this counter says the request cost, before the provider's framing."""
+        return self.prompt_tokens + self.history_tokens + self.message_tokens
+
+
+@dataclass(frozen=True)
 class UsageRecord:
     """One completed run, as it is written to the log."""
 
@@ -217,6 +246,9 @@ class UsageRecord:
     # Why a compaction ran. Absent on a turn, and on every line written before
     # this field existed.
     compaction: CompactionDetail | None = None
+    # Where the input went, on the round that opened a turn. Absent on later
+    # rounds, on auxiliary calls, and on every line written before this field.
+    context: ContextComposition | None = None
 
     @property
     def cache_hit_ratio(self) -> float:
@@ -264,6 +296,7 @@ class UsageRecord:
             tool_counts=_as_name_counts(raw.get("tool_counts")),
             tool_errors=_as_name_counts(raw.get("tool_errors")),
             compaction=_as_compaction(raw.get("compaction")),
+            context=_as_context(raw.get("context")),
             **counts,
         )
 
@@ -334,12 +367,15 @@ def record_usage(
     tool_counts: dict[str, int] | None = None,
     tool_errors: dict[str, int] | None = None,
     component: str | None = None,
+    context: ContextComposition | None = None,
 ) -> UsageRecord | None:
     """Append one run to the log.
 
     *component* names what spent the tokens; left out, it is whatever
     `usage_component` set around the call, and `main_agent` outside one.
     *session* left empty is the ambient conversation's — see `record_totals`.
+    *context* is where this request's input went, written only for the round
+    that opened a turn.
 
     Returns the record that was written, or ``None`` when the log could not be
     written — a full disk or a read-only home must not fail the turn that
@@ -356,6 +392,7 @@ def record_usage(
         tool_counts=tool_counts,
         tool_errors=tool_errors,
         component=component,
+        context=context,
     )
 
 
@@ -370,6 +407,7 @@ def record_totals(
     tool_errors: dict[str, int] | None = None,
     compaction: CompactionDetail | None = None,
     component: str | None = None,
+    context: ContextComposition | None = None,
 ) -> UsageRecord | None:
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
@@ -393,6 +431,7 @@ def record_totals(
         tool_counts=dict(tool_counts or {}),
         tool_errors=dict(tool_errors or {}),
         compaction=compaction,
+        context=context,
         **{name: getattr(totals, name) for name in _INT_FIELDS},
     )
     return _write_record(record)
@@ -678,6 +717,25 @@ def _as_name_counts(value: object) -> dict[str, int]:
         and isinstance(count, (int, float))
         and not isinstance(count, bool)
     }
+
+
+def _as_context(value: object) -> ContextComposition | None:
+    """Where a request's input went, or ``None`` where the line does not say.
+
+    Optional detail, like the compaction reason: a malformed one is dropped
+    rather than making the record — and the tokens it cost — unreadable. Every
+    line written before this field existed answers ``None``.
+    """
+    if not isinstance(value, dict):
+        return None
+    try:
+        return ContextComposition(
+            prompt_tokens=int(value["prompt_tokens"]),
+            history_tokens=int(value["history_tokens"]),
+            message_tokens=int(value["message_tokens"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _as_compaction(value: object) -> CompactionDetail | None:

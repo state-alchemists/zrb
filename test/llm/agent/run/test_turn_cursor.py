@@ -2,6 +2,7 @@
 
 from zrb.llm.agent.run.history_utils import TurnPruneFloor
 from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.shared.usage_log import ContextComposition
 
 
 def test_begin_round_sets_history_and_baseline():
@@ -49,3 +50,19 @@ def test_prune_floor_keeps_deferred_turn_when_results_pending():
 def test_prune_floor_allows_any_turn_to_drop_when_no_results_pending():
     cursor = TurnCursor(history=[], results=None)
     assert cursor.prune_floor == TurnPruneFloor.ANY_TURN_MAY_DROP
+
+
+def test_the_composition_is_taken_once_so_a_later_round_cannot_repeat_it():
+    """Only the first round sends the prepared request, so only it describes it.
+
+    A later round has grown the history by the first round's own answer, and a
+    composition copied onto it would report a request that was never sent.
+    """
+    cursor = TurnCursor(history=[], composition=ContextComposition(1, 2, 3))
+
+    assert cursor.take_composition() == ContextComposition(1, 2, 3)
+    assert cursor.take_composition() is None
+
+
+def test_a_turn_with_no_prepared_request_answers_nothing():
+    assert TurnCursor(history=[]).take_composition() is None
