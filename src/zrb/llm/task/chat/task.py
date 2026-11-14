@@ -2,7 +2,7 @@
 
 `__init__` and the configuration API live here; runtime behavior lives in:
 
-  execution.py - build the inner LLMTask per turn, run `exec_action`, teardown
+  execution.py - build the inner LLMTask per turn; teardown.py releases at exit
   running.py   - resolve UIs/triggers/custom commands, run the loop
 
 See docs/task-types/llmchat-task.md and docs/llm/llm-chat-lifecycle.md.
@@ -25,6 +25,7 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.shared.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
+from zrb.llm.task.chat.teardown import release_chat_resources, settle_background_hooks
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.shared_getters import set_default_retry_if
 from zrb.llm.tool_call import (
@@ -1002,11 +1003,11 @@ class LLMChatTask(BaseTask):
 
     async def teardown_interactive_resources(self) -> None:
         """Release process-global resources when an interactive chat ends."""
-        await self._execution.teardown_interactive_resources()
+        await release_chat_resources(self)
 
     async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks."""
-        await self._execution.teardown_background_hooks()
+        await settle_background_hooks(self)
 
     def get_all_tools(self, ctx: AnyContext) -> "list[Tool | ToolFuncEither]":
         """Get all tools including those resolved from factories using parent context."""

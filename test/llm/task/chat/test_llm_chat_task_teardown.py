@@ -122,14 +122,15 @@ async def test_a_feature_that_will_not_close_does_not_hold_the_quit(
     waits a bounded time, says so, and keeps the loop free for Ctrl+C instead
     of freezing on the close."""
     from zrb.llm.shared.feature_config import FeatureSessions
-    from zrb.llm.task.chat import execution
+
+    import zrb.llm.task.chat.teardown as chat_teardown
 
     release = threading.Event()
 
     def block(_value: object) -> None:
         release.wait(5)
 
-    monkeypatch.setattr(execution, "_FEATURE_CLOSE_SECONDS", 0.2)
+    monkeypatch.setattr(chat_teardown, "_FEATURE_CLOSE_SECONDS", 0.2)
     sessions = FeatureSessions(lambda: "speaker", block)
     sessions.get("default")
     task = LLMChatTask(name="teardown-stuck-feature")
@@ -201,3 +202,33 @@ async def test_session_end_and_detached_hooks_share_one_exit_budget(monkeypatch)
     # SessionEnd used the budget up, so the detached hook gets no drain time.
     assert shutdown.await_args.kwargs["drain_seconds"] < 0.3
     assert not manager.has_pending_background_hooks
+
+
+@pytest.mark.asyncio
+async def test_a_repeated_teardown_does_not_fire_session_end_twice():
+    """The run's manager is cleared at the end, so a second quit ends nothing.
+
+    A repeated teardown happens: an embedder calls it twice, or a second Ctrl+C
+    takes the path again. Firing SESSION_END on a run that has already ended
+    would run the session's exit hooks twice.
+    """
+    from zrb.llm.hook.contracts.interface import HookContext, HookResult
+    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.manager import HookManager
+
+    fired: list[str] = []
+
+    async def record(context: HookContext) -> HookResult:
+        fired.append(context.event.value)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(record, events=[HookEvent.SESSION_END])
+    task = LLMChatTask(name="teardown-task-twice")
+    task.active_hook_manager = manager
+
+    await task.teardown_interactive_resources()
+    assert task.active_hook_manager is None
+    await task.teardown_interactive_resources()
+
+    assert fired == ["SessionEnd"]

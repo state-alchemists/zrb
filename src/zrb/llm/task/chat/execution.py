@@ -1,11 +1,9 @@
 """`LLMChatTask` execution part: `exec_action`, inner `LLMTask` construction,
-tool/model resolution and session-end teardown.
+and tool/model resolution. What the session holds afterwards is `teardown.py`.
 """
 
 from __future__ import annotations
 
-import asyncio
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, cast
@@ -18,18 +16,15 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.approval import resolve_approval_channel
 from zrb.llm.history_manager.file_history_manager import default_history_manager
-from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
-from zrb.llm.shared.ambient_state import (
-    get_current_tool_session,
-    get_session_ownership_key,
-)
 from zrb.llm.shared.factory_resolver import resolve_factory_items
-from zrb.llm.shared.feature_config import close_feature_sessions
 from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.task.chat.teardown import (
+    release_chat_resources,
+    settle_background_hooks,
+)
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import (
     get_policy_skip_decision,
@@ -43,7 +38,6 @@ from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.attachment import get_attachments
-from zrb.util.async_thread import run_in_daemon
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
 
@@ -62,9 +56,6 @@ if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.history_config import HistoryConfig
     from zrb.llm.ui.any_ui import AnyUI
-
-# How long a feature gets to close at exit before it is left to the process.
-_FEATURE_CLOSE_SECONDS = 3.0
 
 
 def parse_yolo_value(value: object) -> "bool | frozenset[str]":
@@ -178,7 +169,7 @@ class ChatExecution:
                     initial_attachments=initial_attachments,
                 )
             finally:
-                await self.teardown_background_hooks()
+                await settle_background_hooks(self._llm_chat_task)
 
         try:
             return await self._llm_chat_task.run_interactive_session(
@@ -194,142 +185,7 @@ class ChatExecution:
                 snapshot_dir=effective_snapshot_dir,
             )
         finally:
-            await self.teardown_interactive_resources()
-
-    async def teardown_interactive_resources(self) -> None:
-        """Release process-global resources when an interactive chat ends.
-
-        Runs while the loop is alive, so LSP servers and subprocesses shut down
-        gracefully (``atexit`` backstops run too late for that). Interactive
-        only: the web/SSE runner reuses the non-interactive path per message.
-        A cancellation is held until teardown finishes, then re-raised.
-        """
-        release = asyncio.ensure_future(self._release_interactive_resources())
-        cancellation: asyncio.CancelledError | None = None
-        while not release.done():
-            try:
-                await asyncio.shield(release)
-            except asyncio.CancelledError as exc:
-                cancellation = exc
-        release.result()
-        if cancellation is not None:
-            raise cancellation
-
-    async def _release_interactive_resources(self) -> None:
-        # One budget for every hook this quit waits on: SESSION_END, then the
-        # detached hooks still running. Summed per-stage limits let one slow
-        # SessionEnd hook hold the terminal for its own timeout (600 s).
-        deadline = time.monotonic() + CFG.HOOKS_EXIT_TIMEOUT / 1000
-        # SESSION_END fires once per session (run_agent fires only STOP per
-        # turn). Every exit cause funnels through here, so `source` is "other".
-        if self._llm_chat_task.active_hook_manager is not None:
-            try:
-                await asyncio.wait_for(
-                    self._llm_chat_task.active_hook_manager.execute_hooks(
-                        HookEvent.SESSION_END,
-                        {"reason": "exit"},
-                        source="other",
-                    ),
-                    timeout=_seconds_left(deadline),
-                )
-            except asyncio.TimeoutError:
-                CFG.LOGGER.warning(
-                    "A SessionEnd hook was still running at exit; cancelling it."
-                )
-            except Exception:
-                CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
-
-        # A feature's close can block for good, so it runs off this thread.
-        await self._close_feature_sessions(deadline)
-
-        try:
-            await lsp_manager.shutdown_all()
-        except Exception as e:
-            CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
-        # Settle detached hooks before releasing the worker pool, so their
-        # cancellation handlers can kill process trees that sit in their own
-        # process group and never see the terminal's Ctrl+C.
-        await self.teardown_background_hooks(drain_seconds=_seconds_left(deadline))
-        # Reap background shell / delegation subprocesses while the loop is
-        # alive; otherwise their exit logs "Loop <...> that handles pid N is
-        # closed".
-        try:
-            from zrb.llm.tool.shell.background import get_shell_background_registry
-
-            await get_shell_background_registry().cancel_all()
-        except Exception as e:
-            CFG.LOGGER.debug(f"Background-shell teardown at session end failed: {e}")
-        try:
-            from zrb.llm.tool.delegate.background import get_background_registry
-
-            # This session's own handles only: the registry is process-wide, and
-            # another chat session's delegation must outlive this one's exit.
-            get_background_registry().cancel_all(
-                get_session_ownership_key(get_current_tool_session())
-            )
-        except Exception as e:
-            CFG.LOGGER.debug(
-                f"Background-delegation teardown at session end failed: {e}"
-            )
-        # lazy: zrb internal — only needed at teardown; keeps this import
-        # off the hot path every other turn takes.
-        try:
-            from zrb.llm.hook.execution.executor import shutdown_hook_executor
-
-            shutdown_hook_executor(wait=False)
-        except Exception as e:
-            CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
-
-    async def _close_feature_sessions(self, deadline: float) -> None:
-        """Close this session's features before the loop goes, off its thread.
-
-        Their closes are synchronous and block for good more readily than most
-        calls: a wedged audio device holds a stream's stop, a model being
-        unloaded holds the backend behind it. Run on the loop's thread, that
-        also freezes the rest of the quit, and Ctrl+C is only handled back in
-        Python, so the process reads as hung. One still going at the deadline is
-        logged and left to the process.
-        """
-        try:
-            await asyncio.wait_for(
-                run_in_daemon(
-                    close_feature_sessions,
-                    get_session_ownership_key(),
-                    name="zrb-close-features",
-                ),
-                timeout=min(_FEATURE_CLOSE_SECONDS, _seconds_left(deadline)),
-            )
-        except asyncio.TimeoutError:
-            CFG.LOGGER.warning(
-                "A feature was still closing at exit; leaving it to the process."
-            )
-        except Exception:
-            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
-
-    async def teardown_background_hooks(
-        self, drain_seconds: float | None = None
-    ) -> None:
-        """Settle this run's detached (``async: true``) hooks.
-
-        Detached hooks sit in their own process group, so nothing else reaps
-        them. ``drain=True`` lets just-dispatched hooks finish, for up to
-        *drain_seconds* (the hook manager's default when ``None``), before
-        stragglers are cancelled. Falls back to the module singleton when no
-        per-run manager was created, matching ``run_agent``.
-        """
-        try:
-            if self._llm_chat_task.active_hook_manager is not None:
-                await self._llm_chat_task.active_hook_manager.shutdown(
-                    drain=True, drain_seconds=drain_seconds
-                )
-            else:
-                # lazy: zrb internal — only needed at teardown; keeps this
-                # import off the hot path every other turn takes.
-                from zrb.llm.hook.manager import hook_manager
-
-                await hook_manager.shutdown(drain=True, drain_seconds=drain_seconds)
-        except Exception as e:
-            CFG.LOGGER.debug(f"Background-hook shutdown at teardown failed: {e}")
+            await release_chat_resources(self._llm_chat_task)
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
@@ -552,7 +408,3 @@ def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
     if isinstance(yolo_value, frozenset) and tool_def is not None:
         return getattr(tool_def, "name", str(tool_def)) in yolo_value
     return False
-
-
-def _seconds_left(deadline: float) -> float:
-    return max(0.0, deadline - time.monotonic())
