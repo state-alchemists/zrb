@@ -452,3 +452,42 @@ async def test_run_agent_error_preserves_live_history_over_stale_baseline():
     assert len(e.zrb_history) == 1
     assert isinstance(e.zrb_history[0], ModelResponse)
     assert e.zrb_history[0].parts[0].tool_call_id == "c1"
+
+
+@pytest.mark.asyncio
+async def test_a_turn_fits_the_history_once_and_paces_the_counted_request():
+    """The turn used to fit twice and count the history three times over.
+
+    `_prepare_history` fitted, then `_acquire_rate_limit` fitted the history it
+    had just been handed, and counted it once more to estimate a request the
+    first fit had already measured. Both now share one count, so the fit runs
+    once and the per-minute pacing is handed a number instead of a history.
+    """
+    agent = MagicMock()
+    agent.model = None
+    agent.zrb_history_processors = []
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+    mock_result.response.model_name = "a-model"
+    mock_result.new_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 1_000_000
+    limiter.get_effective_context_window.return_value = 1_000_000
+    limiter.count_tokens.return_value = 10
+    limiter.fit_context_window.side_effect = lambda history, *args, **kwargs: history
+    limiter.acquire_for_tokens = AsyncMock()
+
+    await run_agent(agent=agent, message="Hi", message_history=[], limiter=limiter)
+
+    assert limiter.fit_context_window.call_count == 1
+    limiter.acquire_for_tokens.assert_awaited_once()
+    # The history's 10 and the message's 10, added up rather than serializing
+    # the pair again for the pacing estimate.
+    assert limiter.acquire_for_tokens.await_args.args[0] == 20
