@@ -7,6 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
+from zrb.group.root_group import set_root_group
 from zrb.runner.common_util import HELP_FLAGS, get_residual_args, get_task_str_kwargs
 from zrb.runner.web_bind import refuse_insecure_bind
 from zrb.session.session import Session
@@ -227,6 +228,9 @@ def _is_value(arg: str) -> bool:
 
 
 cli = Cli()
+# The tree the task tools walk, registered where it is built: `zrb.llm` reads it
+# through `zrb.group.root_group` rather than importing this module.
+set_root_group(cli)
 
 
 @make_task(name="version", description="🌟 Get current version", retries=0, group=cli)

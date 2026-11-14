@@ -4,7 +4,24 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.group.root_group import get_root_group, set_root_group
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+
+
+@pytest.fixture
+def root_group():
+    """The CLI's tree, registered for one test and put back afterwards.
+
+    The tool reads whatever the process registered instead of importing
+    `zrb.runner`, so a test that lists tasks has to register the tree the way the
+    CLI does — and clear it again, or the next test in this worker inherits it.
+    """
+    from zrb.runner.cli import cli
+
+    previous = get_root_group()
+    set_root_group(cli)
+    yield cli
+    set_root_group(previous)
 
 
 class TestListZrbTaskTool:
@@ -30,10 +47,8 @@ class TestListZrbTaskTool:
         doc_lower = func.__doc__.lower()
         assert "discover" in doc_lower or "lists" in doc_lower
 
-    def test_list_tasks_no_group(self):
+    def test_list_tasks_no_group(self, root_group):
         """Test listing tasks with no group specified."""
-        from zrb.runner.cli import cli
-
         func = create_list_zrb_task_tool()
         result = func()
 
@@ -41,7 +56,7 @@ class TestListZrbTaskTool:
         assert isinstance(result, str)
         assert "Tasks" in result or "tasks" in result
 
-    def test_list_tasks_with_group(self):
+    def test_list_tasks_with_group(self, root_group):
         """Test listing tasks with a valid group."""
         func = create_list_zrb_task_tool()
 
@@ -49,13 +64,25 @@ class TestListZrbTaskTool:
         result = func(group_name="builtin")
         assert isinstance(result, str)
 
-    def test_list_tasks_invalid_group(self):
+    def test_list_tasks_invalid_group(self, root_group):
         """Test listing tasks with invalid group."""
         func = create_list_zrb_task_tool()
 
         result = func(group_name="nonexistent_invalid_group_xyz")
         assert isinstance(result, str)
         assert "Error" in result or "not found" in result
+
+    def test_listing_without_a_registered_tree_says_so(self):
+        """An embedder that never built the CLI gets an answer, not an ImportError."""
+        previous = get_root_group()
+        set_root_group(None)
+        try:
+            result = create_list_zrb_task_tool()()
+        finally:
+            set_root_group(previous)
+
+        assert "no zrb root group" in result
+        assert "[SYSTEM SUGGESTION]" in result
 
 
 class TestRunZrbTaskTool:
@@ -144,7 +171,7 @@ class TestRunZrbTaskTool:
             assert "--" not in first
             assert "--" not in second
 
-    def test_list_tasks_invalid_group_has_system_suggestion(self):
+    def test_list_tasks_invalid_group_has_system_suggestion(self, root_group):
         """Group-not-found error must carry actionable [SYSTEM SUGGESTION]."""
         func = create_list_zrb_task_tool()
         result = func(group_name="nonexistent_invalid_group_xyz")

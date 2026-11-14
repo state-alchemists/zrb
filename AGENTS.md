@@ -22,7 +22,7 @@ See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md
 | `context/`, `session/`, `session_state_log*/` | Three-tier context (SharedContext → Session → Context) and run state |
 | `dot_dict/`, `util/` | `DotDict`, plus string/file/truncation helpers. At runtime `util/` imports only `zrb.attr`'s type aliases and, for `util/load.py`'s `zrb_print`, `zrb.context`; package cycles are guarded by `test_packages_do_not_import_each_other` |
 | `git/` | Git commands and subtree config behind the `zrb git` builtins |
-| `group/`, `task_status/` | CLI group tree, per-task status tracking |
+| `group/`, `task_status/` | CLI group tree (`root_group.py` registers the tree so `llm/` need not import `runner/`), per-task status tracking |
 | `llm/` | Everything LLM — see below |
 | `llm_plugin/` | The built-in skills and agents that ship with zrb |
 | `remote/` | `Host`/`Target` inventories (`host_inventory`, `target_inventory`) and the fan-out executor behind `zrb remote run/check` (ADR-0110) |

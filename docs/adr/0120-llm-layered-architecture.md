@@ -6,7 +6,7 @@ status: accepted
 
 Rule: Lower layers do not import higher ones; shared behaviour reachable from lower layers is exposed via L0 contracts and registries.
 
-Enforced by: test/architecture/test_llm_layering_ratchet.py (layers and upward edges), test/architecture/test_circular_import_allowlist.py (cycle allowlist), test/architecture/test_boundaries.py (Protocol naming in any_*.py).
+Enforced by: test/architecture/test_llm_layering_ratchet.py (layers, upward edges, and no import of `zrb.runner`), test/architecture/test_circular_import_allowlist.py (cycle allowlist), test/architecture/test_boundaries.py (Protocol naming in any_*.py).
 
 Lives in: src/zrb/llm/any_*.py (contracts), src/zrb/llm/shared/agent_runner.py, src/zrb/llm/shared/delegation_api.py. Engine/subagent register implementations at import.
 

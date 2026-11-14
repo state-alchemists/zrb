@@ -218,6 +218,132 @@ def test_no_layer_names_a_unit_that_moved_away():
     )
 
 
+RUNNER = "zrb.runner"
+"""The CLI package the engine must never import — see `test_llm_never_imports_it`."""
+
+_IMPORT_CALLS = {"import_module", "__import__"}
+
+
+def _lazy_export_targets() -> dict[str, str]:
+    """The modules `zrb`'s own lazy export table hides behind a name.
+
+    `from zrb import cli` is the same edge as `from zrb.runner.cli import cli`,
+    and the string alone does not say so: `zrb/__init__.py` maps `cli` to
+    `zrb.runner.cli`. Read from the package, so a re-export added there is
+    covered the day it lands.
+    """
+    import zrb
+
+    exports = getattr(zrb, "_LAZY_EXPORTS", {})
+    return {f"zrb.{name}": module for name, module in exports.items()}
+
+
+def _import_call_name(func: ast.AST) -> str:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return ""
+
+
+def _runtime_import_names(source: str) -> set[str]:
+    """Every module name a runtime import in *source* can reach.
+
+    Covers the three spellings: `import a.b`, `from a.b import name` (which may
+    name a submodule), and `import_module("a.b")`. A `TYPE_CHECKING` block is
+    skipped — the ratchet's own rule is about the import a run pays for.
+    """
+    found: set[str] = set()
+
+    def visit(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.If) and _is_type_checking(child.test):
+                for other in child.orelse:
+                    visit_one(other)
+                continue
+            visit_one(child)
+
+    def visit_one(child: ast.AST) -> None:
+        if isinstance(child, ast.Import):
+            found.update(alias.name for alias in child.names)
+        elif isinstance(child, ast.ImportFrom) and not child.level:
+            base = child.module or ""
+            if base:
+                found.add(base)
+            found.update(
+                f"{base}.{alias.name}" if base else alias.name for alias in child.names
+            )
+        elif isinstance(child, ast.Call):
+            if _import_call_name(child.func) in _IMPORT_CALLS:
+                argument = child.args[0] if child.args else None
+                if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                    found.add(argument.value)
+        visit(child)
+
+    visit(ast.parse(source))
+    return found
+
+
+def _runner_reaches_in(source: str) -> list[str]:
+    """The runner modules *source* imports at runtime, however it spells them."""
+    lazy = _lazy_export_targets()
+    reached = {lazy.get(name, name) for name in _runtime_import_names(source)}
+    hits = {m for m in reached if m == RUNNER or m.startswith(f"{RUNNER}.")}
+    # `from zrb.runner.cli import cli` also names `zrb.runner.cli.cli`: the
+    # parent is the module the import reaches, the child only its symbol.
+    return sorted(m for m in hits if m.rsplit(".", 1)[0] not in hits)
+
+
+def _files_reaching_the_runner() -> list[str]:
+    found: list[str] = []
+    for path in sorted(LLM.rglob("*.py")):
+        rel = path.relative_to(LLM).as_posix()
+        for module in _runner_reaches_in(path.read_text(encoding="utf-8")):
+            found.append(f"{rel} -> {module}")
+    return found
+
+
+def test_the_runner_guard_sees_every_spelling():
+    """A guard that only ever reports "clean" is a guard nobody has tested.
+
+    These are the shapes an editor writes when it auto-imports, or a reviewer
+    reaches for the documented re-export; each one reaches the CLI at runtime.
+    """
+    assert _runner_reaches_in("from zrb.runner.cli import cli") == ["zrb.runner.cli"]
+    assert _runner_reaches_in("from zrb import cli") == ["zrb.runner.cli"]
+    assert _runner_reaches_in("from zrb import runner") == ["zrb.runner"]
+    assert _runner_reaches_in("import zrb.runner.web_app") == ["zrb.runner.web_app"]
+    assert _runner_reaches_in("importlib.import_module('zrb.runner.cli')") == [
+        "zrb.runner.cli"
+    ]
+    assert _runner_reaches_in("from zrb.llm.tool.shell import run_shell_command") == []
+    assert _runner_reaches_in("from typing import TYPE_CHECKING\n") == []
+    assert (
+        _runner_reaches_in("if TYPE_CHECKING:\n    from zrb.runner.cli import cli\n")
+        == []
+    )
+
+
+def test_llm_never_imports_the_runner():
+    """The engine is what the CLI is built on, so it cannot be built with the CLI.
+
+    ``zrb.runner`` creates the group tree, the session logger and the web
+    server; ``zrb.llm`` runs agents. The one runtime edge this forbids was
+    ``tool/zrb_task.py -> runner/cli.py``, to reach the root group the task tool
+    walks: it made every process that builds an agent import the server stack,
+    and it tied the tools to a singleton the caller could not choose. The tree is
+    registered in ``zrb/group/root_group.py`` instead — the same register-and-read
+    seam ``agent_state.get_current_ui`` uses.
+    """
+    offenders = _files_reaching_the_runner()
+    assert not offenders, (
+        "The engine imports the CLI:\n  "
+        + "\n  ".join(offenders)
+        + "\nPut what both sides need in a lower package and register it there; "
+        "see zrb/group/root_group.py for the pattern."
+    )
+
+
 def test_no_new_upward_import():
     new = sorted(_upward_edges() - KNOWN_UPWARD_EDGES)
     assert not new, (

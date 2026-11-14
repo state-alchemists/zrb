@@ -4,10 +4,10 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.group.root_group import get_root_group
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell import run_shell_command
-from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
@@ -24,7 +24,17 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
         ] = "",
         purpose: Purpose = "",
     ) -> str:
-        target_group = cli
+        # The tree is whatever the process registered -- the CLI does, on the line
+        # that creates it. The engine cannot reach it through `zrb.runner`: the CLI
+        # is built on the engine, so importing it from here closes the loop and
+        # drags the server stack into every process that builds an agent.
+        target_group = get_root_group()
+        if target_group is None:
+            return (
+                "Error: this process has no zrb root group registered, so there "
+                "are no tasks to list. [SYSTEM SUGGESTION]: Do not retry — the "
+                "automation tree is not available in this context."
+            )
         if group_name:
             parts = group_name.split()
             for part in parts:
