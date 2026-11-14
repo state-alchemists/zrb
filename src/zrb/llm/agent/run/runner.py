@@ -432,7 +432,9 @@ async def _prepare_history(
 
     Four stages, one per reason to change: reserve what the system prompt costs,
     let the history processors compact it, fit what survived into the window, and
-    pace the request against the per-minute budget.
+    pace the request against the per-minute budget. The fit runs a second time
+    after the POST_COMPACT hooks, because theirs is the one stage that can add to
+    the history after it has been fitted.
     """
     prepared = _PreparedRequest(history=message_history)
     # Counted before the processors so the summarizer's threshold includes it.
@@ -442,9 +444,13 @@ async def _prepare_history(
         prepared, agent, limiter, typed_prompt, effective_hook_manager
     )
     _fit_history_to_window(prepared, agent, limiter, prompt_content, print_fn)
-    await _announce_compaction(
-        prepared, limiter, typed_prompt, effective_hook_manager
+    hook_context = await _announce_compaction(
+        prepared, typed_prompt, effective_hook_manager
     )
+    if hook_context:
+        _fit_hook_context(
+            prepared, agent, limiter, prompt_content, hook_context, print_fn
+        )
     await _pace_request(prepared, limiter, prompt_content, print_fn)
     return prepared
 
@@ -539,11 +545,16 @@ def _fit_history_to_window(
 
 async def _announce_compaction(
     prepared: "_PreparedRequest",
-    limiter: LLMLimiter,
     typed_prompt: str,
     hook_manager: HookManager,
-) -> None:
-    """Tell the POST_COMPACT hooks what the fit kept, and take their context."""
+) -> str:
+    """Tell the POST_COMPACT hooks what the fit kept, and take their context.
+
+    Answers with the context a hook added, `""` when none did: that is the one
+    addition the fit has already run past. It is deliberately *not* prepended
+    here — the caller fits the history around its cost first, so that a trim
+    cannot take the context apart along with the oldest turns.
+    """
     postcompact_results = await hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {
@@ -564,14 +575,76 @@ async def _announce_compaction(
         },
         trigger="auto",
     )
-    postcompact_context = extract_additional_context(postcompact_results)
-    if postcompact_context:
-        prepared.history = _prepend_system_context(
-            prepared.history, postcompact_context
+    return extract_additional_context(postcompact_results) or ""
+
+
+def _fit_hook_context(
+    prepared: "_PreparedRequest",
+    agent: "Agent[None, Any]",
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+    context: str,
+    print_fn: PrintFn,
+) -> None:
+    """Fit the history around a POST_COMPACT hook's context, never through it.
+
+    The fit runs before the hooks, so their context is the one part of the request
+    no fit has seen, and a hook that injects more than the fit left would put the
+    request over the window -- which a provider refuses outright rather than trims.
+    Fitting the combined history would trim whole turns off the front, and the
+    context is the first of them: the hook's work would be silently gone. So its
+    cost is reserved while the history is trimmed, and it is prepended afterwards,
+    where no trim can reach it.
+    """
+    model = getattr(agent, "model", None)
+    context_tokens = limiter.count_content_tokens(context)
+    fitted = limiter.fit_context_window(
+        prepared.history,
+        prompt_content,
+        prepared.reserved_tokens + context_tokens,
+        model=model,
+    )
+    if not fitted and not _can_send_context_alone(
+        limiter, prompt_content, prepared.reserved_tokens, context, model
+    ):
+        # Nothing survives beside the context and the context does not fit on its
+        # own either. Saying so is the point: a request that cannot be sent helps
+        # nobody, and neither does one that quietly lost what a hook injected.
+        print_fn(
+            f"\n[SYSTEM] POST_COMPACT hook context dropped: {context_tokens} tokens"
+            " do not fit beside the prompt."
         )
-        # Counted here rather than by re-walking the history: the hook's own
-        # context is the only part of the request the fit has not seen.
-        prepared.tokens += limiter.count_tokens(postcompact_context)
+        prepared.history = limiter.fit_context_window(
+            prepared.history, prompt_content, prepared.reserved_tokens, model=model
+        )
+        prepared.tokens = limiter.count_tokens(prepared.history)
+        return
+    prepared.history = _prepend_system_context(fitted, context)
+    # The context's own tokens are added rather than measured off the combined
+    # history: `count_tokens` prefers a provider usage anchor, which describes a
+    # request that did not carry this context, so measuring would leave the
+    # context uncounted for pacing and in `/usage`.
+    prepared.tokens = limiter.count_tokens(fitted) + context_tokens
+
+
+def _can_send_context_alone(
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+    reserved_tokens: int,
+    context: str,
+    model: object,
+) -> bool:
+    """Whether a hook's context fits beside the new message with no history at all.
+
+    Asked as a one-message history of its own, because `fit_context_window`
+    returns an empty history unchanged: on a first turn there is nothing to trim,
+    so an empty result says nothing about whether the context would have fitted.
+    """
+    probe = _prepend_system_context([], context)
+    fitted = limiter.fit_context_window(
+        probe, prompt_content, reserved_tokens, model=model
+    )
+    return bool(fitted)
 
 
 async def _pace_request(
