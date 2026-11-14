@@ -25,7 +25,7 @@ async def test_a_continuation_saves_the_new_history():
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.subagent.live_session.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("s", "a1", "and one more thing")
         await entry.active_task

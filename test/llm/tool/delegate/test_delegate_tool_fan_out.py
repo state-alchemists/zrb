@@ -68,7 +68,7 @@ async def test_delegate_fan_out_cap_disabled_by_zero(
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
-    with patch("zrb.llm.tool.delegate.runner.run_agent", side_effect=fake_run_agent):
+    with patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent):
         result = await tool(tasks=tasks)
 
     assert get_max_in_flight() == 5
@@ -91,7 +91,7 @@ async def test_background_fan_out_is_collected_as_completed(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             new_callable=AsyncMock,
             return_value=("ok", []),
         ),
@@ -129,7 +129,7 @@ async def test_delegate_non_goals_as_string(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+        "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
     ) as mock_run_agent:
         mock_run_agent.return_value = ("ok", [])
         await tool(
@@ -150,7 +150,7 @@ async def test_delegate_envelope_includes_active_worktree(mock_sub_agent_manager
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.get_active_worktree",
@@ -178,7 +178,7 @@ async def test_delegate_active_worktree_without_context(mock_sub_agent_manager):
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch("zrb.llm.tool.delegate.runner.get_active_worktree", return_value="/wt"),
     ):
@@ -195,7 +195,7 @@ async def test_delegate_recursion_error_surfaces_suggestion(mock_sub_agent_manag
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.runner.run_agent",
+        "zrb.llm.shared.subagent_turn.run_agent",
         new_callable=AsyncMock,
         side_effect=RecursionError(),
     ):
@@ -219,7 +219,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
     token = current_hook_manager.set(boom_manager)
     try:
         with patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent:
             mock_run_agent.return_value = ("ok", [])
             result = await tool(
@@ -261,7 +261,7 @@ async def test_delegate_fan_out_reports_failed_task(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+        "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
     ) as mock_run_agent:
         mock_run_agent.side_effect = [("Result OK", []), Exception("boom")]
         result = await tool(
@@ -312,7 +312,7 @@ async def test_fan_out_does_not_flush_routine_output_to_main(mock_sub_agent_mana
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             side_effect=run_and_write_to_buffer,
         ),
         patch("zrb.llm.tool.delegate.runner.get_current_ui", return_value=parent_ui),

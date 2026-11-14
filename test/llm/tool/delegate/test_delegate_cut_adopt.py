@@ -24,7 +24,7 @@ from zrb.llm.tool.delegate.background import (
     get_background_registry,
 )
 
-RUN_AGENT = "zrb.llm.tool.delegate.runner.run_agent"
+RUN_AGENT = "zrb.llm.shared.subagent_turn.run_agent"
 
 
 @pytest.fixture
