@@ -432,7 +432,9 @@ async def _prepare_history(
 
     Four stages, one per reason to change: reserve what the system prompt costs,
     let the history processors compact it, fit what survived into the window, and
-    pace the request against the per-minute budget.
+    pace the request against the per-minute budget. The fit runs a second time
+    after the POST_COMPACT hooks, because theirs is the one stage that can add to
+    the history after it has been fitted.
     """
     prepared = _PreparedRequest(history=message_history)
     # Counted before the processors so the summarizer's threshold includes it.
@@ -442,9 +444,11 @@ async def _prepare_history(
         prepared, agent, limiter, typed_prompt, effective_hook_manager
     )
     _fit_history_to_window(prepared, agent, limiter, prompt_content, print_fn)
-    await _announce_compaction(
+    hook_context = await _announce_compaction(
         prepared, limiter, typed_prompt, effective_hook_manager
     )
+    if hook_context:
+        _fit_hook_context(prepared, agent, limiter, prompt_content)
     await _pace_request(prepared, limiter, prompt_content, print_fn)
     return prepared
 
@@ -542,8 +546,12 @@ async def _announce_compaction(
     limiter: LLMLimiter,
     typed_prompt: str,
     hook_manager: HookManager,
-) -> None:
-    """Tell the POST_COMPACT hooks what the fit kept, and take their context."""
+) -> str:
+    """Tell the POST_COMPACT hooks what the fit kept, and take their context.
+
+    Answers with the context a hook added, `""` when none did: that is the one
+    addition the fit has already run past.
+    """
     postcompact_results = await hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {
@@ -565,13 +573,39 @@ async def _announce_compaction(
         trigger="auto",
     )
     postcompact_context = extract_additional_context(postcompact_results)
-    if postcompact_context:
-        prepared.history = _prepend_system_context(
-            prepared.history, postcompact_context
-        )
-        # Counted here rather than by re-walking the history: the hook's own
-        # context is the only part of the request the fit has not seen.
-        prepared.tokens += limiter.count_tokens(postcompact_context)
+    if not postcompact_context:
+        return ""
+    prepared.history = _prepend_system_context(prepared.history, postcompact_context)
+    # Counted here rather than by re-walking the history: the hook's own
+    # context is the only part of the request the fit has not seen.
+    prepared.tokens += limiter.count_tokens(postcompact_context)
+    return postcompact_context
+
+
+def _fit_hook_context(
+    prepared: "_PreparedRequest",
+    agent: "Agent[None, Any]",
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+) -> None:
+    """Trim again when a POST_COMPACT hook's own context joined the history.
+
+    The fit runs before the hooks, so the counts they are handed describe what is
+    sent; that leaves the hook's context as the one part no fit has seen, and a
+    hook that injects more than the fit left would put the request over the
+    window, which a provider refuses outright rather than trims. The trim takes
+    whole turns off the front, so an oversized injection goes with the oldest
+    turns -- a request that cannot be sent helps nobody.
+    """
+    fitted = limiter.fit_context_window(
+        prepared.history,
+        prompt_content,
+        prepared.reserved_tokens,
+        model=getattr(agent, "model", None),
+    )
+    if len(fitted) != len(prepared.history):
+        prepared.history = fitted
+        prepared.tokens = limiter.count_tokens(prepared.history)
 
 
 async def _pace_request(
