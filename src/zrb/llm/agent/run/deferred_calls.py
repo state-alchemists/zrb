@@ -17,7 +17,12 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.agent.shell_judge import judge_or_unknown, shell_command_args
+from zrb.llm.agent.shell_judge import judge_or_unknown
+from zrb.llm.tool_call.shell_call import (
+    shell_command,
+    shell_command_args,
+    is_sandbox_off,
+)
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
@@ -429,9 +434,9 @@ async def _apply_shell_judge(
     # The invariant every other approval path in this cascade keeps: a request
     # to leave the sandbox is a request for a human, however ordinary the
     # command is. `ls /etc` with `dangerously_skip_sandbox` is not "safe".
-    sandbox_off = bool(args.get("dangerously_skip_sandbox"))
+    sandbox_off = is_sandbox_off(args)
     verdict = await judge_or_unknown(
-        str(args.get("command", "")),
+        shell_command(args),
         cwd=str(args.get("cwd") or ""),
         sandbox_off=sandbox_off,
     )

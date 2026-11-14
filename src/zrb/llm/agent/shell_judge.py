@@ -49,8 +49,6 @@ from zrb.util.truncate import truncate_display
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from zrb.llm.agent.types import ToolCallPart
-
 # A judge that has not answered by now is not going to answer usefully. The
 # prompt has waited behind it, so the bound is the person's patience, not the
 # model's.
@@ -69,17 +67,10 @@ _VERDICT_LINE = re.compile(
     r"^\s*(safe|caution|dangerous)\s*[:\-—–]\s*(.*)$", re.IGNORECASE
 )
 
-# The shell tool's runtime name. A deferred `ToolCallPart` carries no capability
-# tag — `tool_capability` answers UNKNOWN for one, since the tag lives on the
-# registered callable — so this gate cannot ask about capability. It asks about
-# the name, which is what `shell_formatter` and `bash_safe_command_policy`
-# already do for the same call.
-_SHELL_TOOL_NAME = "Shell"
-
-# The argument that makes a call a shell command rather than something else that
-# happens to be an `EXECUTE` tool: `RunZrbTask` carries a task name, and judging
-# a task name against a shell-command rubric reads noise as risk.
-_SHELL_ARG = "command"
+# The shell tool's runtime name and command argument live in
+# `tool_call/shell_call.py`: the approval formatter, the read-only policy and
+# this judge all have to recognise the same call, and one of them owning the
+# shape is what keeps them from recognising it three slightly different ways.
 
 
 @dataclass(frozen=True)
@@ -95,31 +86,6 @@ class ShellVerdict:
         a prompt: a truncated or malformed answer can name a level with nothing
         behind it, and that is a judge that did not decide."""
         return self.level == JUDGE_SAFE and bool(self.reason.strip())
-
-
-def shell_command_args(call: "ToolCallPart") -> dict | None:
-    """The arguments of *call* when it is a shell command worth judging.
-
-    Returning the parsed dict rather than a boolean keeps the cascade from
-    parsing the same arguments twice to ask two questions about them.
-    """
-    # lazy: heavy third-party
-    from zrb.llm.util.tool_args import parse_tool_args
-
-    if call.tool_name != _SHELL_TOOL_NAME:
-        return None
-    args = parse_tool_args(call)
-    if not isinstance(args, dict):
-        return None
-    command = args.get(_SHELL_ARG)
-    if not isinstance(command, str) or not command.strip():
-        return None
-    return args
-
-
-def is_judgeable_shell_call(call: "ToolCallPart") -> bool:
-    """Whether *call* is a shell command with text worth judging."""
-    return shell_command_args(call) is not None
 
 
 def parse_verdict(output: str) -> ShellVerdict:
@@ -273,8 +239,6 @@ __all__ = [
     "ShellVerdict",
     "ShellJudgeError",
     "JUDGE_TIMEOUT_SECONDS",
-    "is_judgeable_shell_call",
-    "shell_command_args",
     "judge_or_unknown",
     "judge_shell_command",
     "parse_verdict",

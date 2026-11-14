@@ -10,11 +10,9 @@ from zrb.llm.agent.shell_judge import (
     JUDGE_TIMEOUT_SECONDS,
     ShellJudgeError,
     ShellVerdict,
-    is_judgeable_shell_call,
     judge_or_unknown,
     judge_shell_command,
     parse_verdict,
-    shell_command_args,
     uncommitted_files,
 )
 from zrb.llm.tool_call.judge_note import (
@@ -27,16 +25,6 @@ from zrb.llm.tool_call.judge_note import (
 _CREATE_AGENT = "zrb.llm.agent.shell_judge.create_agent"
 _DIRT = "zrb.llm.agent.shell_judge.uncommitted_files"
 _TIMEOUT = "zrb.llm.agent.shell_judge.JUDGE_TIMEOUT_SECONDS"
-
-
-def _call(command: object = "ls", tool_name: str = "Shell"):
-    """A call exactly as the approval cascade receives one: a bare
-    `ToolCallPart`, carrying no capability metadata."""
-    from zrb.llm.agent.types import ToolCallPart
-
-    return ToolCallPart(
-        tool_name=tool_name, args={"command": command}, tool_call_id="call-1"
-    )
 
 
 def _answering(output: str):
@@ -220,32 +208,6 @@ async def test_the_call_s_usage_is_logged_when_it_reports_one():
         verdict = await judge_shell_command("ls")
     assert verdict.level == JUDGE_SAFE
     assert any("Shell judge usage" in str(call) for call in debug.call_args_list)
-
-
-def test_a_bare_deferred_call_is_judged():
-    """The regression the review of #908 caught: a deferred `ToolCallPart`
-    carries no capability metadata, so a gate that asks `tool_capability` never
-    matches and the judge silently never runs."""
-    call = _call("ls")
-    assert shell_command_args(call) == {"command": "ls"}
-    assert is_judgeable_shell_call(call)
-
-
-def test_only_the_shell_tool_is_judged():
-    assert not is_judgeable_shell_call(_call("ls", tool_name="RunZrbTask"))
-    assert not is_judgeable_shell_call(_call("", tool_name="Shell"))
-    assert not is_judgeable_shell_call(_call("   "))
-    assert not is_judgeable_shell_call(_call(None))
-    assert not is_judgeable_shell_call(_call(42))
-
-
-def test_args_that_are_not_an_object_are_not_a_shell_command():
-    """`parse_tool_args` hands back whatever the JSON said; a list is not a
-    command, and reading `.get` off it would raise inside the cascade."""
-    from zrb.llm.agent.types import ToolCallPart
-
-    call = ToolCallPart(tool_name="Shell", args='["ls"]', tool_call_id="c")
-    assert not is_judgeable_shell_call(call)
 
 
 def test_uncommitted_files_counts_what_git_reports(tmp_path):
