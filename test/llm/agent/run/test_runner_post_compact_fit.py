@@ -12,6 +12,8 @@ from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResu
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
 
+CONTEXT = "ctx"
+
 
 def _run_from(agen_func):
     """Wrap an async generator into an ``agent.run(event_stream_handler=...)`` mock."""
@@ -37,10 +39,11 @@ def _run_from(agen_func):
     return fake_run
 
 
-def _agent_with_one_result() -> MagicMock:
-    """A mock agent whose stream yields one result and then ends."""
+def _agent_handed_a_history() -> MagicMock:
+    """A mock agent that yields one result and records the history it was sent."""
     agent = MagicMock()
     agent.model = "deepseek:deepseek-flash"
+    agent.sent = []
     result = MagicMock()
     result.output = "Result"
     result.all_messages.return_value = []
@@ -48,22 +51,28 @@ def _agent_with_one_result() -> MagicMock:
     async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=result)
 
-    agent.run = _run_from(_gen)
+    run = _run_from(_gen)
+
+    async def recording_run(*args, **kwargs):
+        agent.sent.append(kwargs.get("message_history"))
+        return await run(*args, **kwargs)
+
+    agent.run = recording_run
     return agent
 
 
-def _limiter_fitting_twice() -> MagicMock:
-    """A limiter whose first fit keeps the history and whose second one drops turns."""
+def _limiter(fit) -> MagicMock:
+    """A limiter whose ``fit_context_window`` is *fit*; everything else is constant."""
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 1000
     limiter.get_effective_context_window.return_value = 1000
     limiter.count_tokens.return_value = 10
     limiter.acquire = AsyncMock()
-    limiter.fit_context_window.side_effect = [list(range(3)), [0]]
+    limiter.fit_context_window.side_effect = fit
     return limiter
 
 
-async def _turn(agent: MagicMock, limiter: MagicMock, hook: HookCallable) -> None:
+async def _turn(agent, limiter, hook: HookCallable, print_fn=print) -> None:
     """Run one turn of three messages through *hook*'s POST_COMPACT event."""
     manager = HookManager(search_dirs=[])
     manager.add_hook(hook, events=[HookEvent.POST_COMPACT])
@@ -76,27 +85,76 @@ async def _turn(agent: MagicMock, limiter: MagicMock, hook: HookCallable) -> Non
             message_history=[MagicMock() for _ in range(3)],
             limiter=limiter,
             hook_manager=manager,
+            print_fn=print_fn,
         )
 
 
-@pytest.mark.asyncio
-async def test_a_post_compact_hook_s_context_is_fitted_into_the_window():
-    """The fit runs before the hooks, so their context is the one part no fit has seen.
+def _answers_with_context() -> HookCallable:
+    async def post_compact(context: HookContext) -> HookResult:
+        return HookResult(success=True, modifications={"additionalContext": CONTEXT})
 
-    Sent as-is it can put the request over the window, which a provider refuses
-    rather than trims, so the trim runs once more after it has joined.
+    return post_compact
+
+
+@pytest.mark.asyncio
+async def test_the_context_is_fitted_around_and_prepended_after():
+    """The trim takes whole turns off the front, so the context cannot be in that list.
+
+    Its cost is reserved while the history is fitted, and the context joins the
+    request only afterwards, where no trim can reach it.
     """
 
-    async def post_compact(context: HookContext) -> HookResult:
-        return HookResult(success=True, modifications={"additionalContext": "ctx"})
+    def fit(history, new_message, reserved_tokens=0, model=None):
+        return list(history)
 
-    limiter = _limiter_fitting_twice()
-    await _turn(_agent_with_one_result(), limiter, post_compact)
+    limiter = _limiter(fit)
+    agent = _agent_handed_a_history()
+    await _turn(agent, limiter, _answers_with_context())
 
-    assert limiter.fit_context_window.call_count == 2
-    second_history = limiter.fit_context_window.call_args_list[1].args[0]
-    assert len(second_history) == 4, "the hook's context joined before the second fit"
-    assert isinstance(second_history[0].parts[0], SystemPromptPart)
+    second = limiter.fit_context_window.call_args_list[1]
+    assert len(second.args[0]) == 3, "the fit is handed the history, not the context"
+    assert second.args[2] == 10, "the context's own tokens are reserved"
+    sent = agent.sent[0]
+    assert len(sent) == 4
+    assert isinstance(sent[0].parts[0], SystemPromptPart)
+    assert sent[0].parts[0].content == CONTEXT
+
+
+@pytest.mark.asyncio
+async def test_a_trim_cannot_drop_the_hook_s_context():
+    """The finding: the context was the first message, so the trim took it first."""
+
+    def fit(history, new_message, reserved_tokens=0, model=None):
+        return list(history) if reserved_tokens == 0 else list(history[-1:])
+
+    limiter = _limiter(fit)
+    agent = _agent_handed_a_history()
+    await _turn(agent, limiter, _answers_with_context())
+
+    sent = agent.sent[0]
+    assert len(sent) == 2, "the history was trimmed to its newest turn, and no further"
+    assert isinstance(sent[0].parts[0], SystemPromptPart)
+    assert sent[0].parts[0].content == CONTEXT
+
+
+@pytest.mark.asyncio
+async def test_a_context_too_large_to_send_is_dropped_and_said_out_loud():
+    """Sending it is a provider error every turn; losing it silently is worse."""
+
+    def fit(history, new_message, reserved_tokens=0, model=None):
+        return [] if reserved_tokens else list(history[-1:])
+
+    printed: list[str] = []
+    limiter = _limiter(fit)
+    agent = _agent_handed_a_history()
+    await _turn(
+        agent, limiter, _answers_with_context(), print_fn=printed.append
+    )
+
+    sent = agent.sent[0]
+    assert len(sent) == 1, "only the newest turn survives"
+    assert not any(isinstance(part, SystemPromptPart) for part in sent[0].parts)
+    assert any("POST_COMPACT hook context dropped" in line for line in printed)
 
 
 @pytest.mark.asyncio
@@ -106,7 +164,7 @@ async def test_a_turn_with_no_hook_context_fits_once():
     async def silent(context: HookContext) -> HookResult:
         return HookResult()
 
-    limiter = _limiter_fitting_twice()
-    await _turn(_agent_with_one_result(), limiter, silent)
+    limiter = _limiter(lambda history, new_message, reserved_tokens=0, model=None: [])
+    await _turn(_agent_handed_a_history(), limiter, silent)
 
     assert limiter.fit_context_window.call_count == 1
