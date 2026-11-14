@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -82,6 +83,7 @@ async def judge_barge_in(
             agent.run(command),
             timeout if timeout is not None else DEFAULT_JUDGE_TIMEOUT_SECONDS,
         )
+        record_agent_usage(result, component=COMPONENT_OTHER)
         return result.output
     except asyncio.CancelledError:
         # A turn being cancelled is not a judge that failed: let it unwind.

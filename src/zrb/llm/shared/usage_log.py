@@ -16,12 +16,16 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from zrb.config.config import CFG
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.feature_config import get_session_ui
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -52,6 +56,78 @@ KIND_TURN = "turn"
 """One agent round: what a conversation's turn consumed."""
 KIND_SUMMARIZATION = "summarization"
 """One compaction: what replacing a history with a summary consumed."""
+
+# Which model call a line belongs to. `kind` says *when* the work happened and
+# this says *who* spent the tokens; a compaction is both, a hook's review is
+# neither. The vocabulary is deliberately short: a component earns a name when a
+# reader would act differently on seeing it in `/usage`, not because it is a
+# distinct module. `COMPONENT_OTHER` is the honest name for a call site nobody
+# has tagged yet — never drop such a line, which would lose tokens the user paid
+# for.
+COMPONENT_MAIN = "main_agent"
+"""The conversation's own rounds."""
+COMPONENT_SUMMARIZER = "summarizer"
+"""One compaction, whole."""
+COMPONENT_HOOK = "hook_agent"
+"""An AGENT-type hook: the memory reviewer, the self-review gate, the week note."""
+COMPONENT_AUTO_NAMER = "auto_namer"
+"""The topic slug a conversation gets after its first message."""
+COMPONENT_SHELL_JUDGE = "shell_judge"
+"""The approval judge (ADR-0141)."""
+COMPONENT_SUBAGENT = "subagent"
+"""A delegated sub-agent's own rounds."""
+COMPONENT_OTHER = "other"
+"""A call site that is not tagged yet."""
+
+# What every existing line was. Before this field existed only two modules wrote
+# one, so a line's kind names its component without a guess: a compaction line
+# was the summarizer, and everything else was the turn runner.
+_LEGACY_COMPONENT = {
+    KIND_SUMMARIZATION: COMPONENT_SUMMARIZER,
+}
+
+# Set while a nested run is not the conversation's own: the sub-agent that owns
+# the run tags it, and every line written underneath inherits it without the
+# call sites knowing who called them.
+_current_component: ContextVar[str] = ContextVar(
+    "usage_component", default=COMPONENT_MAIN
+)
+
+
+@contextmanager
+def usage_component(component: str) -> Iterator[None]:
+    """Attribute every line written inside this block to *component*."""
+    token = _current_component.set(component)
+    try:
+        yield
+    finally:
+        _current_component.reset(token)
+
+
+def current_component() -> str:
+    """The component a line written right now belongs to."""
+    return _current_component.get()
+
+
+def current_conversation_name() -> str:
+    """The conversation a line written right now belongs to, or "".
+
+    The session's own UI is the authority, because it is the one the user sees
+    and it is bound for the whole conversation (`_bound_session_ui`), so a
+    compaction, a judge, a hook and a namer all read the same name. A run's UI
+    is the fallback for a headless task that was handed one.
+
+    A name here is not the identity: `UsageRecord.session_key` strips the slug a
+    rename appends, so a name read before a rename still files the line in the
+    same conversation.
+    """
+    for ui in (get_session_ui(), get_current_ui()):
+        session = getattr(ui, "session", None)
+        name = getattr(session, "conversation_session_name", "")
+        if name:
+            return str(name)
+    return ""
+
 
 # Why a compaction ran, as its record spells it. `LIMIT_TOKEN` and
 # `LIMIT_MESSAGE` can appear together: a history can cross both checks at once.
@@ -132,6 +208,9 @@ class UsageRecord:
     unmeasured_requests: int
     duration_ms: int
     cost: float | None
+    # Which model call spent these tokens. A line written before this field
+    # existed reads back by its kind, which names it without a guess.
+    component: str = COMPONENT_MAIN
     # Calls and failures per tool name. A line without them reads back as empty.
     tool_counts: dict[str, int] = field(default_factory=dict)
     tool_errors: dict[str, int] = field(default_factory=dict)
@@ -173,13 +252,15 @@ class UsageRecord:
     def from_dict(cls, raw: dict[str, object]) -> UsageRecord:
         """Rebuild a record; raises when *raw* is not one."""
         counts = {name: _as_int(raw, name) for name in _INT_FIELDS}
+        kind = str(raw["kind"])
         return cls(
             timestamp=as_datetime(raw["timestamp"]),
             model=str(raw["model"]),
             session=str(raw["session"]),
-            kind=str(raw["kind"]),
+            kind=kind,
             duration_ms=_as_int(raw, "duration_ms"),
             cost=_as_cost(raw.get("cost")),
+            component=str(raw.get("component") or _LEGACY_COMPONENT.get(kind, COMPONENT_MAIN)),
             tool_counts=_as_name_counts(raw.get("tool_counts")),
             tool_errors=_as_name_counts(raw.get("tool_errors")),
             compaction=_as_compaction(raw.get("compaction")),
@@ -252,8 +333,13 @@ def record_usage(
     when: datetime | None = None,
     tool_counts: dict[str, int] | None = None,
     tool_errors: dict[str, int] | None = None,
+    component: str | None = None,
 ) -> UsageRecord | None:
     """Append one run to the log.
+
+    *component* names what spent the tokens; left out, it is whatever
+    `usage_component` set around the call, and `main_agent` outside one.
+    *session* left empty is the ambient conversation's — see `record_totals`.
 
     Returns the record that was written, or ``None`` when the log could not be
     written — a full disk or a read-only home must not fail the turn that
@@ -269,6 +355,7 @@ def record_usage(
         when=when,
         tool_counts=tool_counts,
         tool_errors=tool_errors,
+        component=component,
     )
 
 
@@ -282,10 +369,19 @@ def record_totals(
     tool_counts: dict[str, int] | None = None,
     tool_errors: dict[str, int] | None = None,
     compaction: CompactionDetail | None = None,
+    component: str | None = None,
 ) -> UsageRecord | None:
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
         return None
+    if not session:
+        # An auxiliary call — the judge, a hook, the namer, a side question —
+        # runs inside a conversation and is never handed its name. Without
+        # this its tokens land in `today` and never in `/usage session`, which
+        # is the window the new section is read in. `session_key` strips the
+        # slug a rename appends, so an older name still names the same
+        # conversation.
+        session = current_conversation_name()
     record = UsageRecord(
         timestamp=when if when is not None else datetime.now(timezone.utc),
         model=totals.model,
@@ -293,12 +389,54 @@ def record_totals(
         kind=kind,
         duration_ms=duration_ms,
         cost=totals.cost,
+        component=component if component is not None else current_component(),
         tool_counts=dict(tool_counts or {}),
         tool_errors=dict(tool_errors or {}),
         compaction=compaction,
         **{name: getattr(totals, name) for name in _INT_FIELDS},
     )
     return _write_record(record)
+
+
+def record_agent_usage(
+    result: object,
+    *,
+    component: str,
+    model: str = "",
+    session: str = "",
+    duration_ms: int = 0,
+    when: datetime | None = None,
+) -> UsageRecord | None:
+    """Write one line for a finished `agent.run(...)`, under *component*.
+
+    Every auxiliary model call zrb makes has a `RunResult` in hand when it
+    finishes and no line in the log, because the only writer was the turn
+    runner. This is that writer for them: it takes the result, so a call site
+    does not have to know whether usage is a method or an attribute on the
+    object its agent returns, and it writes through `record_usage`, so an empty
+    run still writes nothing.
+
+    *session* left empty is the conversation the call ran inside: an auxiliary
+    call is never handed a name, and a judge's tokens should count toward the
+    session whose command it judged.
+    """
+    usage = getattr(result, "usage", None)
+    if callable(usage):
+        usage = usage()
+    if usage is None:
+        return None
+    if not model:
+        # The agent answers with the model it actually used, which is more than
+        # a call site knows: the request may have been routed or defaulted.
+        model = str(getattr(getattr(result, "response", None), "model_name", "") or "")
+    return record_usage(
+        cast("RunUsage", usage),
+        model=model,
+        session=session,
+        duration_ms=duration_ms,
+        component=component,
+        when=when,
+    )
 
 
 def _write_record(record: UsageRecord) -> UsageRecord | None:

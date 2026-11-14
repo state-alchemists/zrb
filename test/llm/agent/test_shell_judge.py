@@ -15,6 +15,7 @@ from zrb.llm.agent.shell_judge import (
     parse_verdict,
     uncommitted_files,
 )
+from zrb.llm.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
 from zrb.llm.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
@@ -228,3 +229,23 @@ def test_uncommitted_files_says_when_the_directory_is_gone(tmp_path):
 
 def test_a_timeout_is_a_number_of_seconds():
     assert JUDGE_TIMEOUT_SECONDS > 0
+
+
+@pytest.mark.asyncio
+async def test_the_call_is_written_to_the_usage_log(tmp_path, monkeypatch):
+    """ADR-0141 left this open: the judge's tokens reached a debug line and
+    nothing a person reads. M0 attributes them to their own component."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path), raising=False)
+    usage = SimpleNamespace(input_tokens=11, output_tokens=2, cache_read_tokens=0)
+    agent = SimpleNamespace(
+        run=AsyncMock(
+            return_value=SimpleNamespace(output="SAFE: read-only", usage=usage)
+        )
+    )
+    with patch(_CREATE_AGENT, lambda **kwargs: agent), patch(_DIRT, return_value="0"):
+        await judge_shell_command("ls")
+    assert [record.component for record in read_records(directory=str(tmp_path))] == [
+        COMPONENT_SHELL_JUDGE
+    ]

@@ -22,6 +22,7 @@ from zrb.llm.hook.execution.process_kill import (
 )
 from zrb.llm.shared.agent_runner import create_agent
 from zrb.llm.shared.agent_state import current_nested_run, get_current_model
+from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -383,6 +384,10 @@ async def run_llm_hook(
             current_nested_run.reset(token)
 
         output_text = str(result.output)
+        # No `model=`: this is the configured name, and `create_agent` resolved
+        # it above. The result's own response names the model that served the
+        # request, which is what `/usage` groups by.
+        record_agent_usage(result, component=COMPONENT_HOOK)
         return HookResult(
             success=True,
             output=output_text,

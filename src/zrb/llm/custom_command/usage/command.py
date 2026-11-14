@@ -50,6 +50,7 @@ PERIODS = ("session", "today", "week", "all")
 _DEFAULT_PERIOD = "all"
 _WEEK_DAYS = 7
 _MODEL_WIDTH = 32
+_COMPONENT_WIDTH = 14
 _UNPRICED = "—"
 _INPUT = "input_tokens"
 _OUTPUT = "output_tokens"
@@ -138,6 +139,7 @@ def render_usage(
     if resume_line:
         sections.append(resume_line)
     for extra in (
+        _component_section(records),
         _compaction_section(records),
         render_tools_section(
             turns,
@@ -152,6 +154,56 @@ def render_usage(
         if extra:
             sections.extend(["", *extra])
     return "\n".join(sections)
+
+
+def _component_section(records: list[UsageRecord]) -> list[str]:
+    """Who spent the tokens, when more than one thing did.
+
+    The table above is per model, because a model is what a provider bills for;
+    this is per caller, because "the turn cost 120k" and "the memory reviewer
+    cost 40k of it" are two questions about the same money. A window where
+    everything was the conversation's own rounds gets no section — one row
+    saying so is a line to read and nothing to learn, and every log written
+    before this field existed is such a window.
+    """
+    grouped = _group_by_component(records)
+    if len(grouped) < 2:
+        return []
+    total_input = _total(records, _INPUT)
+    ordered = sorted(grouped.items(), key=lambda item: -_total(item[1], _INPUT))
+    header = (
+        f"  {'component':<{_COMPONENT_WIDTH}}{'runs':>6}{'input':>10}"
+        f"{'output':>10}{'share':>7}"
+    )
+    return [
+        "  Who spent it",
+        header,
+        *(
+            f"    {_component_row(component, runs, total_input)}"
+            for component, runs in ordered
+        ),
+    ]
+
+
+def _component_row(
+    component: str, runs: list[UsageRecord], total_input: int
+) -> str:
+    """One component row: its name, and the four numbers a reader compares."""
+    share = f"{_total(runs, _INPUT) / total_input:.0%}" if total_input else _UNPRICED
+    return (
+        f"{component:<{_COMPONENT_WIDTH}}"
+        f"{len(runs):>6}"
+        f"{_tokens(_total(runs, _INPUT)):>10}"
+        f"{_tokens(_total(runs, _OUTPUT)):>10}"
+        f"{share:>7}"
+    )
+
+
+def _group_by_component(records: list[UsageRecord]) -> dict[str, list[UsageRecord]]:
+    grouped: dict[str, list[UsageRecord]] = {}
+    for record in records:
+        grouped.setdefault(record.component or "other", []).append(record)
+    return grouped
 
 
 def _compaction_section(records: list[UsageRecord]) -> list[str]:

@@ -10,6 +10,8 @@ from zrb.llm.custom_command.usage.command import create_usage_commands, render_u
 from zrb.llm.memory.model import Diary, Fact
 from zrb.llm.shared.usage_log import (
     COMPACTION_FORCED,
+    COMPONENT_MAIN,
+    COMPONENT_SHELL_JUDGE,
     KIND_SUMMARIZATION,
     LIMIT_MESSAGE,
     CompactionDetail,
@@ -261,3 +263,22 @@ def test_a_forced_compaction_says_so_without_inventing_a_measurement(usage_dir):
 
     assert "forced · 84 message(s)" in out
     assert "0 of" not in out
+
+
+def test_a_window_spent_by_one_thing_draws_no_breakdown(usage_dir):
+    """Every line written before this field existed is such a window: one row
+    saying "all of it was the turn" is a line to read and nothing to learn."""
+    out = render_usage([_record(), _record()], "label", registered_tools=[])
+    assert "Who spent it" not in out
+
+
+def test_a_window_spent_by_two_things_says_how_much_each(usage_dir):
+    records = [
+        _record(component=COMPONENT_MAIN),
+        _record(component=COMPONENT_SHELL_JUDGE),
+    ]
+    out = render_usage(records, "label", registered_tools=[])
+    assert "  Who spent it" in out
+    rows = [line for line in out.splitlines() if "shell_judge" in line]
+    assert rows, out
+    assert "50%" in rows[0], rows[0]
