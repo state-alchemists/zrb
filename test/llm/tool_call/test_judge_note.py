@@ -21,17 +21,20 @@ def test_a_recorded_verdict_reads_back_and_draws_one_line():
     record_judge_note("call-1", JUDGE_CAUTION, "discards uncommitted work")
     assert read_judge_note("call-1") == (JUDGE_CAUTION, "discards uncommitted work")
     assert format_judge_line("call-1") == (
-        "       ⚠ judged caution: discards uncommitted work\n"
+        "       judged caution: discards uncommitted work\n"
     )
 
 
-def test_each_level_gets_its_own_glyph():
+def test_the_line_names_its_level_in_words_not_glyphs():
+    """An emoji's column width is the terminal's choice, so a verdict drawn
+    with one shifts between machines. The level word carries it instead."""
     record_judge_note("safe", JUDGE_SAFE, "read-only listing")
     record_judge_note("dangerous", JUDGE_DANGEROUS, "runs a remote script")
     record_judge_note("unknown", JUDGE_UNKNOWN, "the judge did not finish")
-    assert "⚖" in format_judge_line("safe")
-    assert "🛑" in format_judge_line("dangerous")
-    assert "❔" in format_judge_line("unknown")
+    assert format_judge_line("safe") == "       judged safe: read-only listing\n"
+    assert "judged dangerous: " in format_judge_line("dangerous")
+    assert "judged unknown: " in format_judge_line("unknown")
+    assert format_judge_line("safe").isascii()
 
 
 def test_an_unrecorded_call_draws_nothing():
@@ -44,14 +47,14 @@ def test_a_reason_that_spans_lines_draws_one():
     as the command to check, not as more of the verdict."""
     record_judge_note("multiline", JUDGE_CAUTION, "deletes build/\n  with no undo\tnow")
     drawn = format_judge_line("multiline")
-    assert _lines(drawn) == ["       ⚠ judged caution: deletes build/ with no undo now"]
+    assert _lines(drawn) == ["       judged caution: deletes build/ with no undo now"]
 
 
 def test_control_characters_cannot_redraw_the_prompt():
     record_judge_note("escapes", JUDGE_DANGEROUS, "\x1b[2Jwipes the screen first")
     drawn = format_judge_line("escapes")
     assert "\x1b" not in drawn
-    assert _lines(drawn) == ["       🛑 judged dangerous: [2Jwipes the screen first"]
+    assert _lines(drawn) == ["       judged dangerous: [2Jwipes the screen first"]
 
 
 def test_a_long_reason_is_clamped():
@@ -62,7 +65,7 @@ def test_a_long_reason_is_clamped():
 
 def test_an_empty_reason_still_names_the_level():
     record_judge_note("empty", JUDGE_CAUTION, "   ")
-    assert format_judge_line("empty") == "       ⚠ judged: caution\n"
+    assert format_judge_line("empty") == "       judged: caution\n"
 
 
 def test_reading_does_not_consume_the_line():

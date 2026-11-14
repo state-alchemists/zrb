@@ -29,16 +29,11 @@ JUDGE_UNKNOWN = "unknown"
 # short enough that the command below it still reads as the thing to check.
 MAX_JUDGE_REASON_CHARS = 200
 
-# A level is one of four words; anything else is a model that ignored the
-# schema, which is the same as no answer. Bare codepoints, no U+FE0F: a
-# variation selector renders one column narrow in many terminals.
-_GLYPHS = {
-    JUDGE_SAFE: "⚖",
-    JUDGE_CAUTION: "⚠",
-    JUDGE_DANGEROUS: "🛑",
-    JUDGE_UNKNOWN: "❔",
-}
-
+# The line carries no glyph, on purpose. An emoji's width is not the
+# character's to promise: the terminal picks text or emoji presentation, and
+# with it one column or two, so four glyphs chosen for a column set land at
+# four different offsets on four machines. The level word is the marker, and
+# it has to be in the line anyway.
 _pending: dict[str, tuple[str, str]] = {}
 
 
@@ -76,10 +71,9 @@ def format_judge_line(tool_call_id: str | None) -> str:
     if note is None:
         return ""
     level, reason = note
-    glyph = _GLYPHS.get(level, _GLYPHS[JUDGE_UNKNOWN])
     printable = "".join(char if char.isprintable() else " " for char in reason)
     shown = " ".join(printable.split())
     if not shown:
-        return f"       {glyph} judged: {level}\n"
+        return f"       judged: {level}\n"
     shown = truncate_display(shown, MAX_JUDGE_REASON_CHARS)
-    return f"       {glyph} judged {level}: {shown}\n"
+    return f"       judged {level}: {shown}\n"
