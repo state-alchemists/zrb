@@ -7,6 +7,7 @@ When the agent wants to run a tool that needs your approval, zrb shows a prompt 
 ```
   🎰 Executing tool 'Shell'
        🎯 Deleting the build directory before a clean rebuild
+       judged caution: removes build/ with no undo
        rm -rf build
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
@@ -14,6 +15,8 @@ When the agent wants to run a tool that needs your approval, zrb shows a prompt 
 The `🎯` line is the call's `purpose`: one short phrase, written by the model, saying what the call is *for*. Every tool that carries one shows it, above whatever body the tool has, and it is the same line a listener hears when [speech](voice-camera.md) narrates the call — so the dialog and the voice cannot disagree about why it runs. It is taken out of the arguments below it, so the prompt says it once.
 
 What that shows depends on the tool. `Shell`'s command is syntax-highlighted for the shell that will run it — the fence grows past any backtick line the command carries, so the command is shown whole rather than partly re-read as Markdown — and any argument that departs from its default — `cwd`, `timeout`, `max_chars`, `shell`, `background`, `dangerously_skip_sandbox` — is listed under it. `Write` and `Edit` show a diff; trailing whitespace and tabs are marked (`·` and `→`) so a change that only removes whitespace is visible rather than looking like a line deleted and added back. Any other tool shows its arguments as YAML.
+
+The `judged …` line appears only when the [shell judge](../configuration/llm-tools.md#shell-command-judge) ran: `LLM_SHELL_JUDGE_ENABLED=on` puts one small model between your rules and this prompt, and it writes one line saying what it saw — `safe`, `caution`, `dangerous`, or `unknown` when it could not finish. It is an annotation, not a gate. Every level but `safe` still asks, and it skips the prompt only when `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` is also on, nothing else in the chain said ask, and the call is not asking to leave the sandbox. It cannot redraw the prompt: the reason is flattened to one line and cut at 200 characters, and a level with no reason reads as `unknown`.
 
 Three ordered lists on `LLMChatTask` control everything about that prompt — whether it appears, what it shows, and what your answer means:
 

@@ -16,6 +16,7 @@ The agent's tools and what feeds them: web search, hooks, skill and agent discov
   - [Search Priority](#search-priority)
   - [Directory Structure](#directory-structure)
 - [LSP Server Selection](#lsp-server-selection)
+- [Shell Command Judge](#shell-command-judge)
 - [Sandbox Configuration](#sandbox-configuration)
 
 ---
@@ -163,6 +164,27 @@ export ZRB_LLM_SANDBOX_WRITABLE_PATHS="$PWD:$HOME/.zrb/wt"
 ```
 
 Leaving `LLM_SANDBOX_WRITABLE_PATHS` empty is the automatic set: the current directory, the system temp directory, and `LLM_WORKTREE_DIR`. The default configuration therefore needs no entry.
+
+## Shell Command Judge
+
+One small-model opinion on whether a shell command looks like what it says, written as one line above the approval prompt. Off by default, in both halves.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SHELL_JUDGE_ENABLED` | Judge each `Shell` call that reaches the prompt: one small-model call, one line saying what it saw. Costs a call per judged command and grants nothing. | `off` |
+| `ZRB_LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` | A `safe` verdict skips the prompt entirely. Meaningless without the first knob. Costs the judge's misses. | `off` |
+
+```python
+from zrb import CFG
+CFG.LLM_SHELL_JUDGE_ENABLED = "on"
+CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED = "on"
+```
+
+The judge answers `safe`, `caution`, `dangerous`, or `unknown`. Only `safe` — *with a reason*, since a bare `SAFE:` is read as `unknown` — may skip a prompt, and only when nothing above it in the [precedence chain](../llm/permission-policy.md#the-precedence-chain) said ask: a permission `ask` you wrote, a `PreToolUse` hook's `permissionDecision: "ask"`, and a call carrying `dangerously_skip_sandbox` all still reach a person however ordinary the command is. A judge that times out (20 seconds) or fails answers `unknown`, and the prompt then says the command went unjudged.
+
+It is **reasoning-blind** on purpose: it reads the command, the directory, whether the sandbox is off, and how many uncommitted files the repository holds. Not the conversation, not the assistant's own text. And it is not a security boundary — that is the [sandbox](llm-tools.md#sandbox-configuration); this is a prompt filter that fails closed. [ADR-0141](../adr/adr-0141.md) records the placement and the reasoning.
+
+Its spend shows in `/usage` as the `shell_judge` row of *Who spent it*. The prompt it produces is in [Customizing Tool Approval](../llm/tool-approval.md).
 
 ## Sandbox Configuration
 
