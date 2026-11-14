@@ -28,16 +28,10 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.permission.state import (
-    AgentMode,
-    get_current_agent_mode,
-    set_current_agent_mode,
-)
 from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.shared.input_source import (
     BACKGROUND_INPUT,
@@ -77,15 +71,12 @@ from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.fallback.resolution import create_combined_ui
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.turn_execution import run_turn
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
-from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.util.spoken import shown_text
-from zrb.session.any_session import AnySession
-from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.style import stylize_muted
-from zrb.util.exception import exception_summary
 from zrb.util.string.name import get_random_name
 from zrb.util.todo.duration import parse_duration
 from zrb.xcom.xcom import Xcom
@@ -451,6 +442,17 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self._base_status_bar.start_working()
         else:
             self._base_status_bar.stop_working()
+
+    def set_thinking(self, value: bool, repaint: bool = True) -> None:
+        """Mark the turn as thinking, or done, and repaint.
+
+        *repaint* is ``False`` from the end of a turn, where the caller paints
+        once after refreshing the system info, so the status bar is never shown
+        with a stale line. `MultiUI` answers this across its children.
+        """
+        self.is_thinking = value
+        if repaint:
+            self.display.invalidate_ui()
 
     @property
     def working_started_at(self) -> float | None:
@@ -1211,73 +1213,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         attachments: "list[UserContent] | None" = None,
     ):
-        attachments = list(attachments or [])
-        # A cancelled turn can leave a stale running-tool timer behind.
-        self.end_tool_call()
-        self.is_thinking = True
-        self.display.invalidate_ui()
+        """Run one turn and settle its answer — see `run_turn`."""
         try:
-            timestamp = datetime.now().strftime("%H:%M")
-            await take_pre_turn_snapshot(
-                self._snapshot_manager,
-                self._history_manager,
-                self._conversation_session_name,
-                user_message,
-                timestamp,
-            )
-            self.append_to_output(f"\n🤖 {timestamp} >>\n")
-            session = self._create_session_for_llm_task(user_message, attachments)
-
-            self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
-
-            set_current_agent_mode(
-                AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
-            )
-
-            llm_task.set_ui(self)
-            llm_task.tool_confirmation = cast(Any, self.confirm_tool_execution)
-            result_data = await llm_task.async_run(session)
-
-            # Tools like EnterPlanMode set the ContextVar, visible in this Task.
-            self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
-
-            if isinstance(result_data, str):
-                self._last_result_data = result_data
-                self.append_to_output("\n")
-                # The answer keeps its `<spoken>` markers for speech; the
-                # screen shows the whole reply without them.
-                self.display.append_answer(shown_text(result_data))
-            self._conversation.schedule_auto_name(user_message)
-
-        except asyncio.CancelledError:
-            self.append_to_output("\n[Cancelled]\n")
-            raise
-        except Exception as e:
-            self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
+            await run_turn(self, llm_task, user_message, attachments)
         finally:
-            self.is_thinking = False
+            # The handle is the queue job's (`_run_queued_job` sets it), so it
+            # is cleared here too: a turn may be run without a job.
             self._running_llm_task = None
-            await self.update_system_info()
-            self.display.invalidate_ui()
-
-    def _create_session_for_llm_task(
-        self,
-        user_message: str,
-        attachments: list["UserContent"],
-    ) -> AnySession:
-        session_input = {
-            "message": user_message,
-            "session": self._conversation_session_name,
-            "yolo": self.yolo,
-            "attachments": attachments,
-            "model": self.model,
-        }
-        shared_ctx = SharedContext(
-            input=session_input,
-            print_fn=self.append_to_output,
-            is_web_mode=True,
-        )
-        return Session(shared_ctx)
 
     async def confirm_tool_execution(
         self,

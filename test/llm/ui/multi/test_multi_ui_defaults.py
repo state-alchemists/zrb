@@ -52,7 +52,6 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
         "track_rendered_echo",
         # MultiUI calls these on a child or on its primary, never on itself:
         # the message queue collects attachments from the children it is handed.
-        "update_system_info",
         "record_submitted_message",
         "redraw_echoes",
         "take_pending_attachments",

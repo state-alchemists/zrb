@@ -204,6 +204,18 @@ class MultiUIFanout(MultiUIState):
         """Replay loaded history on every child UI that supports it."""
         self._fanout("replay_history", lambda ui: ui.display.replay_history(messages))
 
+    async def update_system_info(self) -> None:
+        """Refresh the status line on every child.
+
+        Best-effort like the rest of this module: a channel that cannot refresh
+        keeps the line it has, and the turn is not the place it dies.
+        """
+        for ui in self._uis:
+            try:
+                await ui.session.update_system_info()
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
+
     def set_thinking(self, value: bool, repaint: bool = True) -> None:
         """Mirror the thinking flag to every child UI, then repaint.
 
