@@ -23,6 +23,7 @@ from zrb.llm.shared.feature_config import (
     set_session_ui,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
+from zrb.llm.ui.assembly import assemble_ui
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.attr import get_attr
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
-    from zrb.llm.ui.multi import MultiUI
 
     #: Builds the UI(s) a session runs through, from the session's own values.
     #: The interactive path also passes `custom_commands`, a ninth keyword
@@ -244,7 +244,12 @@ class ChatRunning:
             resolved_custom_commands=resolved_custom_commands,
         )
 
-        ui = self._resolve_ui(resolved_uis, default_ui_kwargs)
+        ui = assemble_ui(
+            uis=resolved_uis,
+            default_kwargs=default_ui_kwargs,
+            include_default_ui=self._llm_chat_task.include_default_ui,
+            approval_channels=self._llm_chat_task.approval_channels,
+        )
 
         if initial_conversation_name:
             self.load_session_history(ui, history_manager, initial_conversation_name)
@@ -314,49 +319,6 @@ class ChatRunning:
             "enable_rewind": enable_rewind,
             "snapshot_dir": snapshot_dir,
         }
-
-    def _resolve_ui(
-        self,
-        resolved_uis: "list[AnyUI]",
-        default_kwargs: dict[str, Any],
-    ) -> "AnyUI":
-        """Determine the UI to use: factory-only, combined, or default-only."""
-        # lazy: zrb.llm.ui.default.ui transitively loads prompt_toolkit,
-        # pydantic_ai, pdfplumber and vosk.
-        from zrb.llm.ui.default.ui import UI
-
-        if resolved_uis and not self._llm_chat_task.include_default_ui:
-            if len(resolved_uis) == 1:
-                return resolved_uis[0]
-            return self._create_multi_ui(resolved_uis)
-
-        # lazy: zrb.llm.ui.default.app.lexer transitively loads prompt_toolkit.
-        from zrb.llm.ui.default.app.lexer import CLIStyleLexer
-
-        default_kwargs["output_lexer"] = CLIStyleLexer()
-        default_ui = UI(**default_kwargs)
-
-        if not resolved_uis:
-            return default_ui
-
-        ui = self._create_multi_ui([default_ui] + resolved_uis)
-        ui.set_tool_call_handler(default_ui.tool_call_handler)
-        return ui
-
-    def _create_multi_ui(self, uis: "list[AnyUI]") -> "MultiUI":
-        """Combine `uis` into a `MultiUI` wired to the task's approval channel."""
-        # lazy: zrb.llm.ui.multi transitively loads prompt_toolkit and
-        # pydantic_ai; zrb.llm.approval transitively loads pydantic_ai.
-        from zrb.llm.approval import resolve_approval_channel
-        from zrb.llm.ui.multi import MultiUI
-
-        ui = MultiUI(uis)
-        approval_channel = resolve_approval_channel(
-            self._llm_chat_task.approval_channels
-        )
-        if approval_channel is not None:
-            ui.set_approval_channel(approval_channel)
-        return ui
 
     def load_session_history(
         self,
