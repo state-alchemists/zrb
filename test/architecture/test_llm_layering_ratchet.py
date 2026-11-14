@@ -110,7 +110,9 @@ def _is_type_checking(test: ast.expr) -> bool:
     )
 
 
-def _imported_modules(node: ast.AST, package: list[str]) -> list[str]:
+def _imported_modules(
+    node: ast.AST, package: list[str], root: str = "zrb.llm"
+) -> list[str]:
     if isinstance(node, ast.Import):
         return [alias.name for alias in node.names]
     if not isinstance(node, ast.ImportFrom):
@@ -120,13 +122,15 @@ def _imported_modules(node: ast.AST, package: list[str]) -> list[str]:
         base = ".".join(package[:keep] + ([node.module] if node.module else []))
     else:
         base = node.module or ""
-    if not base.startswith("zrb.llm"):
+    if not base.startswith(root):
         return []
     # `from pkg import name` may name a submodule rather than a symbol.
     return [base] + [f"{base}.{alias.name}" for alias in node.names]
 
 
-def _runtime_imports(tree: ast.AST, package: list[str]) -> list[str]:
+def _runtime_imports(
+    tree: ast.AST, package: list[str], root: str = "zrb.llm"
+) -> list[str]:
     found: list[str] = []
 
     def visit(node: ast.AST) -> None:
@@ -138,7 +142,7 @@ def _runtime_imports(tree: ast.AST, package: list[str]) -> list[str]:
             visit_one(child)
 
     def visit_one(child: ast.AST) -> None:
-        found.extend(_imported_modules(child, package))
+        found.extend(_imported_modules(child, package, root))
         visit(child)
 
     visit(tree)
@@ -215,6 +219,46 @@ def test_no_layer_names_a_unit_that_moved_away():
         f"{stale} are scored but no longer exist under llm/. A name left behind "
         "by a move scores nothing and hides the unit that replaced it — delete "
         "the line, and give the package it moved into a layer if it has none."
+    )
+
+
+def _imports_into(root: str) -> list[str]:
+    """Every runtime import under ``llm/`` that reaches into *root*.
+
+    Reported as "file -> module", one line per file for the package it reaches,
+    so a `from zrb.runner.cli import cli` reads as one edge and not two.
+    """
+    found: list[str] = []
+    for path in sorted(LLM.rglob("*.py")):
+        rel = path.relative_to(LLM).as_posix()
+        package = ["zrb", "llm"] + rel.removesuffix(".py").split("/")[:-1]
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        modules = {m for m in _runtime_imports(tree, package, root) if m.startswith(root)}
+        # `from a.b import name` also offers `a.b.name`; the parent is the edge.
+        for module in modules:
+            if module.rsplit(".", 1)[0] in modules:
+                continue
+            found.append(f"{rel} -> {module}")
+    return found
+
+
+def test_llm_never_imports_the_runner():
+    """The engine is what the CLI is built on, so it cannot be built with the CLI.
+
+    ``zrb.runner`` creates the group tree, the session logger and the web
+    server; ``zrb.llm`` runs agents. The one runtime edge this forbids was
+    ``tool/zrb_task.py -> runner/cli.py``, to reach the root group the task tool
+    walks: it made every process that builds an agent import the server stack,
+    and it tied the tools to a singleton the caller could not choose. The tree is
+    registered in ``zrb/group/root_group.py`` instead — the same register-and-read
+    seam ``agent_state.get_current_ui`` uses.
+    """
+    offenders = sorted(_imports_into("zrb.runner"))
+    assert not offenders, (
+        "The engine imports the CLI:\n  "
+        + "\n  ".join(offenders)
+        + "\nPut what both sides need in a lower package and register it there; "
+        "see zrb/group/root_group.py for the pattern."
     )
 
 
