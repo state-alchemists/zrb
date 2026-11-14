@@ -9,6 +9,7 @@ from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.shared.agent_runner import create_agent
+from zrb.llm.shared.usage_log import COMPONENT_AUTO_NAMER, record_agent_usage
 from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.string.name import is_random_name
 
@@ -58,6 +59,7 @@ async def suggest_slug(message: str, model: "str | Model | None" = None) -> str:
             resolve_model=False,
         )
         result = await agent.run(message[:_MAX_MESSAGE_CHARS])
+        record_agent_usage(result, component=COMPONENT_AUTO_NAMER)
         slug = sanitize_slug(str(result.output or ""))
     except Exception as e:
         raise ConversationNamingError(str(e) or type(e).__name__) from e

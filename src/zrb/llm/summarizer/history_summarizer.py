@@ -23,6 +23,7 @@ from zrb.llm.shared.message import (
 )
 from zrb.llm.shared.message_text import render_verbatim_messages
 from zrb.llm.shared.usage_log import (
+    COMPONENT_SUMMARIZER,
     KIND_SUMMARIZATION,
     LIMIT_BOTH,
     LIMIT_MESSAGE,
@@ -562,6 +563,7 @@ def _record_compaction(
         kind=KIND_SUMMARIZATION,
         duration_ms=int((time.monotonic() - started_at) * 1000),
         compaction=compaction,
+        component=COMPONENT_SUMMARIZER,
     )
     if record is None and compaction is not None:
         CFG.LOGGER.warning(

@@ -37,6 +37,7 @@ from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.shared.agent_runner import create_agent
+from zrb.llm.shared.usage_log import COMPONENT_SHELL_JUDGE, record_agent_usage
 from zrb.llm.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
@@ -156,6 +157,7 @@ async def judge_shell_command(
     except Exception as error:
         CFG.LOGGER.debug(f"Shell judge failed: {error}")
         raise ShellJudgeError(str(error) or type(error).__name__) from error
+    record_agent_usage(result, component=COMPONENT_SHELL_JUDGE)
     _log_spend(result)
     return parse_verdict(str(getattr(result, "output", "") or ""))
 
@@ -219,10 +221,9 @@ def uncommitted_files(directory: str) -> str:
 def _log_spend(result: object) -> None:
     """Say what the call cost, for the developer reading the log.
 
-    The judge's tokens are not in `/usage` yet: only the turn runner writes
-    usage records, and this call sits beside it rather than under it. M0 —
-    component attribution — is what makes it visible, which is why it is being
-    built after this feature rather than before it.
+    Kept beside the usage line rather than instead of it: the record answers
+    `/usage` a day later, and the debug line answers a developer watching the
+    judge work right now.
     """
     usage = getattr(result, "usage", None)
     if usage is None:

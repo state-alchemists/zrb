@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.speech.text import clean_for_speech
+from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -79,6 +80,7 @@ async def summarize_for_speech(
 async def _run(text: str, model: "str | Model | None") -> str:
     agent = create_speech_summarizer_agent(model)
     result = await agent.run(text)
+    record_agent_usage(result, component=COMPONENT_OTHER)
     return str(result.output or "")
 
 

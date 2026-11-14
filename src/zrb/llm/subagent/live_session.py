@@ -24,6 +24,7 @@ from zrb.llm.history_manager.conversation_naming import (
     suggest_slug,
 )
 from zrb.llm.shared.agent_activity import agent_activity_registry
+from zrb.llm.shared.usage_log import COMPONENT_SUBAGENT, usage_component
 from zrb.llm.shared.agent_state import (
     current_approval_channel,
     current_tool_confirmation,
@@ -348,7 +349,9 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                 # explicitly; its approval half is also bound, since run_agent
                 # reads a None argument as "inherit".
                 authority = entry.authority
-                with _bind_captured_approval(authority):
+                with _bind_captured_approval(authority), usage_component(
+                    COMPONENT_SUBAGENT
+                ):
                     _result, history = await run_agent(
                         agent=agent,
                         message=text,

@@ -41,6 +41,7 @@ from zrb.llm.memory.model import (
     week_span,
 )
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 from zrb.llm.shared.agent_runner import create_agent
 
 if TYPE_CHECKING:
@@ -194,6 +195,7 @@ async def _ask_model(material: str) -> str:
             resolve_model=False,
         )
         result = await agent.run(material)
+        record_agent_usage(result, component=COMPONENT_HOOK)
     except (OSError, RuntimeError) as error:
         # The two shapes a one-shot call fails in: a model that could not be
         # resolved or did not answer, which pydantic-ai raises as a
