@@ -26,7 +26,7 @@ See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md
 | `llm/` | Everything LLM — see below |
 | `llm_plugin/` | The built-in skills and agents that ship with zrb |
 | `remote/` | `Host`/`Target` inventories (`host_inventory`, `target_inventory`) and the fan-out executor behind `zrb remote run/check` (ADR-0110) |
-| `runner/` | `cli.py`, `web_app.py` + `web_route/`, and `chat/` (the chat session HTTP layer) |
+| `runner/` | `cli.py`, `web_app.py` + `web_route/`, `web_bind.py` (the fail-closed bind check), and `chat/` (the chat session HTTP layer) |
 | `task/` | The task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler`, `Scaffolder`, `RsyncTask`, and the `make_task` decorator. Shared constructor keywords live once in `base/params.py` |
 | `contextvars.py` | Canonical index of every ambient `ContextVar`, its owning module, and its typed wrapper |
 
@@ -57,6 +57,8 @@ Inside `llm/`:
 | `common_tools.py` | Registers the shared baseline used by `LLMChatTask`, `LLMTask` and `SubAgentManager` |
 
 `llm_plugin/` is split into core and optional content: `core_skills/` (always-on methodology baseline), `skills/` (utility skills, gated by `CFG.LLM_BUILTIN_SKILLS_ENABLED`), `core_agents/` (always-on sub-agents), and `agents/` (optional sub-agents, gated by `CFG.LLM_BUILTIN_AGENTS_ENABLED`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only optional built-in content — user, project and plugin skills and agents always load (ADR-0054).
+
+One layout rule the tables above do not state: an `__init__.py` is optional here, and 79 directories under `src/zrb` have none against 62 that do — including packages a reader works in daily (`cmd/`, `util/`, `config/`, `group/`, `runner/`), which are implicit namespace packages. The file earns its place two ways: it curates names with a re-export (`llm/ui/`, `llm/tool/`), or it carries a package-level note (`llm/shared/` explains its layer rule; `llm/agent/run/`'s is empty). `zrb/llm/` itself has none, so that a narrow `zrb.llm.sandbox` import does not pull the whole LLM stack (changelog 2.58.0). Add one when the package has something to curate or say — not to make it "real".
 
 `test/` mirrors the `src/` hierarchy. The mirror is a *naming* rule, not a completeness claim: where a test exists it sits at the mirrored path, but many modules are covered through a caller instead.
 

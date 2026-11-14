@@ -50,8 +50,10 @@ class PartialRunAccumulator:
     def record_event(self, event: UIEvent) -> None:
         """Record one event from the run's stream.
 
-        `UIEvent` also covers the trailing result event `agent.run()` returns
-        rather than streaming; the caller hands it here for usage accounting.
+        Three event kinds matter here: a text part start, a tool call, and a
+        tool result. Everything else is ignored, the trailing `AgentRunResult`
+        event included — usage accounting reads `result.usage` directly in
+        `runner._record_run_usage`, not through this accumulator.
         """
         # lazy: heavy third-party deferral
         from pydantic_ai import (
