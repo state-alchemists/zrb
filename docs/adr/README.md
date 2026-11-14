@@ -27,6 +27,8 @@ Record a decision as an ADR when it is **non-trivial** (a reasonable developer c
 
 Delete a record when its decision no longer applies anywhere — do not leave a tombstone.
 
+**A record describes the system, not the people around it.** The evidence belongs — a measurement, an incident, a published figure — but the person behind it does not: no names, handles, personal details, or attributed quotations. "The maintainer reported X" and "a user reported X" carry what a later reader needs; a name carries nothing they can use, and a quotation outlives the conversation it came from. Cite the note or the ADR that holds the evidence instead.
+
 ## Index
 
 ### Foundations
