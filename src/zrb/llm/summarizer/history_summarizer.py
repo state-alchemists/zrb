@@ -505,6 +505,21 @@ async def summarize_history(
                 structured_tail,
                 llm_limiter,
             )
+        if not fitted.archive_note:
+            # The cap has room for the summary but not for the pointer beside it,
+            # and the pointer is the only record of where an archive went. A file
+            # nothing names is one the cleanup may delete while it is still the
+            # only copy of these messages, so the rule is the other way round:
+            # written only where a summary can point at it.
+            zrb_print(
+                stylize_warning(
+                    "  Warning: the archive pointer does not fit beside the "
+                    "summary, so the replaced messages were not archived; the "
+                    "summary is now their only copy."
+                ),
+                plain=True,
+            )
+            return result
         # The size is counted on `archived`, the list the section renders, so
         # the section's message and token counts describe the same messages.
         written = archive_verbatim_history(
@@ -741,7 +756,9 @@ class _FittedSummary:
     write, which happens after the cap has measured the pointer. The pointer is
     measured there so the turn it lands in cannot run past the cap; dropping it
     can only make the block smaller than the cap approved. `archive_note` is the
-    note that survived the fit, empty when it did not fit.
+    note that survived the fit, empty when it did not fit — and an empty one also
+    means nothing is written: an archive is created only where a summary names
+    it, or the cleanup deletes a file while it is still the only copy.
     """
 
     model_text: str
