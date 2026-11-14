@@ -3,7 +3,11 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.handler import ToolPolicy
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.tool_call.shell_call import (
+    shell_command,
+    shell_command_args,
+    is_sandbox_off,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -221,21 +225,15 @@ def bash_safe_command_policy() -> ToolPolicy:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved
 
-        if call.tool_name != "Shell":
-            return await next_handler(ui, call)
-
-        args = parse_tool_args(call)
+        args = shell_command_args(call)
         if args is None:
-            return await next_handler(ui, call)
-        command = args.get("command", "")
-        if not isinstance(command, str):
             return await next_handler(ui, call)
 
         # A sandbox-escape request must always reach a human.
-        if args.get("dangerously_skip_sandbox"):
+        if is_sandbox_off(args):
             return await next_handler(ui, call)
 
-        if is_safe_command(command):
+        if is_safe_command(shell_command(args)):
             return ToolApproved()
 
         return await next_handler(ui, call)

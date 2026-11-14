@@ -74,6 +74,8 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
+        self.DEFAULT_LLM_SHELL_JUDGE_ENABLED: str = "off"
+        self.DEFAULT_LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED: str = "off"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
         self.DEFAULT_LLM_HISTORY_TAIL_BUDGET_RATIO: str = "0.4"
         self.DEFAULT_LLM_HISTORY_TAIL_MAX_TOKENS: str = "12000"
@@ -361,6 +363,33 @@ class LLMContentMixin:
             "once. A turn that ends mid-continuation (cancelled, capped) never "
             "clears its count, so the oldest past this many are dropped; a "
             "dropped turn that does come back starts its count again."
+        ),
+    )
+
+    LLM_SHELL_JUDGE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "A small-model judge consulted on every shell command that reaches "
+            "an approval prompt — the last stop before a person is asked, and "
+            "below every rule, since a rule someone wrote outranks an opinion. "
+            "It costs one small-model call per judged command and cannot widen "
+            "anything on its own: it adds one line to the prompt saying what it "
+            "saw. Off by default. Not a security boundary — the sandbox is."
+        ),
+    )
+
+    LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Let the shell judge skip the prompt when its verdict is `safe`. "
+            "Only `safe` — caution, dangerous and a judge that failed all still "
+            "ask — and never over a permission `ask`, a hook's `ask`, or a call "
+            "that wants the sandbox off. Meaningless without "
+            "LLM_SHELL_JUDGE_ENABLED. Off by default: this is the knob that "
+            "trades a prompt for the judge's false negatives (~17% of real "
+            "overeager actions, by Anthropic's own measurement)."
         ),
     )
 

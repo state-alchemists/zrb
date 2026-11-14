@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from zrb.cmd.command import resolve_shell
 from zrb.config.helper import get_shell_name
 from zrb.llm.tool_call.argument_formatter.util import render_indented_markdown
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.tool_call.shell_call import shell_command, shell_command_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -53,18 +53,10 @@ async def shell_formatter(
     args_section: str,
 ) -> str | None:
     """Show a `Shell` call: its description, its fenced command, other flags."""
-    if call.tool_name != "Shell":
-        return None
-
-    args = parse_tool_args(call)
+    args = shell_command_args(call)
     if args is None:
         return None
-
-    command = args.get("command")
-    if not isinstance(command, str) or not command:
-        return None
-
-    return _format_shell(command, args)
+    return _format_shell(shell_command(args), args)
 
 
 def _format_shell(command: str, args: Mapping[str, object]) -> str:

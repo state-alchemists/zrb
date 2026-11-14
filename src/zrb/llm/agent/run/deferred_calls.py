@@ -17,6 +17,12 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.agent.shell_judge import judge_or_unknown
+from zrb.llm.tool_call.shell_call import (
+    shell_command,
+    shell_command_args,
+    is_sandbox_off,
+)
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
@@ -27,6 +33,7 @@ from zrb.llm.tool_call.always_approve import (
     is_default_auto_approve,
 )
 from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool_call.judge_note import discard_judge_note, record_judge_note
 from zrb.llm.tool_call.override_registry import discard_override, record_override
 from zrb.llm.util.tool_args import parse_tool_args
 
@@ -91,40 +98,47 @@ async def process_deferred_requests(
     current_results = DeferredToolResults()
 
     for call in all_requests:
-        # PreToolUse may deny, allow, or rewrite args. Auto-approved tools never
-        # reach here and fire it at execution time instead (no double-fire).
-        pre = await _apply_pre_tool_use_hook(call, hook_manager)
-        if pre.deny:
-            current_results.approvals[call.tool_call_id] = ToolDenied(
-                pre.reason or "Tool execution blocked by PreToolUse hook"
+        # The judge's line is released however this call ends, including a turn
+        # cancelled while the prompt was waiting: the registry is process-global,
+        # so a note left behind outlives the approval that never happened.
+        try:
+            # PreToolUse may deny, allow, or rewrite args. Auto-approved tools never
+            # reach here and fire it at execution time instead (no double-fire).
+            pre = await _apply_pre_tool_use_hook(call, hook_manager)
+            if pre.deny:
+                current_results.approvals[call.tool_call_id] = ToolDenied(
+                    pre.reason or "Tool execution blocked by PreToolUse hook"
+                )
+                _discard_denied_call(current_results, call.tool_call_id)
+                continue
+
+            result: "ToolApproved | ToolDenied | None" = (
+                ToolApproved()
+                if pre.allow
+                else await _resolve_approval(
+                    call,
+                    ui,
+                    effective_tool_confirmation,
+                    approval_channel,
+                    hook_manager,
+                    force_ask=pre.force_prompt,
+                )
             )
-            _discard_denied_call(current_results, call.tool_call_id)
-            continue
-
-        if pre.allow:
-            result: "ToolApproved | ToolDenied | None" = ToolApproved()
-        else:
-            result = await _resolve_approval(
-                call,
-                ui,
-                effective_tool_confirmation,
-                approval_channel,
-                hook_manager,
-                force_ask=pre.force_prompt,
+            # A path that resolved nothing stores None: pydantic-ai reads that as
+            # "no verdict", which is what the approval cascade means by falling
+            # through without one.
+            current_results.approvals[call.tool_call_id] = cast(
+                "ToolApproved | ToolDenied", result
             )
-        # A path that resolved nothing stores None: pydantic-ai reads that as
-        # "no verdict", which is what the approval cascade means by falling
-        # through without one.
-        current_results.approvals[call.tool_call_id] = cast(
-            "ToolApproved | ToolDenied", result
-        )
-        _record_override_if_edited(call, result)
+            _record_override_if_edited(call, result)
 
-        if isinstance(result, ToolDenied):
-            _discard_denied_call(current_results, call.tool_call_id)
-            CFG.LOGGER.debug("Tool denied, removed from calls")
+            if isinstance(result, ToolDenied):
+                _discard_denied_call(current_results, call.tool_call_id)
+                CFG.LOGGER.debug("Tool denied, removed from calls")
 
-        # PostToolUse fires at execution, not approval.
+            # PostToolUse fires at execution, not approval.
+        finally:
+            discard_judge_note(call.tool_call_id)
 
     return current_results
 
@@ -197,6 +211,8 @@ async def _resolve_approval(
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
       3. YOLO (only with no policy ASK)
+      3b. The shell judge (may skip the prompt for a `safe` command, when the
+          auto-approve knob is on; otherwise only annotates the prompt)
       4. Approval channel
       5. CLI prompt
 
@@ -231,6 +247,10 @@ async def _resolve_approval(
         return verdict
 
     verdict = await _apply_permission_request_hook(call, hook_manager)
+    if verdict is not None:
+        return verdict
+
+    verdict = await _apply_shell_judge(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
@@ -390,6 +410,51 @@ def _approve_via_yolo(
     from pydantic_ai import ToolApproved
 
     return ToolApproved()
+
+
+async def _apply_shell_judge(
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
+) -> "ToolApproved | None":
+    """Priority 3b: one model's opinion on a shell command, and nothing more.
+
+    The last thing consulted before a person is asked. It can approve a command
+    the judge calls `safe` — and only when `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED`
+    is on, no rule of the user's said ask, and the call is not asking to leave
+    the sandbox. Otherwise it records one line for the prompt, so whoever
+    answers sees what the judge saw.
+
+    A judge that failed records `unknown`, which is not safe: the prompt is
+    still asked, now saying the command went unjudged.
+    """
+    if not CFG.LLM_SHELL_JUDGE_ENABLED:
+        return None
+    args = shell_command_args(call)
+    if args is None:
+        return None
+    # The invariant every other approval path in this cascade keeps: a request
+    # to leave the sandbox is a request for a human, however ordinary the
+    # command is. `ls /etc` with `dangerously_skip_sandbox` is not "safe".
+    sandbox_off = is_sandbox_off(args)
+    verdict = await judge_or_unknown(
+        shell_command(args),
+        cwd=str(args.get("cwd") or ""),
+        sandbox_off=sandbox_off,
+    )
+    if (
+        verdict.is_safe
+        and not sandbox_off
+        and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
+        and not force_ask
+        and policy_decision != ASK
+    ):
+        CFG.LOGGER.debug(f"Shell judge approved a call: {verdict.reason}")
+        discard_judge_note(call.tool_call_id)
+        # lazy: heavy third-party
+        from pydantic_ai import ToolApproved
+
+        return ToolApproved()
+    record_judge_note(call.tool_call_id, verdict.level, verdict.reason)
+    return None
 
 
 async def _apply_permission_request_hook(
