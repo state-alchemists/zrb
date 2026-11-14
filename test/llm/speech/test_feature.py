@@ -253,6 +253,17 @@ def test_the_volume_command_moves_the_level_by_the_sign_count():
     assert command.handle({"level": "--"}, None) == "🔊 Volume 100%"
 
 
+def test_the_volume_command_sets_the_level_a_number_names():
+    """A number is a level, not a count of steps: `15` asks for fifteen percent
+    whichever way the level is moving."""
+    session = _session()
+    command = _by_alias(session.create_commands(), "/volume")
+
+    assert command.handle({"level": "15"}, None) == "🔊 Volume 15%"
+    assert command.handle({"level": "0"}, None) == "🔊 Volume 0%"
+    assert command.handle({"level": "150%"}, None) == "🔊 Volume 150%"
+
+
 def test_the_volume_command_reports_the_level_with_no_argument():
     session = _session()
 
@@ -271,16 +282,24 @@ def test_the_volume_command_holds_the_level_between_silence_and_the_ceiling():
     command.handle({"level": "-" * 30}, None)
     assert session.speaker.volume == 0
 
+    command.handle({"level": "500"}, None)
+    assert session.speaker.volume == 200
 
-@pytest.mark.parametrize("argument", ["+-", "-+", "loud", "3"])
+
+@pytest.mark.parametrize("argument", ["+-", "-+", "loud", "15 loud", "-15"])
 def test_the_volume_command_reads_anything_else_as_a_typo(argument):
-    """Mixed signs ask for opposite things at once; a word asks for nothing."""
+    """Mixed signs ask for opposite things at once; a word asks for nothing.
+
+    `-15` is neither a bare number nor a run of signs, so it is refused rather
+    than read as either: a level named from below and fifteen points down would
+    be the same argument with two meanings.
+    """
     session = _session()
     command = _by_alias(session.create_commands(), "/volume")
 
     reply = command.handle({"level": argument}, None)
 
-    assert reply.startswith("  Use a run of + or -")
+    assert reply.startswith("  Give a level as a number")
     assert session.speaker.volume == 100
 
 
