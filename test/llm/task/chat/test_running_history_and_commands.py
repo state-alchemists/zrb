@@ -120,7 +120,7 @@ async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_co
     with (
         patch("zrb.llm.ui.default.ui.UI") as MockUI,
         patch(
-            "zrb.llm.task.chat.running.resolve_agent_mention",
+            "zrb.llm.task.chat.message_expansion.resolve_agent_mention",
             return_value="NUDGED:hi @researcher",
         ) as mock_resolve_mention,
     ):
@@ -166,7 +166,7 @@ async def test_run_interactive_session_slash_command_skips_mention_resolution(
     with (
         patch("zrb.llm.ui.default.ui.UI") as MockUI,
         patch(
-            "zrb.llm.task.chat.running.resolve_agent_mention"
+            "zrb.llm.task.chat.message_expansion.resolve_agent_mention"
         ) as mock_resolve_mention,
     ):
         MockUI.return_value = mock_ui
@@ -198,7 +198,7 @@ async def test_run_non_interactive_session_applies_agent_mention_nudge(runner):
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
 
     with patch(
-        "zrb.llm.task.chat.running.resolve_agent_mention",
+        "zrb.llm.task.chat.message_expansion.resolve_agent_mention",
         return_value="NUDGED:hi @researcher",
     ) as mock_resolve_mention:
         await runner.run_non_interactive_session(
