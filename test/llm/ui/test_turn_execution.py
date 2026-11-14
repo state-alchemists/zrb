@@ -42,7 +42,9 @@ class _RecordingUI(SimpleUI):
 
 
 def _ui() -> _RecordingUI:
-    ui = _RecordingUI(ctx=MagicMock(), llm_task=MagicMock(), history_manager=MagicMock())
+    ui = _RecordingUI(
+        ctx=MagicMock(), llm_task=MagicMock(), history_manager=MagicMock()
+    )
     # A chosen name, not a generated one, so a finished turn does not start an
     # auto-naming model call inside the test.
     ui.conversation_session_name = "chosen-by-the-user"

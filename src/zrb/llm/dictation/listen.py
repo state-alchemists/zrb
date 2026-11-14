@@ -424,9 +424,7 @@ async def listen(
                             # reopening it could die the same way, over and
                             # over, so the session carries on without it.
                             logger.warning(_ECHO_CANCEL_DIED)
-                            open_stream = partial(
-                                open_stream, is_echo_cancelled=False
-                            )
+                            open_stream = partial(open_stream, is_echo_cancelled=False)
                         # Mark the gap first: the new stream can deliver blocks
                         # while it is still opening off the event loop.
                         backlog.mark_gap()

@@ -316,7 +316,9 @@ def test_a_long_component_name_stays_inside_its_column(usage_dir):
 
     row = next(line for line in out.splitlines() if "a_component" in line)
     assert "…" in row, row
-    assert len(row) == len(next(line for line in out.splitlines() if "main_agent" in line))
+    assert len(row) == len(
+        next(line for line in out.splitlines() if "main_agent" in line)
+    )
 
 
 def test_the_context_section_says_where_the_input_went(usage_dir):

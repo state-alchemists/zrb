@@ -148,9 +148,7 @@ async def judge_shell_command(
             system_prompt=get_prompt("shell_judge"),
             resolve_model=False,
         )
-        payload = await asyncio.to_thread(
-            _build_payload, text, cwd, sandbox_off
-        )
+        payload = await asyncio.to_thread(_build_payload, text, cwd, sandbox_off)
         result = await asyncio.wait_for(
             agent.run(payload), timeout=JUDGE_TIMEOUT_SECONDS
         )

@@ -438,7 +438,9 @@ async def _prepare_history(
     """
     prepared = _PreparedRequest(history=message_history)
     # Counted before the processors so the summarizer's threshold includes it.
-    prepared.reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
+    prepared.reserved_tokens = (
+        limiter.count_tokens(system_prompt) if system_prompt else 0
+    )
     CFG.LOGGER.debug(f"System prompt reserved tokens: {prepared.reserved_tokens}")
     await _compact_history(
         prepared, agent, limiter, typed_prompt, effective_hook_manager
@@ -485,9 +487,7 @@ async def _compact_history(
     )
     precompact_context = extract_additional_context(precompact_results)
     if precompact_context:
-        prepared.history = _prepend_system_context(
-            prepared.history, precompact_context
-        )
+        prepared.history = _prepend_system_context(prepared.history, precompact_context)
 
     # A blocking PreCompact skips summarization; the force-prune below still
     # runs, since an over-limit request cannot be sent regardless.
@@ -498,7 +498,9 @@ async def _compact_history(
         )
     else:
         for processor in history_processors:
-            prepared.history = await processor(prepared.history, prepared.reserved_tokens)
+            prepared.history = await processor(
+                prepared.history, prepared.reserved_tokens
+            )
 
     prepared.history = ensure_alternating_roles(prepared.history)
     # Taken after a PreCompact hook's context joins the history, which is not history
@@ -660,7 +662,6 @@ async def _pace_request(
     await _wait_for_rate_limit(
         limiter, prepared.tokens + prepared.message_tokens, print_fn
     )
-
 
 
 def _prepend_system_context(history: History, content: str) -> History:

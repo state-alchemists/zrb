@@ -20,9 +20,7 @@ from zrb.llm.history_manager.archive_layout import (
 
 def test_the_pointer_names_the_archive_it_was_written_for():
     path = verbatim_archive_path("bold-arch-1234")
-    assert archive_names_in(render_archive_pointer(path)) == {
-        os.path.basename(path)
-    }
+    assert archive_names_in(render_archive_pointer(path)) == {os.path.basename(path)}
 
 
 def test_a_session_name_with_a_space_survives_the_round_trip():

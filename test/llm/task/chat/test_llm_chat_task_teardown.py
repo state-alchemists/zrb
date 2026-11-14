@@ -121,9 +121,8 @@ async def test_a_feature_that_will_not_close_does_not_hold_the_quit(
     holds a stream's stop, a model being unloaded holds its backend. The quit
     waits a bounded time, says so, and keeps the loop free for Ctrl+C instead
     of freezing on the close."""
-    from zrb.llm.shared.feature_config import FeatureSessions
-
     import zrb.llm.task.chat.teardown as chat_teardown
+    from zrb.llm.shared.feature_config import FeatureSessions
 
     release = threading.Event()
 

@@ -105,8 +105,9 @@ def test_the_first_verdict_line_wins():
 
 @pytest.mark.asyncio
 async def test_a_verdict_from_the_model_reaches_the_caller():
-    with patch(_CREATE_AGENT, _answering("CAUTION: discards uncommitted work")), patch(
-        _DIRT, return_value="3"
+    with (
+        patch(_CREATE_AGENT, _answering("CAUTION: discards uncommitted work")),
+        patch(_DIRT, return_value="3"),
     ):
         verdict = await judge_shell_command("git reset --hard")
     assert verdict == ShellVerdict(
@@ -117,8 +118,9 @@ async def test_a_verdict_from_the_model_reaches_the_caller():
 
 @pytest.mark.asyncio
 async def test_a_failed_call_raises_where_it_happens():
-    with patch(_CREATE_AGENT, _agent_that_raises(RuntimeError("model exploded"))), patch(
-        _DIRT, return_value="0"
+    with (
+        patch(_CREATE_AGENT, _agent_that_raises(RuntimeError("model exploded"))),
+        patch(_DIRT, return_value="0"),
     ):
         with pytest.raises(ShellJudgeError):
             await judge_shell_command("ls")
@@ -128,8 +130,9 @@ async def test_a_failed_call_raises_where_it_happens():
 async def test_a_failed_call_is_an_unknown_verdict_where_it_is_answered():
     """The approval path calls this half: it must hand back a verdict, not an
     exception, or a working approval would abort on a flaky model."""
-    with patch(_CREATE_AGENT, _agent_that_raises(RuntimeError("model exploded"))), patch(
-        _DIRT, return_value="0"
+    with (
+        patch(_CREATE_AGENT, _agent_that_raises(RuntimeError("model exploded"))),
+        patch(_DIRT, return_value="0"),
     ):
         verdict = await judge_or_unknown("ls")
     assert verdict.level == JUDGE_UNKNOWN
@@ -143,9 +146,11 @@ async def test_a_judge_that_never_answers_is_unknown():
 
         await asyncio.sleep(3600)
 
-    with patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_hang)), patch(
-        _DIRT, return_value="0"
-    ), patch(_TIMEOUT, 0.01):
+    with (
+        patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_hang)),
+        patch(_DIRT, return_value="0"),
+        patch(_TIMEOUT, 0.01),
+    ):
         verdict = await judge_or_unknown("ls")
     assert verdict.level == JUDGE_UNKNOWN
 
@@ -168,8 +173,9 @@ async def test_the_judge_reads_the_command_and_the_facts_it_cannot_carry():
         seen["payload"] = payload
         return SimpleNamespace(output="SAFE: nothing to lose")
 
-    with patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_capture)), patch(
-        _DIRT, return_value="42"
+    with (
+        patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_capture)),
+        patch(_DIRT, return_value="42"),
     ):
         await judge_shell_command("npm run build", cwd="/tmp/project")
     payload = seen["payload"]
@@ -187,8 +193,9 @@ async def test_the_judge_is_told_when_the_sandbox_is_off():
         seen["payload"] = payload
         return SimpleNamespace(output="CAUTION: leaves the sandbox")
 
-    with patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_capture)), patch(
-        _DIRT, return_value="0"
+    with (
+        patch(_CREATE_AGENT, lambda **kwargs: SimpleNamespace(run=_capture)),
+        patch(_DIRT, return_value="0"),
     ):
         await judge_shell_command("ls", sandbox_off=True)
     assert "Sandbox: off" in seen["payload"]
@@ -203,9 +210,11 @@ async def test_the_call_s_usage_is_logged_when_it_reports_one():
             return_value=SimpleNamespace(output="SAFE: read-only", usage=usage)
         )
     )
-    with patch(_CREATE_AGENT, lambda **kwargs: agent), patch(
-        _DIRT, return_value="0"
-    ), patch("zrb.llm.agent.shell_judge.CFG.LOGGER.debug") as debug:
+    with (
+        patch(_CREATE_AGENT, lambda **kwargs: agent),
+        patch(_DIRT, return_value="0"),
+        patch("zrb.llm.agent.shell_judge.CFG.LOGGER.debug") as debug,
+    ):
         verdict = await judge_shell_command("ls")
     assert verdict.level == JUDGE_SAFE
     assert any("Shell judge usage" in str(call) for call in debug.call_args_list)

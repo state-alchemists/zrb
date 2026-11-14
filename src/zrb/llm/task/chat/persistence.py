@@ -68,4 +68,6 @@ def replay_conversation(
     except FileNotFoundError:
         pass
     except Exception as e:
-        CFG.LOGGER.warning(f"Failed to load history for session {conversation_name}: {e}")
+        CFG.LOGGER.warning(
+            f"Failed to load history for session {conversation_name}: {e}"
+        )

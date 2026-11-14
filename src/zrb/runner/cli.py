@@ -271,4 +271,3 @@ async def start_server(_: AnyContext):
         )
     )
     await server.serve()
-

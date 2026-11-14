@@ -65,9 +65,7 @@ def test_an_ambient_component_names_every_line_written_inside_it(usage_dir):
 def test_a_line_written_before_the_field_existed_reads_back_by_its_kind(usage_dir):
     """Only two modules wrote a line before `component` existed, so a kind names
     its writer without a guess: a compaction line was the summarizer's."""
-    turn = record_usage(
-        RunUsage(input_tokens=10, requests=1), model="m", when=JANUARY
-    )
+    turn = record_usage(RunUsage(input_tokens=10, requests=1), model="m", when=JANUARY)
     spent = UsageTotals()
     spent.input_tokens = 5
     spent.requests = 1
@@ -111,9 +109,7 @@ def test_a_finished_run_is_written_with_its_own_model(usage_dir):
     result = MagicMock()
     result.usage = RunUsage(input_tokens=10, requests=1)
     result.response.model_name = "small-model"
-    record = record_agent_usage(
-        result, component=COMPONENT_SHELL_JUDGE, when=JANUARY
-    )
+    record = record_agent_usage(result, component=COMPONENT_SHELL_JUDGE, when=JANUARY)
     assert record is not None
     assert record.component == COMPONENT_SHELL_JUDGE
     assert record.model == "small-model"

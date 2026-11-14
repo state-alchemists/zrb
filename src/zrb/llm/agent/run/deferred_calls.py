@@ -18,11 +18,6 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_pre_tool_decision,
 )
 from zrb.llm.agent.shell_judge import judge_or_unknown
-from zrb.llm.tool_call.shell_call import (
-    shell_command,
-    shell_command_args,
-    is_sandbox_off,
-)
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
@@ -35,6 +30,11 @@ from zrb.llm.tool_call.always_approve import (
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.judge_note import discard_judge_note, record_judge_note
 from zrb.llm.tool_call.override_registry import discard_override, record_override
+from zrb.llm.tool_call.shell_call import (
+    is_sandbox_off,
+    shell_command,
+    shell_command_args,
+)
 from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:

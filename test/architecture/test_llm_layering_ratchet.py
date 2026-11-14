@@ -274,7 +274,9 @@ def _runtime_import_names(source: str) -> set[str]:
         elif isinstance(child, ast.Call):
             if _import_call_name(child.func) in _IMPORT_CALLS:
                 argument = child.args[0] if child.args else None
-                if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                if isinstance(argument, ast.Constant) and isinstance(
+                    argument.value, str
+                ):
                     found.add(argument.value)
         visit(child)
 

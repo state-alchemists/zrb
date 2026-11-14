@@ -138,7 +138,9 @@ async def _collect_echo_cancelled(
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
         patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
-        patch("zrb.llm.dictation.microphone.get_unavailable_reason", return_value=reason),
+        patch(
+            "zrb.llm.dictation.microphone.get_unavailable_reason", return_value=reason
+        ),
         patch(
             "zrb.llm.dictation.microphone.EchoCancelledMicrophone",
             _FakeEchoCancelledMicrophone,

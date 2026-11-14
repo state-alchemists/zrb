@@ -41,8 +41,8 @@ from zrb.llm.memory.model import (
     week_span,
 )
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 from zrb.llm.shared.agent_runner import create_agent
+from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 
 if TYPE_CHECKING:
     from zrb.llm.hook.contracts.interface import HookCallable, HookContext

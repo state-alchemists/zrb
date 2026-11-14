@@ -188,9 +188,7 @@ def _component_section(records: list[UsageRecord]) -> list[str]:
     ]
 
 
-def _component_row(
-    component: str, runs: list[UsageRecord], total_input: int
-) -> str:
+def _component_row(component: str, runs: list[UsageRecord], total_input: int) -> str:
     """One component row: its name, and the four numbers a reader compares."""
     share = f"{_total(runs, _INPUT) / total_input:.0%}" if total_input else _UNPRICED
     return (

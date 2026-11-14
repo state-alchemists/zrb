@@ -59,7 +59,9 @@ class CheckpointWriter:
             await asyncio.gather(self._in_flight, return_exceptions=True)
 
 
-def create_checkpoint_writer(checkpoint_fn: CheckpointFn | None) -> CheckpointWriter | None:
+def create_checkpoint_writer(
+    checkpoint_fn: CheckpointFn | None,
+) -> CheckpointWriter | None:
     """One writer per turn, or none when the caller asked for no checkpoints."""
     if checkpoint_fn is None:
         return None

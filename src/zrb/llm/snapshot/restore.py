@@ -91,7 +91,10 @@ def plan_restore(target: RestoreTarget) -> RestorePlan:
     # `left_out` adds the files too large to snapshot: the ignored ones are in
     # `out_of_scope` already.
     left_alone = (
-        out_of_scope | set(target.unreadable) | set(unseen) | set(target.listing.left_out)
+        out_of_scope
+        | set(target.unreadable)
+        | set(unseen)
+        | set(target.listing.left_out)
     )
     in_the_way = find_in_the_way(
         target.workdir,

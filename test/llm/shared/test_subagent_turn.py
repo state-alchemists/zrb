@@ -63,9 +63,7 @@ async def _capture(monkeypatch, **turn_fields) -> dict:
         seen["tool_confirmation"] = get_current_tool_confirmation()
         return "the answer", [{"turn": 1}]
 
-    monkeypatch.setattr(
-        "zrb.llm.shared.subagent_turn.run_agent", fake_run_agent
-    )
+    monkeypatch.setattr("zrb.llm.shared.subagent_turn.run_agent", fake_run_agent)
     turn = _turn(**turn_fields)
     result, history = await run_subagent_turn(turn)
     seen["result"] = result
@@ -140,7 +138,9 @@ async def test_the_callers_yolo_wins_over_the_captured_one(monkeypatch, captured
 
 
 @pytest.mark.asyncio
-async def test_the_captured_yolo_applies_when_the_caller_names_none(monkeypatch, captured):
+async def test_the_captured_yolo_applies_when_the_caller_names_none(
+    monkeypatch, captured
+):
     """`None` means "inherit", and for a delayed turn the grant is what to inherit."""
     seen = await _capture(monkeypatch, authority=captured)
     assert seen["yolo"] is True

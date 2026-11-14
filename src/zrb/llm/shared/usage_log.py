@@ -292,7 +292,9 @@ class UsageRecord:
             kind=kind,
             duration_ms=_as_int(raw, "duration_ms"),
             cost=_as_cost(raw.get("cost")),
-            component=str(raw.get("component") or _LEGACY_COMPONENT.get(kind, COMPONENT_MAIN)),
+            component=str(
+                raw.get("component") or _LEGACY_COMPONENT.get(kind, COMPONENT_MAIN)
+            ),
             tool_counts=_as_name_counts(raw.get("tool_counts")),
             tool_errors=_as_name_counts(raw.get("tool_errors")),
             compaction=_as_compaction(raw.get("compaction")),

@@ -141,8 +141,9 @@ async def test_a_sandbox_escape_is_never_auto_approved(monkeypatch):
     """`ls /etc` with `dangerously_skip_sandbox` is not "safe": every other path
     in the cascade leaves a request to leave the sandbox for a human."""
     _knobs(monkeypatch, judge=True, auto_approve=True)
-    with _judging(ShellVerdict(JUDGE_SAFE, "read-only listing")), _is_shell(
-        sandbox_off=True
+    with (
+        _judging(ShellVerdict(JUDGE_SAFE, "read-only listing")),
+        _is_shell(sandbox_off=True),
     ):
         verdict = await _apply_shell_judge(_call(), None, False)
     assert verdict is None
@@ -158,9 +159,10 @@ async def test_the_judge_is_told_the_sandbox_is_off_for_such_a_call(monkeypatch)
         seen.update(kwargs)
         return ShellVerdict(JUDGE_CAUTION, "leaves the sandbox")
 
-    with patch(
-        "zrb.llm.agent.run.deferred_calls.judge_or_unknown", _judge
-    ), _is_shell(sandbox_off=True):
+    with (
+        patch("zrb.llm.agent.run.deferred_calls.judge_or_unknown", _judge),
+        _is_shell(sandbox_off=True),
+    ):
         await _apply_shell_judge(_call(), None, False)
     assert seen["sandbox_off"] is True
 
@@ -180,15 +182,18 @@ async def test_a_cancelled_approval_does_not_leave_the_line_behind(monkeypatch):
         record_judge_note(_CALL_ID, JUDGE_CAUTION, "why it would matter")
         raise asyncio.CancelledError()
 
-    with patch.object(
-        deferred_calls,
-        "_apply_pre_tool_use_hook",
-        AsyncMock(
-            return_value=SimpleNamespace(
-                deny=False, allow=False, force_prompt=False, updated_input=None
-            )
+    with (
+        patch.object(
+            deferred_calls,
+            "_apply_pre_tool_use_hook",
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    deny=False, allow=False, force_prompt=False, updated_input=None
+                )
+            ),
         ),
-    ), patch.object(deferred_calls, "_resolve_approval", _cancel):
+        patch.object(deferred_calls, "_resolve_approval", _cancel),
+    ):
         with pytest.raises(asyncio.CancelledError):
             await deferred_calls.process_deferred_requests(
                 DeferredToolRequests(approvals=[_call()]),
@@ -205,9 +210,14 @@ async def test_the_judge_is_the_last_stage_before_the_prompt(monkeypatch):
     _knobs(monkeypatch, judge=True, auto_approve=True)
     channel = MagicMock()
     channel.request_approval = AsyncMock()
-    with _judging(ShellVerdict(JUDGE_SAFE, "read-only")), _is_shell(), patch(
-        "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
-    ), patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False):
+    with (
+        _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
+        _is_shell(),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
+        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+    ):
         verdict = await _resolve_approval(
             _call(), MagicMock(), None, channel, None, force_ask=False
         )

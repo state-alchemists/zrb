@@ -7,10 +7,10 @@ answered in one place and pinned here.
 
 from zrb.llm.agent.types import ToolCallPart
 from zrb.llm.tool_call.shell_call import (
+    is_sandbox_off,
     is_shell_call,
     shell_command,
     shell_command_args,
-    is_sandbox_off,
 )
 
 

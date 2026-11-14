@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.handler import ToolPolicy
 from zrb.llm.tool_call.shell_call import (
+    is_sandbox_off,
     shell_command,
     shell_command_args,
-    is_sandbox_off,
 )
 
 if TYPE_CHECKING:

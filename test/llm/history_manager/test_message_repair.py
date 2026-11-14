@@ -40,7 +40,9 @@ def test_a_text_part_with_no_content_drops_the_message_that_held_it():
 
 
 def test_a_message_that_still_has_a_part_is_kept():
-    data = [{"kind": "request", "parts": [{"part_kind": "user-prompt", "content": "hi"}]}]
+    data = [
+        {"kind": "request", "parts": [{"part_kind": "user-prompt", "content": "hi"}]}
+    ]
 
     assert filter_empty_responses(data) == data
 
@@ -92,7 +94,9 @@ def test_a_text_like_part_keeps_its_structural_fields():
 def test_an_attachment_is_kept_whole_rather_than_flattened_to_text():
     attachment = {"kind": "binary", "data": "AAAA", "media_type": "image/png"}
 
-    cleaned = clean_corrupted_content({"part_kind": "user-prompt", "content": [attachment]})
+    cleaned = clean_corrupted_content(
+        {"part_kind": "user-prompt", "content": [attachment]}
+    )
 
     assert cleaned["content"] == [attachment]
 
