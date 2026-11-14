@@ -109,7 +109,7 @@ def test_a_finished_run_is_written_with_its_own_model(usage_dir):
     """The auxiliary call sites hand over the result and nothing else: the model
     the provider answered with is more than the caller knows."""
     result = MagicMock()
-    result.usage.return_value = RunUsage(input_tokens=10, requests=1)
+    result.usage = RunUsage(input_tokens=10, requests=1)
     result.response.model_name = "small-model"
     record = record_agent_usage(
         result, component=COMPONENT_SHELL_JUDGE, when=JANUARY
@@ -125,7 +125,8 @@ def test_a_run_that_reported_nothing_writes_no_line(usage_dir):
 
 def _finished_run(tokens: int = 10) -> MagicMock:
     result = MagicMock()
-    result.usage.return_value = RunUsage(input_tokens=tokens, requests=1)
+    # A `RunResult` exposes `usage` as a property, not a method.
+    result.usage = RunUsage(input_tokens=tokens, requests=1)
     result.response.model_name = "small-model"
     return result
 
