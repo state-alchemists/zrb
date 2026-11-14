@@ -1,10 +1,11 @@
 """The microphone itself: opening it, which device it opens, and recording.
 
-`listen` and `record` both go through `_open_microphone`, so this is where a
+`listen` and `record` both go through `open_microphone`, so this is where a
 device that will not start is retried, and where the report says which device it
 was asked for and what names another. The microphone is a fake `sounddevice`
 whose `InputStream` hands its callback to the test, which then plays blocks into
-it.
+it. Opening it is `zrb.llm.dictation.microphone`'s job; this file exercises it
+through the two entry points that use it.
 """
 
 import asyncio
@@ -16,13 +17,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import listen, record, to_device
+from zrb.llm.dictation.listen import listen, record
+from zrb.llm.dictation.microphone import to_device
 
 np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    """A `sounddevice.InputStream`: started by `open_microphone`, closed when
     the listening stops."""
 
     def __init__(self):
@@ -294,7 +296,7 @@ async def test_a_failed_stream_that_will_not_close_does_not_end_the_retries(capl
     """A close that fails must not lose the retry, nor the report (PR #561
     review).
 
-    `_open_microphone` closes the stream that never started before it tries
+    `open_microphone` closes the stream that never started before it tries
     another. sounddevice's `ignore_errors` default swallows PortAudio's own
     errors, but a close that raises anyway would escape the `except` and take the
     remaining attempts with it, and the message naming the device — so the close

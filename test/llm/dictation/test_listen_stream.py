@@ -14,7 +14,7 @@ np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    """A `sounddevice.InputStream`: started by `open_microphone`, closed when
     the listening stops."""
 
     def __init__(self):
@@ -128,7 +128,7 @@ async def _collect(
         patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
     ):
         task = asyncio.create_task(consume())
-        # `_open_microphone` hands `sd.InputStream(...)` off to a real daemon
+        # `open_microphone` hands `sd.InputStream(...)` off to a real daemon
         # thread (`run_in_daemon`), so `captured["callback"]` lands on that
         # thread's own schedule, not necessarily within one event-loop tick:
         # poll for it instead of assuming a single `sleep(0)` suffices.

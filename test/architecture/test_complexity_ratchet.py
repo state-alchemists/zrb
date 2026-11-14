@@ -28,7 +28,7 @@ SRC = str(REPO_ROOT / "src" / "zrb")
 # a long function is fine vs not); raising either needs a one-line reason in
 # the same diff, like the facade and constructor budgets.
 #
-# mccabe 14 is held by seven functions: `_open_microphone`, `find_definition`,
+# mccabe 14 is held by seven functions: `open_microphone`, `find_definition`,
 # `make_yolo_inheritance_checker`, `format_diff`, `normalize_attachments`,
 # `log_session_state` and `run_in_daemon`. Four more score above the ceiling
 # under a `# noqa` the docstring above licenses: `setup_app_keybindings` (23),
