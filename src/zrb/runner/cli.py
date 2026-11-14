@@ -1,20 +1,19 @@
-import ipaddress
 import sys
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.config.web_auth_config import WebAuthConfig, web_auth_config
+from zrb.config.web_auth_config import web_auth_config
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 from zrb.runner.common_util import HELP_FLAGS, get_residual_args, get_task_str_kwargs
+from zrb.runner.web_bind import refuse_insecure_bind
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
-    stylize_error,
     stylize_highlight,
     stylize_muted,
     stylize_section_header,
@@ -256,7 +255,7 @@ async def start_server(_: AnyContext):
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
-    _refuse_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
+    refuse_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
     app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
@@ -269,90 +268,3 @@ async def start_server(_: AnyContext):
     )
     await server.serve()
 
-
-# Literal IP addresses are parsed instead of listed.
-_LOOPBACK_HOSTNAMES = {"localhost"}
-
-# Credential minimums, enforced only for a network-exposed bind.
-_MIN_PUBLIC_PASSWORD_LENGTH = 12
-_MIN_PUBLIC_SECRET_KEY_LENGTH = 32
-
-
-def _is_loopback_bind(host: str) -> bool:
-    """True when `host` provably binds to loopback only; unknown names count as exposed."""
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return host.lower() in _LOOPBACK_HOSTNAMES
-
-
-def _refuse_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
-    """Exit unless a non-loopback bind has auth enabled with usable credentials.
-
-    There is no override flag. Checks the effective `auth_config`, not CFG,
-    since callers may override it programmatically (including with "").
-    """
-    if _is_loopback_bind(host):
-        return
-    if not auth_config.enable_auth:
-        _abort_insecure_bind(
-            f"Refusing to bind to '{host}' without authentication "
-            "(WEB_AUTH_ENABLED=off): this exposes task execution to anyone "
-            "who can reach this host.\n"
-            "  Fix: set WEB_AUTH_ENABLED=on together with a real "
-            "WEB_SUPER_ADMIN_PASSWORD and WEB_SECRET_KEY,\n"
-            "       or bind to 127.0.0.1 (the default)."
-        )
-    problems = _credential_problems(auth_config)
-    if problems:
-        listed = "\n".join(f"  - {problem}" for problem in problems)
-        _abort_insecure_bind(
-            f"Refusing to bind to '{host}': authentication is enabled, but "
-            f"the credentials protecting it are not usable.\n{listed}\n"
-            "  Fix: set each to a unique value of the stated length, or bind "
-            "to 127.0.0.1 (the default)."
-        )
-
-
-def _credential_problems(auth_config: WebAuthConfig) -> list[str]:
-    """Every reason the effective credentials cannot protect a public bind."""
-    return [
-        problem
-        for problem in (
-            _credential_problem(
-                "WEB_SUPER_ADMIN_PASSWORD",
-                auth_config.super_admin_password,
-                CFG.DEFAULT_WEB_SUPER_ADMIN_PASSWORD,
-                _MIN_PUBLIC_PASSWORD_LENGTH,
-            ),
-            _credential_problem(
-                "WEB_SECRET_KEY",
-                auth_config.secret_key,
-                CFG.DEFAULT_WEB_SECRET_KEY,
-                _MIN_PUBLIC_SECRET_KEY_LENGTH,
-            ),
-        )
-        if problem is not None
-    ]
-
-
-def _credential_problem(
-    name: str, value: str, shipped_default: str, min_length: int
-) -> str | None:
-    """Why `value` is unfit to protect a public bind, or None when it is fit."""
-    if value.strip() == "":
-        return f"{name} is empty."
-    if value == shipped_default:
-        return (
-            f"{name} still has its default, publicly-documented value -- "
-            "anyone who read zrb's docs has it."
-        )
-    if len(value) < min_length:
-        return f"{name} is shorter than the {min_length}-character minimum."
-    return None
-
-
-def _abort_insecure_bind(message: str) -> None:
-    """Print a refusal and exit non-zero, so CI and shells see the failure."""
-    print(stylize_error(f"\n{message}"), file=sys.stderr)
-    raise SystemExit(1)

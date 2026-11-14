@@ -13,7 +13,7 @@ import logging
 
 import pytest
 
-from zrb.llm.agent.run.runner import _CheckpointWriter
+from zrb.llm.agent.run.checkpoint_writer import CheckpointWriter
 
 
 async def _until(condition, attempts: int = 200) -> None:
@@ -38,7 +38,7 @@ async def test_a_busy_writer_keeps_only_the_newest_snapshot():
         written.append(snapshot)
         await release.wait()
 
-    writer = _CheckpointWriter(slow_write)
+    writer = CheckpointWriter(slow_write)
     writer.submit(["a"])
     await _until(lambda: written == [["a"]])
     for name in ("b", "c", "d"):
@@ -58,7 +58,7 @@ async def test_a_writer_that_keeps_up_writes_every_snapshot():
     async def write(snapshot):
         written.append(snapshot)
 
-    writer = _CheckpointWriter(write)
+    writer = CheckpointWriter(write)
     for name in ("a", "b", "c"):
         writer.submit([name])
         await _until(lambda: written[-1:] == [[name]])
@@ -78,7 +78,7 @@ async def test_drain_waits_for_the_write_it_owes():
         await release.wait()
         written.append(snapshot)
 
-    writer = _CheckpointWriter(slow_write)
+    writer = CheckpointWriter(slow_write)
     writer.submit(["last"])
     draining = asyncio.create_task(writer.drain())
     await asyncio.sleep(0)
@@ -102,7 +102,7 @@ async def test_a_failed_write_is_reported_and_does_not_stop_the_next(caplog):
             raise RuntimeError("disk full")
         written.append(snapshot)
 
-    writer = _CheckpointWriter(write)
+    writer = CheckpointWriter(write)
     with caplog.at_level(logging.WARNING):
         writer.submit(["bad"])
         await _until(lambda: "disk full" in caplog.text)
@@ -122,7 +122,7 @@ async def test_a_snapshot_submitted_after_the_writer_went_idle_is_still_written(
     async def write(snapshot):
         written.append(snapshot)
 
-    writer = _CheckpointWriter(write)
+    writer = CheckpointWriter(write)
     writer.submit(["a"])
     await _until(lambda: written == [["a"]])
     await asyncio.sleep(0)  # the in-flight task finishes and clears itself
