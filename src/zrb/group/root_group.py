@@ -9,9 +9,12 @@ importing the CLI there drags the server stack (`web_auth_config`, `Session`,
 So the runner registers its group here when it creates it, and the engine reads
 it back — the same seam `zrb.llm.shared.agent_state` uses for the current UI.
 
-Nothing is registered in a process that never loads the CLI: an embedder who
-builds an agent around their own group tree calls `set_root_group` themselves,
-and the tool says so plainly instead of listing a tree the caller never chose.
+This is a handover, not an extension point. `run_zrb_task` executes the `zrb`
+command in a child process, so a tree registered here and nowhere else would be
+listed by one tool and unrunnable through the other; register your own tree
+only when the `zrb` command can build it too. In a process that never loads the
+CLI nothing is registered, and the listing tool says so plainly instead of
+walking a tree the caller never chose.
 """
 
 from __future__ import annotations

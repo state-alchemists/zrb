@@ -24,8 +24,10 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
         ] = "",
         purpose: Purpose = "",
     ) -> str:
-        # The tree is whatever the process registered, never a module the engine
-        # imports: `zrb.runner` builds agents, so the engine cannot build with it.
+        # The tree is whatever the process registered -- the CLI does, on the line
+        # that creates it. The engine cannot reach it through `zrb.runner`: the CLI
+        # is built on the engine, so importing it from here closes the loop and
+        # drags the server stack into every process that builds an agent.
         target_group = get_root_group()
         if target_group is None:
             return (
