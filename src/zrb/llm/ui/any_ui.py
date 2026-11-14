@@ -1,7 +1,7 @@
 """The UI contract every task's `ui` slot is typed against.
 
-`AnyUI` is one object made of five roles, each its own contract so a backend can
-replace one without touching the rest:
+`AnyUI` is one object made of five roles, each its own contract, so a caller
+names the role it needs instead of the fifty members behind it:
 
 - `AnyUIDisplay` — what the UI writes: output, answers, block markers.
 - `AnyUIInput` — questions to the user and the queue a typed message enters.
@@ -10,10 +10,18 @@ replace one without touching the rest:
 - `AnyUISession` — which conversation is open, which model answers, its meters.
 
 Every role is reached through an accessor — `ui.display`, `ui.input`,
-`ui.picker`, `ui.session`, `ui.tools` — because a backend swaps the writer, the
-widget and the queue, and the session is the conversation the object already
-*is*: a UI that tracks its own model, history and turn state answers for the
-role without a second object holding a copy of that state.
+`ui.picker`, `ui.session`, `ui.tools`. Two of them hand back a part: `display`,
+the writer, and `picker`, the choice widget, which each backend supplies from
+its own surface (`BaseUIDisplay`; `UIPicker`, `MultiUIPicker`, `TextPicker`).
+
+The other three hand back the UI itself. That is deliberate rather than
+unfinished: what those roles name is state the object already keeps. `session`
+is the conversation the object *is* — its model, its history, its turn flags,
+its meters — and `input` and `tools` are its own queue and question, its own
+tool surface. A wrapper forwarding to that state would keep it in two places,
+the cost `replay_history`'s `super()` chain already pays for, which is why the
+state is not moved. A backend that needs a real part for one of the three adds
+it there, and this paragraph is what says it happened.
 
 This module adds only what belongs to the whole: the shared writer
 `append_to_output`, `run_async`, `is_local`, and the `MultiUI` parent link. A UI
@@ -23,10 +31,11 @@ keeps the roles it renders and mixes in the matching defaults from
 `AnyUI` is still one `ABC`: each of its own members fails with `TypeError` at
 construction when a backend leaves it out, and the five accessors are among
 them, so a class implementing `AnyUI` directly must supply all five.
-`UIStateDefaultsMixin` supplies each accessor (handing the object back) plus an
-inert default for every member a UI leaves out. What an accessor *hands back* is
-not checked at construction — a UI missing one of those members answers at the
-first read, which is the gap the mixin exists to close.
+`UIStateDefaultsMixin` supplies each accessor — the host itself for a role the
+UI answers for, a default part for the ones it does not — plus an inert default
+for every member a UI leaves out. What an accessor *hands back* is not checked
+at construction — a UI missing one of those members answers at the first read,
+which is the gap the mixin exists to close.
 """
 
 from __future__ import annotations
@@ -80,27 +89,40 @@ class AnyUI(ABC):
     @property
     @abstractmethod
     def display(self) -> AnyUIDisplay:
-        """What this UI writes: output, answers, block markers, echo spans."""
+        """What this UI writes: output, answers, block markers, echo spans.
+
+        A part, so a backend can swap the writer alone.
+        """
 
     @property
     @abstractmethod
     def input(self) -> AnyUIInput:
-        """Questions to the user, and the queue a typed message enters."""
+        """Questions to the user, and the queue a typed message enters.
+
+        The host answers for this role: the queue and the question are its own
+        methods, not a second object's.
+        """
 
     @property
     @abstractmethod
     def picker(self) -> AnyUIPicker:
-        """This UI's choice widget."""
+        """This UI's choice widget — a part, chosen by the backend."""
 
     @property
     @abstractmethod
     def session(self) -> AnyUISession:
-        """The conversation this UI is talking to: model, turn state, meters."""
+        """The conversation this UI is talking to: model, turn state, meters.
+
+        The host answers for this role: the state it names is the object's own.
+        """
 
     @property
     @abstractmethod
     def tools(self) -> AnyUITools:
-        """A tool call's lifecycle, and the state of its approval."""
+        """A tool call's lifecycle, and the state of its approval.
+
+        The host answers for this role: the surface is its own.
+        """
 
     @abstractmethod
     async def run_async(self) -> Any:
