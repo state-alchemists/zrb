@@ -172,8 +172,10 @@ def _component_section(records: list[UsageRecord]) -> list[str]:
         return []
     total_input = _total(records, _INPUT)
     ordered = sorted(grouped.items(), key=lambda item: -_total(item[1], _INPUT))
+    # Four spaces, like every other section row: the heading owns two, and a
+    # header indented to two sits over rows indented to four.
     header = (
-        f"  {'component':<{_COMPONENT_WIDTH}}{'runs':>6}{'input':>10}"
+        f"    {'component':<{_COMPONENT_WIDTH}}{'runs':>6}{'input':>10}"
         f"{'output':>10}{'share':>7}"
     )
     return [
@@ -192,7 +194,7 @@ def _component_row(
     """One component row: its name, and the four numbers a reader compares."""
     share = f"{_total(runs, _INPUT) / total_input:.0%}" if total_input else _UNPRICED
     return (
-        f"{component:<{_COMPONENT_WIDTH}}"
+        f"{_ellipsize(component, _COMPONENT_WIDTH):<{_COMPONENT_WIDTH}}"
         f"{len(runs):>6}"
         f"{_tokens(_total(runs, _INPUT)):>10}"
         f"{_tokens(_total(runs, _OUTPUT)):>10}"
@@ -532,7 +534,8 @@ def _idle(seconds: float) -> str:
     return f"{hours}h {minutes}m" if minutes else f"{hours}h"
 
 
-def _ellipsize(model: str) -> str:
-    if len(model) <= _MODEL_WIDTH:
-        return model
-    return model[: _MODEL_WIDTH - 1] + "…"
+def _ellipsize(text: str, width: int = _MODEL_WIDTH) -> str:
+    """*text* cut to *width*, with an ellipsis where the column ends."""
+    if len(text) <= width:
+        return text
+    return text[: width - 1] + "…"

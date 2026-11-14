@@ -285,6 +285,40 @@ def test_a_window_spent_by_two_things_says_how_much_each(usage_dir):
     assert "50%" in rows[0], rows[0]
 
 
+def test_the_component_header_sits_over_its_rows(usage_dir):
+    """A heading owns two spaces and a section's rows own four, the header included.
+
+    The header was indented to two while its rows were indented to four, so every
+    column label sat two characters to the left of the column it named.
+    """
+    records = [
+        _record(component=COMPONENT_MAIN),
+        _record(component=COMPONENT_SHELL_JUDGE),
+    ]
+    out = render_usage(records, "label", registered_tools=[])
+
+    lines = [
+        line
+        for line in out.splitlines()
+        if "component" in line or "shell_judge" in line or "main_agent" in line
+    ]
+    assert lines, out
+    assert {len(line) - len(line.lstrip()) for line in lines} == {4}
+
+
+def test_a_long_component_name_stays_inside_its_column(usage_dir):
+    """A component the table does not know yet must not shift the numbers."""
+    records = [
+        _record(component=COMPONENT_MAIN),
+        _record(component="a_component_nobody_has_named"),
+    ]
+    out = render_usage(records, "label", registered_tools=[])
+
+    row = next(line for line in out.splitlines() if "a_component" in line)
+    assert "…" in row, row
+    assert len(row) == len(next(line for line in out.splitlines() if "main_agent" in line))
+
+
 def test_the_context_section_says_where_the_input_went(usage_dir):
     record = _record(
         context=ContextComposition(
