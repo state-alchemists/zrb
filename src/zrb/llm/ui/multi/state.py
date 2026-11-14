@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
+    from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 
 
 class MultiUIState(UIStateDefaultsMixin):
@@ -179,6 +180,15 @@ class MultiUIState(UIStateDefaultsMixin):
     @property
     def yolo(self) -> bool | frozenset:
         return self.main_ui.tools.yolo if self.main_ui is not None else False
+
+    @property
+    def conversation(self) -> "BaseUIConversationCommands | None":
+        """The conversation the main child manages, or None with no child.
+
+        Reached on the primary child for the same reason as the session
+        members above: one conversation is open, and that child owns it.
+        """
+        return self.main_ui.conversation if self.main_ui is not None else None
 
     @property
     def snapshot_manager(self) -> "SnapshotManager | None":

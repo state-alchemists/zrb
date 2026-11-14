@@ -21,7 +21,7 @@ _BROAD = {"Exception", "BaseException"}
 # -1 (301->300): the two prompt-file reads share one handler.
 # -1 (299->298): the plugin scan catches `OSError`, which is what a root
 # directory, a marketplace directory and the installed-plugin index raise.
-SWALLOWED_BROAD_EXCEPTS = 298
+SWALLOWED_BROAD_EXCEPTS = 296
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:
