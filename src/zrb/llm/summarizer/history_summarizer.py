@@ -48,6 +48,7 @@ from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.summarizer.verbatim_archive import (
     archive_verbatim_history,
     conversation_key,
+    render_archive_pointer,
     verbatim_archive_path,
 )
 from zrb.util.cli.style import stylize_error, stylize_warning
@@ -818,7 +819,7 @@ async def _build_summary_parts(
     # only after the cap has approved the block.
     cap = summary_cap(conversational_token_threshold)
     carried_block = render_carried_context() or ""
-    archive_note = _render_archive_note(archive_path) if archive_path else ""
+    archive_note = render_archive_pointer(archive_path) if archive_path else ""
     carried_block, archive_note = _fit_note_blocks(
         llm_limiter, cap, carried_block, archive_note
     )
@@ -1122,22 +1123,6 @@ def _opening_text(message: object) -> str:
             content = getattr(part, "content", "")
             return content if isinstance(content, str) else str(content)
     return ""
-
-
-def _render_archive_note(archive_path: str) -> str:
-    """The deterministic pointer to the verbatim archive.
-
-    Written here, never by the summarizer model: the path must be the real one
-    on this machine, and a model asked to repeat it can mangle or invent it.
-    """
-    return (
-        "## Verbatim history archive\n\n"
-        "The messages this summary replaced are archived word for word, "
-        f"append-only, at:\n\n`{archive_path}`\n\n"
-        "Read that file when this summary is not detailed enough; it holds the "
-        "original text of every compacted message (attachment bytes are named "
-        "there, not copied), and later compactions append to the same file."
-    )
 
 
 def _verbatim_prefix(

@@ -29,11 +29,11 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.summarizer.history_summarizer import (
     _SUMMARY_HEADER,
     _VERBATIM_TAIL_HEADER,
-    _render_archive_note,
     _render_summary_content,
     _truncate_snapshot,
     summary_cap,
 )
+from zrb.llm.summarizer.verbatim_archive import render_archive_pointer
 
 JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_carried_context"
 CHARS_PER_TOKEN = 4
@@ -256,7 +256,7 @@ def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
     """
     monkeypatch.setattr(CFG, "TIKTOKEN_ENABLED", True, raising=False)
     limiter = LLMLimiter()
-    note = _render_archive_note("/tmp/session.md")
+    note = render_archive_pointer("/tmp/session.md")
     text = "hello world " * 10
 
     def size(candidate: str) -> int:

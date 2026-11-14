@@ -18,6 +18,8 @@ from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
     TOOL_RESULTS_DIR_SUFFIX,
     archive_lock_path,
+    archive_names_in,
+    tool_results_names_in,
 )
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
@@ -51,22 +53,6 @@ _MAX_CACHED_CONVERSATIONS = 8
 # has at least one message, so `search` can drop the empties by size without
 # reading every file in the directory.
 _EMPTY_HISTORY_MAX_BYTES = 2
-
-# The archive filename as a summary's archive pointer spells it: the path in
-# backticks ends in `verbatim/<name>.md` (a backslash on Windows). Capturing the
-# name alone lets a referenced archive be matched whatever directory it sits in.
-# A space is a valid character in that name -- safe_segment() keeps one from a
-# session name -- so only the markdown/quoting delimiters the pointer could be
-# wrapped in are excluded, not whitespace in general.
-_ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
-
-# The directory a pruned tool result points at: `verbatim/<name>.tool-results/`
-# followed by the call id. The capture stops at the path separator, unlike the
-# archive pattern above, because this name is a directory and the file inside it
-# is not part of the reference.
-_TOOL_RESULTS_REFERENCE_PATTERN = re.compile(
-    r"verbatim[/\\]([^/\\`)'\"\n]+\.tool-results)"
-)
 
 
 def default_history_manager() -> "FileHistoryManager":
@@ -110,10 +96,10 @@ def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
     """What the `.json` files directly in *directory* point at.
 
     Returns the archive filenames and the tool-result directory names they
-    mention. Read as text with `errors="ignore"` and searched, rather than
-    parsed: the pointer is a sentence in a summary, and a file that is not
-    valid JSON any more still names the archive it was written against.
-    Skipping it would turn a corrupt transcript into a deleted archive.
+    mention, read through the same spelling their writers use
+    (`archive_layout.archive_names_in`). Read as text with `errors="ignore"`
+    rather than parsed: a file that is not valid JSON any more still names the
+    archive it was written against.
     """
     archives: set[str] = set()
     tool_results: set[str] = set()
@@ -129,8 +115,8 @@ def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
                 continue
             with open(entry.path, encoding="utf-8", errors="ignore") as stream:
                 content = stream.read()
-                archives.update(_ARCHIVE_REFERENCE_PATTERN.findall(content))
-                tool_results.update(_TOOL_RESULTS_REFERENCE_PATTERN.findall(content))
+                archives.update(archive_names_in(content))
+                tool_results.update(tool_results_names_in(content))
         except OSError:
             continue
     return archives, tool_results

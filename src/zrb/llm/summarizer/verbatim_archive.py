@@ -29,6 +29,7 @@ from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
     archive_lock_path,
     conversation_key,
+    render_archive_pointer,
     verbatim_archive_path,
 )
 from zrb.llm.summarizer.message_converter import message_to_text
@@ -43,6 +44,7 @@ __all__ = [
     "archive_lock_path",
     "archive_verbatim_history",
     "conversation_key",
+    "render_archive_pointer",
     "verbatim_archive_path",
 ]
 
