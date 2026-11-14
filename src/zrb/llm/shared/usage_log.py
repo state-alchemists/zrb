@@ -451,17 +451,18 @@ def record_agent_usage(
     Every auxiliary model call zrb makes has a `RunResult` in hand when it
     finishes and no line in the log, because the only writer was the turn
     runner. This is that writer for them: it takes the result, so a call site
-    does not have to know whether usage is a method or an attribute on the
-    object its agent returns, and it writes through `record_usage`, so an empty
-    run still writes nothing.
+    does not have to reach into it for its usage and its model, and it writes
+    through `record_usage`, so an empty run still writes nothing.
 
     *session* left empty is the conversation the call ran inside: an auxiliary
     call is never handed a name, and a judge's tokens should count toward the
     session whose command it judged.
     """
-    usage = getattr(result, "usage", None)
-    if callable(usage):
-        usage = usage()
+    # `RunResult` and `StreamedRunResult` both expose `usage` as a property
+    # returning `RunUsage`. Reading it is the whole job: a `RunUsage` is also
+    # callable, through a V1 shim that returns itself and a deprecation
+    # warning, so `usage()` would cost a warning and buy nothing.
+    usage = cast("RunUsage | None", getattr(result, "usage", None))
     if usage is None:
         return None
     if not model:
@@ -469,7 +470,7 @@ def record_agent_usage(
         # a call site knows: the request may have been routed or defaulted.
         model = str(getattr(getattr(result, "response", None), "model_name", "") or "")
     return record_usage(
-        cast("RunUsage", usage),
+        usage,
         model=model,
         session=session,
         duration_ms=duration_ms,

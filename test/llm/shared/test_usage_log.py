@@ -3,6 +3,7 @@
 import json
 import os
 import pathlib
+import warnings
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -15,11 +16,13 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.conversation_naming import with_slug
 from zrb.llm.shared.usage_log import (
+    COMPONENT_OTHER,
     KIND_SUMMARIZATION,
     LIMIT_TOKEN,
     CompactionDetail,
     UsageTotals,
     read_records,
+    record_agent_usage,
     record_totals,
     record_usage,
     usage_store_path,
@@ -324,6 +327,23 @@ async def test_a_headless_run_writes_one_line(usage_dir):
     assert record.output_tokens == 8
     assert record.requests == 1
     assert record.duration_ms >= 0
+
+
+def test_recording_a_result_reads_its_usage(usage_dir):
+    """`usage` is a property, and a `RunUsage` is callable through a V1 shim
+    that returns itself — so calling it cost a deprecation warning per line."""
+    result = MagicMock()
+    result.usage = RunUsage(input_tokens=7, requests=1)
+    result.response.model_name = "test-model"
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        record_agent_usage(result, component=COMPONENT_OTHER)
+
+    assert [w for w in caught if "property, not a method" in str(w.message)] == []
+    (record,) = read_records()
+    assert record.input_tokens == 7
+    assert record.component == COMPONENT_OTHER
 
 
 @pytest.mark.asyncio
