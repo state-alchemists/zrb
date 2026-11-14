@@ -384,11 +384,10 @@ async def run_llm_hook(
             current_nested_run.reset(token)
 
         output_text = str(result.output)
-        record_agent_usage(
-            result,
-            component=COMPONENT_HOOK,
-            model=model_name if isinstance(model_name, str) else "",
-        )
+        # No `model=`: this is the configured name, and `create_agent` resolved
+        # it above. The result's own response names the model that served the
+        # request, which is what `/usage` groups by.
+        record_agent_usage(result, component=COMPONENT_HOOK)
         return HookResult(
             success=True,
             output=output_text,

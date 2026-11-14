@@ -69,6 +69,31 @@ async def test_prompt_hook_plain_output_success():
 
 
 @pytest.mark.asyncio
+async def test_a_hooks_usage_line_names_the_model_that_served_it():
+    "The hook's line names the model that answered, not the configured alias."
+    config = PromptHookConfig(user_prompt_template="x", model="fake-model")
+    hook = create_prompt_hook(config)
+    context = HookContext(
+        event=HookEvent.USER_PROMPT_SUBMIT, event_data={}, prompt="do it"
+    )
+
+    agent_cls = _agent_returning("ok")
+    mock_config, mock_module = _patched_agent(agent_cls)
+    with (
+        mock_config as mock_resolve_model,
+        mock_module,
+        patch("zrb.llm.hook.execution.creator.record_agent_usage") as record,
+    ):
+        mock_resolve_model.return_value = "resolved"
+        await hook(context)
+
+    # The result's own response names the model that answered; passing the
+    # configured alias by hand would group the spend under a model that never
+    # ran. `record_agent_usage` reads it when the caller leaves it out.
+    assert "model" not in record.call_args.kwargs
+
+
+@pytest.mark.asyncio
 async def test_prompt_hook_json_output_becomes_modifications():
     "A JSON-object agent output is parsed into modifications."
     config = PromptHookConfig(user_prompt_template="x", model="fake-model")
