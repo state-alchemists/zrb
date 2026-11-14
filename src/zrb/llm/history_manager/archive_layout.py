@@ -1,15 +1,23 @@
-"""Where a conversation's verbatim archive lives, and where its lock sits.
+"""Where a conversation's verbatim archive lives, how it is named, and its lock.
 
 Both the summarizer (which writes an archive) and the history manager (which
 collects one once no history refers to it) need these names, and the history
 manager is the lower of the two — it owns the directory the archives sit in — so
 the layout lives here rather than in the writer.
+
+That includes the pointer: the prose a summary leaves behind names its archive
+the way `render_archive_pointer` spells it, and the collector finds archives
+again by searching written transcripts for that same spelling
+(`archive_names_in`). Writer and reader sit together because nothing else joins
+them: reword one half alone and the summary still reads correctly while its
+archive becomes invisible to the next cleanup.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
+import re
 
 from zrb.config.config import CFG
 from zrb.util.string.name import safe_segment
@@ -73,3 +81,51 @@ def tool_results_dir(archive_path: str) -> str:
     root, name = os.path.split(archive_path)
     stem = name[:-3] if name.endswith(".md") else name
     return os.path.join(root, f"{stem}{TOOL_RESULTS_DIR_SUFFIX}")
+
+
+def render_archive_pointer(archive_path: str) -> str:
+    """The deterministic pointer a summary leaves to its archive.
+
+    Written by this module, never by the summarizer model: the path must be the
+    real one on this machine, and a model asked to repeat it can mangle or
+    invent it. `archive_names_in` reads this exact prose back out.
+    """
+    return (
+        "## Verbatim history archive\n\n"
+        "The messages this summary replaced are archived word for word, "
+        f"append-only, at:\n\n`{archive_path}`\n\n"
+        "Read that file when this summary is not detailed enough; it holds the "
+        "original text of every compacted message (attachment bytes are named "
+        "there, not copied), and later compactions append to the same file."
+    )
+
+
+# The archive filename as a pointer spells it: the path in backticks ends in
+# `verbatim/<name>.md` (a backslash on Windows). Capturing the name alone lets a
+# referenced archive be matched whatever directory it sits in. A space is a
+# valid character in that name -- safe_segment() keeps one from a session name --
+# so only the markdown/quoting delimiters the pointer could be wrapped in are
+# excluded, not whitespace in general.
+_ARCHIVE_REFERENCE = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
+
+# The directory a pruned tool result points at: `verbatim/<name>.tool-results/`
+# followed by the call id. The capture stops at the path separator, unlike the
+# archive pattern above, because this name is a directory and the file inside it
+# is not part of the reference.
+_TOOL_RESULTS_REFERENCE = re.compile(r"verbatim[/\\]([^/\\`)'\"\n]+\.tool-results)")
+
+
+def archive_names_in(text: str) -> set[str]:
+    """The archive filenames *text* points at.
+
+    Searched rather than parsed: a pointer is a sentence inside a summary, and a
+    transcript that is no longer valid JSON still names the archive it was
+    written against. Skipping it would turn a corrupt transcript into a deleted
+    archive.
+    """
+    return set(_ARCHIVE_REFERENCE.findall(text))
+
+
+def tool_results_names_in(text: str) -> set[str]:
+    """The tool-result directory names *text* points at."""
+    return set(_TOOL_RESULTS_REFERENCE.findall(text))
