@@ -1,5 +1,6 @@
 """The one addition a turn's fit has not seen: a `PostCompact` hook's own context."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -67,13 +68,22 @@ def _limiter(fit) -> MagicMock:
     limiter.max_token_per_request = 1000
     limiter.get_effective_context_window.return_value = 1000
     limiter.count_tokens.return_value = 10
+    limiter.count_content_tokens.return_value = 10
     limiter.acquire = AsyncMock()
     limiter.fit_context_window.side_effect = fit
     return limiter
 
 
-async def _turn(agent, limiter, hook: HookCallable, print_fn=print) -> None:
-    """Run one turn of three messages through *hook*'s POST_COMPACT event."""
+async def _turn(
+    agent,
+    limiter,
+    hook: HookCallable,
+    history: "list[Any] | None" = None,
+    print_fn=print,
+) -> None:
+    """Run one turn through *hook*'s POST_COMPACT event."""
+    if history is None:
+        history = [MagicMock() for _ in range(3)]
     manager = HookManager(search_dirs=[])
     manager.add_hook(hook, events=[HookEvent.POST_COMPACT])
     with patch(
@@ -82,7 +92,7 @@ async def _turn(agent, limiter, hook: HookCallable, print_fn=print) -> None:
         await run_agent(
             agent=agent,
             message="Hi",
-            message_history=[MagicMock() for _ in range(3)],
+            message_history=history,
             limiter=limiter,
             hook_manager=manager,
             print_fn=print_fn,
@@ -122,7 +132,7 @@ async def test_the_context_is_fitted_around_and_prepended_after():
 
 @pytest.mark.asyncio
 async def test_a_trim_cannot_drop_the_hook_s_context():
-    """The finding: the context was the first message, so the trim took it first."""
+    """The first finding: the context was the first message, so the trim took it first."""
 
     def fit(history, new_message, reserved_tokens=0, model=None):
         return list(history) if reserved_tokens == 0 else list(history[-1:])
@@ -138,18 +148,60 @@ async def test_a_trim_cannot_drop_the_hook_s_context():
 
 
 @pytest.mark.asyncio
+async def test_a_first_turn_still_sends_the_hook_s_context():
+    """The second finding: with no history, an empty fit is not a verdict on the context.
+
+    `fit_context_window` returns an empty history unchanged, so answering "does
+    the context fit" with that answer drops what a hook injected on every first
+    turn.
+    """
+
+    def fit(history, new_message, reserved_tokens=0, model=None):
+        return list(history)
+
+    limiter = _limiter(fit)
+    agent = _agent_handed_a_history()
+    await _turn(agent, limiter, _answers_with_context(), history=[])
+
+    sent = agent.sent[0]
+    assert len(sent) == 1
+    assert isinstance(sent[0].parts[0], SystemPromptPart)
+    assert sent[0].parts[0].content == CONTEXT
+
+
+@pytest.mark.asyncio
+async def test_the_context_is_charged_to_pacing_even_beside_a_usage_anchor():
+    """`count_tokens` prefers an anchor, and that request never carried this context."""
+
+    def fit(history, new_message, reserved_tokens=0, model=None):
+        return list(history)
+
+    limiter = _limiter(fit)
+    limiter.count_content_tokens.return_value = 100
+    agent = _agent_handed_a_history()
+    await _turn(agent, limiter, _answers_with_context())
+
+    estimated = limiter.acquire.call_args.kwargs["estimated_tokens"]
+    assert estimated == 10 + 100 + 10, "history, hook context, and the message"
+
+
+@pytest.mark.asyncio
 async def test_a_context_too_large_to_send_is_dropped_and_said_out_loud():
     """Sending it is a provider error every turn; losing it silently is worse."""
 
     def fit(history, new_message, reserved_tokens=0, model=None):
-        return [] if reserved_tokens else list(history[-1:])
+        # Reserving the context's cost leaves no room, and the probe says the
+        # context does not fit on its own either.
+        if reserved_tokens:
+            return []
+        if len(history) == 1 and isinstance(history[0].parts[0], SystemPromptPart):
+            return []
+        return list(history[-1:])
 
     printed: list[str] = []
     limiter = _limiter(fit)
     agent = _agent_handed_a_history()
-    await _turn(
-        agent, limiter, _answers_with_context(), print_fn=printed.append
-    )
+    await _turn(agent, limiter, _answers_with_context(), print_fn=printed.append)
 
     sent = agent.sent[0]
     assert len(sent) == 1, "only the newest turn survives"

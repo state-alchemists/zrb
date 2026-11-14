@@ -597,30 +597,54 @@ def _fit_hook_context(
     where no trim can reach it.
     """
     model = getattr(agent, "model", None)
-    context_tokens = limiter.count_tokens(context)
+    context_tokens = limiter.count_content_tokens(context)
     fitted = limiter.fit_context_window(
         prepared.history,
         prompt_content,
         prepared.reserved_tokens + context_tokens,
         model=model,
     )
-    if fitted:
-        prepared.history = _prepend_system_context(fitted, context)
-        prepared.tokens = limiter.count_tokens(prepared.history)
-        return
-    # Nothing survives beside the context, so the context is what does not fit.
-    # Saying so is the point: a request that cannot be sent helps nobody, and
-    # neither does one that quietly lost what a hook asked to inject.
-    fitted = limiter.fit_context_window(
-        prepared.history, prompt_content, prepared.reserved_tokens, model=model
-    )
-    if fitted:
+    if not fitted and not _context_fits_alone(
+        limiter, prompt_content, prepared.reserved_tokens, context, model
+    ):
+        # Nothing survives beside the context and the context does not fit on its
+        # own either. Saying so is the point: a request that cannot be sent helps
+        # nobody, and neither does one that quietly lost what a hook injected.
         print_fn(
             f"\n[SYSTEM] POST_COMPACT hook context dropped: {context_tokens} tokens"
-            f" do not fit beside {len(fitted)} message(s)."
+            " do not fit beside the prompt."
         )
-    prepared.history = fitted
-    prepared.tokens = limiter.count_tokens(prepared.history)
+        prepared.history = limiter.fit_context_window(
+            prepared.history, prompt_content, prepared.reserved_tokens, model=model
+        )
+        prepared.tokens = limiter.count_tokens(prepared.history)
+        return
+    prepared.history = _prepend_system_context(fitted, context)
+    # The context's own tokens are added rather than measured off the combined
+    # history: `count_tokens` prefers a provider usage anchor, which describes a
+    # request that did not carry this context, so measuring would leave the
+    # context uncounted for pacing and in `/usage`.
+    prepared.tokens = limiter.count_tokens(fitted) + context_tokens
+
+
+def _context_fits_alone(
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+    reserved_tokens: int,
+    context: str,
+    model: object,
+) -> bool:
+    """Whether a hook's context fits beside the new message with no history at all.
+
+    Asked as a one-message history of its own, because `fit_context_window`
+    returns an empty history unchanged: on a first turn there is nothing to trim,
+    so an empty result says nothing about whether the context would have fitted.
+    """
+    probe = _prepend_system_context([], context)
+    fitted = limiter.fit_context_window(
+        probe, prompt_content, reserved_tokens, model=model
+    )
+    return bool(fitted)
 
 
 async def _pace_request(
