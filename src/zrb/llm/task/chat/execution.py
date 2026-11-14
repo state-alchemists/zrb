@@ -5,7 +5,7 @@ and tool/model resolution. What the session holds afterwards is `teardown.py`.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, cast
 
 from zrb.attr.tpl import Tpl
@@ -15,12 +15,15 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.approval import resolve_approval_channel
-from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.task.chat.persistence import (
+    build_session_history_config,
+    resolve_history_manager,
+)
 from zrb.llm.task.chat.teardown import (
     release_chat_resources,
     settle_background_hooks,
@@ -116,11 +119,7 @@ class ChatExecution:
         initial_message = get_attr(ctx, self._llm_chat_task.message, "")
         initial_attachments = get_attachments(ctx, self._llm_chat_task.attachment)
         interactive = get_bool_attr(ctx, self._llm_chat_task.interactive, True)
-        history_manager = (
-            default_history_manager()
-            if self._llm_chat_task.history_manager is None
-            else self._llm_chat_task.history_manager
-        )
+        history_manager = resolve_history_manager(self._llm_chat_task)
 
         effective_enable_rewind = (
             CFG.LLM_REWIND_ENABLED
@@ -350,12 +349,7 @@ class ChatExecution:
         # "sandbox" input.
         resolved_sandbox = coerce_sandbox(ctx, llm_chat_task.sandbox)
 
-        # The inner task's conversation is always the active chat session.
-        resolved_history = replace(
-            llm_chat_task.history_config,
-            history_manager=history_manager,
-            conversation_name=Tpl("{ctx.input.session}"),
-        )
+        resolved_history = build_session_history_config(llm_chat_task, history_manager)
 
         return _InnerTaskResolution(
             tool_confirmation=tool_confirmation,

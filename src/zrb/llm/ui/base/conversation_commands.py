@@ -17,6 +17,10 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.history_manager.conversation_edits import (
+    copy_conversation,
+    truncate_conversation,
+)
 from zrb.llm.history_manager.conversation_naming import (
     ConversationNamingError,
     should_auto_name,
@@ -83,10 +87,9 @@ class BaseUIConversationCommands:
                     continue
                 try:
                     previous_name = self._base_ui.conversation_session_name
-                    history = self._base_ui.history_manager.load(previous_name)
-                    self._base_ui.history_manager.update(name, history)
-                    self._base_ui.history_manager.save(name)
-                    self._base_ui.history_manager.load(name)
+                    copy_conversation(
+                        self._base_ui.history_manager, previous_name, name
+                    )
                     # The saved copy keeps the conversation's rewind history.
                     if self._base_ui.snapshot_manager is not None:
                         self._schedule_history_copy(
@@ -492,17 +495,11 @@ class BaseUIConversationCommands:
                 # the same snapshot finishes them.
                 if message_count is not None:
                     try:
-                        msgs = self._base_ui.history_manager.load(
-                            self._base_ui.conversation_session_name
+                        truncate_conversation(
+                            self._base_ui.history_manager,
+                            self._base_ui.conversation_session_name,
+                            message_count,
                         )
-                        if len(msgs) > message_count:
-                            self._base_ui.history_manager.update(
-                                self._base_ui.conversation_session_name,
-                                msgs[:message_count],
-                            )
-                            self._base_ui.history_manager.save(
-                                self._base_ui.conversation_session_name
-                            )
                     except Exception as e:
                         logger.warning(f"Failed to rewind conversation history: {e}")
                 self._base_ui.append_to_output(

@@ -9,7 +9,6 @@ from contextlib import contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
-from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.resolver import (
     resolve_custom_commands,
@@ -21,6 +20,7 @@ from zrb.llm.shared.feature_config import (
     set_session_ui,
 )
 from zrb.llm.task.chat.message_expansion import expand_message, is_action_command
+from zrb.llm.task.chat.persistence import replay_conversation
 from zrb.llm.ui.assembly import assemble_ui
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
@@ -250,7 +250,7 @@ class ChatRunning:
         )
 
         if initial_conversation_name:
-            self.load_session_history(ui, history_manager, initial_conversation_name)
+            replay_conversation(ui, history_manager, initial_conversation_name)
         if initial_action:
             outcome = run_custom_command(
                 initial_action, resolved_custom_commands, _get_action_ui(ui)
@@ -317,31 +317,6 @@ class ChatRunning:
             "enable_rewind": enable_rewind,
             "snapshot_dir": snapshot_dir,
         }
-
-    def load_session_history(
-        self,
-        ui: "AnyUI",
-        history_manager: "AnyHistoryManager",
-        conversation_name: str,
-    ) -> None:
-        """Load and display session history if it exists.
-
-        The UI replays it through `replay_history`; a UI that does not
-        override that writes a plain text dump.
-        """
-        if not conversation_name:
-            return
-        try:
-            history = history_manager.load(conversation_name)
-            if not history:
-                return
-            ui.display.replay_history(history)
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            CFG.LOGGER.warning(
-                f"Failed to load history for session {conversation_name}: {e}"
-            )
 
 
 @contextmanager

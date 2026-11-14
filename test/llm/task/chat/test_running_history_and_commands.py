@@ -92,18 +92,6 @@ def ui_commands():
     return {k: [] for k in UI_COMMAND_KEYS}
 
 
-def test_load_session_history_missing_file_is_silent(runner):
-    """FileNotFoundError from the history manager must not surface to the user."""
-    history_manager = MagicMock()
-    history_manager.load.side_effect = FileNotFoundError("no such session")
-    ui = MagicMock(spec=["replay_history", "append_to_output"])
-
-    # Should not raise
-    runner.load_session_history(ui, history_manager, "sess-missing")
-
-    ui.replay_history.assert_not_called()
-
-
 @pytest.mark.asyncio
 async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_commands):
     """A plain message mentioning a known agent gets the nudge prepended
