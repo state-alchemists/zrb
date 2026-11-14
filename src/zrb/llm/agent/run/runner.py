@@ -604,7 +604,7 @@ def _fit_hook_context(
         prepared.reserved_tokens + context_tokens,
         model=model,
     )
-    if not fitted and not _context_fits_alone(
+    if not fitted and not _can_send_context_alone(
         limiter, prompt_content, prepared.reserved_tokens, context, model
     ):
         # Nothing survives beside the context and the context does not fit on its
@@ -627,7 +627,7 @@ def _fit_hook_context(
     prepared.tokens = limiter.count_tokens(fitted) + context_tokens
 
 
-def _context_fits_alone(
+def _can_send_context_alone(
     limiter: LLMLimiter,
     prompt_content: PromptMessage,
     reserved_tokens: int,
