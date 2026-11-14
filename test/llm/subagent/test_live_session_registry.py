@@ -146,7 +146,7 @@ async def test_send_message_queues_and_starts_continuation_when_idle(
             return_value=False,
         ),
         patch(
-            "zrb.llm.subagent.live_session.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             side_effect=fake_run_agent,
         ),
     ):
@@ -275,7 +275,7 @@ async def test_cancel_stops_a_running_continuation(
             return_value=False,
         ),
         patch(
-            "zrb.llm.subagent.live_session.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             side_effect=blocking_run_agent,
         ),
     ):
@@ -311,7 +311,7 @@ async def test_continue_live_session_drains_multiple_queued_messages(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.subagent.live_session.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "first")
         task = entry.active_task
@@ -350,7 +350,7 @@ async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.subagent.live_session.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "first")
         task = entry.active_task
@@ -402,7 +402,7 @@ async def test_continue_live_session_uses_captured_authority_not_ambient(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.subagent.live_session.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
         # Ambient state at continuation time is broader than what the
         # delegation was granted — must not leak into the continuation.
         permission_policy(broad_policy),
@@ -437,7 +437,7 @@ async def test_continue_live_session_reflects_in_activity_registry(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.subagent.live_session.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
         patch("zrb.llm.subagent.live_session.agent_activity_registry") as mock_registry,
     ):
         await registry.send_message("sess1", "a", "hello")

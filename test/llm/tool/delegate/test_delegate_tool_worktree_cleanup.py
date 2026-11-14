@@ -32,7 +32,7 @@ async def test_isolate_worktree_cleanup_failure_reported_not_raised(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
@@ -95,7 +95,7 @@ async def test_isolate_worktree_cleans_up_even_when_subagent_errors(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             new_callable=AsyncMock,
             side_effect=RuntimeError("boom"),
         ),
@@ -152,7 +152,7 @@ async def test_fan_out_without_isolate_worktree_skips_worktree_calls(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
@@ -185,7 +185,7 @@ async def test_isolate_worktree_enter_failure_skips_subagent(mock_sub_agent_mana
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree",

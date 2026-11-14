@@ -33,7 +33,7 @@ async def test_isolate_worktree_uses_distinct_branch_names_per_task(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
@@ -90,7 +90,7 @@ async def test_subagent_history_persisted(mock_sub_agent_manager, monkeypatch):
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.get_current_tool_session",
@@ -121,7 +121,7 @@ async def test_subagent_history_persist_failure_does_not_break_delegation(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.history_manager.file_history_manager.FileHistoryManager",
@@ -146,7 +146,7 @@ async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeyp
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.get_current_tool_session",
@@ -189,7 +189,7 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.get_session_ownership_key",
@@ -227,7 +227,7 @@ async def test_single_delegate_does_not_flush_routine_output_to_main(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent",
+            "zrb.llm.shared.subagent_turn.run_agent",
             side_effect=run_and_write_to_buffer,
         ),
         patch("zrb.llm.tool.delegate.runner.get_current_ui", return_value=parent_ui),

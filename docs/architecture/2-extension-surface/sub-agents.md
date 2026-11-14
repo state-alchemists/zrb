@@ -76,7 +76,8 @@ flowchart TD
 | `resolve_tools_by_name` | `src/zrb/llm/subagent/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
 | `DelegateToAgent` | `src/zrb/llm/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
 | `start_background_run` | `src/zrb/llm/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
-| `run_agent_task` | `src/zrb/llm/tool/delegate/runner.py` | The shared child run: build, envelope, hooks, `run_agent`, transcript, result |
+| `run_agent_task` | `src/zrb/llm/tool/delegate/runner.py` | One child's whole turn as the tool sees it: build, envelope, hooks, the run, transcript, result |
+| `run_subagent_turn` | `src/zrb/llm/shared/subagent_turn.py` | **The** sub-agent run call: the limiter, the usage tag, the captured grant. Both the tool and a live-session continuation go through it, so they cannot drift apart |
 | `SendMessageToSubagent` | `src/zrb/llm/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
 | `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |

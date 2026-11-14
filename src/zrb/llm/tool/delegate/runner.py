@@ -17,7 +17,6 @@ from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.agent_activity import HasActivityTracking, agent_activity_registry
-from zrb.llm.shared.agent_runner import run_agent
 from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.shared.ambient_state import (
     get_active_worktree,
@@ -30,7 +29,7 @@ from zrb.llm.shared.delegation_api import (
     start_titling,
 )
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
-from zrb.llm.shared.usage_log import COMPONENT_SUBAGENT, usage_component
+from zrb.llm.shared.subagent_turn import SubAgentTurn, run_subagent_turn
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree
 from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.ui.buffered.ui import BufferedUI
@@ -159,20 +158,18 @@ async def run_agent_task(
     try:
         # Inside the try so a cancel here goes through `consume_cancelled_flag`.
         await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
-        # A sub-agent's rounds go through the same runner as the conversation's,
-        # so the line has to be tagged here or they all read as the parent's work.
-        with usage_component(COMPONENT_SUBAGENT):
-            result, history = await run_agent(
+        result, history = await run_subagent_turn(
+            SubAgentTurn(
                 agent=sub_agent,
                 message=full_message,
-                message_history=[],
-                limiter=get_run_llm_limiter(),
                 ui=ui,
-                yolo=bool(yolo) if yolo is not None else yolo,
                 # Own scope so read-before-overwrite tracking doesn't credit the
                 # parent's reads; not agent_id (32-bit, collides). "" mints one.
                 run_scope=session.run_scope if session is not None else "",
+                limiter=get_run_llm_limiter(),
+                yolo=yolo,
             )
+        )
 
         result = _finalize_successful_run(
             ui,

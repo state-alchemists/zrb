@@ -27,7 +27,7 @@ async def test_isolate_worktree_enters_and_cleans_up_when_clean(mock_sub_agent_m
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
@@ -84,7 +84,7 @@ async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
@@ -140,7 +140,7 @@ async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branc
 
     with (
         patch(
-            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
+            "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
