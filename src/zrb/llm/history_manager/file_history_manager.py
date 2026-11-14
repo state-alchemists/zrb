@@ -21,6 +21,7 @@ from zrb.llm.history_manager.archive_layout import (
     archive_names_in,
     tool_results_names_in,
 )
+from zrb.llm.history_manager.message_repair import sanitize_history
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
     parse_delegated_session,
@@ -28,7 +29,6 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.match import fuzzy_match
 from zrb.util.owner_only import FILE_MODE, makedirs_owner_only, tighten_once
-from zrb.util.string.conversion import to_string
 from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
 
@@ -195,7 +195,7 @@ class FileHistoryManager(AnyHistoryManager):
                 content = f.read()
                 if not content.strip():
                     return []
-                data = self._sanitize(json.loads(content))
+                data = sanitize_history(json.loads(content))
                 messages = ModelMessagesTypeAdapter.validate_python(data)
                 self._cache[conversation_name] = messages
                 self._cache.move_to_end(conversation_name)
@@ -276,7 +276,7 @@ class FileHistoryManager(AnyHistoryManager):
                     category=UserWarning,
                 )
                 raw = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
-            filtered_data = self._sanitize(raw)
+            filtered_data = sanitize_history(raw)
 
             ModelMessagesTypeAdapter.validate_python(filtered_data)
 
@@ -432,129 +432,6 @@ class FileHistoryManager(AnyHistoryManager):
         matches.sort(key=lambda x: (x[1], -x[2]))
 
         return [m[0] for m in matches]
-
-    def _sanitize(self, data: Any) -> Any:
-        """Normalize message data for provider validation on load and save."""
-        return self._filter_empty_responses(self._clean_corrupted_content(data))
-
-    # Preserve unknown fields; provider replay may require them.
-    def _clean_user_prompt_part(self, data: dict[str, Any]) -> dict[str, Any]:
-        content = data.get("content")
-        if content is None:
-            content = ""
-        elif isinstance(content, list):
-            if not all(_is_user_content_item(item) for item in content):
-                content = to_string(content)
-        elif not isinstance(content, str):
-            content = to_string(content)
-        return {**data, "part_kind": "user-prompt", "content": content}
-
-    def _clean_text_like_part(
-        self, part_kind: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
-        content = data.get("content")
-        if not isinstance(content, str):
-            content = to_string(content) if content is not None else ""
-        return {**data, "part_kind": part_kind, "content": content}
-
-    def _clean_tool_return_part(self, data: dict[str, Any]) -> dict[str, Any]:
-        content = data.get("content")
-        if content is None:
-            content = ""
-        res = {**data, "part_kind": "tool-return", "content": content}
-        if not res.get("tool_name"):
-            res["tool_name"] = "unknown"
-        # Drop null/empty correlation fields that would fail provider validation,
-        # while leaving any genuine value (and all other fields) untouched.
-        if not res.get("tool_call_id"):
-            res.pop("tool_call_id", None)
-        if not res.get("timestamp"):
-            res.pop("timestamp", None)
-        return res
-
-    def _clean_tool_call_part(self, data: dict[str, Any]) -> dict[str, Any] | None:
-        tool_name = data.get("tool_name")
-        if tool_name is None:
-            return None
-        res = {**data, "part_kind": "tool-call", "tool_name": tool_name}
-        if res.get("args") is None:
-            res["args"] = {}
-        if not res.get("tool_call_id"):
-            res.pop("tool_call_id", None)
-        return res
-
-    def _clean_corrupted_content(self, data: Any) -> Any:
-        """Recursively clean corrupted content in message data."""
-        if isinstance(data, dict):
-            part_kind = data.get("part_kind")
-            if part_kind == "user-prompt":
-                return self._clean_user_prompt_part(data)
-            if part_kind in (
-                "text",
-                "system-prompt",
-                "thinking",
-                "retry-prompt",
-                "retry-feedback",
-            ):
-                return self._clean_text_like_part(part_kind, data)
-            if part_kind == "tool-return":
-                return self._clean_tool_return_part(data)
-            if part_kind == "tool-call":
-                return self._clean_tool_call_part(data)
-            return {
-                k: self._clean_corrupted_content(v)
-                for k, v in data.items()
-                if v is not None
-            }
-        if isinstance(data, list):
-            return [
-                item
-                for item in (self._clean_corrupted_content(i) for i in data)
-                if item is not None
-            ]
-        return data
-
-    def _is_valid_message_part(self, part: Any) -> bool:
-        """Check if a message part is non-empty and valid."""
-        if not isinstance(part, dict):
-            return part is not None
-        part_kind = part.get("part_kind")
-        if part_kind == "tool-call":
-            return part.get("tool_name") is not None
-        if "content" in part:
-            content = part.get("content")
-            return content is not None and content != ""
-        return part_kind is not None
-
-    def _filter_empty_responses(self, data: Any) -> Any:
-        """Filter out empty responses and parts with null content from history data."""
-        if isinstance(data, list):
-            filtered = []
-            for item in data:
-                if isinstance(item, dict):
-                    kind = item.get("kind")
-                    parts = item.get("parts")
-                    if kind in ("response", "request") and isinstance(parts, list):
-                        filtered_parts = [
-                            p for p in parts if self._is_valid_message_part(p)
-                        ]
-                        item = {**item, "parts": filtered_parts}
-                        if len(filtered_parts) == 0:
-                            continue
-                    item = {k: self._filter_empty_responses(v) for k, v in item.items()}
-                    filtered.append(item)
-                else:
-                    filtered.append(self._filter_empty_responses(item))
-            return filtered
-        if isinstance(data, dict):
-            return {
-                k: v
-                for k, v in (
-                    (k, self._filter_empty_responses(v)) for k, v in data.items()
-                )
-                if v is not None
-            }
-        return data
 
     def _resolve_read_path(self, conversation_name: str) -> tuple[str, float | None]:
         """Return the conversation path and its mtime, with legacy fallback."""
@@ -832,30 +709,3 @@ class FileHistoryManager(AnyHistoryManager):
                 os.remove(full)
             except OSError:
                 continue
-
-
-# The `kind` of every pydantic-ai `UserContent` that is not a plain string.
-_USER_CONTENT_KINDS = frozenset(
-    {
-        "binary",
-        "image-url",
-        "audio-url",
-        "video-url",
-        "document-url",
-        "text-content",
-        "uploaded-file",
-        "cache-point",
-    }
-)
-
-
-def _is_user_content_item(item: object) -> bool:
-    """A string or a dumped attachment: kept as is, never flattened to text.
-
-    Flattening an image wrote its base64 into the prompt as ~450k characters
-    of text, which the next turn sent to the model and the limiter could not
-    fit in a minute's budget.
-    """
-    if isinstance(item, str):
-        return True
-    return isinstance(item, dict) and item.get("kind") in _USER_CONTENT_KINDS
