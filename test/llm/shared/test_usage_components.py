@@ -2,14 +2,17 @@
 without the field (ADR-0142)."""
 
 import json
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
+from zrb.llm.shared import usage_log
 from zrb.llm.shared.usage_log import (
+    COMPONENT_AUTO_NAMER,
     COMPONENT_MAIN,
     COMPONENT_OTHER,
     COMPONENT_SHELL_JUDGE,
@@ -35,8 +38,7 @@ def usage_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-
-
+def test_a_line_says_what_spent_it(usage_dir):
     """The default names the conversation's own rounds, which is what every
     call site that does not say otherwise is."""
     record = record_usage(
@@ -119,3 +121,75 @@ def test_a_finished_run_is_written_with_its_own_model(usage_dir):
 
 def test_a_run_that_reported_nothing_writes_no_line(usage_dir):
     assert record_agent_usage(MagicMock(), component=COMPONENT_OTHER) is None
+
+
+def _finished_run(tokens: int = 10) -> MagicMock:
+    result = MagicMock()
+    result.usage.return_value = RunUsage(input_tokens=tokens, requests=1)
+    result.response.model_name = "small-model"
+    return result
+
+
+def _ui_with_session(name: str) -> MagicMock:
+    ui = MagicMock()
+    ui.session.conversation_session_name = name
+    return ui
+
+
+@contextmanager
+def _session_bound(name: str):
+    """A conversation, as `record_totals` reads one: through the bound UI."""
+    with (
+        patch.object(usage_log, "get_session_ui", lambda: _ui_with_session(name)),
+        patch.object(usage_log, "get_current_ui", lambda: None),
+    ):
+        yield
+
+
+def test_an_auxiliary_line_belongs_to_the_conversation_it_ran_inside(usage_dir):
+    """The judge is never handed the conversation's name, and its tokens are
+    part of that conversation's bill: filed with an empty session it lands in
+    `today` and `/usage session` never sees it."""
+    with _session_bound("bold-arch-1234"):
+        record = record_agent_usage(
+            _finished_run(), component=COMPONENT_SHELL_JUDGE, when=JANUARY
+        )
+    assert record is not None
+    assert record.session == "bold-arch-1234"
+    assert record.session_key == "bold-arch-1234"
+
+
+def test_a_renamed_conversation_keeps_the_auxiliary_line(usage_dir):
+    """A rename appends a topic slug after the first message, so the name read
+    may be either form; `session_key` is what `/usage session` matches on, and
+    it is the same for both."""
+    with _session_bound("bold-arch-1234-greetings"):
+        record = record_agent_usage(
+            _finished_run(), component=COMPONENT_AUTO_NAMER, when=JANUARY
+        )
+    assert record is not None
+    assert record.session_key == "bold-arch-1234"
+
+
+def test_an_explicit_session_is_not_overridden(usage_dir):
+    with _session_bound("ambient"):
+        record = record_agent_usage(
+            _finished_run(),
+            component=COMPONENT_OTHER,
+            session="explicit",
+            when=JANUARY,
+        )
+    assert record is not None
+    assert record.session == "explicit"
+
+
+def test_a_line_written_outside_a_conversation_names_no_session(usage_dir):
+    """A headless task has no conversation to belong to, and inventing one
+    would read as a session `/usage session` could never open."""
+    with (
+        patch.object(usage_log, "get_session_ui", lambda: None),
+        patch.object(usage_log, "get_current_ui", lambda: None),
+    ):
+        record = record_agent_usage(_finished_run(), component=COMPONENT_OTHER)
+    assert record is not None
+    assert record.session == ""

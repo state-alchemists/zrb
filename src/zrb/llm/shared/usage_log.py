@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from zrb.config.config import CFG
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.feature_config import get_session_ui
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -105,6 +107,26 @@ def usage_component(component: str) -> Iterator[None]:
 def current_component() -> str:
     """The component a line written right now belongs to."""
     return _current_component.get()
+
+
+def current_conversation_name() -> str:
+    """The conversation a line written right now belongs to, or "".
+
+    The session's own UI is the authority, because it is the one the user sees
+    and it is bound for the whole conversation (`_bound_session_ui`), so a
+    compaction, a judge, a hook and a namer all read the same name. A run's UI
+    is the fallback for a headless task that was handed one.
+
+    A name here is not the identity: `UsageRecord.session_key` strips the slug a
+    rename appends, so a name read before a rename still files the line in the
+    same conversation.
+    """
+    for ui in (get_session_ui(), get_current_ui()):
+        session = getattr(ui, "session", None)
+        name = getattr(session, "conversation_session_name", "")
+        if name:
+            return str(name)
+    return ""
 
 
 # Why a compaction ran, as its record spells it. `LIMIT_TOKEN` and
@@ -317,6 +339,7 @@ def record_usage(
 
     *component* names what spent the tokens; left out, it is whatever
     `usage_component` set around the call, and `main_agent` outside one.
+    *session* left empty is the ambient conversation's — see `record_totals`.
 
     Returns the record that was written, or ``None`` when the log could not be
     written — a full disk or a read-only home must not fail the turn that
@@ -351,6 +374,14 @@ def record_totals(
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
         return None
+    if not session:
+        # An auxiliary call — the judge, a hook, the namer, a side question —
+        # runs inside a conversation and is never handed its name. Without
+        # this its tokens land in `today` and never in `/usage session`, which
+        # is the window the new section is read in. `session_key` strips the
+        # slug a rename appends, so an older name still names the same
+        # conversation.
+        session = current_conversation_name()
     record = UsageRecord(
         timestamp=when if when is not None else datetime.now(timezone.utc),
         model=totals.model,
@@ -384,6 +415,10 @@ def record_agent_usage(
     does not have to know whether usage is a method or an attribute on the
     object its agent returns, and it writes through `record_usage`, so an empty
     run still writes nothing.
+
+    *session* left empty is the conversation the call ran inside: an auxiliary
+    call is never handed a name, and a judge's tokens should count toward the
+    session whose command it judged.
     """
     usage = getattr(result, "usage", None)
     if callable(usage):
