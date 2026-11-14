@@ -1,7 +1,9 @@
 """Cutting the microphone stream into utterances by loudness and silence.
 
-`UtteranceCutter` is the pure part — blocks in, finished utterances out — so
-it is testable without a microphone; `listen` feeds it from `sounddevice`.
+`UtteranceCutter` is the pure part — blocks in, finished utterances out — so it
+is testable without a microphone. `listen` feeds it from a stream `microphone.py`
+opened, and `record` runs one while a button is held; opening the device, echo
+cancellation and the messages a failed open prints are that module's.
 """
 
 from __future__ import annotations
@@ -14,21 +16,22 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass, replace
 from enum import Enum
-from functools import cache, partial
+from functools import partial
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.echo_cancel import (
-    EchoCancelledMicrophone,
-    get_unavailable_reason,
+from zrb.llm.dictation.microphone import (
+    SAMPLE_RATE,
+    close_microphone,
+    import_audio,
+    is_echo_cancel_usable,
+    is_echo_cancelled_stream,
+    open_microphone,
 )
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 from zrb.llm.util.audio_devices import DeviceWatcher
-from zrb.llm.util.portaudio_exit import guard_portaudio_exit
-from zrb.llm.util.teardown import close_quietly
-from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:
     # Annotation-only to avoid importing the backend barrel and its audio
@@ -39,7 +42,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SAMPLE_RATE = 16000  # what the transcribers expect
 # How often the device list is re-read while listening, to follow a microphone
 # or speakers being plugged, unplugged or made the default.
 DEVICE_WATCH_SECONDS = 2.0
@@ -53,11 +55,6 @@ _NOISE_FLOOR_SECONDS = 3.0
 _NOISE_FLOOR_MIN_SECONDS = 0.5
 # How often a push-to-talk recording checks whether to stop.
 _RECORD_POLL_SECONDS = 0.1
-# Retry count and delay for PortAudio's one-second ALSA startup deadline.
-_OPEN_ATTEMPTS = 3
-_OPEN_RETRY_SECONDS = 0.5
-# How long the echo-cancelled microphone has to deliver its first block.
-_ECHO_CANCEL_FIRST_AUDIO_SECONDS = 2.0
 _ECHO_CANCEL_DIED = (
     "macOS stopped voice processing (the audio devices changed); listening "
     "without echo cancellation until the microphone is opened again"
@@ -377,9 +374,9 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial, on_partial_over_zrb),
     )
-    is_echo_cancelled = _is_echo_cancel_usable(config)
-    open_microphone = partial(
-        _open_microphone,
+    is_echo_cancelled = is_echo_cancel_usable(config)
+    open_stream = partial(
+        open_microphone,
         sd,
         on_audio,
         device=config.device or None,
@@ -397,7 +394,7 @@ async def listen(
         else DeviceWatcher(sd, DEVICE_WATCH_SECONDS)
     )
 
-    stream = await open_microphone()
+    stream = await open_stream()
     try:
         try:
             while should_listen():
@@ -413,27 +410,27 @@ async def listen(
                     # as much as the quiet, where a change mid-speech would
                     # otherwise never meet it.
                     logger.warning("The audio devices changed; reopening it")
-                    await _close_microphone(stream.close, "the old microphone")
+                    await close_microphone(stream.close, "the old microphone")
                     backlog.mark_gap()
-                    stream = await open_microphone()
+                    stream = await open_stream()
                 if item is None:
                     # PortAudio stops a stream on a host error (an ALSA xrun
                     # or poll failure) and the callback is never called again.
                     if not stream.active:
                         logger.warning("The microphone stream died; reopening it")
-                        await _close_microphone(stream.close, "the dead microphone")
-                        if isinstance(stream, EchoCancelledMicrophone):
+                        await close_microphone(stream.close, "the dead microphone")
+                        if is_echo_cancelled_stream(stream):
                             # macOS stops voice processing on a route change;
                             # reopening it could die the same way, over and
                             # over, so the session carries on without it.
                             logger.warning(_ECHO_CANCEL_DIED)
-                            open_microphone = partial(
-                                open_microphone, is_echo_cancelled=False
+                            open_stream = partial(
+                                open_stream, is_echo_cancelled=False
                             )
                         # Mark the gap first: the new stream can deliver blocks
                         # while it is still opening off the event loop.
                         backlog.mark_gap()
-                        stream = await open_microphone()
+                        stream = await open_stream()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:
@@ -441,7 +438,7 @@ async def listen(
         finally:
             # An echo-cancelled microphone that fails to release must not
             # take the transcript or the caller's own error with it.
-            await _close_microphone(stream.close, "the microphone")
+            await close_microphone(stream.close, "the microphone")
         if keep_partial:
             utterance = await blocks.flush(time.monotonic())
             if utterance is not None:
@@ -786,191 +783,6 @@ def _to_pcm(np: Any, blocks: list[Any]) -> bytes:
     return (np.concatenate(blocks, axis=0) * 32767).astype(np.int16).tobytes()
 
 
-def import_audio() -> tuple[Any, Any]:
-    """numpy and sounddevice, or a `RuntimeError` saying how to install them."""
-    try:
-        # lazy: heavy third-party (numpy/sounddevice are zrb[voice] extras)
-        import numpy as np
-        import sounddevice as sd
-    except (ImportError, OSError) as e:
-        raise RuntimeError(
-            f"Dictation needs the zrb[voice] extra ({e}): pip install 'zrb[voice]'"
-        ) from e
-    guard_portaudio_exit(sd)
-    return np, sd
-
-
-def to_device(device: "str | int | None") -> "int | str | None":
-    """A device setting as `sounddevice` takes it: a digit string is an index.
-
-    `sounddevice` reads an `int` as a device index and a `str` as a name to
-    match, so "2" has to become ``2``. A non-numeric value passes through as a
-    name, and empty or unset is PortAudio's own default.
-    """
-    if device is None or isinstance(device, int):
-        return device
-    text = device.strip()
-    if not text:
-        return None
-    return int(text) if text.isdigit() else text
-
-
-async def _open_microphone(
-    sd: Any,
-    on_audio: Callable[..., None],
-    device: "str | int | None" = None,
-    is_echo_cancelled: bool = False,
-    **options: Any,
-) -> Any:
-    """The microphone, open and running, or a `RuntimeError` saying why.
-
-    With *is_echo_cancelled*, it opens through macOS voice processing
-    (`EchoCancelledMicrophone`, which needs ``blocksize`` among *options*);
-    when that will not start, the plain PortAudio one opens instead, so a
-    broken one never costs the user their microphone.
-
-    PortAudio gives the ALSA thread it starts one second to come up and reports
-    ``paTimedOut`` when it misses: a WSL2 VM stalling on I/O misses it, for
-    reasons that have nothing to do with zrb, and the stall is over by the time
-    the call returns. So a start that fails is tried again, and only the last
-    failure is raised. A stream that never started is closed first, best-effort,
-    so the next try does not contend with it for the device.
-
-    A failure to construct the stream (no such device, PortAudio missing) is
-    not retried.
-    """
-    if is_echo_cancelled:
-        microphone = await _start_echo_cancelled_microphone(
-            on_audio, options["blocksize"]
-        )
-        if microphone is not None:
-            return microphone
-    device = to_device(device)
-
-    def start():
-        try:
-            stream = sd.InputStream(
-                samplerate=SAMPLE_RATE,
-                channels=1,
-                dtype="float32",
-                callback=on_audio,
-                device=device,
-                **options,
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Cannot open microphone: {e}. Check permissions and that no "
-                "other app is using the mic."
-            ) from e
-        try:
-            stream.start()
-        except Exception as e:
-            raise _NotStarted(stream.close, e) from e
-        return stream
-
-    def start_or_not_started():
-        # Return the failure instead of raising it, so one that lands after
-        # cancellation still reaches `on_orphan` and gets closed.
-        try:
-            return start()
-        except _NotStarted as e:
-            return e
-
-    attempt = 0
-    while True:
-        attempt += 1
-        # Open off the event loop: opening can stall for seconds (see WSL2
-        # above), and Ctrl+C cannot cancel a blocked loop.
-        opened = await run_in_daemon(
-            start_or_not_started, name="zrb-microphone", on_orphan=lambda s: s.close()
-        )
-        if not isinstance(opened, _NotStarted):
-            return opened
-        await _close_microphone(opened.close, "the microphone that would not start")
-        if attempt >= _OPEN_ATTEMPTS:
-            raise RuntimeError(
-                _microphone_failure_message(device, opened.cause)
-            ) from opened
-        logger.warning(f"Starting the microphone failed ({opened.cause}); trying again")
-        await asyncio.sleep(_OPEN_RETRY_SECONDS)
-
-
-async def _close_microphone(close: Callable[[], object], what: str) -> None:
-    """`close_quietly`, with *close* run off the event loop.
-
-    Stopping a stream can block, and the echo-cancelled one waits on Core Audio
-    to switch voice processing off; on the loop that freezes the UI and a
-    Ctrl+C lands inside the native call, where it escapes as a
-    `KeyboardInterrupt`. Opening is off the loop for the same reason.
-    """
-    await close_quietly(
-        partial(run_in_daemon, close, name="zrb-microphone-close"), what
-    )
-
-
-class _NotStarted(Exception):
-    """A stream that was created but failed to start; *close* closes it."""
-
-    def __init__(self, close: Callable[[], None], cause: Exception) -> None:
-        super().__init__(str(cause))
-        self.close = close
-        self.cause = cause
-
-
-def _is_echo_cancel_usable(config: DictationConfig) -> bool:
-    """Whether *config* asks for echo cancellation and this machine can give
-    it; when it asks and cannot, says why once."""
-    if not config.is_echo_cancel_enabled:
-        return False
-    reason = get_unavailable_reason(config.device)
-    if reason is not None:
-        _warn_once(f"Echo cancellation is off: {reason}")
-    return reason is None
-
-
-@cache
-def _warn_once(message: str) -> None:
-    """Log *message* the first time only; push-to-talk opens the microphone
-    on every press."""
-    logger.warning(message)
-
-
-async def _start_echo_cancelled_microphone(
-    on_audio: Callable[..., None], blocksize: int
-) -> EchoCancelledMicrophone | None:
-    """The microphone through macOS voice processing, hearing, or ``None``
-    (and a warning saying why) when it will not start or hears nothing."""
-    np, _ = import_audio()
-    microphone = EchoCancelledMicrophone(np, on_audio, SAMPLE_RATE, blocksize)
-    try:
-        microphone.start()
-        await microphone.confirm_audio(_ECHO_CANCEL_FIRST_AUDIO_SECONDS)
-    except RuntimeError as e:
-        logger.warning(f"{e}; using the microphone without echo cancellation")
-        try:
-            microphone.close()
-        except RuntimeError as close_error:
-            logger.warning(f"{close_error}; opening the plain microphone anyway")
-        return None
-    return microphone
-
-
-def _microphone_failure_message(device: "int | str | None", error: Exception) -> str:
-    """What to say when the microphone will not start.
-
-    Names the device PortAudio was asked for — ``None`` is its own default, what
-    ``sd.default.device`` resolves to — and the setting that names another,
-    because which device a Linux or WSL machine opens is the usual difference
-    between a microphone that works and one that does not.
-    """
-    return (
-        f"Cannot open microphone: {error}. PortAudio was asked for device "
-        f"{device!r} (None: its own default). Check permissions and that no other "
-        f"app is using the mic, and set {CFG.ENV_PREFIX}_LLM_DICTATION_DEVICE to "
-        "name another one."
-    )
-
-
 def get_block_seconds(config: DictationConfig) -> float:
     """``config.block_duration``, the seconds in each microphone block;
     unset, `CFG.LLM_DICTATION_BLOCK_DURATION`."""
@@ -1009,13 +821,13 @@ async def record(
 
     recorded: list[Any] = []
     if config is None:
-        stream = await _open_microphone(sd, on_audio)
+        stream = await open_microphone(sd, on_audio)
     else:
-        stream = await _open_microphone(
+        stream = await open_microphone(
             sd,
             on_audio,
             device=config.device or None,
-            is_echo_cancelled=_is_echo_cancel_usable(config),
+            is_echo_cancelled=is_echo_cancel_usable(config),
             blocksize=int(SAMPLE_RATE * get_block_seconds(config)),
         )
     with closing(stream):

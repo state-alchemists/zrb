@@ -24,8 +24,9 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.emotion import EmotionDetector, Tone
-from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
+from zrb.llm.dictation.listen import MicState, Utterance, listen
 from zrb.llm.dictation.load_report import prepare_reported, write_line
+from zrb.llm.dictation.microphone import import_audio
 from zrb.llm.dictation.words import (
     BargeInIntent,
     count_words,

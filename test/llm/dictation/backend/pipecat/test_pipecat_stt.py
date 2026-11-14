@@ -25,7 +25,7 @@ from zrb.llm.dictation.backend.pipecat.stt import (  # noqa: E402
     STTPipeline,
     TranscriptRecorder,
 )
-from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
+from zrb.llm.dictation.microphone import SAMPLE_RATE  # noqa: E402
 
 #: SegmentedSTTService appends half a second so models hear the last word's end.
 TRAILING_SILENCE_BYTES = int(SAMPLE_RATE * 0.5) * 2
