@@ -110,6 +110,8 @@ A streak that mixed the tools names none of them: the same sentence reads `…ea
 
 `/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
+The tokens have a shape too. On the round that opens a turn, `/usage` counts what the request was made of — the system prompt, the fitted history, and your own message — and prints that split beside the provider's own input for the same request. Both are shown because they answer different questions: the split says whether the history is the weight or the instructions are, and the gap between them says how much framing the provider adds over a local count. Tool definitions are not in the split, because their weight is a constant of the configuration rather than of the turn, and it moves with the number of visible tools rather than with their prose ([ADR-0058](../adr/adr-0058.md)).
+
 The same arithmetic is what `/usage`'s one forward-looking line measures. A conversation left idle past the provider's prompt-cache lifetime re-sends its whole history on the next turn. On 2026-11-12 three turns began 37, 21 and 127 minutes after the previous one, at 67.0%, 49.9% and 49.8% cached, and paid 351,517 fresh input tokens to produce 5,484 output — a fifth of that day's fresh input — where a cold session pays 18–24k before the first word. When the history holds more than [`ZRB_LLM_UI_USAGE_RESUME_HISTORY_TOKENS`](llm-limits.md#usage-resume-line) and its newest message is older than `ZRB_LLM_UI_USAGE_RESUME_GAP_SECONDS`, `/usage` prints what each choice costs next.
 
 | Variable | Description | Default |

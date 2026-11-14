@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Callable, Sequence
 from contextlib import ExitStack
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
@@ -93,7 +93,11 @@ from zrb.llm.shared.shell_cut import (
     signal_for_run,
 )
 from zrb.llm.shared.stream_observer import StreamObserver, create_observed_event_handler
-from zrb.llm.shared.usage_log import count_tool_calls, record_usage
+from zrb.llm.shared.usage_log import (
+    ContextComposition,
+    count_tool_calls,
+    record_usage,
+)
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.util.live_context_block import append_live_context
 from zrb.llm.util.prompt import expand_prompt
@@ -104,7 +108,6 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent, RunContext
     from pydantic_ai.agent import EventStreamHandler
     from pydantic_ai.messages import UserContent
-    from pydantic_ai.models import Model
 
     from zrb.llm.agent.run.typing_aliases import (
         CheckpointFn,
@@ -271,7 +274,7 @@ async def run_agent(
         # stays byte-stable across turns.
         prompt_content = append_live_context(prompt_content, live_context)
 
-        current_history = await _prepare_history(
+        prepared = await _prepare_history(
             agent,
             message_history,
             prompt_content,
@@ -284,6 +287,7 @@ async def run_agent(
             # stored record must not present that as the user's words.
             typed_prompt=message or "",
         )
+        current_history = prepared.history
 
         current_message = merge_consecutive_messages(current_history, prompt_content)
 
@@ -300,6 +304,7 @@ async def run_agent(
             checkpoint_fn=checkpoint_fn,
             sandbox_deps=sandbox_deps,
             nested_run=nested_run,
+            composition=prepared.composition,
         )
     finally:
         stack.close()
@@ -383,6 +388,36 @@ async def _run_startup_hooks(
     return effective_message, message_history, None
 
 
+@dataclass
+class _PreparedRequest:
+    """One turn's history, and the sizes each stage measured on the way here.
+
+    Carried between the four stages so none of them has to walk the history
+    again to learn what the stage before it already knew. `tokens` is the
+    history as it will be sent; `reserved_tokens` is what the system prompt
+    costs; `message_tokens` is the user's own message.
+    """
+
+    history: History
+    reserved_tokens: int = 0
+    before_tokens: int = 0
+    before_messages: int = 0
+    stage_tokens: int = 0
+    stage_messages: int = 0
+    tokens: int = 0
+    message_tokens: int = 0
+    has_processors: bool = False
+
+    @property
+    def composition(self) -> "ContextComposition":
+        """Where this request's input went, as the counter measured it."""
+        return ContextComposition(
+            prompt_tokens=self.reserved_tokens,
+            history_tokens=self.tokens,
+            message_tokens=self.message_tokens,
+        )
+
+
 async def _prepare_history(
     agent: "Agent[None, Any]",
     message_history: History,
@@ -392,34 +427,61 @@ async def _prepare_history(
     print_fn: PrintFn,
     effective_hook_manager: HookManager,
     typed_prompt: str = "",
-) -> History:
-    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
+) -> "_PreparedRequest":
+    """Everything between the typed message and the request the model is handed.
 
+    Four stages, one per reason to change: reserve what the system prompt costs,
+    let the history processors compact it, fit what survived into the window, and
+    pace the request against the per-minute budget.
+    """
+    prepared = _PreparedRequest(history=message_history)
     # Counted before the processors so the summarizer's threshold includes it.
-    reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
-    CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
+    prepared.reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
+    CFG.LOGGER.debug(f"System prompt reserved tokens: {prepared.reserved_tokens}")
+    await _compact_history(
+        prepared, agent, limiter, typed_prompt, effective_hook_manager
+    )
+    _fit_history_to_window(prepared, agent, limiter, prompt_content, print_fn)
+    await _announce_compaction(
+        prepared, limiter, typed_prompt, effective_hook_manager
+    )
+    await _pace_request(prepared, limiter, prompt_content, print_fn)
+    return prepared
 
-    pre_process_tokens = limiter.count_tokens(message_history)
-    before_message_count = len(message_history)
 
-    precompact_results = await effective_hook_manager.execute_hooks(
+async def _compact_history(
+    prepared: "_PreparedRequest",
+    agent: "Agent[None, Any]",
+    limiter: LLMLimiter,
+    typed_prompt: str,
+    hook_manager: HookManager,
+) -> None:
+    """Run the history processors, and the PRE_COMPACT hooks around them."""
+    history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
+    prepared.has_processors = bool(history_processors)
+    prepared.before_tokens = limiter.count_tokens(prepared.history)
+    prepared.before_messages = len(prepared.history)
+
+    precompact_results = await hook_manager.execute_hooks(
         HookEvent.PRE_COMPACT,
         {
-            "history": message_history,
+            "history": prepared.history,
             # The turn that caused this, as the user typed it. It joins the history
             # only after the event, so a hook recording what was asked has nowhere
             # else to read it from -- and `prompt_content` is not the same value:
             # a fallback model may have described an attachment into it.
             "prompt": typed_prompt,
-            "token_count": pre_process_tokens,
-            "message_count": before_message_count,
-            "has_history_processors": bool(history_processors),
+            "token_count": prepared.before_tokens,
+            "message_count": prepared.before_messages,
+            "has_history_processors": prepared.has_processors,
         },
         trigger="auto",
     )
     precompact_context = extract_additional_context(precompact_results)
     if precompact_context:
-        message_history = _prepend_system_context(message_history, precompact_context)
+        prepared.history = _prepend_system_context(
+            prepared.history, precompact_context
+        )
 
     # A blocking PreCompact skips summarization; the force-prune below still
     # runs, since an over-limit request cannot be sent regardless.
@@ -428,85 +490,104 @@ async def _prepare_history(
         CFG.LOGGER.debug(
             f"PRE_COMPACT hook blocked compaction: {precompact_block.reason}"
         )
-
-    processed_history = message_history
-    if not precompact_block.blocked:
+    else:
         for processor in history_processors:
-            processed_history = await processor(processed_history, reserved_tokens)
+            prepared.history = await processor(prepared.history, prepared.reserved_tokens)
 
-    processed_history = ensure_alternating_roles(processed_history)
-
+    prepared.history = ensure_alternating_roles(prepared.history)
     # Taken after a PreCompact hook's context joins the history, which is not history
     # that was replaced: counting it as one would hide a dropped message behind it.
-    stage_tokens = limiter.count_tokens(processed_history)
-    stage_message_count = len(processed_history)
-    post_process_tokens = stage_tokens
+    prepared.stage_tokens = limiter.count_tokens(prepared.history)
+    prepared.stage_messages = len(prepared.history)
+    prepared.tokens = prepared.stage_tokens
+
+
+def _fit_history_to_window(
+    prepared: "_PreparedRequest",
+    agent: "Agent[None, Any]",
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+    print_fn: PrintFn,
+) -> None:
+    """Force-prune a history over the limit, then trim whole turns until it fits."""
+    model = getattr(agent, "model", None)
     effective_limit = max(
-        0,
-        limiter.get_effective_context_window(getattr(agent, "model", None))
-        - reserved_tokens,
+        0, limiter.get_effective_context_window(model) - prepared.reserved_tokens
     )
     # Before the event, so the counts describe the history that is sent. The post-compact
     # hook's own context is prepended after this, so the prune cannot drop it.
-    if post_process_tokens > effective_limit:
+    if prepared.tokens > effective_limit:
         print_fn(
-            f"\n[SYSTEM] History too large ({post_process_tokens} tokens) after summarization. Force pruning..."
+            f"\n[SYSTEM] History too large ({prepared.tokens} tokens) after summarization. Force pruning..."
         )
         safe_history: History = []
         if (
-            processed_history
-            and limiter.count_tokens(processed_history[-1]) < effective_limit
+            prepared.history
+            and limiter.count_tokens(prepared.history[-1]) < effective_limit
         ):
-            safe_history = [processed_history[-1]]
-        processed_history = safe_history
-        post_process_tokens = limiter.count_tokens(processed_history)
+            safe_history = [prepared.history[-1]]
+        prepared.history = safe_history
+        prepared.tokens = limiter.count_tokens(prepared.history)
 
-    # The 90% trim `_acquire_rate_limit` would apply, done here instead so the counts
-    # stay in step with what is actually sent.
     fitted = limiter.fit_context_window(
-        processed_history,
-        prompt_content,
-        reserved_tokens,
-        model=getattr(agent, "model", None),
+        prepared.history, prompt_content, prepared.reserved_tokens, model=model
     )
-    if len(fitted) != len(processed_history):
-        processed_history = fitted
-        post_process_tokens = limiter.count_tokens(processed_history)
+    if len(fitted) != len(prepared.history):
+        prepared.history = fitted
+        prepared.tokens = limiter.count_tokens(prepared.history)
 
-    postcompact_results = await effective_hook_manager.execute_hooks(
+
+async def _announce_compaction(
+    prepared: "_PreparedRequest",
+    limiter: LLMLimiter,
+    typed_prompt: str,
+    hook_manager: HookManager,
+) -> None:
+    """Tell the POST_COMPACT hooks what the fit kept, and take their context."""
+    postcompact_results = await hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {
-            "history": processed_history,
+            "history": prepared.history,
             "prompt": typed_prompt,
-            "token_count": post_process_tokens,
-            "message_count": len(processed_history),
+            "token_count": prepared.tokens,
+            "message_count": len(prepared.history),
             # Both events fire on every turn, so a hook that records compactions has to
             # be told whether this turn replaced anything. These are the input to this
             # stage, and the counts above are what survived it.
-            "before_token_count": stage_tokens,
-            "before_message_count": stage_message_count,
+            "before_token_count": prepared.stage_tokens,
+            "before_message_count": prepared.stage_messages,
             # Fewer messages counts as a compaction even when the token total is not
             # smaller: a processor can replace many turns with one long one.
-            "compacted": len(processed_history) < stage_message_count
-            or post_process_tokens < stage_tokens,
-            "has_history_processors": bool(history_processors),
+            "compacted": len(prepared.history) < prepared.stage_messages
+            or prepared.tokens < prepared.stage_tokens,
+            "has_history_processors": prepared.has_processors,
         },
         trigger="auto",
     )
     postcompact_context = extract_additional_context(postcompact_results)
     if postcompact_context:
-        processed_history = _prepend_system_context(
-            processed_history, postcompact_context
+        prepared.history = _prepend_system_context(
+            prepared.history, postcompact_context
         )
+        # Counted here rather than by re-walking the history: the hook's own
+        # context is the only part of the request the fit has not seen.
+        prepared.tokens += limiter.count_tokens(postcompact_context)
 
-    return await _acquire_rate_limit(
-        limiter,
-        prompt_content,
-        processed_history,
-        print_fn,
-        reserved_tokens,
-        model=getattr(agent, "model", None),
+
+async def _pace_request(
+    prepared: "_PreparedRequest",
+    limiter: LLMLimiter,
+    prompt_content: PromptMessage,
+    print_fn: PrintFn,
+) -> None:
+    """Wait until the request about to be sent fits the per-minute budget."""
+    if not prompt_content:
+        return
+    prepared.message_tokens = limiter.count_tokens(prompt_content)
+    await _wait_for_rate_limit(
+        limiter, prepared.tokens + prepared.message_tokens, print_fn
     )
+
 
 
 def _prepend_system_context(history: History, content: str) -> History:
@@ -556,6 +637,7 @@ async def _execution_loop(
     checkpoint_fn: CheckpointFn | None = None,
     sandbox_deps: "SandboxPolicy | None" = None,
     nested_run: bool = False,
+    composition: "ContextComposition | None" = None,
 ) -> AgentRunOutput:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
@@ -564,6 +646,7 @@ async def _execution_loop(
         history=current_history,
         message=current_message,
         run_history=current_history,
+        composition=composition,
     )
     cursor.snapshot = _create_turn_snapshot(nested_run)
     retry_state = RetryState()
@@ -692,6 +775,9 @@ async def _stream_one_round(
             effective_ui,
             started_at,
             result.new_messages(),
+            # Taken, not read: only the round that sends the prepared request
+            # describes it, and this is that round the first time round.
+            composition=cursor.take_composition(),
         )
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
@@ -708,12 +794,16 @@ def _record_run_usage(
     effective_ui: "AnyUI | None",
     started_at: float,
     new_messages: History | None = None,
+    composition: "ContextComposition | None" = None,
 ) -> None:
     """Write one usage-log line for the round that just finished.
 
     *new_messages* are this round's own messages, where each tool call and its
     result already sit, so the per-tool counts cost one pass at the end of the
     round instead of a hook on every call.
+
+    *composition* is where this request's input went. Only the round that sends
+    the prepared request has one; the others omit it rather than repeat it.
 
     The session name is the UI's, because that is where a conversation's
     identity lives; a headless run records an empty one and `/usage` still sees
@@ -732,6 +822,7 @@ def _record_run_usage(
         duration_ms=int((time.monotonic() - started_at) * 1000),
         tool_counts=calls,
         tool_errors=errors,
+        context=composition,
     )
 
 
@@ -1071,16 +1162,18 @@ def _explain_usage_limit(exc: Exception) -> Exception:
     )
 
 
-async def _acquire_rate_limit(
+async def _wait_for_rate_limit(
     limiter: LLMLimiter,
-    message: PromptMessage,
-    message_history: History,
+    request_tokens: int,
     # Called with `end=""` for the in-place status line, hence not `PrintFn`.
     print_fn: Callable[..., object],
-    reserved_tokens: int = 0,
-    model: "Model | str | None" = None,
-) -> History:
-    """Prunes history and waits if rate limits are exceeded."""
+) -> None:
+    """Wait until the prepared request fits the per-minute budget.
+
+    The size arrives counted. This used to fit the history itself, so every turn
+    fitted a history that had just been fitted, and walked the whole history a
+    third time to estimate a request whose size the fit had already told it.
+    """
 
     def notify_throttling(msg: str):
         if not msg:
@@ -1094,16 +1187,12 @@ async def _acquire_rate_limit(
         except TypeError:
             print_fn(msg)
 
-    if not message:
-        return message_history
-    pruned_history = limiter.fit_context_window(
-        message_history, message, reserved_tokens, model=model
-    )
+    if request_tokens <= 0:
+        return
+    # No content: the size is already counted, and `acquire` takes it as given.
     await limiter.acquire(
-        {"message": message, "history": pruned_history},
-        notifier=notify_throttling,
+        None, notifier=notify_throttling, estimated_tokens=request_tokens
     )
-    return pruned_history
 
 
 async def _apply_multimodal_fallback(

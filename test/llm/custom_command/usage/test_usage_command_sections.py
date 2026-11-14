@@ -15,6 +15,7 @@ from zrb.llm.shared.usage_log import (
     KIND_SUMMARIZATION,
     LIMIT_MESSAGE,
     CompactionDetail,
+    ContextComposition,
     UsageRecord,
     UsageTotals,
     record_totals,
@@ -282,3 +283,78 @@ def test_a_window_spent_by_two_things_says_how_much_each(usage_dir):
     rows = [line for line in out.splitlines() if "shell_judge" in line]
     assert rows, out
     assert "50%" in rows[0], rows[0]
+
+
+def test_the_context_section_says_where_the_input_went(usage_dir):
+    record = _record(
+        context=ContextComposition(
+            prompt_tokens=4_000, history_tokens=28_000, message_tokens=1_000
+        )
+    )
+
+    out = render_usage([record], "label")
+
+    assert "Where the input went" in out
+    # Shares of the 33.0k the counter says the request was: 4k, 28k, 1k.
+    assert "system prompt" in out and "12%" in out
+    assert "history" in out and "85%" in out
+    # The provider's own number for the same request sits beside the estimate.
+    assert "1 turn(s) · provider reported 1.0k for them" in out
+
+
+def test_without_a_measured_request_the_section_is_omitted(usage_dir):
+    out = render_usage([_record()], "label")
+
+    assert "Where the input went" not in out
+
+
+def _raw_line(**overrides) -> dict:
+    """One log line as it is written to disk, before any record class sees it."""
+    line = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": "m",
+        "session": "s",
+        "kind": "turn",
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 0,
+        "requests": 1,
+        "tool_calls": 0,
+        "unmeasured_requests": 0,
+        "duration_ms": 1,
+        "cost": None,
+    }
+    line.update(overrides)
+    return line
+
+
+def test_a_line_written_before_the_composition_existed_still_reads():
+    record = UsageRecord.from_dict(_raw_line())
+
+    assert record.context is None
+
+
+def test_a_malformed_composition_is_dropped_rather_than_breaking_the_record():
+    record = UsageRecord.from_dict(
+        _raw_line(context={"prompt_tokens": 4_000, "history_tokens": "not a number"})
+    )
+
+    assert record.context is None
+    # The tokens the line paid for survive: the detail is optional, the bill is not.
+    assert record.input_tokens == 10
+
+
+def test_the_composition_survives_being_written_and_read_back(usage_dir):
+    record = _record(
+        context=ContextComposition(
+            prompt_tokens=4_000, history_tokens=28_000, message_tokens=1_000
+        )
+    )
+
+    read_back = UsageRecord.from_dict(record.to_dict())
+
+    assert read_back.context == ContextComposition(
+        prompt_tokens=4_000, history_tokens=28_000, message_tokens=1_000
+    )

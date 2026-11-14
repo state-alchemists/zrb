@@ -272,8 +272,18 @@ class LLMLimiter:
 
         return start
 
-    async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
-        """Wait until *content* fits the current rate limits, then record it.
+    async def acquire(
+        self,
+        content: Any,
+        notifier: Callable[[str], Any] | None = None,
+        estimated_tokens: int | None = None,
+    ):
+        """Wait until the request fits the current rate limits, then record it.
+
+        *content* is counted here unless *estimated_tokens* already carries the
+        number: a turn that has just fitted its history knows its own size, and
+        counting it again would walk the whole history to be told what the fit
+        already said.
 
         Returns immediately when pacing is off (`CFG.LLM_RATE_LIMIT_ENABLED`), and
         records nothing: a later enable must not inherit a window nobody was
@@ -281,7 +291,8 @@ class LLMLimiter:
         """
         if not self.pacing_enabled:
             return
-        estimated_tokens = self._count_tokens(content)
+        if estimated_tokens is None:
+            estimated_tokens = self._count_tokens(content)
         # A request over the whole per-minute budget can never fit: waiting
         # for an empty window is all that helps, so it goes then, never hangs.
         # A budget of 0 still blocks everything.
