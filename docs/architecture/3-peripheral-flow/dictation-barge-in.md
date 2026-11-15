@@ -67,6 +67,7 @@ Each one fails quietly: the chat keeps working, but zrb talks over the user, sta
 | A room heard loudly enough does not open a turn | The room's own conversation becomes turns | `test/llm/dictation/test_listen.py::test_a_room_loud_enough_to_lift_the_bar_opens_no_turn` |
 | "No" to a pending approval denies the tool, not the turn | Answering an approval by voice cancels the whole turn | `test/llm/dictation/test_feature_barge_in.py::test_no_to_a_pending_approval_denies_it_rather_than_the_turn` |
 | Interrupting speech affects only this chat session, and the cut reply is not read again | Talking in one web session silences another, or the reply restarts at turn end | `test/llm/speech/test_feature_stream.py::test_interrupt_speech_silences_this_chat_session_only` |
+| Where `LLM_VOICE_REMOTE_URL` names a face server, this machine opens no microphone and no output stream | The voice is in two rooms at once — one of them empty — and a laptop microphone hears a room nobody is speaking into | `test/llm/dictation/test_remote_microphone.py::test_open_microphone_takes_the_page_and_never_this_machine`, `test/llm/speech/test_remote_output_stream.py::test_speech_goes_to_the_page_and_no_device_is_opened` |
 
 ## Realization
 
@@ -90,6 +91,7 @@ flowchart TD
 | `listen`, `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Keeping the microphone open, cutting audio into `Utterance` values by loudness and silence, and spotting a barge-in early |
 | `count_words`, `is_transcriber_guess`, `is_said_alone`, `read_barge_in` | `src/zrb/llm/dictation/words.py` | The word-level guards, and what the stop and hush lists make of words said over zrb |
 | `EchoCancelledMicrophone` | `src/zrb/llm/dictation/echo_cancel.py` | The microphone opened through macOS voice processing, standing in for the sounddevice stream |
+| `RemoteMicrophone`, `RemoteOutputStream` | `src/zrb/llm/dictation/remote_microphone.py`, `src/zrb/llm/speech/remote_output_stream.py` | The page's microphone and speaker, standing in for the device streams where `LLM_VOICE_REMOTE_URL` names a face server; the routes both speak are named once in `src/zrb/llm/util/face_server.py` |
 | `DictationConfig` | `src/zrb/llm/dictation/config.py` | One field per `CFG.LLM_DICTATION_*` setting; `None` means "use the setting" |
 | `enable_speech`, `SpeechSession` | `src/zrb/llm/speech/feature.py` | Registering speech hooks and the stream observer; per session, feeding the speaker |
 | `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
@@ -181,6 +183,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Speech not enabled | `interrupt_speech` and siblings | Find no speech session for the key and do nothing; dictation works the same |
 | Push-to-talk (`/voice`) | `DictationSession.toggle_recording` | Every word is kept; the transcript is submitted through the keyboard's own path, so it queues as typed words do |
 | A sentence played by an external program | `Speaker.pause` | It cannot be held, so it is stopped and speech carries on with the next sentence |
+| The voice in the page | `get_remote_url` in `src/zrb/llm/util/face_server.py` | `listen` reads its blocks from the server's `GET /audio/in` and the speaker posts each block to its `POST /say`, so this machine opens neither. The browser cancels the page's own voice out of what it hears, so the local canceller is not opened and `echo_cancel_enabled` is not read; no player program takes a sentence over |
 | The web runner | `close_feature_sessions` in `src/zrb/runner/chat/chat_session_manager.py` | Each connection is its own chat session, with its own microphone and speaker state |
 
 ### Change it here
@@ -195,6 +198,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
 | Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |
 | Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |
+| Change where the voice lives — the face server's microphone and speaker | `src/zrb/llm/util/face_server.py`, `src/zrb/llm/dictation/remote_microphone.py`, `src/zrb/llm/speech/remote_output_stream.py` | `test/llm/util/test_face_server.py`, `test/llm/dictation/test_remote_microphone.py`, `test/llm/speech/test_remote_output_stream.py` |
 
 ## See Also
 
