@@ -31,7 +31,9 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import BaseModel
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
@@ -89,8 +91,32 @@ class ShellVerdict:
         return self.level == JUDGE_SAFE and bool(self.reason.strip())
 
 
+class JudgeVerdict(BaseModel):
+    """The judge's answer, shaped by the model call rather than read out of prose.
+
+    Requiring the shape is the point. The answer used to be one line of text a
+    regex went looking for, so a model that ignored the format still looked like
+    a verdict until the parse said otherwise; now the model answers through a
+    schema, and an answer that does not fit it is a failed call — which is
+    `unknown`, which asks.
+    """
+
+    level: Literal["safe", "caution", "dangerous"]
+    """Three words and no fourth: a judge that cannot decide answers nothing at
+    all, rather than a fourth word this side has to interpret."""
+
+    reason: str = ""
+    """What it saw, in one sentence. An empty reason is not safe — see
+    `ShellVerdict.is_safe`: the sentence is half the verdict, not decoration."""
+
+
 def parse_verdict(output: str) -> ShellVerdict:
-    """Read the model's answer; anything unreadable is `unknown`, never safe.
+    """Read a text answer; anything unreadable is `unknown`, never safe.
+
+    The fallback, for a model that answers with prose anyway. The judge asks for
+    `JudgeVerdict` and normally gets one; this is what keeps a model which
+    ignores the schema — a provider without tool calling, say — from being read
+    as having decided.
 
     Fail-closed is the whole contract: a malformed answer, an empty one, or a
     word outside the three allowed is a judge that did not decide, and a
@@ -122,6 +148,28 @@ class ShellJudgeError(Exception):
     """The judge did not produce a verdict: a model error, a timeout, no agent."""
 
 
+def verdict_from_output(output: object) -> ShellVerdict:
+    """The model's answer as a `ShellVerdict`; anything unreadable is `unknown`.
+
+    A typed answer and a text one take the same road once they arrive: the level
+    must be one of the three, and a level with no reason behind it is a judge
+    that named something and did not decide. `is_safe` depends on the second
+    rule, so it is enforced here rather than trusted from the model.
+    """
+    if not isinstance(output, JudgeVerdict):
+        return parse_verdict(str(output or ""))
+    reason = " ".join(str(output.reason).split())
+    if not reason:
+        return ShellVerdict(
+            level=JUDGE_UNKNOWN,
+            reason="the judge named a verdict without saying why",
+        )
+    return ShellVerdict(
+        level=output.level,
+        reason=truncate_display(reason, MAX_JUDGE_REASON_CHARS),
+    )
+
+
 async def judge_shell_command(
     command: str,
     *,
@@ -146,6 +194,7 @@ async def judge_shell_command(
         agent = create_agent(
             model=resolve_configured_small_model(model),
             system_prompt=get_prompt("shell_judge"),
+            output_type=JudgeVerdict,
             resolve_model=False,
         )
         payload = await asyncio.to_thread(_build_payload, text, cwd, sandbox_off)
@@ -157,7 +206,7 @@ async def judge_shell_command(
         raise ShellJudgeError(str(error) or type(error).__name__) from error
     record_agent_usage(result, component=COMPONENT_SHELL_JUDGE)
     _log_spend(result)
-    return parse_verdict(str(getattr(result, "output", "") or ""))
+    return verdict_from_output(getattr(result, "output", None))
 
 
 async def judge_or_unknown(
@@ -236,11 +285,13 @@ def _log_spend(result: object) -> None:
 
 __all__ = [
     "ShellVerdict",
+    "JudgeVerdict",
     "ShellJudgeError",
     "JUDGE_TIMEOUT_SECONDS",
     "judge_or_unknown",
     "judge_shell_command",
     "parse_verdict",
+    "verdict_from_output",
     "uncommitted_files",
     "JUDGE_CAUTION",
     "JUDGE_DANGEROUS",

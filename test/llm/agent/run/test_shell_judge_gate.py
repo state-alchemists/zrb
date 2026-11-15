@@ -94,7 +94,7 @@ async def test_an_enabled_judge_alone_only_annotates_the_prompt(monkeypatch):
     assert verdict is None
     assert read_judge_note(_CALL_ID) == (JUDGE_SAFE, "rebuilds build/ from source")
     assert format_judge_line(_CALL_ID) == (
-        "       judged safe: rebuilds build/ from source\n"
+        "       🟢 judged safe: rebuilds build/ from source\n"
     )
 
 

@@ -8,12 +8,14 @@ import pytest
 
 from zrb.llm.agent.shell_judge import (
     JUDGE_TIMEOUT_SECONDS,
+    JudgeVerdict,
     ShellJudgeError,
     ShellVerdict,
     judge_or_unknown,
     judge_shell_command,
     parse_verdict,
     uncommitted_files,
+    verdict_from_output,
 )
 from zrb.llm.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
 from zrb.llm.tool_call.judge_note import (
@@ -21,6 +23,7 @@ from zrb.llm.tool_call.judge_note import (
     JUDGE_DANGEROUS,
     JUDGE_SAFE,
     JUDGE_UNKNOWN,
+    MAX_JUDGE_REASON_CHARS,
 )
 
 _CREATE_AGENT = "zrb.llm.agent.shell_judge.create_agent"
@@ -218,6 +221,60 @@ async def test_the_call_s_usage_is_logged_when_it_reports_one():
         verdict = await judge_shell_command("ls")
     assert verdict.level == JUDGE_SAFE
     assert any("Shell judge usage" in str(call) for call in debug.call_args_list)
+
+
+def test_a_typed_answer_becomes_the_verdict():
+    """What the model is asked for now: a `level` and a `reason`, not a line of
+    prose this side goes looking for with a regex."""
+    verdict = verdict_from_output(
+        JudgeVerdict(level="caution", reason="  discards   uncommitted work ")
+    )
+
+    assert verdict == ShellVerdict(
+        level=JUDGE_CAUTION, reason="discards uncommitted work"
+    )
+
+
+def test_a_typed_answer_with_no_reason_is_not_a_verdict():
+    """`is_safe` is what lets a prompt be skipped, and a level with nothing
+    behind it is a judge that named something and did not decide."""
+    verdict = verdict_from_output(JudgeVerdict(level="safe", reason="   "))
+
+    assert verdict.level == JUDGE_UNKNOWN
+    assert not verdict.is_safe
+    assert "without saying why" in verdict.reason
+
+
+def test_a_long_typed_reason_is_clamped():
+    verdict = verdict_from_output(JudgeVerdict(level="caution", reason="x" * 900))
+
+    assert len(verdict.reason) <= MAX_JUDGE_REASON_CHARS
+
+
+def test_a_text_answer_is_still_read_and_still_fails_closed():
+    """A provider with no tool calling answers in prose. That road is unchanged:
+    it is read, and what it cannot read asks."""
+    assert verdict_from_output("SAFE: read-only listing").level == JUDGE_SAFE
+    assert verdict_from_output("no idea").level == JUDGE_UNKNOWN
+
+
+@pytest.mark.asyncio
+async def test_the_agent_is_asked_for_the_typed_answer():
+    seen = {}
+
+    def _answering_typed(**kwargs):
+        seen.update(kwargs)
+        result = SimpleNamespace(
+            output=JudgeVerdict(level="safe", reason="read-only listing")
+        )
+        return SimpleNamespace(run=AsyncMock(return_value=result))
+
+    with patch(_CREATE_AGENT, _answering_typed), patch(_DIRT, return_value="0"):
+        verdict = await judge_shell_command("ls")
+
+    assert seen["output_type"] is JudgeVerdict
+    assert verdict.level == JUDGE_SAFE
+    assert verdict.reason == "read-only listing"
 
 
 def test_uncommitted_files_counts_what_git_reports(tmp_path):

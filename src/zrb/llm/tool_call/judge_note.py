@@ -29,11 +29,24 @@ JUDGE_UNKNOWN = "unknown"
 # short enough that the command below it still reads as the thing to check.
 MAX_JUDGE_REASON_CHARS = 200
 
-# The line carries no glyph, on purpose. An emoji's width is not the
-# character's to promise: the terminal picks text or emoji presentation, and
-# with it one column or two, so four glyphs chosen for a column set land at
-# four different offsets on four machines. The level word is the marker, and
-# it has to be in the line anyway.
+# One circle per level, in front of the word. The word is what a reader decides
+# on and is still there; the circle is what keeps a `dangerous` line from being
+# skimmed as one more line of the prompt, which is the fatigue ADR-0141 opened
+# on. Every line of that prompt leads with a glyph already.
+#
+# These four are wide by default — `wcwidth` answers two for each — so, unlike a
+# symbol turned emoji by a variation selector, one cannot overwrite the letter
+# after it. The white circle is the only one terminals present differently:
+# counted at two columns, drawn at one where it stays text, which leaves a gap
+# rather than a lost letter. It is also the level where the line reads oddly
+# anyway, and the word `unknown` says what it means.
+JUDGE_GLYPHS = {
+    JUDGE_SAFE: "🟢",
+    JUDGE_CAUTION: "🟡",
+    JUDGE_DANGEROUS: "🔴",
+    JUDGE_UNKNOWN: "⚪",
+}
+
 _pending: dict[str, tuple[str, str]] = {}
 
 
@@ -66,14 +79,17 @@ def format_judge_line(tool_call_id: str | None) -> str:
     Flattened to a single line with its control characters dropped, for the
     same reason `format_purpose_line` is: a reason is model output, and model
     output must not be able to redraw the prompt someone is about to answer.
+    The circle leads and the level word follows it, so the line survives being
+    read at a glance and being read exactly.
     """
     note = read_judge_note(tool_call_id)
     if note is None:
         return ""
     level, reason = note
+    glyph = JUDGE_GLYPHS.get(level, JUDGE_GLYPHS[JUDGE_UNKNOWN])
     printable = "".join(char if char.isprintable() else " " for char in reason)
     shown = " ".join(printable.split())
     if not shown:
-        return f"       judged: {level}\n"
+        return f"       {glyph} judged: {level}\n"
     shown = truncate_display(shown, MAX_JUDGE_REASON_CHARS)
-    return f"       judged {level}: {shown}\n"
+    return f"       {glyph} judged {level}: {shown}\n"
