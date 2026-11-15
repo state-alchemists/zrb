@@ -98,6 +98,34 @@ async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
 
 
 @pytest.mark.asyncio
+async def test_a_delegated_turn_is_marked_as_a_sub_agents_own(mock_sub_agent_manager):
+    """`nested=True` reaches run_agent, so this turn's hooks say it is not the
+    user's turn.
+
+    Nothing infers it: the delegation starts where no parent run is bound. A
+    turn that says otherwise has its Stop read as the reply of the turn the
+    user is waiting on, and the speech feature says a sub-agent's report aloud
+    in her voice.
+    """
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.shared.subagent_turn.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Agent Result", [])
+        await tool(
+            agent_name="test-agent",
+            deliverable="updated foo.py",
+            task="do this",
+            non_goals=[],
+            additional_context="",
+        )
+
+        assert mock_run_agent.call_args.kwargs["nested"] is True
+
+
+@pytest.mark.asyncio
 async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
