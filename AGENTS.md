@@ -8,7 +8,9 @@ This file is the entry point, not the manual. It lists what every change must sa
 
 | I am… | Read |
 | --- | --- |
-| Setting up, running tests, changelog, release | [Maintainer Guide](docs/contributing/maintainer-guide.md) |
+| Setting up, running tests, submitting a change | [Maintainer Guide](docs/contributing/maintainer-guide.md) |
+| Writing a changelog entry or publishing a release | [Releasing](docs/contributing/releasing.md) |
+| Unsure what a term means | [Glossary](docs/contributing/glossary.md) |
 | Adding code and unsure which pattern fits | [Which pattern do I reach for?](docs/contributing/which-pattern.md) |
 | Writing code: style, naming, imports, tests | [Coding Conventions](docs/contributing/coding-conventions.md) |
 | Looking for a file | [Code Map](docs/contributing/code-map.md); `ls src/zrb/` and module docstrings are the authority |

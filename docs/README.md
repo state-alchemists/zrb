@@ -16,6 +16,8 @@ Zrb scales from a one-line `zrb please` to a hundred-node pipeline with an agent
 
 Prefer copy-pasting a working example? See [`examples/`](../examples/README.md).
 
+For maintainers, three maps have three jobs: the [Code Map](contributing/code-map.md) is where code lives, the [Change Map](architecture/change-map.md) is symptom → file, and the [Quick Map](llm/quick-map.md) is the LLM layers.
+
 ---
 
 ## I. The Agent
