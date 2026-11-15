@@ -39,10 +39,6 @@ _MODE_BANNERS = {
     "plan": "📋 PLAN MODE: read-only discovery",
 }
 
-# Shown on the badge line for as long as the sandbox is on, so a session that
-# was sandboxed by a `/sandbox` an hour ago does not look like a normal one.
-_SANDBOX_BADGE = "🐚 sandboxed"
-
 
 class BaseUIModelCommands:
     """YOLO / PLAN / model-switch slash commands for BaseUI."""
@@ -80,15 +76,15 @@ class BaseUIModelCommands:
         self._apply_sandbox_state(not CFG.LLM_SANDBOX_ENABLED)
 
     def _apply_sandbox_state(self, is_enabled: bool) -> None:
-        """Write the switch, put it in the status badge, and say it once.
+        """Write the switch, and say it once.
 
         The filesystem gate and the shell wrapper both resolve
         `LLM_SANDBOX_ENABLED` per call, so this reaches the next tool call —
-        including one inside a turn that is already running.
+        including one inside a turn that is already running. The status bar
+        reads the same switch when it draws, so there is no badge here to fall
+        out of step with it.
         """
         CFG.LLM_SANDBOX_ENABLED = is_enabled
-        badge = _SANDBOX_BADGE if is_enabled else None
-        self._base_ui.set_status_badge("sandbox", badge)
         state = "On" if is_enabled else "Off"
         self._base_ui.append_to_output(stylize_muted(f"\n  🐚 SANDBOX: {state}\n"))
         self._base_ui.display.invalidate_ui()

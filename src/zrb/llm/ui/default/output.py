@@ -789,6 +789,7 @@ class UIOutput:
                     CFG.LLM_UI_STYLE_CONFIRMATION,
                     f" 👋 {assistant_name} is waiting for confirmation{dot_str} ",
                 ),
+                *self._get_sandbox_fragment(),
             ]
         if self.is_thinking:
             dots = getattr(self, "_thinking_dots", 0)
@@ -811,6 +812,7 @@ class UIOutput:
                     else []
                 ),
                 *self._get_token_usage_fragments(),
+                *self._get_sandbox_fragment(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
         # near the prompt). `current_cycle_mode` lives on BaseUIModelCommands;
@@ -826,7 +828,20 @@ class UIOutput:
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
         result.extend(self._get_token_usage_fragments())
+        result.extend(self._get_sandbox_fragment())
         return result
+
+    def _get_sandbox_fragment(self) -> list[tuple[str, str]]:
+        """The tool sandbox's state, asked of the switch rather than remembered.
+
+        A badge written only when `/sandbox` runs would be missing in a session
+        that started with the sandbox already on, and a status line that lies
+        about containment is worse than no status line. Reading `CFG` at draw
+        time cannot disagree with what the gate enforces.
+        """
+        if not CFG.LLM_SANDBOX_ENABLED:
+            return []
+        return [(f"fg:{CFG.LLM_UI_STYLE_FAINT}", " 🐚 sandboxed ")]
 
     def _get_working_duration(self) -> str:
         """Current working-period duration, or empty when unavailable."""

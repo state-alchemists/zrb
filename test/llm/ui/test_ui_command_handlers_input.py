@@ -39,7 +39,7 @@ class TestBaseUIInputCommands:
         assert ui.yolo is False
 
     def test_handle_toggle_sandbox(self, simple_ui_instance, monkeypatch):
-        """`/sandbox` flips the switch and keeps it visible in the badge line."""
+        """`/sandbox` flips the switch, both ways."""
         from zrb.config.config import CFG
 
         ui = simple_ui_instance
@@ -48,11 +48,9 @@ class TestBaseUIInputCommands:
 
         assert ui.handle_toggle_sandbox("/sandbox") is True
         assert CFG.LLM_SANDBOX_ENABLED is True
-        assert "🐚 sandboxed" in ui.status_badges
 
         assert ui.handle_toggle_sandbox("/sandbox") is True
         assert CFG.LLM_SANDBOX_ENABLED is False
-        assert "🐚 sandboxed" not in ui.status_badges
 
     def test_handle_toggle_sandbox_accepts_a_named_state(
         self, simple_ui_instance, monkeypatch

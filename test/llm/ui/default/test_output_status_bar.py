@@ -124,6 +124,25 @@ def test_get_status_bar_text_shows_queued_messages():
     assert "2 queued" in text
 
 
+def test_the_status_bar_shows_a_sandbox_that_was_on_before_the_session(monkeypatch):
+    """The line reads the switch, so starting sandboxed is not a silent state.
+
+    A badge written only when `/sandbox` runs would leave a session that began
+    with `LLM_SANDBOX_ENABLED=true` looking unsandboxed while the gate
+    enforces the opposite.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.set_thinking(True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+
 def test_output_field_width_prefers_the_running_application():
     """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
     disagree with what prompt_toolkit is painting; the app's own size wins."""
