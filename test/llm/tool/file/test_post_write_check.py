@@ -75,7 +75,8 @@ def test_syntax_error_surfaces_via_static_check(tmp_path):
 
 
 def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
-    """A diagnostic is an error the model must recover from, so per AGENTS.md it
+    """A diagnostic is an error the model must recover from, so per the
+    error-handling rule in docs/contributing/coding-conventions.md it
     carries a `[SYSTEM SUGGESTION]` naming the next action — re-read before the
     next edit, and fix the named target. Without this the result reads as a
     completed success and invites another blind edit."""

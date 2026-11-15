@@ -1,11 +1,12 @@
 """Every `# lazy:` comment must state a reason this test can classify.
 
-AGENTS.md (Imports) allows five: heavy third-party deferral,
-transitively-heavy-via-internal (which absorbs hot-path avoidance of an
-internal import — same concern, keyed to call frequency), circular import,
-test-patch seam, platform-only module. A comment matching none of them fails
-here, and the fix is to reword it to its real reason — or, if the reason is
-genuinely new, to extend the keyword lists below and AGENTS.md together.
+docs/contributing/coding-conventions.md (Imports and lazy loading) allows
+five: heavy third-party deferral, transitively-heavy-via-internal (which
+absorbs hot-path avoidance of an internal import — same concern, keyed to call
+frequency), circular import, test-patch seam, platform-only module. A comment
+matching none of them fails here, and the fix is to reword it to its real
+reason — or, if the reason is genuinely new, to extend the keyword lists below
+and that section together.
 
 Validity only, deliberately not a per-category count ratchet: reclassifying a
 comment between categories is routine and catches nothing the validity check
@@ -91,7 +92,8 @@ def test_every_lazy_import_states_a_recognized_reason():
         "(heavy third-party, transitively-heavy/hot-path internal, "
         "circular, test-patch-seam, or platform-only). Reword the comment "
         "to state the "
-        "real reason, or update this test's keyword lists and AGENTS.md's "
-        "Imports section together if it's a genuinely new category:\n"
+        "real reason, or update this test's keyword lists and the Imports and "
+        "lazy loading section of docs/contributing/coding-conventions.md "
+        "together if it's a genuinely new category:\n"
         + "\n".join(uncategorized)
     )

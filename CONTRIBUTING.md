@@ -6,4 +6,4 @@ Zrb (Zaruba) is a Python-based automation and AI-agent framework — see [README
 
 Then, before writing any code, check [Which pattern do I reach for?](docs/contributing/which-pattern.md) — a one-page lookup table for the pattern zrb expects for the thing you're adding.
 
-For code-level conventions — naming, testing, imports, error handling, module layout — see [`AGENTS.md`](AGENTS.md) at the repo root. It's written for AI coding agents, but every rule in it applies to human contributors too.
+For code-level conventions — naming, testing, imports, error handling, module layout — see [Coding Conventions](docs/contributing/coding-conventions.md). Then use [Code Map](docs/contributing/code-map.md) to find the module and [Agent Workflow](docs/contributing/agent-workflow.md) for the branch → PR → review → green path. [`AGENTS.md`](AGENTS.md) at the repo root is the same guide written for AI coding agents.

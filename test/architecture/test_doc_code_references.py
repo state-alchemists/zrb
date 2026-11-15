@@ -1,10 +1,10 @@
 """Guards live docs against citing code, or linking to a file, that is gone.
 
-An audit found 8 dead `.py` references across `AGENTS.md` and the ADR log,
-plus one dead directory in `AGENTS.md`'s orientation table (`llm/app/`,
-which had moved to `llm/ui/default/app/`). Every one of them was a rename
-or a test-file split that swept the source but not the prose pointing at
-it. AGENTS.md is the first file a contributor or an agent reads, and an
+An audit found 8 dead `.py` references across the repository map (then in
+`AGENTS.md`) and the ADR log, plus one dead directory in the orientation table
+(`llm/app/`, which had moved to `llm/ui/default/app/`). Every one of them was
+a rename or a test-file split that swept the source but not the prose pointing
+at it. The map is the first page a contributor or an agent reads, and an
 ADR's "Where it lives" line is the only index from a decision back to the
 code implementing it — a stale path there sends the reader somewhere that
 does not exist, which is worse than no pointer at all.
@@ -41,7 +41,7 @@ REPO_ROOT = Path(__file__).parents[2]
 _RESOLVED_ROOT = REPO_ROOT.resolve()
 
 # A backticked token containing a "/" and ending in ".py" — the shape both
-# AGENTS.md's tables and the ADRs' "Where it lives" lines use.
+# the repository map's tables and the ADRs' "Where it lives" lines use.
 _PY_REF = re.compile(r"`([\w][\w/.\-]*/[\w_\-]+\.py)`")
 # A backticked path ending in "/" that names a directory inside src/zrb.
 _DIR_REF = re.compile(r"`((?:src/zrb|zrb|llm)/[\w/]+/)`")

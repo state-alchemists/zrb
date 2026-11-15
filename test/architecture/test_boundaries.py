@@ -153,8 +153,9 @@ def _forbidden_import(tree: ast.AST) -> str | None:
 
 def test_no_part_reaches_another_objects_private_state():
     """A part reaches owner/sibling state via `self._llm_task.tools` (public),
-    never `self._llm_task._tools` (private) — see AGENTS.md's "Mixin means
-    reusable" section, the paragraph on how a part reaches what it needs.
+    never `self._llm_task._tools` (private) — see
+    `docs/contributing/which-pattern.md`'s Mixin vs. part section, the
+    paragraph on how a part reaches what it needs.
     """
     offenders = {}
     for path in _iter_py_files():
