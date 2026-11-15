@@ -2,27 +2,23 @@
 
 # Maintainer Guide
 
-For developers who contribute to or maintain Zrb itself: setup, tests, release, and changelog. Deep internals (context propagation, history sanitization) live in the technical specs linked below.
+For developers who contribute to or maintain Zrb itself: environment, tests, doc style and the conventions that keep the gate green. Changelog and publishing are in [Releasing](releasing.md); import and profile measurement is in [Performance](performance.md); agent quality is in [Evaluating the Agent](evaluating-the-agent.md). Deep internals (context propagation, history sanitization) live in the technical specs linked below.
 
 ---
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+  - [Environment Setup](#environment-setup)
+  - [Running Tests](#running-tests)
+  - [Submitting a Change](#submitting-a-change)
 - [Writing Docs](#writing-docs)
-- [Publishing Zrb](#publishing-zrb)
-- [Changelog](#changelog)
-- [API Reference](#api-reference)
-- [Inspecting Import Performance](#inspecting-import-performance)
-- [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
   - [Process-wide state and pytest-xdist](#process-wide-state-and-pytest-xdist)
-- [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
-  - [One-on-One LLM Session](#one-on-one-llm-session)
 - [Architecture & Philosophy](#architecture--philosophy)
 - [Context Propagation Internals](#context-propagation-internals) (moved to technical specs)
 - [LLM History Sanitization Layer](#llm-history-sanitization-layer) (moved to technical specs)
-- [Quick Reference](#quick-reference)
+- [Where the rest lives](#where-the-rest-lives)
 
 > 💡 **First time tracing a chat request?** Start with [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md), which walks `zrb llm chat "..."` from CLI to UI streaming with file paths at each step. This guide goes deeper on individual internals.
 
@@ -58,7 +54,7 @@ Pass nothing for the full suite, or a file / directory / `file::test_function` p
 
 The loop to use while changing code is `./zrb-test.sh ratchet`: a name for `test/architecture`, about ninety seconds, running every fitness test without pyright or the coverage floor. A convention you are about to break is reported there long before the full suite finishes.
 
-`./zrb-test.sh eval` is the other side of that coin: 16 fixture repositories, each one a real `zrb llm chat` turn judged by behavior — does the module import, does the suite pass, did an out-of-scope file change. It is opt-in (it spends money and minutes) and it is the only suite here that measures the agent's *results* rather than its components. Use it before and after a prompt, tool, or loop change; `LLM_EVAL_MODEL=deepseek:deepseek-chat` picks the model it runs. Details: [`test/eval/README.md`](../../test/eval/README.md).
+`./zrb-test.sh eval` is the other side of that coin: 16 fixture repositories, each one a real `zrb llm chat` turn judged by behavior — does the module import, does the suite pass, did an out-of-scope file change. It is opt-in (it spends money and minutes) and it is the only suite here that measures the agent's *results* rather than its components. Use it before and after a prompt, tool, or loop change; `LLM_EVAL_MODEL=deepseek:deepseek-chat` picks the model it runs. Details: [`test/eval/README.md`](../../test/eval/README.md) and [Evaluating the Agent](evaluating-the-agent.md).
 
 `zrb-test.sh` runs three steps, in this order:
 
@@ -79,14 +75,15 @@ The architecture tests are ordinary pytest files; each one's docstring states th
 | `test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. Warm the module in `test/conftest.py`, then list it (see the test's docstring) |
 | `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R13)](framework-conventions.md) |
 | `test_doc_code_references.py`, `test_architecture_docs.py`, `test_architecture_doc_symbols.py`, `test_doc_indices.py`, `test_recipes_run.py` | Docs name real code and real files, every ADR and changelog file is listed in its index, and the recipes run | Fix the doc |
+| `test_config_docs_cover_every_knob.py` | Every user-settable `CFG` knob is named on a live doc page | Add the knob to the page that owns it, usually under `docs/configuration/` |
 
 **Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see [Coding Conventions → Tests](coding-conventions.md#tests)).
 
 ### Submitting a Change
 
 - **Branches:** `feat/<short-name>` for features, `fix/<short-name>` for bug fixes, and `docs/`, `refactor/`, `chore/` when those say it better. Work in a branch and, when work runs in parallel, a worktree — see [Agent Workflow](agent-workflow.md).
-- **Commits:** imperative subject (`Add X`, `Fix Y`), one logical change per commit. Don't bump `pyproject.toml`'s version — that's a maintainer-only commit tied to [publishing](#publishing-zrb).
-- **Changelog:** most changes need an entry — see [Changelog](#changelog).
+- **Commits:** imperative subject (`Add X`, `Fix Y`), one logical change per commit. Don't bump `pyproject.toml`'s version — that's a maintainer-only commit tied to [publishing](releasing.md#publishing-zrb).
+- **Changelog:** most changes need an entry — see [Changelog](releasing.md#changelog).
 - **ADRs:** a non-trivial, consequential, and persistent design decision needs an Architecture Decision Record — see [`docs/adr/README.md`](../adr/README.md).
 - **Code conventions** (naming, testing, imports, error handling) are in [Coding Conventions](coding-conventions.md); the test-enforced rules are [Framework Conventions (R1–R13)](framework-conventions.md).
 
@@ -103,133 +100,6 @@ Prose is one line per paragraph, with no wrapping at a fixed column. Markdown re
 Nothing enforces this. There is no reflow script and no CI gate, because a correct one is a Markdown block parser and the failures that come with getting it wrong are worse than a wrapped paragraph; the guard is a review comment. `docs/` was reflowed once so the tree starts from a consistent baseline.
 
 Two places stay out of scope, deliberately. `src/zrb/llm/prompt/markdown/` is model-facing prompt text: its wording is pinned by ADR-0049 and its bytes are part of the cached prefix (ADR-0042), so a reformat there is a behaviour change, not a formatting one. Skill bodies and their companions under `src/zrb/llm_plugin/` are the same kind of text.
-
----
-
-## Publishing Zrb
-
-You need a [PyPI](https://pypi.org/) (or [TestPyPI](https://test.pypi.org/)) account and API token. Configure the token once, then publish:
-
-```bash
-poetry config pypi-token.pypi <your-api-token>
-```
-
-```bash
-source ./project.sh
-docker login -u stalchmst
-zrb publish all
-```
-
-### About `README.pypi.md`
-
-`pyproject.toml` points at `README.pypi.md`, not `README.md`. They differ only in `docs/X` link format:
-
-| File | Link format | Purpose |
-|------|-------------|---------|
-| `README.md` | Relative (`docs/foo.md`) | Single source of truth — works locally, on GitHub, and offline |
-| `README.pypi.md` | Absolute, tag-pinned (`https://github.com/state-alchemists/zrb/blob/2.25.3/docs/foo.md`) | Generated artifact — packaged by Poetry, shown on PyPI |
-
-`README.pypi.md` is **gitignored** and generated by `scripts/build_pypi_readme.py`, which reads the version from `pyproject.toml` and rewrites every relative `docs/X` link to a tag-pinned GitHub URL, so `pypi.org/project/zrb/2.25.3/` always shows the docs as of that release. It is generated automatically by:
-
-- `source ./project.sh` — before `poetry install`, so a fresh clone has the file.
-- `zrb publish pip` — before `poetry publish --build`, so each release links to its own tag.
-
-If you run `poetry build` / `poetry publish` directly, run `python scripts/build_pypi_readme.py` first or Poetry fails with "readme not found."
-
-> ⚠️ **Tag format.** Release tags are bare `major.minor.patch` (e.g. `2.25.3`, no `v` prefix), and the script generates `/blob/2.25.3/...` accordingly. Keep this if you rewrite the URL template.
-
----
-
-## Changelog
-
-The changelog lives under `docs/changelog/`:
-
-| Path | Scope |
-|------|-------|
-| `README.md` | Index page listing every minor version with links. |
-| `v2/` | Per-minor-version files for the 2.x line (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
-| `v3/` | Per-minor-version files for the 3.x line (e.g. `3.0.0.md`). |
-| `v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
-
-### Writing an entry
-
-Each release is a `## <version> (<Month D, YYYY>)` heading followed by one contiguous bullet list — no blank lines between entries:
-
-```markdown
-## 2.33.0 (June 6, 2026)
-
-- **Feature: <Title>** (`path/to/module.py`, `test/path/to/test_module.py`): <what
-  changed and why, past tense, anchored to concrete symbols>.
-- **Fix: <Title>** (`path/to/module.py`): <the wrong behavior, then the new
-  behavior>. Name the release that introduced it when fixing a shipped bug, so a
-  reader can tell whether their version is affected.
-```
-
-- One flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change. No sub-bullets; a change too big for one bullet is usually two changes.
-- Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` / `Performance` / `Chore` / `Documentation` / `Tests`.
-- Past tense, factual, and anchored to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
-- Say what changed for the user: the new behavior, a changed default, a migration step, a headline number. The mechanism belongs in the ADR or doc the bullet cites, so a bullet that keeps it duplicates a record that will be rewritten while the changelog is not. Aim for under ~120 words.
-
-### Collapsing (compaction)
-
-Each patch release first lands in its own file under its line's directory (`v2/`, `v3/`). Once a minor ages out (a later minor opens), its per-patch files are merged into one range file that **keeps only two entries** — the minor bump and its final revision:
-
-```mermaid
-flowchart LR
-    A["x.y.0"] --> B["x.y.z — latest revision of x.y"] --> C["x.y+1.0"] --> D["x.y+1.w"] --> E["…"]
-```
-
-Worked example (2.31–2.33):
-
-```mermaid
-flowchart LR
-    V31["v2/2.31.0.md"] --> V32["v2/2.32.0-2.32.2.md"] --> V33["v2/2.33.0-2.33.4.md"]
-```
-
-`2.31` had no patches (stays `2.31.0.md`); `2.32` collapsed `2.32.1` into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33`, once it aged out, merged `2.33.1.md`–`2.33.4.md` into `2.33.4` in `2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files.**
-
-The surviving entries must not lose the dropped history:
-
-- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of every dropped patch `x.y.1`–`x.y.z`, not merely its own.
-- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`). Headline features usually land there (the stable `.0` note often just says "consolidating the pre-release line below"), so dropping them without folding loses the real content.
-- Mark a rolled-up entry with a one-line italic note under the heading: `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
-- **Summarize, don't concatenate.** A 24-patch line becomes one release-note-sized entry grouped by theme; drop version-bump noise and test-only churn (one "expanded test coverage" mention suffices).
-- Update `README.md` when renaming a file (e.g. `2.38.0.md` → `2.38.0-2.38.3.md`).
-
-Dropped content stays recoverable from git, but the compacted file should convey what happened without it.
-
----
-
-## API Reference
-
-`./zrb-api-doc.sh [outdir]` renders the public API from docstrings into `dist/api` (gitignored, default outdir), using the annotations `src/zrb/py.typed` exposes to consumers.
-
-It uses `pdoc` rather than `mkdocstrings` because `docs/` is plain markdown with no `mkdocs.yml`, and adopting mkdocs for one reference isn't worth it. The output is not committed: it regenerates from source, so a checked-in copy would only go stale.
-
-Two tests keep the input complete: `test_public_api_docs.py` requires a docstring on every public member of every exported class and a documented parameter for every constructor argument a class adds; `test_public_api_contract.py` pins the surface against `public_api_snapshot.json`.
-
-## Inspecting Import Performance
-
-To decide whether a module should be lazy-loaded, use the stdlib `-X importtime`:
-
-```bash
-python -X importtime -c "import zrb" 2>importtime.log
-```
-
-Each line has **self** (µs in that module's own body) and **cumulative** (self + children) time. Sort by **self** — high cumulative with low self just means a heavy child. Use a warm run (import once first); the first run is dominated by cold disk I/O.
-
----
-
-## Profiling Zrb
-
-```bash
-python -m cProfile -o .cprofile.prof -m zrb --help
-```
-
-| Tool | Output | Command |
-|------|--------|---------|
-| `snakeviz` | Interactive HTML | `pip install snakeviz && snakeviz .cprofile.prof` |
-| `flameprof` | Flame graph SVG | `pip install flameprof && flameprof .cprofile.prof > flamegraph.svg` |
 
 ---
 
@@ -252,40 +122,6 @@ To reproduce a suspected order dependence, run the two tests together in one pro
 
 ---
 
-## Evaluating and Improving the LLM Agent
-
-Agent quality is measured with evaluation challenges in a separate repository, [github.com/state-alchemists/llm-challenges](https://github.com/state-alchemists/llm-challenges), run by the [`zrb-llm-evaluator`](https://github.com/state-alchemists/zrb-llm-evaluator) test runner (`pipx install zrb-llm-evaluator`); the challenges repo's README has the full protocol. The loop: run challenges for all model combinations → review `experiment/report.md` for failures → refactor prompts or tools → re-run to confirm.
-
-```bash
-git clone https://github.com/state-alchemists/llm-challenges.git
-cd llm-challenges/
-
-# Quick smoke test (single model, single challenge, one trial)
-zrb-llm-evaluator run --models openai:gpt-4o --test-cases ./challenges/bug-fix \
-  --trials 1 --parallelism 1 --timeout 120 --output-dir ./experiment
-
-# Full grid
-zrb-llm-evaluator run --models <model-list> --test-cases <challenge-dirs> \
-  --trials 3 --parallelism 8 --timeout 600 --output-dir ./experiment
-```
-
-| What | Location |
-|------|----------|
-| Report | `experiment/report.md` |
-| Results | `experiment/results.json` |
-| Prompts to optimize | `src/zrb/llm/prompt/markdown/` |
-| Tools to optimize | `src/zrb/llm/tool/` |
-
-### One-on-One LLM Session
-
-To surface friction automated metrics miss, ask the model itself to rate the system prompt's helpfulness, effectiveness, efficiency, and ease of following:
-
-```bash
-zrb chat "What is your honest analysis about your current system prompt/instruction. How helpful/effective/efficient is it? How easy/difficult is it for you to follow the instruction. Is that ergonomics? Give scores (1-10) for each aspect"
-```
-
----
-
 ## Architecture & Philosophy
 
 Core philosophy (strict `asyncio`, the `Any*` decoupled interface pattern, data flow) is in **[Architecture, Philosophy, & Conventions](./architecture.md)**; the part-by-part design, with principles linked to ADRs and invariants linked to tests, is in **[Architecture: The Design of Zrb](../architecture/README.md)**.
@@ -304,17 +140,17 @@ Moved to [LLM History Sanitization (Technical Specification)](../technical-specs
 
 ---
 
-## Quick Reference
+## Where the rest lives
 
-| Task | Command |
-|------|---------|
-| Publish | `zrb publish all` |
-| Profile imports | `python -X importtime -c "import zrb" 2>importtime.log` |
-| Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
-| Visualize (snakeviz) | `snakeviz .cprofile.prof` |
-| Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |
-| Clone + run LLM challenges | `git clone https://github.com/state-alchemists/llm-challenges && cd llm-challenges && zrb-llm-evaluator run --models <list> --test-cases <dirs> --output-dir ./experiment` |
-| Run one-on-one LLM session | `zrb chat "What is your honest analysis about your current system prompt..."` |
+| I want to… | Read |
+| --- | --- |
+| Write a changelog entry, compact a version line, publish | [Releasing](releasing.md) |
+| Measure imports or profile the CLI | [Performance](performance.md) |
+| Judge the agent's results, or run a one-on-one session | [Evaluating the Agent](evaluating-the-agent.md) |
+| Know which pattern my code should follow | [Which pattern do I reach for?](which-pattern.md) |
+| Read the coding rules | [Coding Conventions](coding-conventions.md) |
+| Understand a subsystem's design | [Architecture](../architecture/README.md) |
+| Find a file, or start from a symptom | [Code Map](code-map.md), [Change Map](../architecture/change-map.md) |
 
 ---
 

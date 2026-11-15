@@ -2,7 +2,7 @@
 
 # Quick Map (LLM at a glance)
 
-Use this page as the short orientation to the LLM subsystem. For deep details, follow the links.
+Use this page as the short orientation to the LLM subsystem. For deep details, follow the links. It is the LLM slice only: the whole tree is in the [Code Map](../contributing/code-map.md), and the design is in [Architecture](../architecture/README.md).
 
 - Layers: L0 (contracts/leafs), L1 (capabilities), L2 (engine), L3 (orchestration), L4 (presentation). Lower layers do not import higher ones, except the lazy edges named in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`). Shared behaviour is exposed via L0 facades and registries. See ADR-0120.
 - Build/run agents from lower layers: import `from zrb.llm.shared.agent_runner import create_agent, run_agent` (not `zrb.llm.agent`).

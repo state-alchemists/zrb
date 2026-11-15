@@ -2,7 +2,7 @@
 
 # Change Map
 
-For when you already know what you want. The [tier pages](README.md) teach the system in order; this page skips to the file. It is the one to keep open while you work.
+For when you already know what you want. The [tier pages](README.md) teach the system in order; this page skips to the file. It is the one to keep open while you work. Its sibling is the [Code Map](../contributing/code-map.md), which starts from a directory; this page starts from an intent or a symptom.
 
 ## Table of Contents
 

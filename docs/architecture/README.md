@@ -6,6 +6,8 @@ This section is the design of zrb. It explains what problem each part solves and
 
 The design is the source. The [ADRs](../adr/README.md) record each decision in detail, and the code carries the decisions out. These pages connect the two.
 
+Three pages answer three different questions: this section is the *why*, the [Code Map](../contributing/code-map.md) is the *where*, and the [Change Map](change-map.md) is the symptom-to-file lookup.
+
 ## Table of Contents
 
 - [Where to start](#where-to-start)
