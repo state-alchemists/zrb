@@ -618,14 +618,24 @@ class PcmUtterance(Utterance):
         as the device would ask for them, so the volume, a pause and what
         `on_block` hears all happen where they happen for a device."""
         np = _import_numpy()
-        return RemoteOutputStream(
-            read=lambda frames: self._read_block(np, frames),
-            sample_rate=self._audio.sample_rate,
-            block_frames=self._block_frames,
-            url=url,
-            headers=get_remote_headers(),
-            timeout=_REMOTE_TIMEOUT_SECONDS,
-        )
+        # Counted open like a device's stream, and for the same reason: every
+        # path that retires a stream says `_stream_closed()` once it has let it
+        # go. An uncounted stream makes that count negative, and then
+        # `wait_for_streams_to_close` waits for a zero it has already passed, so
+        # a process ending after a sentence is said on the page never exits.
+        _stream_opened()
+        try:
+            return RemoteOutputStream(
+                read=lambda frames: self._read_block(np, frames),
+                sample_rate=self._audio.sample_rate,
+                block_frames=self._block_frames,
+                url=url,
+                headers=get_remote_headers(),
+                timeout=_REMOTE_TIMEOUT_SECONDS,
+            )
+        except BaseException:
+            _stream_closed()
+            raise
 
     def _read_block(self, np: ModuleType, frames: int) -> bytes:
         """*frames* samples of 16-bit PCM, made by the device's callback."""

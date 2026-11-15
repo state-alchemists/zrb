@@ -30,6 +30,9 @@ _STOP_JOIN_SECONDS = 1.0
 # The zero-length chunk that ends a chunked body: a sentence stopped where it
 # was is still a whole body, and the page plays what came.
 _LAST_CHUNK = b"0\r\n\r\n"
+# How much of a refusal's body is read before closing: enough for the route's
+# own sentence saying what it would not take, and not a page of it.
+_REFUSAL_BODY_BYTES = 512
 
 
 class RemoteOutputStream:
@@ -69,6 +72,11 @@ class RemoteOutputStream:
         # not written and the body is ended.
         self._is_stopping = threading.Event()
         self._is_active = threading.Event()
+        # Held for the whole of one write. `close` and the writing thread both
+        # end the body, and `close` does it whether or not the thread stopped in
+        # time, so two of them can stand over the same socket: the body would
+        # then carry a chunk after its own terminator, or a second terminator.
+        self._body_lock = threading.Lock()
 
     @property
     def is_active(self) -> bool:
@@ -131,21 +139,49 @@ class RemoteOutputStream:
     def _send(self, block: bytes) -> None:
         """Write *block* as one chunk of the body, or nothing once the body
         has already been ended."""
-        connection = self._connection
-        if connection is not None:
-            connection.send(b"%x\r\n" % len(block) + block + b"\r\n")
+        with self._body_lock:
+            connection = self._connection
+            if connection is not None:
+                connection.send(b"%x\r\n" % len(block) + block + b"\r\n")
 
     def _finish(self) -> None:
-        """End the body and let the route go; one already gone is no news."""
-        self._is_active.clear()
-        connection, self._connection = self._connection, None
-        if connection is None:
-            return
+        """End the body, let the route go, and say when it refused the sentence.
+
+        Whichever of the writing thread and `close` gets here first ends the
+        body under the lock and takes the connection with it, so the other finds
+        nothing to write and no second terminator. The reply is then read: a
+        route that answers 4xx or 5xx is the whole reason nobody heard the
+        sentence, and a closed socket alone never says so.
+        """
+        with self._body_lock:
+            self._is_active.clear()
+            connection, self._connection = self._connection, None
+            if connection is None:
+                return
+            try:
+                connection.send(_LAST_CHUNK)
+            except (OSError, http.client.HTTPException):
+                # The route went away before the body ended. Its answer, read
+                # below, says more than a broken pipe does.
+                pass
         try:
-            connection.send(_LAST_CHUNK)
-            connection.close()
+            self._report_refusal(connection)
         except (OSError, http.client.HTTPException) as e:
             logger.warning(f"Closing the page's speaker failed: {e}")
+        finally:
+            connection.close()
+
+    def _report_refusal(self, connection: http.client.HTTPConnection) -> None:
+        """Say a route that answered 4xx or 5xx, with what it answered with."""
+        response = connection.getresponse()
+        if response.status < http.HTTPStatus.BAD_REQUEST:
+            return
+        body = response.read(_REFUSAL_BODY_BYTES).decode("utf-8", "replace").strip()
+        said = f"{response.status} {response.reason}"
+        logger.warning(
+            f"The page's speaker refused the sentence: {said}"
+            + (f": {body}" if body else "")
+        )
 
 
 def open_say(
@@ -164,7 +200,9 @@ def open_say(
             f"{url!r} names no host for the page's speaker; a base URL looks "
             "like http://127.0.0.1:7777."
         )
-    connection = http.client.HTTPConnection(parts.hostname, parts.port, timeout=timeout)
+    connection = _connection_class(parts.scheme, url)(
+        parts.hostname, parts.port, timeout=timeout
+    )
     connection.putrequest("POST", parts.path)
     connection.putheader("Content-Type", "application/octet-stream")
     connection.putheader(SAMPLE_RATE_HEADER, str(sample_rate))
@@ -173,3 +211,25 @@ def open_say(
         connection.putheader(name, value)
     connection.endheaders()
     return connection
+
+
+def _connection_class(
+    scheme: str, url: str
+) -> "type[http.client.HTTPConnection]":
+    """The connection *scheme* asks for, named when it asks for neither.
+
+    `http.client.HTTPConnection` speaks cleartext on whatever port it is given,
+    so a base URL that says `https` and is opened with it is posted in the
+    clear, to port 80. The scheme picks the class, and each class picks its own
+    default port when the URL names none — 443 for TLS, 80 for the other.
+    """
+    scheme = scheme.lower()
+    if scheme == "https":
+        return http.client.HTTPSConnection
+    if scheme == "http":
+        return http.client.HTTPConnection
+    raise RuntimeError(
+        f"{url!r} names a scheme the page's speaker does not speak "
+        f"({scheme or 'none'!r}); a base URL looks like "
+        "http://127.0.0.1:7777 or https://machine.tailnet.ts.net."
+    )

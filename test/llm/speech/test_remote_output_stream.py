@@ -27,6 +27,18 @@ REMOTE_URL = "http://127.0.0.1:7777"
 RATE = 16000
 
 
+class FakeResponse:
+    """What the route answers once the body has ended."""
+
+    def __init__(self, status, reason, body=b""):
+        self.status = status
+        self.reason = reason
+        self._body = body
+
+    def read(self, size=-1):
+        return self._body
+
+
 class FakeConnection:
     """The `http.client.HTTPConnection` the stream writes to, recording what
     the server would have read."""
@@ -40,6 +52,9 @@ class FakeConnection:
         self.written = b""
         self.is_closed = False
         self.is_failing = False
+        # What the server said when the body ended: nothing, unless a test
+        # makes it refuse one.
+        self.response = FakeResponse(204, "No Content")
         FakeConnection.instances.append(self)
 
     def putrequest(self, method, path):
@@ -58,6 +73,13 @@ class FakeConnection:
 
     def close(self):
         self.is_closed = True
+
+    def getresponse(self):
+        return self.response
+
+    def refuse(self, status, reason, body=""):
+        """Answer the way a route refuses a sentence it will not play."""
+        self.response = FakeResponse(status, reason, body.encode())
 
     def posted_pcm(self):
         """The body with its chunk framing taken off."""
@@ -261,3 +283,83 @@ def test_without_the_setting_the_device_opens_as_it_always_did(monkeypatch, conn
     assert FakeOutputStream.instances
     assert FakeOutputStream.instances[0].close
     assert connection.instances == []
+
+
+def test_the_page_s_stream_is_counted_while_it_is_open(monkeypatch, connection):
+    """Its opening is counted, because every path that retires a stream says it
+    has closed. An uncounted one leaves the count negative, and then
+    `wait_for_streams_to_close` waits for a zero it has already passed, so a
+    process ending after a sentence was said on the page never exits."""
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    assert not pcm_player.has_open_streams()
+    pcm = np.zeros(RATE // 2, np.int16).tobytes()  # half a second, block by block
+    utterance = PcmUtterance(SpeechAudio(RATE, [pcm]), block_frames=160)
+    playing = threading.Thread(target=utterance.play, args=(10,), daemon=True)
+
+    playing.start()
+    try:
+        _wait_for(pcm_player.has_open_streams)
+        assert pcm_player.has_open_streams()
+    finally:
+        playing.join(10)
+
+    assert not pcm_player.has_open_streams()
+
+
+def test_an_https_url_is_posted_over_tls(monkeypatch):
+    """The cleartext class speaks on whatever port it is given, so an `https`
+    base URL opened with it goes out in the clear, to port eighty. The scheme
+    picks the class, and the class picks 443 when the URL names no port."""
+    FakeConnection.instances = []
+    monkeypatch.setattr(remote_output_stream.http.client, "HTTPSConnection", FakeConnection)
+    monkeypatch.setattr(
+        remote_output_stream.http.client, "HTTPConnection", _must_not_be_used
+    )
+
+    connection = open_say("https://machine.tail4204a7.ts.net", {}, RATE, 1)
+
+    assert connection is FakeConnection.instances[0]
+    assert (connection.host, connection.port) == ("machine.tail4204a7.ts.net", None)
+
+
+def _must_not_be_used(*args, **kwargs):
+    raise AssertionError("an https URL must not be opened in cleartext")
+
+
+def test_a_scheme_the_speaker_cannot_speak_is_named():
+    with pytest.raises(RuntimeError) as refusal:
+        open_say("ftp://127.0.0.1:7777", {}, RATE, 1)
+
+    assert "ftp" in str(refusal.value)
+
+
+def test_a_refused_sentence_is_said(connection, caplog):
+    """A route answers 415 for a rate it cannot play, and the sentence is then
+    never heard. The reply read once the body has ended is the only place that
+    says why, so a closed socket is not enough of an answer."""
+    stream = _stream(blocksize=160)
+
+    stream.start()
+    connection.instances[0].refuse(
+        415, "Unsupported Media Type", "rate 16000 is not one this page plays"
+    )
+    stream.close()
+
+    assert "415" in caplog.text
+    assert "rate 16000 is not one this page plays" in caplog.text
+
+
+def test_closing_while_the_writer_runs_ends_the_body_once(connection, monkeypatch):
+    """`close` ends the body whether or not the writing thread stopped in time,
+    and that thread ends it too from its own finally: two writers on one
+    chunked body would put a chunk after the terminator, or a second one."""
+    monkeypatch.setattr(remote_output_stream, "_STOP_JOIN_SECONDS", 0)
+    stream = _stream(blocksize=160)
+
+    stream.start()
+    stream.close()
+
+    sent = connection.instances[0]
+    assert sent.written.count(b"0\r\n\r\n") == 1
+    assert sent.has_terminator()
+
