@@ -211,6 +211,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # `/sandbox`, kept on the session rather than written into `CFG`: the
         # config is the deployment's, shared by every session in this process.
         self._sandbox_override: bool | None = None
+        # What the live run was given explicitly, published by the runner so
+        # the status bar can answer without the run's context variables.
+        self._sandbox_run_policy: bool | None = None
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -844,6 +847,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @sandbox_override.setter
     def sandbox_override(self, value: bool | None):
         self._sandbox_override = value
+
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """The live run's explicit containment, or None while none is bound."""
+        return self._sandbox_run_policy
+
+    @sandbox_run_policy.setter
+    def sandbox_run_policy(self, value: bool | None):
+        self._sandbox_run_policy = value
 
     # REQUIRED METHODS - Must be implemented by subclasses
 

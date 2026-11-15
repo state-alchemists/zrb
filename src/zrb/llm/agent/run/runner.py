@@ -239,6 +239,16 @@ async def run_agent(
         # resolve from `CFG` per call, which is what lets a `/sandbox` toggle
         # reach an in-flight turn the way it already reaches the shell tool.
         sandbox_deps = effective_sandbox
+        # The gate reads this above through `deps`; the status bar is drawn in
+        # the UI's task, where the run's context variables are invisible, so the
+        # same answer is published on the session and cleared when it ends. A
+        # nested run inherits the session's policy and must not speak for it.
+        if not nested_run:
+            stack.callback(_publish_run_sandbox_policy, effective_ui, None)
+            _publish_run_sandbox_policy(
+                effective_ui,
+                None if effective_sandbox is None else effective_sandbox.enabled,
+            )
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
         # restores the run-start value so a missed ExitWorktree can't leak the
         # worktree past the run.
@@ -1210,6 +1220,23 @@ def _set_active_run_context(
             setattr(effective_ui, name, value)
         except AttributeError:
             pass
+
+
+def _publish_run_sandbox_policy(
+    effective_ui: AnyUI | None, is_enabled: bool | None
+) -> None:
+    """Tell the session what this run is contained by, for whatever draws it.
+
+    Best-effort like `_set_active_run_context`: a UI that does not carry the
+    tools role refuses the attribute, and `None` is the honest answer for a run
+    that was given no policy of its own.
+    """
+    if effective_ui is None:
+        return
+    try:
+        setattr(effective_ui, "sandbox_run_policy", is_enabled)
+    except AttributeError:
+        pass
 
 
 def _request_limit() -> int | None:

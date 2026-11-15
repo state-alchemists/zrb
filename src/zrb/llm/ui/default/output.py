@@ -596,10 +596,17 @@ class UIOutput:
         """
         model_name = self._model_name()
 
+        # One row each: what is thinking, what it is allowed to do, which
+        # conversation, and where. The switches share a row because they are
+        # read together, and a model name long enough to wrap no longer pushes
+        # them off the screen.
         line1 = [
             ("", " 🤖 "),
             ("bold", "Model:"),
-            ("", f" {model_name} | 📋 "),
+            ("", f" {model_name} "),
+        ]
+        line2 = [
+            ("", " 📋 "),
             ("bold", "Plan Mode:"),
             ("", " "),
             self._plan_fragment(),
@@ -607,8 +614,12 @@ class UIOutput:
             ("bold", "YOLO:"),
             ("", " "),
             self._yolo_fragment(),
+            ("", " | 🐚 "),
+            ("bold", "Sandbox:"),
+            ("", " "),
+            self._sandbox_fragment(),
         ]
-        line2 = [
+        line3 = [
             ("", "💬 "),
             ("bold", "Session:"),
             ("", f" {self._ui.conversation_session_name} "),
@@ -616,8 +627,8 @@ class UIOutput:
         ]
         sub_agent_frag = self._sub_agent_fragment()
         if sub_agent_frag:
-            line2 += sub_agent_frag
-        line3 = [
+            line3 += sub_agent_frag
+        line4 = [
             ("", " 📂 "),
             ("bold", "Dir:"),
             ("", f" {self._ui.cwd} | 🌿 "),
@@ -632,6 +643,8 @@ class UIOutput:
             *_center_line(line2, total_cols),
             ("", "\n"),
             *_center_line(line3, total_cols),
+            ("", "\n"),
+            *_center_line(line4, total_cols),
         ]
 
     def _model_name(self) -> str:
@@ -662,12 +675,24 @@ class UIOutput:
             return (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL), f"[{tools_str}]")
         return (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
 
+    def _sandbox_fragment(self) -> tuple:
+        """The sandbox's in-force state, asked the way the status bar asks it.
+
+        The same helper, so the two lines cannot disagree about a run that was
+        given a policy of its own. Styled with the plan-mode pair: both are
+        on/off switches, and a third colour would be a knob nobody asked to
+        tune — the red/green pair next to it means "may act without asking".
+        """
+        if is_sandbox_enabled_for(self._ui):
+            return (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
+        return (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
+
     def _sub_agent_fragment(self) -> "list | None":
         """Fragments announcing an active persona or viewed sub-agent.
 
         The clue that /load swapped which persona drives new messages, or
         which sub-agent's live view the output pane shows (UIAgentPicker).
-        ``None`` while the main agent drives, so the bar keeps its three rows.
+        ``None`` while the main agent drives, so the bar keeps its four rows.
         """
         persona = getattr(self._ui, "persona", None)
         active_persona = None if persona is None else persona.active_subagent

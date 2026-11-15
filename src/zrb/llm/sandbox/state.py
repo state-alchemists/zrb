@@ -56,16 +56,31 @@ def sandbox_override_of(ui: object) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
+def sandbox_run_policy_of(ui: object) -> bool | None:
+    """The containment the run in `ui`'s session asked for, else None.
+
+    The runner publishes it, because the gate reads a run's policy through
+    `deps` while everything that *draws* the session — the status bar, a badge
+    — runs in another task, where the run's context variables are invisible.
+    Without this, `LLMTask(sandbox=True)` over a deployment that has it off
+    contains every tool call and announces none of them.
+    """
+    value = getattr(getattr(ui, "tools", None), "sandbox_run_policy", None)
+    return value if isinstance(value, bool) else None
+
+
 def is_sandbox_enabled_for(ui: object) -> bool:
     """Whether the session behind `ui` is contained right now.
 
-    Its own switch first, because that is what `/sandbox` writes and what the
-    gate reads back; a session that never toggled has none, and then whatever
-    is otherwise in force — a sandboxed deployment, an explicit run policy —
-    decides. Asking this of a *named* UI rather than the ambient one is what
-    lets a switch and a status bar agree about their own session while no run
-    is bound.
+    The run's own policy first, then the session's switch, then the
+    deployment's config — the order the gate resolves in, so the answer a
+    status bar prints is the answer a tool call gets. Asking this of a *named*
+    UI rather than the ambient one is what lets a switch and a status bar agree
+    about their own session while no run is bound.
     """
+    run_policy = sandbox_run_policy_of(ui)
+    if run_policy is not None:
+        return run_policy
     override = sandbox_override_of(ui)
     if override is not None:
         return override

@@ -160,6 +160,25 @@ def test_the_status_bar_shows_this_session_switch_while_it_idles(monkeypatch):
     assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
 
 
+def test_the_status_bar_shows_the_policy_the_run_was_given(monkeypatch):
+    """What a run was handed wins, in both directions and over the config.
+
+    A task's `sandbox=` reaches the gate as `deps`, a value the task drawing
+    the bar cannot see, so the runner publishes it on the session. Without
+    that, `sandbox=True` over a sandboxless deployment contains every tool
+    call and says nothing.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    ui.sandbox_run_policy = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    ui.sandbox_run_policy = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
 def test_output_field_width_prefers_the_running_application():
     """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
     disagree with what prompt_toolkit is painting; the app's own size wins."""

@@ -388,6 +388,28 @@ def test_a_toggle_in_one_session_does_not_contain_another(
     assert CFG.LLM_SANDBOX_ENABLED is False
 
 
+def test_the_run_policy_is_asked_before_the_session_switch(monkeypatch):
+    """A run given its own policy is what the status bar must print.
+
+    `LLMTask(sandbox=True)` over a deployment that has it off contains every
+    call it makes, and the session switch answers a different question — what
+    `/sandbox` would ask for — so reading it first would badge the containment
+    off exactly when the API-level setting is used.
+    """
+    from zrb.config.config import CFG
+    from zrb.llm.sandbox.state import is_sandbox_enabled_for
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    session = _SessionUI()
+    session.tools.sandbox_override = False
+
+    session.tools.sandbox_run_policy = True
+    assert is_sandbox_enabled_for(session) is True
+
+    session.tools.sandbox_run_policy = None
+    assert is_sandbox_enabled_for(session) is False
+
+
 def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path, outside_root):
     """A `ctx.deps` policy wins over the ambient one.
 

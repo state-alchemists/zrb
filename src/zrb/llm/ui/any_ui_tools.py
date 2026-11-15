@@ -43,6 +43,17 @@ class AnyUITools(ABC):
         """
         return None
 
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """What the run in this session was explicitly given, or None.
+
+        Published by the runner and cleared when the run ends. It exists
+        because a run's policy reaches the gate through `deps` — a value the
+        task drawing the status bar cannot see. Concrete for the same reason
+        `sandbox_override` is: a UI that never holds a run says nothing.
+        """
+        return None
+
     @abstractmethod
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """Release any `ask_user` call blocked on a tool confirmation.

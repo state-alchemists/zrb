@@ -328,6 +328,18 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         """Delegate the sandbox switch: a child runs under the session it serves."""
         return self._wrapped.tools.sandbox_override
 
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """Delegate the live run's policy: the run belongs to the parent."""
+        return self._wrapped.tools.sandbox_run_policy
+
+    @sandbox_run_policy.setter
+    def sandbox_run_policy(self, value: bool | None):
+        # `setattr`: the tools role declares the policy read-only, as it does
+        # the `/sandbox` switch, and the setter that stores it lives on the UI
+        # that owns the run — here, the parent's.
+        setattr(self._wrapped.tools, "sandbox_run_policy", value)
+
     def stream_to_parent(
         self,
         *values: object,
