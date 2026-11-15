@@ -39,6 +39,9 @@ class AutoCameraBackend(AnyCameraBackend):
         self._ffmpeg = ffmpeg or FfmpegCameraBackend()
         self._timeout = timeout
         self._remote = remote
+        # Who was asked last: this machine, or the page. The hint after a failure
+        # belongs to that one, not to whichever backend happens to hold an error.
+        self._last_attempt: AnyCameraBackend | None = None
 
     @property
     def name(self) -> str:
@@ -48,7 +51,9 @@ class AutoCameraBackend(AnyCameraBackend):
         deadline = create_deadline(self._timeout)
         page = await self._page_holding(device, deadline)
         if page is not None:
+            self._last_attempt = page
             return await page.capture_by(device, deadline)
+        self._last_attempt = self._local()
         if is_termux() and self._termux.is_available:
             data = await self._termux.capture_by(device, deadline)
             if data is not None:
@@ -65,9 +70,15 @@ class AutoCameraBackend(AnyCameraBackend):
         return local + [name for name in page if name not in local]
 
     def get_failure_hint(self) -> str:
-        if self._remote is not None and self._remote.last_error:
-            # The name went to the page, so its refusal is the one that matters.
-            return self._remote.get_failure_hint()
+        """What to do about the capture that just failed.
+
+        The hint follows the backend that was asked, not the last one to have an
+        error: a page that failed a while ago must not send someone to the face
+        server after a camera on this machine did not open.
+        """
+        asked = self._remote
+        if asked is not None and self._last_attempt is asked:
+            return asked.get_failure_hint()
         return self._local_hint()
 
     def _local(self) -> AnyCameraBackend:

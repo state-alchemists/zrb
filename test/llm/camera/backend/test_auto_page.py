@@ -34,7 +34,9 @@ class LocalCamera(FfmpegCameraBackend):
         self.refreshes += 1
         return list(self._names)
 
-    async def capture_by(self, device: str | None, deadline: float | None):
+    async def capture_by(
+        self, device: str | None, deadline: float | None
+    ) -> bytes | None:
         self.asked.append(device)
         return b"local-photo"
 
@@ -61,6 +63,16 @@ class BrokenListingCamera(LocalCamera):
     async def refresh_devices(self) -> list[str]:
         self.refreshes += 1
         raise RuntimeError("ffmpeg is gone")
+
+
+class FailingLocalCamera(LocalCamera):
+    """A camera on this machine that cannot open, as one held by another app does."""
+
+    async def capture_by(
+        self, device: str | None, deadline: float | None
+    ) -> bytes | None:
+        self.asked.append(device)
+        return None
 
 
 def _backend(face_page, local: LocalCamera, timeout: float = 5.0):
@@ -154,6 +166,37 @@ async def test_a_page_camera_that_fails_is_not_the_laptops_photo(face_page):
 
     assert await backend.capture("phone-back") is None
     assert local.asked == []
+    assert "no page is open" in backend.get_failure_hint()
+
+
+@pytest.mark.asyncio
+async def test_a_local_failure_hints_the_local_camera_after_a_page_failure(face_page):
+    """The hint follows the attempt, not the last error anyone recorded."""
+    local = FailingLocalCamera()
+    backend, page = _backend(face_page, local)
+    await page.refresh_devices()
+    face_page.status = 503
+    face_page.failure = "no page is open"
+
+    assert await backend.capture("phone-back") is None  # the page went first
+    assert await backend.capture("0") is None  # and then this machine's camera
+
+    hint = backend.get_failure_hint()
+    assert "local hint" in hint
+    assert "no page is open" not in hint
+
+
+@pytest.mark.asyncio
+async def test_a_page_failure_hints_the_page_after_a_local_failure(face_page):
+    local = FailingLocalCamera()
+    backend, page = _backend(face_page, local)
+    await page.refresh_devices()
+
+    assert await backend.capture("0") is None  # this machine's camera went first
+    face_page.status = 503
+    face_page.failure = "no page is open"
+    assert await backend.capture("phone-back") is None
+
     assert "no page is open" in backend.get_failure_hint()
 
 
