@@ -14,6 +14,12 @@ is the usual home; a knob whose explanation belongs on a feature page
 The check is coverage, not a row format: a table row, a prose paragraph and a
 code sample all satisfy it. The floor below is a scan sanity check, not a
 ratchet — knobs are removed as well as added.
+
+Only the **canonical** key is required. A `deprecated_aliases` entry
+(`ZRB_LLM_ENABLE_BUILTIN_SKILLS` beside `ZRB_LLM_BUILTIN_SKILLS_ENABLED`) is a
+compatibility spelling kept for an old environment; the page names the current
+name, and a rename does not owe its retired spelling a row (R13). This check
+walks `env_key`, the write key, so the aliases are deliberately outside it.
 """
 
 import pathlib
@@ -28,7 +34,11 @@ FROZEN_DIRS = {"adr", "changelog"}
 
 
 def _knob_keys() -> dict[str, str]:
-    """Every `EnvField` attribute, mapped to the env key a user sets."""
+    """Every `EnvField` attribute, mapped to the canonical env key a user sets.
+
+    `env_key` is the write key — the current spelling a doc row uses. The read
+    keys, which also include deprecated aliases, are not required to appear.
+    """
     keys: dict[str, str] = {}
     for cls in type(CFG).__mro__:
         for name, value in vars(cls).items():
@@ -58,8 +68,9 @@ def test_every_config_knob_is_named_in_a_live_doc():
         if not any(pattern.search(text) for text in docs)
     )
     assert not missing, (
-        "These settings are user-settable and no live doc names them; add each "
-        "to the page that owns it (usually docs/configuration/): " + ", ".join(missing)
+        "These canonical settings are user-settable and no live doc names "
+        "them; add each to the page that owns it (usually "
+        "docs/configuration/): " + ", ".join(missing)
     )
 
 
