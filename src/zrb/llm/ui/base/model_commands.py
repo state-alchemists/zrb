@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.ui.ui_config import command_alias_field, model_visibility_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
@@ -72,19 +73,25 @@ class BaseUIModelCommands:
     # sandbox
 
     def toggle_sandbox(self) -> None:
-        """Flip the tool sandbox on/off and force refresh."""
-        self._apply_sandbox_state(not CFG.LLM_SANDBOX_ENABLED)
+        """Flip this session's tool sandbox and force refresh."""
+        self._apply_sandbox_state(not is_sandbox_enabled_for(self._base_ui))
 
     def _apply_sandbox_state(self, is_enabled: bool) -> None:
-        """Write the switch, and say it once.
+        """Record this session's choice, and say it once.
 
-        The filesystem gate and the shell wrapper both resolve
-        `LLM_SANDBOX_ENABLED` per call, so this reaches the next tool call —
-        including one inside a turn that is already running. The status bar
-        reads the same switch when it draws, so there is no badge here to fall
-        out of step with it.
+        The choice is the conversation's, so it is written onto this UI and
+        nowhere else: `get_effective_sandbox_policy()` asks for it on every
+        call, which is what lets the next tool call — including one inside a
+        turn that is already running — obey it. `LLM_SANDBOX_ENABLED` keeps
+        meaning what the environment says, and a second session in the same
+        process is unaffected.
+
+        Deliberately not mid-turn for the model's own picture of itself: the
+        system prompt is composed once, when the turn starts, so a flip leaves
+        it describing the state the turn began in. The status bar and the tool
+        result are what say otherwise, and the next turn's prompt has it right.
         """
-        CFG.LLM_SANDBOX_ENABLED = is_enabled
+        self._base_ui.sandbox_override = is_enabled
         state = "On" if is_enabled else "Off"
         self._base_ui.append_to_output(stylize_muted(f"\n  🐚 SANDBOX: {state}\n"))
         self._base_ui.display.invalidate_ui()

@@ -88,8 +88,9 @@ class LLMUICommandsMixin:
         doc=(
             "Comma-separated command aliases to toggle the tool sandbox from "
             "inside a conversation (`<alias>` flips it, `<alias> on|off` names "
-            "the state). It writes `LLM_SANDBOX_ENABLED` for the running "
-            "session only, so the next turn inherits nothing from it."
+            "the state). The choice belongs to that session and lasts as long "
+            "as it does: another session in the same process keeps its own, "
+            "and `LLM_SANDBOX_ENABLED` is left as the deployment set it."
         ),
     )
 

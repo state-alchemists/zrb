@@ -143,6 +143,23 @@ def test_the_status_bar_shows_a_sandbox_that_was_on_before_the_session(monkeypat
     assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
 
 
+def test_the_status_bar_shows_this_session_switch_while_it_idles(monkeypatch):
+    """The bar asks the session it draws for, not whatever run is ambient.
+
+    Between turns no run is bound, so an ambient lookup would fall back to the
+    deployment's setting and a `/sandbox on` would vanish from the screen for
+    as long as the user was reading it.
+    """
+    ui = MockOutputUI()
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+    ui.sandbox_override = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.sandbox_override = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
 def test_output_field_width_prefers_the_running_application():
     """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
     disagree with what prompt_toolkit is painting; the app's own size wins."""

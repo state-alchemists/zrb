@@ -182,6 +182,12 @@ class MultiUIState(UIStateDefaultsMixin):
         return self.main_ui.tools.yolo if self.main_ui is not None else False
 
     @property
+    def sandbox_override(self) -> bool | None:
+        return (
+            self.main_ui.tools.sandbox_override if self.main_ui is not None else None
+        )
+
+    @property
     def conversation(self) -> "BaseUIConversationCommands | None":
         """The conversation the main child manages, or None with no child.
 

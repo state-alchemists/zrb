@@ -208,6 +208,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
+        # `/sandbox`, kept on the session rather than written into `CFG`: the
+        # config is the deployment's, shared by every session in this process.
+        self._sandbox_override: bool | None = None
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -832,6 +835,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
+
+    @property
+    def sandbox_override(self) -> bool | None:
+        """This session's `/sandbox` choice, or None while `CFG` decides."""
+        return self._sandbox_override
+
+    @sandbox_override.setter
+    def sandbox_override(self, value: bool | None):
+        self._sandbox_override = value
 
     # REQUIRED METHODS - Must be implemented by subclasses
 

@@ -13,6 +13,7 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.output_chunk import (
@@ -839,7 +840,7 @@ class UIOutput:
         about containment is worse than no status line. Reading `CFG` at draw
         time cannot disagree with what the gate enforces.
         """
-        if not CFG.LLM_SANDBOX_ENABLED:
+        if not is_sandbox_enabled_for(self._ui):
             return []
         return [(f"fg:{CFG.LLM_UI_STYLE_FAINT}", " 🐚 sandboxed ")]
 

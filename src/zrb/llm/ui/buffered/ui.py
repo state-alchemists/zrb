@@ -323,6 +323,11 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         """Delegate YOLO mode to the wrapped parent UI."""
         return self._wrapped.tools.yolo
 
+    @property
+    def sandbox_override(self) -> bool | None:
+        """Delegate the sandbox switch: a child runs under the session it serves."""
+        return self._wrapped.tools.sandbox_override
+
     def stream_to_parent(
         self,
         *values: object,

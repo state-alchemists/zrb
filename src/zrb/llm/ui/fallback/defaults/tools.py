@@ -30,6 +30,11 @@ class UIToolsDefaults:
         """Never auto-approve."""
         return False
 
+    @property
+    def sandbox_override(self) -> bool | None:
+        """No switch of its own: the deployment's `LLM_SANDBOX_ENABLED` decides."""
+        return None
+
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """No status bar to time a tool call in."""
 
