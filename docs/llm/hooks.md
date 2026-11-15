@@ -342,7 +342,7 @@ A day has a claim and a handover, and a month of days cannot fit in `## Recent` 
 ## Recent
 - Week (2026-W45): The week the store learned to reach for what it knew. [week/2026-W45.md]
 - Handover: the summariser fix is green and waiting on a merge.
-- Today (2026-11-10): Wrote the last-day line and deleted a dead renderer.
+- Today (2026-11-10): Wrote the last-day line and deleted a dead renderer. [diary/2026-11-10.md, body 1210 chars]
 ```
 
 - **On** while memory is on and the reviewer is (`ZRB_LLM_MEMORY_ENABLED`, `ZRB_LLM_MEMORY_REVIEWER_ENABLED`); its hook name is `memory-week`. Both spend a model call on memory's behalf, and one switch stops both.

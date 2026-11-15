@@ -202,11 +202,12 @@ def render_recent(
     goes missing when a session outlives a night.
     """
     today_id = today_entry.id if today_entry is not None else ""
+    handover_id = handover.id if handover is not None else ""
     dated = [
         week_note_line(week_note),
         _handover_line(handover, today_entry),
         _today_line(today_entry),
-        _previous_line(previous_entry, today_id),
+        _previous_line(previous_entry, today_id, handover_id),
     ]
     lines = [line for line in dated if line]
     lines.extend(
@@ -240,27 +241,56 @@ def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:
     ):
         return ""
     # The same day is named once: when the handover is today's, the `Today` line
-    # already carries the date.
+    # already carries the date, and it names the day's file too.
     same_day = today_entry is not None and handover.id == today_entry.id
     label = "- Handover:" if same_day else f"- Handover ({handover.id}):"
-    return f"{label} {_one_line(handover.handover)}"
+    reference = "" if same_day else _diary_reference(handover)
+    return f"{label} {_one_line(handover.handover)}{reference}"
 
 
 def _today_line(today_entry: Diary | None) -> str:
     if today_entry is None or not _is_injectable(today_entry.claim):
         return ""
-    return f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}"
+    return (
+        f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}"
+        f"{_diary_reference(today_entry)}"
+    )
 
 
-def _previous_line(previous_entry: Diary | None, today_id: str) -> str:
-    """The last day written, dated. A day is never its own previous day."""
+def _previous_line(
+    previous_entry: Diary | None, today_id: str, handover_id: str
+) -> str:
+    """The last day written, dated. A day is never its own previous day.
+
+    One day can be both the newest state of play and the last day written, and
+    its file is named once: a second reference to the same file says nothing the
+    first did not.
+    """
     if (
         previous_entry is None
         or previous_entry.id == today_id
         or not _is_injectable(previous_entry.claim)
     ):
         return ""
-    return f"- {previous_entry.id}: {_one_line(previous_entry.claim)}"
+    reference = (
+        "" if previous_entry.id == handover_id else _diary_reference(previous_entry)
+    )
+    return f"- {previous_entry.id}: {_one_line(previous_entry.claim)}{reference}"
+
+
+def _diary_reference(entry: Diary) -> str:
+    """The file that holds the day, and how large a body it holds.
+
+    Neither a body nor the whole of a day is injected — the block is capped and
+    a day is a page — so the path is what lets a later session read the day
+    rather than the claim. Its size is what says whether reading it is worth the
+    tokens, and a day written without a body names the file alone.
+    """
+    size = len(entry.body.strip())
+    if size == 0:
+        return f" [diary/{entry.id}.md]"
+    return f" [diary/{entry.id}.md, body {size} chars]"
+
 
 
 def compose_memory(
