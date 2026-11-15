@@ -49,6 +49,8 @@ The system temp directory is **always writable**, even with explicit `WRITABLE_P
 
 Python API: both `LLMTask(..., sandbox=...)` and `LLMChatTask(..., sandbox=...)` accept `True`/`False` (config-derived policy with `enabled` forced) or a `SandboxPolicy` instance; `sandbox` is also a read/write property on both. Sub-agents inherit the parent run's policy through the `current_sandbox_policy` ContextVar, exactly like the permission policy.
 
+Inside a conversation, `/sandbox` (`ZRB_LLM_UI_COMMAND_SANDBOX`) flips containment for that session, and `/sandbox on` / `/sandbox off` names the state. The choice belongs to the session and to nothing else: it is obeyed by the next tool call, including one inside a turn already running, and it leaves the settings above exactly as the deployment set them — a second chat session in the same process keeps its own. The status bar says `🐚 sandboxed` while it is on.
+
 ## Escape Hatch
 
 `Shell` (foreground or `background=True`) accepts `dangerously_skip_sandbox: bool = False`. A truthy value:
