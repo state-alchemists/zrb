@@ -29,6 +29,7 @@ class MockUI:
         self.attach_commands = ["/attach"]
         self.yolo_toggle_commands = ["/yolo"]
         self.sandbox_commands = ["/sandbox"]
+        self.judge_commands = ["/judge"]
         self.set_model_commands = ["/model"]
         self.set_commands = ["/set"]
         self.exec_commands = ["/exec"]

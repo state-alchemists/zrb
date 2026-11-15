@@ -186,6 +186,8 @@ It is **reasoning-blind** on purpose: it reads the command, the directory, wheth
 
 Its spend shows in `/usage` as the `shell_judge` row of *Who spent it*. The prompt it produces is in [Customizing Tool Approval](../llm/tool-approval.md).
 
+Inside a conversation, `/judge` (`ZRB_LLM_UI_COMMAND_JUDGE`) switches the first knob for that session, and `/judge on` / `/judge off` names the state. It cannot reach the second: a switch that lets a verdict skip the prompt removes a person from the loop, and that is a deployment's decision rather than a keystroke's. The choice is obeyed by the next judged command, including one inside a turn already running, and it leaves both settings as the deployment wrote them — a second session in the same process keeps its own.
+
 ## Sandbox Configuration
 
 Opt-in filesystem containment for LLM tool calls, off by default. Its six knobs — `ZRB_LLM_SANDBOX_ENABLED`, `ZRB_LLM_SANDBOX_OS_SHELL`, `ZRB_LLM_SANDBOX_WRITABLE_PATHS`, `ZRB_LLM_SANDBOX_DENY_READ_PATHS`, `ZRB_LLM_SANDBOX_FALLBACK`, `ZRB_LLM_SANDBOX_ALLOW_ESCAPE_ENABLED` — are documented with the model they configure in [Sandbox](../llm/sandbox.md#configuration).

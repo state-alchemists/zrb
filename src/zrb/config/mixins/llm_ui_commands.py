@@ -18,6 +18,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_REWIND: str = "/rewind"
         self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
         self.DEFAULT_LLM_UI_COMMAND_SANDBOX: str = "/sandbox"
+        self.DEFAULT_LLM_UI_COMMAND_JUDGE: str = "/judge"
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
         self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
@@ -91,6 +92,20 @@ class LLMUICommandsMixin:
             "the state). The choice belongs to that session and lasts as long "
             "as it does: another session in the same process keeps its own, "
             "and `LLM_SANDBOX_ENABLED` is left as the deployment set it."
+        ),
+    )
+
+    LLM_UI_COMMAND_JUDGE = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated command aliases to toggle the shell judge from "
+            "inside a conversation (`<alias>` flips it, `<alias> on|off` names "
+            "the state). Consultation only: `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` "
+            "stays a deployment setting, because the half that lets a verdict "
+            "skip the prompt removes a person from the loop. The choice belongs "
+            "to that session, and `LLM_SHELL_JUDGE_ENABLED` is left as the "
+            "deployment set it."
         ),
     )
 

@@ -19,6 +19,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.shell_judge import judge_or_unknown
 from zrb.llm.approval.any_approval_channel import ApprovalContext
+from zrb.llm.approval.judge_state import is_shell_judge_enabled
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import ASK
@@ -426,7 +427,7 @@ async def _apply_shell_judge(
     A judge that failed records `unknown`, which is not safe: the prompt is
     still asked, now saying the command went unjudged.
     """
-    if not CFG.LLM_SHELL_JUDGE_ENABLED:
+    if not is_shell_judge_enabled():
         return None
     args = shell_command_args(call)
     if args is None:

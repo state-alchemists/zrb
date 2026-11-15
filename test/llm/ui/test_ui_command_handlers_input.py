@@ -107,6 +107,36 @@ class TestBaseUIInputCommands:
         """Flipping it mid-turn is the point, so it is not held back."""
         assert simple_ui_instance.classify_input("/sandbox") == "thinking_command"
 
+    def test_handle_toggle_judge(self, simple_ui_instance, monkeypatch):
+        """`/judge` flips this session's switch and touches nothing else."""
+        from zrb.config.config import CFG
+
+        ui = simple_ui_instance
+        ui.append_to_output = MagicMock()
+        monkeypatch.setattr(CFG, "LLM_SHELL_JUDGE_ENABLED", False)
+
+        assert ui.handle_toggle_judge("/judge") is True
+        assert ui.judge_override is True
+        assert ui.handle_toggle_judge("/judge on") is True
+        assert ui.judge_override is True
+        assert ui.handle_toggle_judge("/judge off") is True
+        assert ui.judge_override is False
+        assert ui.handle_toggle_judge("/judge maybe") is False
+        # The deployment's setting is not a conversation's to rewrite.
+        assert CFG.LLM_SHELL_JUDGE_ENABLED is False
+
+    def test_the_judge_toggle_is_a_thinking_command(self, simple_ui_instance):
+        """It is consulted per command, so flipping it mid-answer works.
+
+        And an argument it does not take stays the user's message, the way
+        `/sandbox maybe` does.
+        """
+        ui = simple_ui_instance
+
+        assert ui.classify_input("/judge") == "thinking_command"
+        assert ui.classify_input("/judge on") == "thinking_command"
+        assert ui.classify_input("/judge maybe") == "message"
+
     def test_an_invalid_sandbox_argument_is_a_message_not_a_refusal(
         self, simple_ui_instance
     ):

@@ -13,6 +13,7 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.approval.judge_state import is_shell_judge_enabled_for
 from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.ambient_state import get_session_ownership_key
@@ -626,6 +627,10 @@ class UIOutput:
             ("bold", "Sandbox:"),
             ("", " "),
             self._sandbox_fragment(),
+            ("", " | ⚖ "),
+            ("bold", "Judge:"),
+            ("", " "),
+            self._judge_fragment(),
         ]
         line3 = [
             ("", "💬 "),
@@ -687,11 +692,25 @@ class UIOutput:
         """The sandbox's in-force state, asked the way the status bar asks it.
 
         The same helper, so the two lines cannot disagree about a run that was
-        given a policy of its own. Styled with the plan-mode pair: both are
-        on/off switches, and a third colour would be a knob nobody asked to
-        tune — the red/green pair next to it means "may act without asking".
+        given a policy of its own.
         """
-        if is_sandbox_enabled_for(self._ui):
+        return self._switch_fragment(is_sandbox_enabled_for(self._ui))
+
+    def _judge_fragment(self) -> tuple:
+        """The shell judge's in-force state.
+
+        Consultation only: no badge exists for the auto-approve half, because
+        no keystroke reaches it.
+        """
+        return self._switch_fragment(is_shell_judge_enabled_for(self._ui))
+
+    def _switch_fragment(self, is_enabled: bool) -> tuple:
+        """`On ` or `Off`, in the plan-mode pair every switch on the row uses.
+
+        The red/green pair beside it means "may act without asking", which is a
+        different claim from "contained" or "judged".
+        """
+        if is_enabled:
             return (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
         return (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
 
