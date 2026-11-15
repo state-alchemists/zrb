@@ -18,7 +18,8 @@ A handful of patterns carry most of zrb. This page is a lookup table, not a tuto
 | A new user-executable task | A module under `builtin/`, **plus** an import in `builtin/__init__.py` **and** an `__all__` entry | the module alone — it silently never appears in the CLI | `test/builtin/test_registration_completeness.py` |
 | An error the **LLM** must recover from | A `[SYSTEM SUGGESTION]` prefix naming the actionable next step | a plain `ValueError` | ADR-0057, R10 |
 | An error a **user** must fix | The setting name, the bad value, and the accepted values | `raise Exception`, or a message under 40 characters | R10 |
-| An import of a heavy or cyclic dependency | An in-function import with a `# lazy: <reason>` tag matching one of the five categories in `AGENTS.md` (Imports) | a module-level import | `test_lazy_import_categories.py` |
+| A name for a function, variable or class | An A/HC/LC name — `prefix? + action + high context + low context?` — that is short, intuitive and descriptive, with one verb per meaning | a synonym (`fetch`, `build`), a contraction, a duplicated context, or a boolean that does not read as a question | ADR-0098; `test/architecture/test_bool_naming_ratchet.py` |
+| An import of a heavy or cyclic dependency | An in-function import with a `# lazy: <reason>` tag matching one of the five categories in [Coding Conventions → Imports and lazy loading](coding-conventions.md#imports-and-lazy-loading) | a module-level import | `test_lazy_import_categories.py` |
 | A decision a reasonable developer could make differently | An ADR in `docs/adr/`, and a **rewrite** of the record that owns the decision if one exists | a "supersedes ADR-NNNN" record | `docs/adr/README.md` |
 
 ## The one hard call: Mixin vs. part
@@ -41,9 +42,9 @@ The rules for a part, in full:
 - **Public or private.** A method the owner calls by name, a sibling declares, a subclass overrides or a test names is public (`LLMTaskHistory.get_conversation_name`, `LLMTaskBuilding.get_model`). A name is private only when nothing outside its own class ever names it.
 - **`_base_` prefix.** On a class users subclass (`BaseTask`, `BaseUI`), a part only the owner reaches is stored as `self._base_<aspect>` (`_base_execution`, `_base_commands`). A subclass author will independently reach for the short obvious name, and `super().__init__()` runs first, so their assignment silently wins with no error. Parts outside code needs stay bare and public (`ui.usage`, `ui.confirmation`, `ui.persona`). Plain scalar or resource fields (`_name`, `_model`) need no prefix — only composed part instances.
 
-This section is the canonical statement of the rule; ADR-0035 records the decision and `AGENTS.md` summarizes it. Do not paraphrase loosely — the no-private-crossing rule is enforced by `test/architecture/test_boundaries.py::test_no_part_reaches_another_objects_private_state`, so getting the wording wrong sends someone into a failing test with no explanation. The `_base_` rule has no test; it is held in review.
+This section is the canonical statement of the rule; ADR-0035 records the decision and [Coding Conventions](coding-conventions.md#the-shape-of-the-code) gives the short form. Do not paraphrase loosely — the no-private-crossing rule is enforced by `test/architecture/test_boundaries.py::test_no_part_reaches_another_objects_private_state`, so getting the wording wrong sends someone into a failing test with no explanation. The `_base_` rule has no test; it is held in review.
 
-See also: [Framework Conventions (R1–R12)](framework-conventions.md).
+See also: [Framework Conventions (R1–R13)](framework-conventions.md).
 
 ---
 

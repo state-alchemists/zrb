@@ -47,8 +47,8 @@ class PromptManager:
     Sections follow ``include_sections`` (default in
     ``config/mixins/llm_prompt.py``), then any user-added prompts. Five are
     file-backed; ``system_context`` and ``project_context`` are built in Python.
-    An unknown section name is ignored with a warning. See AGENTS.md
-    ("LLM Prompt System").
+    An unknown section name is ignored with a warning. See
+    ``docs/architecture/2-extension-surface/prompts.md``.
     """
 
     def __init__(

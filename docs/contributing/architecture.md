@@ -56,6 +56,8 @@ Zrb treats Large Language Models not just as APIs, but as sophisticated, recursi
 
 ## 3. Coding Conventions
 
+The day-to-day rules — naming, imports, layout, tests, docs — are in [Coding Conventions](coding-conventions.md). This section is the philosophy behind the ones that are specific to zrb's shape.
+
 ### Handling Asynchronous Cancellation
 Tasks in Zrb can be cancelled (e.g., a user hits `Ctrl+C`, or a parent task fails).
 * **Rule:** You must *always* catch `(asyncio.CancelledError, KeyboardInterrupt, GeneratorExit)` separately from standard exceptions.

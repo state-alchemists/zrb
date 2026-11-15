@@ -299,7 +299,7 @@ A profile changes **only** the `profile` section and the `minimal` delegate rest
 - A count outranks a label: `some-mini-32b` stays `capable`.
 - A label **alone** never selects `minimal` — `nano`/`tiny` also name hosted models (`gpt-5-nano`) far stronger than a local 3B. It does with a **local provider prefix** (`ollama:`, `lmstudio:`, `llamacpp:`, `localai:`), e.g. `ollama:phi4-mini` (3.8B on a laptop). Ollama's hosted `:cloud` suffix is excluded, so `ollama:kimi-k2.6:cloud` stays `standard`.
 
-See `AGENTS.md` → *LLM Prompt System*.
+See [Prompts](../architecture/2-extension-surface/prompts.md) for the design, and `src/zrb/llm/prompt/manager.py` for the implementation.
 
 ---
 
@@ -310,6 +310,6 @@ See `AGENTS.md` → *LLM Prompt System*.
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage
 - [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* — section resolution, profiles and the auto ladder
+- [Prompts](../architecture/2-extension-surface/prompts.md) — section resolution, profiles and the auto ladder
 
 🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Prompt

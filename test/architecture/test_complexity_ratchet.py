@@ -24,9 +24,9 @@ SRC = str(REPO_ROOT / "src" / "zrb")
 
 # Both numbers are pinned to the exact current maximum — no headroom, so the
 # next function that gets worse fails here instead of being absorbed. Tighten
-# as offenders are refactored down (see AGENTS.md's Code Style section on when
-# a long function is fine vs not); raising either needs a one-line reason in
-# the same diff, like the facade and constructor budgets.
+# as offenders are refactored down (see Coding Conventions' Code in the small
+# section on when a long function is fine vs not); raising either needs a
+# one-line reason in the same diff, like the facade and constructor budgets.
 #
 # mccabe 14 is held by seven functions: `open_microphone`, `find_definition`,
 # `make_yolo_inheritance_checker`, `format_diff`, `normalize_attachments`,

@@ -6,7 +6,7 @@ twice. These tests pin both halves — a line that has started finishes, a line
 that has not is still dropped — and the wiring that asks for the first.
 
 Split out of `test_player.py` and `test_feature.py`, which are at the
-test-file budget (AGENTS.md → Test Guidelines).
+test-file budget (docs/contributing/coding-conventions.md → Tests).
 """
 
 import threading

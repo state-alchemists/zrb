@@ -82,9 +82,10 @@ Three guards keep this section honest, each with a docstring explaining why its 
 | --- | --- |
 | Why was this specific decision made? | `docs/adr/`, in the record that owns it |
 | What is the philosophy behind the whole shape? | [Architecture, Philosophy & Conventions](../contributing/architecture.md) |
-| What rules must my code follow? | [Framework Conventions](../contributing/framework-conventions.md) (R1–R12) |
+| What rules must my code follow? | [Framework Conventions](../contributing/framework-conventions.md) (R1–R13), then [Coding Conventions](../contributing/coding-conventions.md) |
 | What are the exact tables and edge cases? | `docs/technical-specs/` |
-| Where does the code live? | `AGENTS.md`, under "Where the code lives" |
+| Where does the code live? | [Code Map](../contributing/code-map.md) |
+| How do I branch, open a PR and get it green? | [Agent Workflow](../contributing/agent-workflow.md) |
 | How do I use this feature? | the guides in `docs/llm/`, `docs/core-concepts/` and `docs/task-types/` |
 | What happens, call by call, when one chat message runs? | [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md) — a code tour; these pages are the design it follows |
 

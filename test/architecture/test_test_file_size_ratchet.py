@@ -1,5 +1,5 @@
-"""Enforces the test-file split rule (AGENTS.md → Test Guidelines: split files
-over 500 lines by feature group).
+"""Enforces the test-file split rule (docs/contributing/coding-conventions.md →
+Tests: split files over 500 lines by feature group).
 
 The rule was documented and unenforced, so 46 files had crossed it —
 `llm/agent/run/test_runner.py` at 2049 lines, four times over. All 46 are now
@@ -30,5 +30,5 @@ def test_no_test_file_exceeds_the_split_threshold():
     over = {name: n for name, n in offenders.items() if n > MAX_TEST_FILE_LINES}
     assert not over, (
         f"test file(s) over {MAX_TEST_FILE_LINES} lines: {over}. Split by "
-        "feature group (AGENTS.md → Test Guidelines)."
+        "feature group (docs/contributing/coding-conventions.md → Tests)."
     )

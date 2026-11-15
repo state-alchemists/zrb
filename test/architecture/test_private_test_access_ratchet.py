@@ -1,4 +1,4 @@
-"""Tests drive the public API (ADR-0034 / AGENTS.md), so private reaches don't grow.
+"""Tests drive the public API (ADR-0034 / docs/contributing/coding-conventions.md), so private reaches don't grow.
 
 Counts `test/` expressions reaching a private attribute through a name other
 than `self` — a class reading its own state is not a coupling problem, and

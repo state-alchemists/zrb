@@ -74,7 +74,7 @@ Search patterns that pay off in this codebase, in rough order of usefulness.
 | Where a task type is declared | `rg -n 'class .*BaseTask' src/zrb` |
 | Which page documents a module | `rg -ln 'src/zrb/llm/hook' docs/architecture/` |
 
-`AGENTS.md` holds the repository's own map — the package layout and the conventions a change must follow. When this page and `AGENTS.md` disagree, `AGENTS.md` wins, and the disagreement is a bug worth fixing here.
+`AGENTS.md` is the entry point for a change: it names the rules and points at the page that owns each one. The package layout is in [Code Map](../contributing/code-map.md), and the rules are in [Coding Conventions](../contributing/coding-conventions.md) and [Framework Conventions](../contributing/framework-conventions.md). When this page and those pages disagree, the owning page wins, and the disagreement is a bug worth fixing here.
 
 ## The tests that pin behaviour
 
@@ -92,6 +92,7 @@ Read the test before changing an area; it is the precise statement of what the c
 - [The System](0-system/system.md) — the parts and the rules that hold everywhere
 - [Architecture, Philosophy & Conventions](../contributing/architecture.md) — why the shape is this shape
 - [Framework Conventions](../contributing/framework-conventions.md) — the enforced code rules
-- [Where the code lives](../../AGENTS.md) — the repository map
+- [Coding Conventions](../contributing/coding-conventions.md) — style, naming, imports, tests and docs
+- [Where the code lives](../contributing/code-map.md) — the repository map
 
 🔖 [Documentation Home](../README.md) > Architecture > Change Map

@@ -48,6 +48,8 @@ Run `poetry lock` only after editing dependencies in `pyproject.toml`; it re-res
 
 ### Running Tests
 
+Activate the virtual environment first (`source .venv/bin/activate`); every command below assumes it.
+
 ```bash
 ./zrb-test.sh [path]
 ```
@@ -62,7 +64,7 @@ The loop to use while changing code is `./zrb-test.sh ratchet`: a name for `test
 
 | Step | What it checks | If it fails |
 |------|-----------------|-------------|
-| `flake8 src/zrb --select=F` | Unused imports/vars, redefinitions (`src/` only) | Remove the dead import/var, or add the required `# lazy: <reason>` comment (see `AGENTS.md` → Imports) |
+| `flake8 src/zrb --select=F` | Unused imports/vars, redefinitions (`src/` only) | Remove the dead import/var, or add the required `# lazy: <reason>` comment (see [Coding Conventions → Imports and lazy loading](coding-conventions.md#imports-and-lazy-loading)) |
 | `pyright src/zrb` (full run only) | Static types: `standard` for the tree, `strict` for the packages listed in `pyrightconfig.json` | Fix the reported type error |
 | `pytest -n auto ...` (`--cov-fail-under=95` on a full run only) | The suite, including every architecture fitness test under `test/architecture/`, and ≥95% coverage | Fix the test, or add a test for the uncovered branch |
 
@@ -71,22 +73,22 @@ The architecture tests are ordinary pytest files; each one's docstring states th
 | Test (under `test/architecture/`) | What it checks | Usual fix |
 |------|-----------------|-------------|
 | `test_complexity_ratchet.py` | Per-function complexity (mccabe and radon) may not exceed the worst in the repo | Simplify the function. A registration or keybinding table inflated only by nested handlers may take `# noqa: C901` with a one-line reason (the test checks it has a nested `def` and a low radon score) |
-| `test_private_test_access_ratchet.py` | References from `test/` into another object's `_private` attributes may only go down | Expose a public accessor (see `AGENTS.md` → Test Guidelines) |
-| `test_bool_naming_ratchet.py`, `test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py` | Non-question `-> bool` names, non-re-raising `except Exception:`, and `Any` in annotations may only go down | Rename as a question, catch the specific exception, or give the annotation a real type (see `AGENTS.md` → Code Style) |
-| `test_test_file_size_ratchet.py` | No test file exceeds 500 lines | Split the file by feature group (see `AGENTS.md` → Test Guidelines) |
+| `test_private_test_access_ratchet.py` | References from `test/` into another object's `_private` attributes may only go down | Expose a public accessor (see [Coding Conventions → Tests](coding-conventions.md#tests)) |
+| `test_bool_naming_ratchet.py`, `test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py` | Non-question `-> bool` names, non-re-raising `except Exception:`, and `Any` in annotations may only go down | Rename as a question, catch the specific exception, or give the annotation a real type (see [Coding Conventions → Naming](coding-conventions.md#naming)) |
+| `test_test_file_size_ratchet.py` | No test file exceeds 500 lines | Split the file by feature group (see [Coding Conventions → Tests](coding-conventions.md#tests)) |
 | `test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. Warm the module in `test/conftest.py`, then list it (see the test's docstring) |
-| `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R12)](framework-conventions.md) |
+| `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R13)](framework-conventions.md) |
 | `test_doc_code_references.py`, `test_architecture_docs.py`, `test_architecture_doc_symbols.py`, `test_doc_indices.py`, `test_recipes_run.py` | Docs name real code and real files, every ADR and changelog file is listed in its index, and the recipes run | Fix the doc |
 
-**Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines).
+**Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see [Coding Conventions → Tests](coding-conventions.md#tests)).
 
 ### Submitting a Change
 
-- **Branches:** `feat/<short-name>` for features, `fix/<short-name>` for bug fixes.
+- **Branches:** `feat/<short-name>` for features, `fix/<short-name>` for bug fixes, and `docs/`, `refactor/`, `chore/` when those say it better. Work in a branch and, when work runs in parallel, a worktree — see [Agent Workflow](agent-workflow.md).
 - **Commits:** imperative subject (`Add X`, `Fix Y`), one logical change per commit. Don't bump `pyproject.toml`'s version — that's a maintainer-only commit tied to [publishing](#publishing-zrb).
 - **Changelog:** most changes need an entry — see [Changelog](#changelog).
 - **ADRs:** a non-trivial, consequential, and persistent design decision needs an Architecture Decision Record — see [`docs/adr/README.md`](../adr/README.md).
-- **Code conventions** (naming, testing, imports, error handling) are summarized in [`AGENTS.md`](../../AGENTS.md) — written for AI coding agents, but every rule applies to humans too. The test-enforced rules are [Framework Conventions (R1–R12)](framework-conventions.md).
+- **Code conventions** (naming, testing, imports, error handling) are in [Coding Conventions](coding-conventions.md); the test-enforced rules are [Framework Conventions (R1–R13)](framework-conventions.md).
 
 ---
 
@@ -233,7 +235,7 @@ python -m cProfile -o .cprofile.prof -m zrb --help
 
 ## Testing Strategies
 
-Tests use `pytest` fixtures and `unittest.mock.patch` (decorator or context manager); see `test/` for examples and `AGENTS.md` → Test Guidelines for the rules.
+Tests use `pytest` fixtures and `unittest.mock.patch` (decorator or context manager); see `test/` for examples and [Coding Conventions → Tests](coding-conventions.md#tests) for the rules.
 
 ### Process-wide state and `pytest-xdist`
 
