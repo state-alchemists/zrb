@@ -17,6 +17,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load, /resume"
         self.DEFAULT_LLM_UI_COMMAND_REWIND: str = "/rewind"
         self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
+        self.DEFAULT_LLM_UI_COMMAND_SANDBOX: str = "/sandbox"
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
         self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
@@ -79,6 +80,17 @@ class LLMUICommandsMixin:
         comma_list,
         serialize=comma_join,
         doc="Comma-separated command aliases to toggle YOLO (auto-approve all tools) mode.",
+    )
+
+    LLM_UI_COMMAND_SANDBOX = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated command aliases to toggle the tool sandbox from "
+            "inside a conversation (`<alias>` flips it, `<alias> on|off` names "
+            "the state). It writes `LLM_SANDBOX_ENABLED` for the running "
+            "session only, so the next turn inherits nothing from it."
+        ),
     )
 
     LLM_UI_COMMAND_REDIRECT_OUTPUT = EnvField(

@@ -70,7 +70,7 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
-from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
+from zrb.llm.sandbox.state import current_sandbox_policy
 from zrb.llm.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -234,9 +234,11 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
-        # Passed as `agent.run(deps=...)` for `sandbox_gate`; nothing mutates
-        # the sandbox policy mid-run, so freezing it is safe.
-        sandbox_deps = get_effective_sandbox_policy()
+        # Passed as `agent.run(deps=...)` for `sandbox_gate`. An explicit run
+        # policy is frozen for the run, as before; `None` leaves the gate to
+        # resolve from `CFG` per call, which is what lets a `/sandbox` toggle
+        # reach an in-flight turn the way it already reaches the shell tool.
+        sandbox_deps = effective_sandbox
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
         # restores the run-start value so a missed ExitWorktree can't leak the
         # worktree past the run.

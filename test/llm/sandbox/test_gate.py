@@ -315,6 +315,31 @@ async def test_gate_move_checks_src_and_dst(tmp_path, outside_root):
 # --- gate via explicit ctx.deps (ADR-0069) -----------------------------------
 
 
+def test_gate_follows_a_switch_flipped_after_the_turn_started(
+    tmp_path, outside_root, monkeypatch
+):
+    """`deps=None` resolves the policy per call, so `/sandbox` reaches a running turn.
+
+    The runner passes `None` unless the run was handed an explicit policy. This
+    is what that buys: the gate reads the switch at the moment of the tool call,
+    not at the moment the turn started, which is the only way a `/sandbox`
+    typed mid-answer can contain the call that follows it.
+    """
+    from zrb.config.config import CFG
+
+    ctx = SimpleNamespace(deps=None)
+    args = {"path": str(outside_root / "x.txt")}
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    blocked = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    allowed = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+
+    assert blocked is not None and blocked.metadata.get("blocked") is True
+    assert allowed is None
+
+
 def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path, outside_root):
     """A `ctx.deps` policy wins over the ambient one.
 

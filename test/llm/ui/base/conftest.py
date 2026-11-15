@@ -28,6 +28,7 @@ class MockUI:
         self.redirect_output_commands = ["/redirect"]
         self.attach_commands = ["/attach"]
         self.yolo_toggle_commands = ["/yolo"]
+        self.sandbox_commands = ["/sandbox"]
         self.set_model_commands = ["/model"]
         self.set_commands = ["/set"]
         self.exec_commands = ["/exec"]
@@ -97,6 +98,18 @@ class MockUI:
 
     def invalidate_ui(self):
         pass
+
+    def set_status_badge(self, key, text):
+        """The real UI keeps these in its status bar; here a dict is enough."""
+        badges = self.__dict__.setdefault("_badges", {})
+        if text is None:
+            badges.pop(key, None)
+        else:
+            badges[key] = text
+
+    @property
+    def status_badges(self):
+        return tuple(self.__dict__.get("_badges", {}).values())
 
     def on_exit(self):
         self.exited = True

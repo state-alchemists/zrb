@@ -72,6 +72,8 @@ class BaseUICommands:
             (base_ui.handle_toggle_plan, base_ui.plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (base_ui.handle_toggle_yolo, base_ui.yolo_toggle_commands, True, True),
+            # prefix=True: `/sandbox` toggles, `/sandbox on|off` names the state.
+            (base_ui.handle_toggle_sandbox, base_ui.sandbox_commands, True, True),
             (base_ui.handle_exit_command, base_ui.exit_commands, False, False),
             (base_ui.handle_info_command, base_ui.info_commands, False, False),
             (base_ui.handle_save_command, base_ui.save_commands, True, False),
@@ -276,6 +278,10 @@ class BaseUICommands:
         )
         add_cmd_help(base_ui.summarize_commands, "Summarize conversation history")
         add_cmd_help(base_ui.yolo_toggle_commands, "Toggle YOLO mode")
+        add_cmd_help(
+            base_ui.sandbox_commands,
+            "Toggle the tool sandbox on/off (usage: {cmd} [on|off])",
+        )
         add_cmd_help(
             base_ui.set_model_commands,
             "Set model (usage: {cmd} <model-name>, {cmd} small <model-name>, {cmd} multimodal <model-name>)",

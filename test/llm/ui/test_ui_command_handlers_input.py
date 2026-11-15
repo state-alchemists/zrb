@@ -38,6 +38,55 @@ class TestBaseUIInputCommands:
         ui.handle_toggle_yolo("/yolo")
         assert ui.yolo is False
 
+    def test_handle_toggle_sandbox(self, simple_ui_instance, monkeypatch):
+        """`/sandbox` flips the switch and keeps it visible in the badge line."""
+        from zrb.config.config import CFG
+
+        ui = simple_ui_instance
+        ui.append_to_output = MagicMock()
+        monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+        assert ui.handle_toggle_sandbox("/sandbox") is True
+        assert CFG.LLM_SANDBOX_ENABLED is True
+        assert "🐚 sandboxed" in ui.status_badges
+
+        assert ui.handle_toggle_sandbox("/sandbox") is True
+        assert CFG.LLM_SANDBOX_ENABLED is False
+        assert "🐚 sandboxed" not in ui.status_badges
+
+    def test_handle_toggle_sandbox_accepts_a_named_state(
+        self, simple_ui_instance, monkeypatch
+    ):
+        """`/sandbox on` is not a flip: saying it twice leaves it on."""
+        from zrb.config.config import CFG
+
+        ui = simple_ui_instance
+        ui.append_to_output = MagicMock()
+        monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+        assert ui.handle_toggle_sandbox("/sandbox on") is True
+        assert CFG.LLM_SANDBOX_ENABLED is True
+        assert ui.handle_toggle_sandbox("/sandbox ON") is True
+        assert CFG.LLM_SANDBOX_ENABLED is True
+        assert ui.handle_toggle_sandbox("/sandbox off") is True
+        assert CFG.LLM_SANDBOX_ENABLED is False
+
+    def test_handle_toggle_sandbox_ignores_an_unknown_argument(
+        self, simple_ui_instance, monkeypatch
+    ):
+        """An argument that is neither `on` nor `off` is not consumed."""
+        from zrb.config.config import CFG
+
+        ui = simple_ui_instance
+        monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+        assert ui.handle_toggle_sandbox("/sandbox maybe") is False
+        assert CFG.LLM_SANDBOX_ENABLED is False
+
+    def test_sandbox_runs_while_the_model_is_thinking(self, simple_ui_instance):
+        """Flipping it mid-turn is the point, so it is not held back."""
+        assert simple_ui_instance.classify_input("/sandbox") == "thinking_command"
+
     def test_handle_set_model_command(self, simple_ui_instance):
         """Test _handle_set_model_command changes model."""
         ui = simple_ui_instance

@@ -220,7 +220,7 @@ class IntegrationUI:
         self.set_commands = ["/set"]
         self.exec_commands = ["/exec"]
         self.btw_commands = ["/btw"]
-        self.plan_commands = ["/plan"]
+        self.plan_commands, self.sandbox_commands = ["/plan"], ["/sandbox"]
         self.summarize_commands = ["/summarize"]
         self.copy_commands = []
         self.custom_commands = []

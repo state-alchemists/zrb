@@ -39,6 +39,10 @@ _MODE_BANNERS = {
     "plan": "📋 PLAN MODE: read-only discovery",
 }
 
+# Shown on the badge line for as long as the sandbox is on, so a session that
+# was sandboxed by a `/sandbox` an hour ago does not look like a normal one.
+_SANDBOX_BADGE = "🐚 sandboxed"
+
 
 class BaseUIModelCommands:
     """YOLO / PLAN / model-switch slash commands for BaseUI."""
@@ -67,6 +71,44 @@ class BaseUIModelCommands:
                     self._base_ui.yolo = tools
                     self._base_ui.display.invalidate_ui()
                 return True
+        return False
+
+    # sandbox
+
+    def toggle_sandbox(self) -> None:
+        """Flip the tool sandbox on/off and force refresh."""
+        self._apply_sandbox_state(not CFG.LLM_SANDBOX_ENABLED)
+
+    def _apply_sandbox_state(self, is_enabled: bool) -> None:
+        """Write the switch, put it in the status badge, and say it once.
+
+        The filesystem gate and the shell wrapper both resolve
+        `LLM_SANDBOX_ENABLED` per call, so this reaches the next tool call —
+        including one inside a turn that is already running.
+        """
+        CFG.LLM_SANDBOX_ENABLED = is_enabled
+        badge = _SANDBOX_BADGE if is_enabled else None
+        self._base_ui.set_status_badge("sandbox", badge)
+        state = "On" if is_enabled else "Off"
+        self._base_ui.append_to_output(stylize_muted(f"\n  🐚 SANDBOX: {state}\n"))
+        self._base_ui.display.invalidate_ui()
+
+    # Dispatchers answer "consumed or not" and are named `handle_*` by the
+    # table's contract, so they carry no `-> bool` annotation — ADR-0098 counts
+    # that annotation, and a handler is not the check its name would describe.
+    def handle_toggle_sandbox(self, text: str):
+        stripped = text.strip().lower()
+        for cmd in self._base_ui.sandbox_commands:
+            token = cmd.lower()
+            if stripped == token:
+                self.toggle_sandbox()
+            elif stripped == f"{token} on":
+                self._apply_sandbox_state(True)
+            elif stripped == f"{token} off":
+                self._apply_sandbox_state(False)
+            else:
+                continue
+            return True
         return False
 
     def toggle_plan(self):

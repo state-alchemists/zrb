@@ -54,6 +54,9 @@ class UIConfig:
     yolo_toggle_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_YOLO_TOGGLE")
     )
+    sandbox_commands: list[str] = field(
+        default_factory=_commands("LLM_UI_COMMAND_SANDBOX")
+    )
     set_model_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_SET_MODEL")
     )

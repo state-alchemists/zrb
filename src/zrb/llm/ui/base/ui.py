@@ -331,6 +331,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         "redirect_output", "redirect output"
     )
     yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
+    sandbox_commands = _command_alias_property("sandbox", "sandbox toggle")
     set_model_commands = _command_alias_property("set_model", "set model")
     set_commands = _command_alias_property("set", "set")
     exec_commands = _command_alias_property("exec", "exec")
@@ -602,6 +603,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def handle_toggle_yolo(self, text: str) -> bool:
         return self.models.handle_toggle_yolo(text)
+
+    def toggle_sandbox(self) -> None:
+        self.models.toggle_sandbox()
+
+    def handle_toggle_sandbox(self, text: str):
+        return self.models.handle_toggle_sandbox(text)
 
     def toggle_plan(self) -> None:
         self.models.toggle_plan()
