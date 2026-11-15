@@ -1,4 +1,5 @@
-"""The face server's two audio routes: the page's microphone, and its speaker.
+"""The face server's routes that are not the voice: a page's microphone and
+speaker, and the cameras on that page.
 
 With `LLM_VOICE_REMOTE_URL` set, zrb's voice moves into the page that server
 serves: dictation reads the microphone from GET /audio/in, and the speech player
@@ -6,11 +7,17 @@ writes what zrb says to POST /say. The machine that runs zrb then opens neither
 a microphone nor an output stream, and a phone across the room holds both. Empty
 — how it ships — leaves each of them where it was, on this machine.
 
-Both routes carry the same audio, and the contract is spelled here once because
-two packages speak it: raw little-endian signed 16-bit mono PCM at one rate,
-named in headers rather than wrapped in a container, since neither side
-converts, mixes or resamples.
+The same server is where a camera that is not on this machine lives: GET /frame
+asks its page for one photo, and GET /frame/devices is the names that page gives
+its cameras. Both are read by `zrb.llm.camera.backend.remote`.
+
+Every route here carries something zrb would otherwise read from a device of its
+own, and the contract is spelled here once because two packages speak it. The
+audio ones are raw little-endian signed 16-bit mono PCM at one rate, named in
+headers rather than wrapped in a container, since neither side converts, mixes
+or resamples. The frame ones are a JPEG and a list of names.
 """
+
 
 from __future__ import annotations
 
@@ -31,9 +38,14 @@ CHANNELS_HEADER = "X-Channels"
 MICROPHONE_PATH = "/audio/in"
 SPEAKER_PATH = "/say"
 
+# Where a page's cameras live: one shot and the names it gives them. Both are
+# reads, since zrb is the one asking and the page is the one that has them.
+CAMERA_PATH = "/frame"
+CAMERA_DEVICES_PATH = "/frame/devices"
+
 
 def get_remote_url() -> str | None:
-    """The face server's base URL, or ``None`` while the voice stays here."""
+    """The face server's base URL, or ``None`` while zrb's devices stay here."""
     return CFG.LLM_VOICE_REMOTE_URL.strip().rstrip("/") or None
 
 

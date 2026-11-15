@@ -18,8 +18,10 @@ class CameraConfig:
     *tool_enabled* adds the `TakePhoto` tool beside the command; ``enable_tool``,
     its name before the switch suffix, still works and warns.
 
-    *backend* names a built-in backend (``auto``, ``termux``, ``ffmpeg``) or
-    is an `AnyCameraBackend` of your own.
+    *backend* names a built-in backend (``auto``, ``termux``, ``ffmpeg``,
+    ``remote``) or is an `AnyCameraBackend` of your own. ``remote`` is the page
+    on the face server `LLM_VOICE_REMOTE_URL` names, whose cameras `auto` also
+    offers whenever that setting is on.
     """
 
     commands: list[str] | None = None

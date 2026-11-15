@@ -4,6 +4,7 @@ from zrb.llm.camera.backend import (
     AnyCameraBackend,
     AutoCameraBackend,
     FfmpegCameraBackend,
+    RemoteCameraBackend,
     TermuxCameraBackend,
 )
 from zrb.llm.camera.config import CameraConfig
@@ -14,6 +15,7 @@ __all__ = [
     "AutoCameraBackend",
     "CameraConfig",
     "FfmpegCameraBackend",
+    "RemoteCameraBackend",
     "TermuxCameraBackend",
     "enable_camera",
 ]

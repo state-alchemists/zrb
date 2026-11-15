@@ -20,6 +20,16 @@ class AnyCameraBackend(ABC):
         """Device ids or names to offer for completion. Must not block."""
         return []
 
+    async def refresh_devices(self) -> list[str]:
+        """The same names, asked for fresh where listing them is slow or cached.
+
+        The default is `list_devices`, which is right for a backend whose list is
+        immediate. One that probes in the background — a slow platform-specific
+        listing that lands after the fast one — overrides this, so a caller with a
+        deadline can ask for the settled list before believing a name is missing.
+        """
+        return self.list_devices()
+
     def get_failure_hint(self) -> str:
         """What to do after `capture` returned ``None``."""
         return ""
