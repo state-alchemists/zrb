@@ -6,7 +6,7 @@
 
 | Feature | Commands | Needs |
 |---|---|---|
-| Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android |
+| Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android; or a camera on the page a face server serves, with `ZRB_LLM_VOICE_REMOTE_URL` set |
 | Screenshot | `/screenshot [display]` | nothing on macOS, Windows and WSL; `grim`, `gnome-screenshot` or `spectacle` on Wayland; nothing (or `scrot`) on X11 |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
@@ -262,7 +262,7 @@ Each feature takes a backend name or an object implementing its interface:
 
 | Feature | Interface | Built-in names |
 |---|---|---|
-| Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
+| Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg`, `remote` |
 | Screenshot | `zrb.llm.screenshot.AnyScreenshotBackend` — `async capture(display) -> bytes \| None` (PNG or JPEG) | `auto`, `pillow`, `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` |
 | Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
 | Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, for whoever asked to be told with `set_on_start`); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |

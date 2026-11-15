@@ -44,7 +44,7 @@ It decides over `ZRB_LLM_SPEECH_PLAYER` and over the fallbacks: no sentence is h
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_VOICE_REMOTE_URL` | Base URL of the face server whose page carries the microphone and the speaker, such as `http://127.0.0.1:7777`. The microphone route carries raw 16-bit mono PCM at 16 kHz, and the speaker route takes the PCM the speech backend made, at the rate it names in `X-Sample-Rate`; nothing here resamples. Empty keeps both devices on this machine, exactly as they were | (empty) |
+| `ZRB_LLM_VOICE_REMOTE_URL` | Base URL of the face server whose page carries the microphone and the speaker, such as `http://127.0.0.1:7777`. The microphone route carries raw 16-bit mono PCM at 16 kHz, and the speaker route takes the PCM the speech backend made, at the rate it names in `X-Sample-Rate`; nothing here resamples. It is also the page a photo comes from, when the camera names a device only that page has ([Camera](#camera)). Empty keeps both devices on this machine, exactly as they were, and offers no page's camera | (empty) |
 | `ZRB_LLM_VOICE_REMOTE_TOKEN` | Token sent as `Authorization: Bearer <token>`, which the server's routes want once its own `ZRB_AVATAR_TOKEN` is set. Unset here, `ZRB_AVATAR_TOKEN` is read instead, so one token names both sides of the pair | (empty) |
 
 ```bash
@@ -213,10 +213,12 @@ The request to the model is the `emotion_live` prompt file, overridable like any
 
 `/photo [device]` attaches a camera photo to the next message.
 
+The same face server is where a camera that is not on this machine lives. With `ZRB_LLM_VOICE_REMOTE_URL` set, `auto` offers the page's cameras beside this machine's — the page announces them, each under its own name (`phone-back`, `phone-front`) — and a device this machine does not have is asked of the page. A name neither answers leaves no photo rather than another camera's, which is the rule `/photo` already kept for a device that failed. `remote` is that page on its own, for a session whose photos always come from the phone.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_CAMERA_COMMANDS` | Aliases for the camera command | `/photo, /p` |
-| `ZRB_LLM_CAMERA_BACKEND` | `auto` (Termux:API on Android when installed, else ffmpeg), `termux`, `ffmpeg` | `auto` |
+| `ZRB_LLM_CAMERA_BACKEND` | `auto` (Termux:API on Android when installed, else ffmpeg — and the page's cameras once `ZRB_LLM_VOICE_REMOTE_URL` is set), `termux`, `ffmpeg`, or `remote` (that page only, which needs the URL) | `auto` |
 | `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default. On WSL, a `/dev/video*` path captures through Linux ffmpeg instead of Windows' `ffmpeg.exe` | (none) |
 | `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take, every attempt included, before it is abandoned; `0` means no limit | `15` |
 | `ZRB_LLM_CAMERA_TOOL_ENABLED` | Give the agent a `TakePhoto` tool, so it can look through the camera on its own. Each call asks for approval, and plan mode denies it | `off` |
