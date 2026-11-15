@@ -101,7 +101,14 @@ def test_a_diary_is_only_ever_forgotten_as_wrong():
     assert reason_error("bored", "fact") is not None
 
 
-def test_a_body_is_bounded_per_kind():
+def test_a_body_is_bounded_per_kind(monkeypatch):
+    """A diary's limit is its setting; a fact's is the module's constant.
+
+    Both are pinned here rather than read from the defaults, so raising either
+    one does not turn this into a test of whichever number currently ships.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 5_000, raising=False)
+    assert body_error("x" * 5_000, "diary") is None
     assert body_error("x" * 5_001, "diary") is not None
     assert body_error("x" * 5_001, "fact") is None
     assert body_error("x" * 8_001, "fact") is not None
