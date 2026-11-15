@@ -28,6 +28,7 @@ from zrb.llm.ui.default.app.keybinding import (
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
+    from zrb.llm.ui.default.app.follow import OutputFollow
     from zrb.llm.ui.default.selection import UISelection
 
 INPUT_FRAME_TITLE = "Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel"
@@ -148,6 +149,7 @@ def create_output_field(
     key_bindings: KeyBindings | None = None,
     input_field: "TextArea | None" = None,
     choice: "UISelection | None" = None,
+    follow: "OutputFollow | None" = None,
 ) -> TextArea:
     def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
         return " "
@@ -171,24 +173,30 @@ def create_output_field(
         # PageUp/PageDown scroll this pane whichever pane has the focus, so it
         # is handed over rather than left to the focused one.
         key_bindings = create_output_keybindings(
-            input_field, choice, output_field=text_area
+            input_field, choice, output_field=text_area, follow=follow
         )
     if key_bindings is not None:
         text_area.control.key_bindings = key_bindings
 
-    _bind_scroll_to_cursor(text_area)
+    _bind_scroll_to_cursor(text_area, follow=follow)
 
     text_area.buffer.cursor_position = len(text_area.text)
     return text_area
 
 
-def _bind_scroll_to_cursor(text_area: TextArea, lines: int = 3) -> None:
+def _bind_scroll_to_cursor(
+    text_area: TextArea, lines: int = 3, follow: "OutputFollow | None" = None
+) -> None:
     """Make the mouse wheel move the output cursor instead of the viewport.
 
     The window pins itself to the cursor, so nudging `vertical_scroll` would
     snap back on the next streamed chunk. Moving the cursor scrolls for real
     and, leaving the last line, pauses auto-follow. Works whichever pane has
     focus.
+
+    *follow*, when one is given, is told where the cursor landed: the refresh
+    loop repaints after the text has grown and cannot work out for itself
+    whether the reader is following or reading further up.
     """
     control = text_area.control
     inner_handler = control.mouse_handler
@@ -197,13 +205,21 @@ def _bind_scroll_to_cursor(text_area: TextArea, lines: int = 3) -> None:
         buf = text_area.buffer
         if mouse_event.event_type == MouseEventType.SCROLL_UP:
             buf.cursor_position += buf.document.get_cursor_up_position(count=lines)
+            _note_follow(follow, text_area)
             return None
         if mouse_event.event_type == MouseEventType.SCROLL_DOWN:
             buf.cursor_position += buf.document.get_cursor_down_position(count=lines)
+            _note_follow(follow, text_area)
             return None
         return inner_handler(mouse_event)
 
     control.mouse_handler = mouse_handler
+
+
+def _note_follow(follow: "OutputFollow | None", text_area: TextArea) -> None:
+    """Tell *follow* where the pane's cursor is, when anything is listening."""
+    if follow is not None:
+        follow.note(text_area)
 
 
 def create_layout(

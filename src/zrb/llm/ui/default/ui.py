@@ -13,8 +13,10 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
+from zrb.llm.ui.default.app.follow import OutputFollow
 from zrb.llm.ui.default.app.layout import (
     create_input_field,
     create_layout,
@@ -150,8 +152,15 @@ class UI(BaseUI, AnyUIDisplay):
             choice=self._selection,
         )
 
+        # Whether the transcript keeps up with the newest line. The refresh loop
+        # cannot work this out for itself: by the time it repaints, the text has
+        # grown and "was following" looks exactly like "scrolled up".
         self._output_field = create_output_field(
-            "", output_lexer, input_field=self._input_field, choice=self._selection
+            "",
+            output_lexer,
+            input_field=self._input_field,
+            choice=self._selection,
+            follow=self.output_follow,
         )
         # Resolved once: an unknown art name falls back to a *random* file, so
         # re-resolving per render would reshuffle the image on every resize.
@@ -569,6 +578,16 @@ class UI(BaseUI, AnyUIDisplay):
         return self._output_field
 
     @property
+    def output_follow(self) -> OutputFollow:
+        """Whether the transcript keeps up with the newest line.
+
+        Read by the refresh loop, which repaints after the text has grown and so
+        can no longer tell "was following" from "scrolled up"; written by the
+        append path, the wheel, the paging keys and a submitted message.
+        """
+        return self._output.output_follow
+
+    @property
     def input_field(self) -> Any:
         """The prompt-toolkit input-field widget (own field, TUI-specific)."""
         return self._input_field
@@ -722,6 +741,18 @@ class UI(BaseUI, AnyUIDisplay):
     @property
     def is_waiting_for_choice(self) -> bool:
         return self.confirmation.current_spec is not None
+
+    def submit_message(
+        self, user_message: str, source: InputProvenance | None = KEYBOARD_INPUT
+    ) -> None:
+        """Queue *user_message*; the transcript follows its tail again from here.
+
+        Reading further up while typing is worth keeping, and stays kept — until
+        the message is sent, when the reply about to arrive is the one being
+        waited for. From then the pane follows again until the reader moves it.
+        """
+        self.output_follow.resume()
+        super().submit_message(user_message, source)
 
     def submit_answer(self, text: str) -> None:
         if not self._confirmation.submit_user_answer(text):

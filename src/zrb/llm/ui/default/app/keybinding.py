@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
     from prompt_toolkit.widgets import TextArea
 
+    from zrb.llm.ui.default.app.follow import OutputFollow
     from zrb.llm.ui.default.selection import UISelection
 
 # Rows PageUp/PageDown leave in view from the previous screen, so the reader
@@ -17,6 +18,7 @@ def create_output_keybindings(
     input_field: "TextArea",
     choice: "UISelection | None" = None,
     output_field: "TextArea | None" = None,
+    follow: "OutputFollow | None" = None,
 ) -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
@@ -46,11 +48,11 @@ def create_output_keybindings(
     # visible, and moving the option cursor is Up/Down's job, not PageUp's.
     @kb.add("pageup")
     def _(event):
-        page_output(output_field, event, -1)
+        page_output(output_field, event, -1, follow)
 
     @kb.add("pagedown")
     def _(event):
-        page_output(output_field, event, 1)
+        page_output(output_field, event, 1, follow)
 
     # Shift+Tab is left unbound so the app level can cycle modes.
 
@@ -71,7 +73,10 @@ def create_output_keybindings(
 
 
 def page_output(
-    output_field: "TextArea | None", event: "KeyPressEvent", direction: int
+    output_field: "TextArea | None",
+    event: "KeyPressEvent",
+    direction: int,
+    follow: "OutputFollow | None" = None,
 ) -> None:
     """Move the transcript a screen at a time in *direction* (-1 up, 1 down).
 
@@ -80,6 +85,9 @@ def page_output(
     transcript behind it, which is the one thing the user cannot otherwise do.
     The focused pane is only the fallback for a caller that has no transcript to
     name.
+
+    *follow* is told where the pane ended up, so paging away from the tail stops
+    the view being pulled back down on the next repaint.
     """
     steps = max(1, event.app.output.get_size().rows - PAGE_OVERLAP_ROWS)
     buffer = output_field.buffer if output_field is not None else event.current_buffer
@@ -87,6 +95,8 @@ def page_output(
         buffer.cursor_up(count=steps)
     else:
         buffer.cursor_down(count=steps)
+    if follow is not None and output_field is not None:
+        follow.note(output_field)
 
 
 def bind_choice_navigation(

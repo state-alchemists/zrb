@@ -143,7 +143,7 @@ class UILifecycle:
                 app = get_app()
                 app.invalidate()
                 if app.layout.has_focus(ui.input_field):
-                    self._scroll_output_to_bottom()
+                    self.scroll_output_to_bottom()
             except Exception as e:
                 # A transient render error must not kill the loop.
                 CFG.LOGGER.debug(f"Refresh loop repaint failed: {e}")
@@ -156,8 +156,16 @@ class UILifecycle:
             except RuntimeError:
                 break
 
-    def _scroll_output_to_bottom(self):
-        """Scroll output field to the bottom."""
+    def scroll_output_to_bottom(self):
+        """Scroll the output field to the bottom, unless the reader has moved away.
+
+        The refresh loop repaints while the input field has the focus, which is
+        exactly when a reply is being read while the next message is typed.
+        Following the tail is this method's job; staying out of the reader's way
+        is `output_follow`'s.
+        """
+        if not self._ui.output_follow.following:
+            return
         try:
             buffer = self._ui.output_field.buffer
             if buffer.cursor_position != len(buffer.text):

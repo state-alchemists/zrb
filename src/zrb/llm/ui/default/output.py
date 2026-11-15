@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, TextIO, cast
 from zrb.config.config import CFG
 from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.ambient_state import get_session_ownership_key
+from zrb.llm.ui.default.app.follow import OutputFollow
 from zrb.llm.ui.output_chunk import (
     CollapsibleBlockSource,
     merge_into_block,
@@ -131,6 +132,9 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        # Whether the transcript keeps up with the newest line. It lives beside
+        # the append path that reads it, and the refresh loop asks the UI for it.
+        self.output_follow = OutputFollow()
         # Not the margin: a transcript that starts at column 0 has no live run to
         # learn the layout from, and history replay renders through the same
         # column rule a live turn uses — see `DEFAULT_STREAM_INDENTATION`.
@@ -259,6 +263,10 @@ class UIOutput:
             # buffer isn't queryable rather than logging on every token.
             pass
         should_scroll_to_end = is_at_last_line
+        # The refresh loop repaints after the text has grown, when "was
+        # following" and "scrolled up" look alike; this is the answer from
+        # before the growth, which is the only moment it can be read.
+        self.output_follow.following = should_scroll_to_end
 
         new_cursor_position = (
             len(new_text)
