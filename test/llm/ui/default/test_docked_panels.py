@@ -254,8 +254,8 @@ def test_at_24_rows_a_twenty_option_choice_is_capped_and_the_transcript_keeps_th
         _measure(app, ui.selection_part.choice_window, ui.output_field.window)
     )
 
-    assert panel_rows == 24 // 3
-    # The panel's 10 rows (8 of content plus its border) come out of the
+    assert panel_rows == 24 // 3 - 1
+    # The panel's 9 rows (7 of content plus its border) come out of the
     # transcript, which keeps the rest: 24 minus the panel, the title and info
     # bars, both spacers, the hint line and the status bar.
     assert transcript_rows == 24 - 10 - 10
@@ -281,9 +281,9 @@ def test_a_closed_btw_panel_spends_no_rows(mock_ui_deps):
 
     (transcript_rows,) = asyncio.run(_measure(app, ui.output_field.window))
 
-    # 24 rows of screen minus the title bar (2), the info bar (3), both spacers,
+    # 24 rows of screen minus the title bar (2), the info bar (4), both spacers,
     # the input frame (3), the hint line (1) and the status bar (2).
-    assert transcript_rows == 24 - 13
+    assert transcript_rows == 24 - 14
 
 
 def test_the_btw_panel_measures_the_same_cap(mock_ui_deps):

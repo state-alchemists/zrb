@@ -35,14 +35,14 @@ PANEL_SCREEN_DIVISOR = 3
 FRAME_ROWS = 2
 """Rows a `Frame` spends on its border, one above its content and one below."""
 
-LAYOUT_MIN_ROWS = 16
+LAYOUT_MIN_ROWS = 17
 """Rows the rest of the layout keeps for itself before a panel gets any.
 
-The title bar (2), the info bar (3), both spacers (2), the input frame (3), the
-hint line (1), the status bar (1) and one row of transcript: thirteen rows
+The title bar (2), the info bar (4), both spacers (2), the input frame (3), the
+hint line (1), the status bar (1) and one row of transcript: fourteen rows
 before a panel is considered. A docked panel's own `Frame` then spends
-`FRAME_ROWS` (2) on its border, so the thirteen plus that border is fifteen — the
-sixteenth row is the slack that keeps a one-row panel from asking for a screen
+`FRAME_ROWS` (2) on its border, so the fourteen plus that border is sixteen — the
+seventeenth row is the slack that keeps a one-row panel from asking for a screen
 exactly as tall as itself. A panel that asks for more than `rows -
 LAYOUT_MIN_ROWS` asks for a screen that does not exist, and prompt_toolkit paints
 its "window too small" note instead of the layout, so the cap yields rather than

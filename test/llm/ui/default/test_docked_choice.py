@@ -68,8 +68,8 @@ def test_a_twenty_option_question_is_capped_at_a_third_of_the_screen(ui, termina
     """Twenty options must not take the rows the transcript needs to be read."""
     terminal_rows(24)
     ui.begin_choice(_spec(_options(20)))
-    assert ui.panel_rows() == panel_row_cap(ui) == 8
-    assert _rendered(ui).count("\n") == 8
+    assert ui.panel_rows() == panel_row_cap(ui) == 7
+    assert _rendered(ui).count("\n") == 7
 
 
 def test_five_and_twenty_options_paint_the_same_height(ui, terminal_rows):
