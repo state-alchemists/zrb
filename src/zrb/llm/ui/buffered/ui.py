@@ -340,6 +340,15 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         # that owns the run — here, the parent's.
         setattr(self._wrapped.tools, "sandbox_run_policy", value)
 
+    @property
+    def judge_override(self) -> bool | None:
+        """Delegate the judge switch: a child runs under the session it serves."""
+        return self._wrapped.tools.judge_override
+
+    @judge_override.setter
+    def judge_override(self, value: bool | None):
+        setattr(self._wrapped.tools, "judge_override", value)
+
     def stream_to_parent(
         self,
         *values: object,

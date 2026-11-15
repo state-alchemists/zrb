@@ -221,7 +221,8 @@ def test_the_bar_gives_each_kind_of_fact_its_own_row():
 
     assert len(rows) == 4
     assert rows[0].startswith("🤖 Model:") and "Sandbox:" not in rows[0]
-    assert "Plan Mode:" in rows[1] and "YOLO:" in rows[1] and "Sandbox:" in rows[1]
+    assert "Plan Mode:" in rows[1] and "YOLO:" in rows[1]
+    assert "Sandbox:" in rows[1] and "Judge:" in rows[1]
     assert rows[2].startswith("💬 Session:")
     assert rows[3].startswith("📂 Dir:") and "Git:" in rows[3]
 

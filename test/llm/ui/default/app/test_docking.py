@@ -47,7 +47,7 @@ def test_rendered_row_count_counts_the_rows_a_paint_covers():
 def test_the_cap_is_a_third_of_the_screen(terminal_rows):
     """CI runs 24 rows and a developer's terminal is taller, so pin both."""
     terminal_rows(24)
-    assert panel_row_cap(_BareUI()) == 8
+    assert panel_row_cap(_BareUI()) == 7
     terminal_rows(40)
     assert panel_row_cap(_BareUI()) == 13
 

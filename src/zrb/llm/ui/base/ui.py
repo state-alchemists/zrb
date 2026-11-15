@@ -214,6 +214,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # What the live run was given explicitly, published by the runner so
         # the status bar can answer without the run's context variables.
         self._sandbox_run_policy: bool | None = None
+        # `/judge`, on the session for the same reason `/sandbox` is.
+        self._judge_override: bool | None = None
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -338,6 +340,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     )
     yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
     sandbox_commands = _command_alias_property("sandbox", "sandbox toggle")
+    judge_commands = _command_alias_property("judge", "judge toggle")
     set_model_commands = _command_alias_property("set_model", "set model")
     set_commands = _command_alias_property("set", "set")
     exec_commands = _command_alias_property("exec", "exec")
@@ -616,6 +619,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def handle_toggle_sandbox(self, text: str):
         return self.models.handle_toggle_sandbox(text)
 
+    def toggle_judge(self) -> None:
+        self.models.toggle_judge()
+
+    def handle_toggle_judge(self, text: str):
+        return self.models.handle_toggle_judge(text)
+
     def toggle_plan(self) -> None:
         self.models.toggle_plan()
 
@@ -856,6 +865,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @sandbox_run_policy.setter
     def sandbox_run_policy(self, value: bool | None):
         self._sandbox_run_policy = value
+
+    @property
+    def judge_override(self) -> bool | None:
+        """This session's `/judge` choice, or None while `CFG` decides."""
+        return self._judge_override
+
+    @judge_override.setter
+    def judge_override(self, value: bool | None):
+        self._judge_override = value
 
     # REQUIRED METHODS - Must be implemented by subclasses
 

@@ -54,6 +54,18 @@ class AnyUITools(ABC):
         """
         return None
 
+    @property
+    def judge_override(self) -> bool | None:
+        """This session's `/judge` choice: True, False, or None for `CFG`.
+
+        Read once per judged command, for the same reason `sandbox_override` is
+        read per tool call: the toggle belongs to the conversation that made it.
+        Concrete rather than abstract so a UI with no switch of its own says
+        nothing and lets the deployment decide. Read-only here; `BaseUI` adds
+        the setter.
+        """
+        return None
+
     @abstractmethod
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """Release any `ask_user` call blocked on a tool confirmation.

@@ -105,6 +105,14 @@ class BaseUICommands:
                 True,
                 accepts=self._models.is_sandbox_request,
             ),
+            # prefix=True: `/judge` toggles, `/judge on|off` names the state.
+            CommandRoute(
+                base_ui.handle_toggle_judge,
+                base_ui.judge_commands,
+                True,
+                True,
+                accepts=self._models.is_judge_request,
+            ),
             CommandRoute(
                 base_ui.handle_exit_command, base_ui.exit_commands, False, False
             ),
@@ -325,6 +333,10 @@ class BaseUICommands:
         add_cmd_help(
             base_ui.sandbox_commands,
             "Toggle the tool sandbox on/off (usage: {cmd} [on|off])",
+        )
+        add_cmd_help(
+            base_ui.judge_commands,
+            "Toggle the shell judge on/off (usage: {cmd} [on|off])",
         )
         add_cmd_help(
             base_ui.set_model_commands,

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+from zrb.llm.approval.judge_state import is_shell_judge_enabled_for
 from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.ui.ui_config import command_alias_field, model_visibility_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
@@ -123,8 +124,53 @@ class BaseUIModelCommands:
 
     def _sandbox_request(self, text: str) -> str | None:
         """What `text` asks of the sandbox: `flip`, `on`, `off`, or None."""
+        return self._toggle_request(text, self._base_ui.sandbox_commands)
+
+    # judge
+
+    def toggle_judge(self) -> None:
+        """Flip this session's shell judge and force refresh."""
+        self._apply_judge_state(not is_shell_judge_enabled_for(self._base_ui))
+
+    def _apply_judge_state(self, is_enabled: bool) -> None:
+        """Record this session's choice, and say it once.
+
+        Consultation only. `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` is not
+        reachable from here — that is the half that lets a `safe` verdict skip
+        the prompt, and a person's approval should not sit one keystroke away.
+        """
+        self._base_ui.judge_override = is_enabled
+        state = "On" if is_enabled else "Off"
+        self._base_ui.append_to_output(stylize_muted(f"\n  ⚖ JUDGE: {state}\n"))
+        self._base_ui.display.invalidate_ui()
+
+    def handle_toggle_judge(self, text: str):
+        request = self._judge_request(text)
+        if request is None:
+            return False
+        if request == "flip":
+            self.toggle_judge()
+        else:
+            self._apply_judge_state(request == "on")
+        return True
+
+    def is_judge_request(self, text: str) -> bool:
+        """Whether this UI would act on `text` — asked before it is classified."""
+        return self._judge_request(text) is not None
+
+    def _judge_request(self, text: str) -> str | None:
+        """What `text` asks of the judge: `flip`, `on`, `off`, or None."""
+        return self._toggle_request(text, self._base_ui.judge_commands)
+
+    def _toggle_request(self, text: str, commands: "list[str]") -> str | None:
+        """The request an on/off switch's line carries, or None.
+
+        One parse for both switches, shared with the `accepts` predicates on
+        their routes, so classification and the handler cannot disagree about
+        what a command takes.
+        """
         stripped = text.strip().lower()
-        for cmd in self._base_ui.sandbox_commands:
+        for cmd in commands:
             token = cmd.lower()
             if stripped == token:
                 return "flip"

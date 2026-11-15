@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from prompt_toolkit.filters import Condition, Filter, has_completions, has_selection
-from prompt_toolkit.formatted_text import HTML, AnyFormattedText
+from prompt_toolkit.formatted_text import HTML, AnyFormattedText, to_formatted_text
 from prompt_toolkit.history import History
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
@@ -297,7 +297,7 @@ def create_layout(
                         align=WindowAlign.CENTER,
                     ),
                     Window(
-                        height=3,
+                        height=_info_bar_height(info_bar_text),
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                     ),
@@ -338,6 +338,17 @@ def create_layout(
         ),
         focused_element=input_field,
     )
+
+
+def _info_bar_height(info_bar_text: Callable[[], AnyFormattedText]) -> int:
+    """The lines the info bar draws, counted from the text it is handed.
+
+    A fixed number here drifts in silence: the bar grew a fourth row when the
+    switches got their own line, and kept a three-line window, so `Dir:` and
+    `Git:` were clipped off the bottom of the screen.
+    """
+    fragments = to_formatted_text(info_bar_text())
+    return "".join(fragment[1] for fragment in fragments).count("\n") + 1
 
 
 def _input_slot(

@@ -222,7 +222,7 @@ class IntegrationUI:
         self.btw_commands = ["/btw"]
         self.plan_commands, self.sandbox_commands = ["/plan"], ["/sandbox"]
         self.summarize_commands = ["/summarize"]
-        self.copy_commands = []
+        self.copy_commands, self.judge_commands = [], ["/judge"]
         self.custom_commands = []
         self.is_thinking = False
         self.background_tasks = set()

@@ -200,6 +200,18 @@ class MultiUIState(UIStateDefaultsMixin):
             self.main_ui.tools.sandbox_run_policy = value
 
     @property
+    def judge_override(self) -> bool | None:
+        """The session's `/judge` choice, held by the child that owns it."""
+        if self.main_ui is None:
+            return None
+        return self.main_ui.tools.judge_override
+
+    @judge_override.setter
+    def judge_override(self, value: bool | None):
+        if self.main_ui is not None:
+            setattr(self.main_ui.tools, "judge_override", value)
+
+    @property
     def conversation(self) -> "BaseUIConversationCommands | None":
         """The conversation the main child manages, or None with no child.
 

@@ -223,3 +223,65 @@ async def test_the_judge_is_the_last_stage_before_the_prompt(monkeypatch):
         )
     assert verdict is not None
     channel.request_approval.assert_not_called()
+
+
+def _hook_manager() -> MagicMock:
+    manager = MagicMock()
+    manager.execute_hooks = AsyncMock(return_value=[])
+    return manager
+
+
+def _hook_events(manager: MagicMock) -> list:
+    return [c.args[0] for c in manager.execute_hooks.call_args_list]
+
+
+@pytest.mark.asyncio
+async def test_the_hook_is_not_told_about_a_prompt_the_judge_skips(monkeypatch):
+    """Go's report: with auto-approve on, the approval was still announced aloud.
+
+    The speech feature listens on `PermissionRequest` and reads the question
+    out, so a hook that fires for a prompt the judge removed makes a person
+    hear a question nobody is waiting to have answered. The event's own
+    contract is "now that the call will prompt".
+    """
+    from zrb.llm.hook.contracts.types import HookEvent
+
+    _knobs(monkeypatch, judge=True, auto_approve=True)
+    hook_manager = _hook_manager()
+    with (
+        _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
+        _is_shell(),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
+        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+    ):
+        verdict = await _resolve_approval(
+            _call(), MagicMock(), None, None, hook_manager, force_ask=False
+        )
+    assert verdict is not None
+    assert HookEvent.PERMISSION_REQUEST not in _hook_events(hook_manager)
+
+
+@pytest.mark.asyncio
+async def test_the_hook_hears_about_a_prompt_that_will_happen(monkeypatch):
+    """The other half of the same rule: a prompt that does happen is announced."""
+    from zrb.llm.hook.contracts.types import HookEvent
+
+    _knobs(monkeypatch, judge=True, auto_approve=False)
+    hook_manager = _hook_manager()
+    channel = MagicMock()
+    channel.request_approval = AsyncMock(return_value=MagicMock(approved=True))
+    with (
+        _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
+        _is_shell(),
+        patch(
+            "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
+        ),
+        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+    ):
+        await _resolve_approval(
+            _call(), MagicMock(), None, channel, hook_manager, force_ask=False
+        )
+    assert HookEvent.PERMISSION_REQUEST in _hook_events(hook_manager)
+    assert read_judge_note(_CALL_ID) is not None

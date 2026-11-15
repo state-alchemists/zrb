@@ -434,3 +434,30 @@ class TestCreateLayout:
         assert not badge_line.filter()
         badges.append(("", " 🎤 listening "))
         assert badge_line.filter()
+
+    def test_the_info_bar_window_is_as_tall_as_the_bar(self):
+        """A row added to the bar used to be clipped, not shown.
+
+        `Dir:` and `Git:` went missing from the screen for exactly this: the bar
+        drew four rows and the window reserved three.
+        """
+        input_field, output_field = self._fields()
+        bar = "one\ntwo\nthree\nfour"
+        layout = create_layout(
+            "title", "jargon", input_field, output_field, lambda: bar, lambda: "s"
+        )
+        info_bar = [
+            window
+            for window in _windows(layout.container)
+            if window.style == "class:info-bar"
+        ]
+        assert len(info_bar) == 1
+        assert info_bar[0].height == 4
+
+
+def _windows(container):
+    """Every `Window` under a container, in tree order."""
+    if isinstance(container, Window):
+        yield container
+    for child in container.get_children():
+        yield from _windows(child)
