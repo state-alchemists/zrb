@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.ffmpeg import FfmpegCameraBackend
 from zrb.llm.camera.backend.remote import RemoteCameraBackend
 from zrb.llm.camera.backend.termux import TermuxCameraBackend
-from zrb.llm.util.deadline import create_deadline
+from zrb.llm.util.deadline import create_deadline, get_remaining
 from zrb.util.platform import is_termux
 
 
@@ -20,6 +22,10 @@ class AutoCameraBackend(AnyCameraBackend):
     package keeps — a named camera does not become another camera's picture.
     Nothing is asked of a page for a capture that names no device: the default
     is this machine's, as it always was.
+
+    A name is only called absent once this machine's list has settled: the slow
+    platform listings land behind the fast one, so a camera that is about to
+    appear must not be handed to the page in the meantime.
     """
 
     def __init__(
@@ -40,7 +46,7 @@ class AutoCameraBackend(AnyCameraBackend):
 
     async def capture(self, device: str | None) -> bytes | None:
         deadline = create_deadline(self._timeout)
-        page = self._page_holding(device)
+        page = await self._page_holding(device, deadline)
         if page is not None:
             return await page.capture_by(device, deadline)
         if is_termux() and self._termux.is_available:
@@ -64,18 +70,40 @@ class AutoCameraBackend(AnyCameraBackend):
             return self._remote.get_failure_hint()
         return self._local_hint()
 
-    def _local_device_names(self) -> list[str]:
-        if is_termux():
-            return self._termux.list_devices()
-        return self._ffmpeg.list_devices()
+    def _local(self) -> AnyCameraBackend:
+        return self._termux if is_termux() else self._ffmpeg
 
-    def _page_holding(self, device: str | None) -> RemoteCameraBackend | None:
-        """The page, when *device* is a name this machine does not have."""
+    def _local_device_names(self) -> list[str]:
+        return self._local().list_devices()
+
+    async def _page_holding(
+        self, device: str | None, deadline: float | None
+    ) -> RemoteCameraBackend | None:
+        """The page, when *device* is a name this machine does not have.
+
+        Absence is only believed once the list has settled. On Windows the names
+        come from a slow ffmpeg probe that lands behind the fast list, so the
+        first `list_devices` after a cold cache lacks the very camera about to be
+        asked for — and a name that is merely not counted yet must not become the
+        page's photo.
+        """
         if self._remote is None or not device:
             return None
         if device in self._local_device_names():
             return None
+        if device in await self._settled_device_names(deadline):
+            return None
         return self._remote
+
+    async def _settled_device_names(self, deadline: float | None) -> list[str]:
+        """This machine's names once its slow listing has landed; the names it had
+        if that could not finish in time."""
+        try:
+            return await asyncio.wait_for(
+                self._local().refresh_devices(), timeout=get_remaining(deadline)
+            )
+        except (OSError, RuntimeError, ValueError, asyncio.TimeoutError):
+            return self._local_device_names()
 
     def _local_hint(self) -> str:
         if not is_termux():

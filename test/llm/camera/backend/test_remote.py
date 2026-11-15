@@ -10,6 +10,7 @@ else.
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 
@@ -73,6 +74,37 @@ async def test_a_page_that_never_answers_is_given_up_on(face_page):
     backend = _backend(face_page, timeout=0.2)
 
     assert await backend.capture("phone-back") is None
+    assert backend.last_error
+
+
+@pytest.mark.asyncio
+async def test_a_body_that_stops_short_is_no_photo_rather_than_a_crash(face_page):
+    """`IncompleteRead` is an `HTTPException`, not an `OSError`.
+
+    A proxy that closes the connection mid-body raises it out of `read()`, and a
+    failure path that only knows `OSError` lets it escape as a crash in the middle
+    of a tool call instead of a camera that did not answer.
+    """
+    face_page.truncate_at = 6
+
+    assert await _backend(face_page).capture("phone-back") is None
+
+
+@pytest.mark.asyncio
+async def test_a_body_that_drips_in_is_given_up_on_at_the_deadline(face_page):
+    """`urlopen`'s timeout bounds one socket read, not the body.
+
+    A server that sends a byte every few hundred milliseconds keeps every read
+    alive, so a capture that trusted the request's own timeout would wait for as
+    long as the page cared to take.
+    """
+    face_page.jpeg = JPEG + b"\x00" * 40  # long enough to outlast the deadline
+    face_page.trickle = (1, 0.05)
+    backend = _backend(face_page, timeout=0.4)
+    started = time.monotonic()
+
+    assert await backend.capture("phone-back") is None
+    assert time.monotonic() - started < 1.5
     assert backend.last_error
 
 

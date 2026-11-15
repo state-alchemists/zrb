@@ -25,8 +25,13 @@ class LocalCamera(FfmpegCameraBackend):
         super().__init__(timeout=0)
         self._names = list(names)
         self.asked: list[str | None] = []
+        self.refreshes = 0  # how often its slow listing was asked to settle
 
     def list_devices(self) -> list[str]:
+        return list(self._names)
+
+    async def refresh_devices(self) -> list[str]:
+        self.refreshes += 1
         return list(self._names)
 
     async def capture_by(self, device: str | None, deadline: float | None):
@@ -35,6 +40,27 @@ class LocalCamera(FfmpegCameraBackend):
 
     def get_failure_hint(self) -> str:
         return "  local hint\n"
+
+
+class LateListingCamera(LocalCamera):
+    """A machine whose slow listing has a camera the fast one has not found yet."""
+
+    def __init__(self, fast: tuple[str, ...], slow: tuple[str, ...]) -> None:
+        super().__init__(fast)
+        self._slow = list(slow)
+
+    async def refresh_devices(self) -> list[str]:
+        self.refreshes += 1
+        self._names = list(self._slow)
+        return list(self._names)
+
+
+class BrokenListingCamera(LocalCamera):
+    """A machine whose slow listing fails, as a missing ffmpeg does."""
+
+    async def refresh_devices(self) -> list[str]:
+        self.refreshes += 1
+        raise RuntimeError("ffmpeg is gone")
 
 
 def _backend(face_page, local: LocalCamera, timeout: float = 5.0):
@@ -70,6 +96,42 @@ async def test_a_name_this_machine_has_stays_this_machines(face_page):
     assert await backend.capture("0") == b"local-photo"
     assert local.asked == ["0"]
     assert face_page.frame_requests == []
+
+
+@pytest.mark.asyncio
+async def test_a_camera_listed_late_is_still_this_machines(face_page):
+    """The slow listings land behind the fast one, so a missing name is not yet
+    a name this machine does not have."""
+    local = LateListingCamera(fast=("0", "1"), slow=("0", "1", "USB Camera"))
+    backend, page = _backend(face_page, local)
+    await page.refresh_devices()
+
+    assert await backend.capture("USB Camera") == b"local-photo"
+    assert local.asked == ["USB Camera"]
+    assert face_page.frame_requests == []
+    assert local.refreshes == 1
+
+
+@pytest.mark.asyncio
+async def test_a_name_this_machine_already_has_settles_nothing(face_page):
+    """Settling costs a probe, so the names already listed skip it."""
+    local = LateListingCamera(fast=("0", "1"), slow=("0", "1", "USB Camera"))
+    backend, page = _backend(face_page, local)
+    await page.refresh_devices()
+
+    assert await backend.capture("0") == b"local-photo"
+    assert local.refreshes == 0
+
+
+@pytest.mark.asyncio
+async def test_a_listing_that_breaks_leaves_the_name_to_the_page(face_page):
+    local = BrokenListingCamera()
+    backend, page = _backend(face_page, local)
+    await page.refresh_devices()
+
+    assert await backend.capture("phone-back") == JPEG
+    assert local.asked == []
+    assert local.refreshes == 1
 
 
 @pytest.mark.asyncio

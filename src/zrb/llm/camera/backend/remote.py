@@ -19,12 +19,14 @@ landing on this laptop's camera instead.
 from __future__ import annotations
 
 import asyncio
+import http.client
 import json
 import logging
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import Callable, TypeVar
 
 from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
@@ -33,6 +35,8 @@ from zrb.llm.util.face_server import CAMERA_DEVICES_PATH, CAMERA_PATH
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 # How long a cached device list stands before the next `list_devices` refreshes
 # it behind the completion that asked. A page's cameras change when the phone is
@@ -88,8 +92,12 @@ class RemoteCameraBackend(AnyCameraBackend):
         if timeout == 0:
             return None
         try:
-            return await run_in_daemon(
-                self._request_frame, device, timeout, name="zrb-camera-frame"
+            return await self._within(
+                self._request_frame,
+                device,
+                timeout,
+                name="zrb-camera-frame",
+                limit=timeout,
             )
         except (OSError, RuntimeError, ValueError) as e:
             # A refused route, an unreachable server, a body that is not a
@@ -105,8 +113,11 @@ class RemoteCameraBackend(AnyCameraBackend):
     async def refresh_devices(self) -> list[str]:
         """Ask the page for its cameras, keeping the last list if it cannot say."""
         try:
-            devices = await run_in_daemon(
-                self._request_devices, self._timeout, name="zrb-camera-devices"
+            devices = await self._within(
+                self._request_devices,
+                self._timeout,
+                name="zrb-camera-devices",
+                limit=self._timeout,
             )
         except (OSError, RuntimeError, ValueError) as e:
             logger.debug(f"The page's cameras could not be listed: {e}")
@@ -158,6 +169,38 @@ class RemoteCameraBackend(AnyCameraBackend):
             return False
         return time.monotonic() - self._cached_at < DEVICE_CACHE_TTL_SECONDS
 
+    async def _within(
+        self,
+        func: Callable[..., _T],
+        *args: object,
+        name: str,
+        limit: float | None,
+    ) -> _T:
+        """*func* on a daemon thread, given up on after *limit* seconds.
+
+        `urlopen`'s own timeout bounds one socket operation, not the body: a
+        server that sends a byte every few hundred milliseconds keeps every read
+        alive and holds `read()` open past any limit the request was given. So
+        the deadline is enforced around the whole call here as well.
+
+        The thread cannot be stopped, and it is left where it is: it ends on its
+        next socket timeout, it writes nothing shared, and a value that lands
+        after the caller has gone is dropped by `run_in_daemon` rather than
+        reported. *limit* of ``0`` or ``None`` is no limit, as everywhere else
+        in this package.
+        """
+        limit = limit if limit and limit > 0 else None
+        try:
+            return await asyncio.wait_for(
+                run_in_daemon(func, *args, name=name), timeout=limit
+            )
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(
+                f"the page did not answer within {limit:.1f}s"
+                if limit
+                else "the page did not answer"
+            ) from e
+
     def _request_frame(self, device: str | None, timeout: float) -> bytes:
         """The page's answer for *device*, or a `RuntimeError` saying what came
         back instead. Blocking: it belongs on a daemon thread."""
@@ -193,3 +236,9 @@ class RemoteCameraBackend(AnyCameraBackend):
                 return response.read()
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"{url} answered {e.code}: {e.reason}") from e
+        except http.client.HTTPException as e:
+            # A connection that ended mid-body — `IncompleteRead` — or a status
+            # line that is not one. These are `HTTPException`s and not `OSError`s,
+            # so the caller's failure path would not hold them: a proxy that
+            # closes early would be a crash rather than a missing photo.
+            raise RuntimeError(f"{url} stopped answering: {e!r}") from e
