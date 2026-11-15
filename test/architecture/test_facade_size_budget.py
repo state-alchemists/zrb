@@ -201,7 +201,13 @@ FACADE_BUDGETS = {
     # rendered, not the part) and `set_status_badge` (badge, then repaint). The
     # markdown, answer, block-marker and echo bodies moved to `BaseUIDisplay`,
     # which is why the hub shrank 59 lines and this file grew by 17.
-    "llm/ui/default/ui.py": 794,
+    # +29 (794->823): the transcript's "am I following the tail" state. The
+    # accessor is a delegator, because `UIOutput` owns the flag beside the append
+    # path that writes it; `submit_message` is overridden for one line — a sent
+    # message puts the reader back on the tail — because the base queue knows
+    # nothing about a view. The three lines of comment on the output-field
+    # construction are the part that could move if this grows again.
+    "llm/ui/default/ui.py": 823,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

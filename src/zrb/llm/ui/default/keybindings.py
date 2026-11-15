@@ -213,7 +213,7 @@ class UIKeybindings:
 
     def _on_page_output(self, event: "KeyPressEvent", direction: int) -> None:
         """PageUp/PageDown: move the transcript, not whichever pane has focus."""
-        page_output(self._ui.output_field, event, direction)
+        page_output(self._ui.output_field, event, direction, self._ui.output_follow)
 
     def _on_toggle_focus(self, event: Any) -> None:
         ui = self._ui

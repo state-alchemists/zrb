@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -374,3 +375,40 @@ async def test_cleanup_drains_hooks_before_cancelling_the_rest(monkeypatch):
     await ui.lifecycle_part.cleanup_background_tasks()
 
     ui.drain_hook_tasks.assert_awaited_once_with(2.5)
+
+
+def _lifecycle_reading_above() -> tuple[UILifecycle, Any, Any]:
+    """A lifecycle over an output pane, and the follow state that steers it."""
+    from types import SimpleNamespace
+
+    from zrb.llm.ui.default.app.follow import OutputFollow
+
+    class Pane:
+        """The two things the follow state and the lifecycle read off a pane."""
+
+        def __init__(self, text: str) -> None:
+            self.text = text
+            self.buffer = SimpleNamespace(text=text, cursor_position=len(text))
+
+    field = Pane("one\ntwo\n")
+    follow = OutputFollow()
+    ui: Any = SimpleNamespace(output_field=field, output_follow=follow)
+    return UILifecycle(ui), field, follow
+
+
+def test_a_reader_who_scrolled_up_is_not_pulled_back():
+    lifecycle, field, follow = _lifecycle_reading_above()
+    field.buffer.cursor_position = 0
+    follow.note(field)  # what the wheel does when the reader scrolls up
+
+    lifecycle.scroll_output_to_bottom()
+
+    assert field.buffer.cursor_position == 0
+
+
+def test_the_tail_is_kept_when_the_reader_is_following():
+    lifecycle, field, _follow = _lifecycle_reading_above()
+
+    lifecycle.scroll_output_to_bottom()
+
+    assert field.buffer.cursor_position == len(field.buffer.text)
