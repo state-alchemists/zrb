@@ -57,9 +57,7 @@ class UIConfig:
     sandbox_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_SANDBOX")
     )
-    judge_commands: list[str] = field(
-        default_factory=_commands("LLM_UI_COMMAND_JUDGE")
-    )
+    judge_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_JUDGE"))
     set_model_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_SET_MODEL")
     )

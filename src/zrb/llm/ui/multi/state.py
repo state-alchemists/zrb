@@ -183,9 +183,7 @@ class MultiUIState(UIStateDefaultsMixin):
 
     @property
     def sandbox_override(self) -> bool | None:
-        return (
-            self.main_ui.tools.sandbox_override if self.main_ui is not None else None
-        )
+        return self.main_ui.tools.sandbox_override if self.main_ui is not None else None
 
     @property
     def sandbox_run_policy(self) -> bool | None:

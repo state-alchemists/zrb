@@ -353,9 +353,7 @@ def test_gate_follows_a_switch_flipped_after_the_turn_started(
     assert blocked is not None and blocked.metadata.get("blocked") is True
 
 
-def test_a_toggle_in_one_session_does_not_contain_another(
-    outside_root, monkeypatch
-):
+def test_a_toggle_in_one_session_does_not_contain_another(outside_root, monkeypatch):
     """`/sandbox` is the conversation's choice, so it stops at its own session.
 
     Two chats share one process and one `CFG`. Writing the toggle into that

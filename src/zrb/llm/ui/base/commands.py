@@ -119,8 +119,12 @@ class BaseUICommands:
             CommandRoute(
                 base_ui.handle_info_command, base_ui.info_commands, False, False
             ),
-            CommandRoute(base_ui.handle_save_command, base_ui.save_commands, True, False),
-            CommandRoute(base_ui.handle_load_command, base_ui.load_commands, True, False),
+            CommandRoute(
+                base_ui.handle_save_command, base_ui.save_commands, True, False
+            ),
+            CommandRoute(
+                base_ui.handle_load_command, base_ui.load_commands, True, False
+            ),
             CommandRoute(
                 base_ui.handle_rewind_command, base_ui.rewind_commands, True, False
             ),
@@ -134,11 +138,18 @@ class BaseUICommands:
                 base_ui.handle_attach_command, base_ui.attach_commands, True, False
             ),
             CommandRoute(
-                base_ui.handle_set_model_command, base_ui.set_model_commands, True, False
+                base_ui.handle_set_model_command,
+                base_ui.set_model_commands,
+                True,
+                False,
             ),
             CommandRoute(base_ui.handle_set_command, base_ui.set_commands, True, False),
-            CommandRoute(base_ui.handle_exec_command, base_ui.exec_commands, True, False),
-            CommandRoute(base_ui.handle_copy_command, base_ui.copy_commands, True, False),
+            CommandRoute(
+                base_ui.handle_exec_command, base_ui.exec_commands, True, False
+            ),
+            CommandRoute(
+                base_ui.handle_copy_command, base_ui.copy_commands, True, False
+            ),
         ]
 
     def classify_input(self, text: str) -> str:
