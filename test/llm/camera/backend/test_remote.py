@@ -220,3 +220,21 @@ def test_the_hint_names_the_setting_that_holds_the_page():
     hint = backend.get_failure_hint()
 
     assert f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL" in hint
+
+
+def test_a_url_that_is_not_http_is_refused_when_the_backend_is_built():
+    """A typo would otherwise be spoken to in cleartext, with its token attached."""
+    with pytest.raises(ValueError):
+        RemoteCameraBackend("htp://127.0.0.1:7777")
+
+
+def test_a_url_with_no_host_is_refused_when_the_backend_is_built():
+    with pytest.raises(ValueError):
+        RemoteCameraBackend("http://")
+
+
+def test_the_page_backend_is_reachable_from_the_package():
+    """The other built-ins are imported from `zrb.llm.camera`; this one too."""
+    from zrb.llm.camera import RemoteCameraBackend as from_package
+
+    assert from_package is RemoteCameraBackend

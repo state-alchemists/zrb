@@ -8,6 +8,9 @@ page that refuses leaves no photo at all rather than the laptop's.
 
 from __future__ import annotations
 
+import asyncio
+import time
+
 import pytest
 
 from zrb.llm.camera.backend.auto import AutoCameraBackend
@@ -73,6 +76,15 @@ class FailingLocalCamera(LocalCamera):
     ) -> bytes | None:
         self.asked.append(device)
         return None
+
+
+class SlowListingCamera(LocalCamera):
+    """A machine whose listing takes longer than a capture is given, as Windows' does."""
+
+    async def refresh_devices(self) -> list[str]:
+        self.refreshes += 1
+        await asyncio.sleep(1.0)
+        return list(self._names)
 
 
 def _backend(face_page, local: LocalCamera, timeout: float = 5.0):
@@ -141,7 +153,8 @@ async def test_a_listing_that_breaks_leaves_the_name_to_the_page(face_page):
     backend, page = _backend(face_page, local)
     await page.refresh_devices()
 
-    assert await backend.capture("phone-back") == JPEG
+    # A name neither side lists: the local listing is asked, fails, and the page still gets it.
+    assert await backend.capture("not-anywhere") == JPEG
     assert local.asked == []
     assert local.refreshes == 1
 
@@ -198,6 +211,35 @@ async def test_a_page_failure_hints_the_page_after_a_local_failure(face_page):
     assert await backend.capture("phone-back") is None
 
     assert "no page is open" in backend.get_failure_hint()
+
+
+@pytest.mark.asyncio
+async def test_a_name_the_page_already_lists_is_not_probed_for_locally(face_page):
+    """A slow local listing must not spend the deadline the page needs to answer."""
+    local = SlowListingCamera()
+    backend, page = _backend(face_page, local, timeout=0.4)
+    await page.refresh_devices()  # the names a completion was already offered
+    started = time.monotonic()
+
+    assert await backend.capture("phone-back") == JPEG
+
+    assert local.refreshes == 0
+    assert time.monotonic() - started < 0.4
+
+
+@pytest.mark.asyncio
+async def test_a_local_listing_gets_half_the_deadline_and_no_more(face_page):
+    local = SlowListingCamera()
+    backend, page = _backend(face_page, local, timeout=0.6)
+    await page.refresh_devices()
+    started = time.monotonic()
+
+    # A name neither side lists: the local probe runs, but on half of what is left, so the
+    # page still has time to answer.
+    assert await backend.capture("not-anywhere") == JPEG
+
+    assert local.refreshes == 1
+    assert time.monotonic() - started < 0.6
 
 
 @pytest.mark.asyncio

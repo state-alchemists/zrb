@@ -60,7 +60,21 @@ class RemoteCameraBackend(AnyCameraBackend):
     def __init__(
         self, url: str, headers: dict[str, str] | None = None, timeout: float = 15.0
     ) -> None:
-        self._url = url.rstrip("/")
+        base = urllib.parse.urlsplit(url.strip())
+        # The scheme picks the connection, and a scheme this backend does not know would be
+        # spoken to in cleartext with its token attached: refused here, where the setting is
+        # read, rather than at the socket.
+        if base.scheme.lower() not in ("http", "https"):
+            raise ValueError(
+                f"{url!r} is not a face server URL: it starts with "
+                f"{base.scheme or 'nothing'}, and only http or https are spoken to"
+            )
+        if base.hostname is None:
+            raise ValueError(
+                f"{url!r} names no host; a face server URL looks like "
+                "http://127.0.0.1:7777"
+            )
+        self._url = url.strip().rstrip("/")
         self._headers = dict(headers or {})
         self._timeout = timeout
         self._last_error: str | None = None

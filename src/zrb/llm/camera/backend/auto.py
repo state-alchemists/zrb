@@ -102,16 +102,27 @@ class AutoCameraBackend(AnyCameraBackend):
             return None
         if device in self._local_device_names():
             return None
+        # The page's names come from a cache this backend keeps warm, and a name it already
+        # claims needs no local probe at all: that is what keeps a slow Windows listing from
+        # spending the deadline the page needs to answer.
+        if device in self._remote.list_devices():
+            return self._remote
         if device in await self._settled_device_names(deadline):
             return None
         return self._remote
 
     async def _settled_device_names(self, deadline: float | None) -> list[str]:
-        """This machine's names once its slow listing has landed; the names it had
-        if that could not finish in time."""
+        """This machine's names once its slow listing has landed; the names it had if that could
+        not finish in time.
+
+        It gets at most half of what is left, because the page needs the other half: the name may
+        only look absent because the page is the one holding it.
+        """
+        remaining = get_remaining(deadline)
+        budget = None if remaining is None else remaining / 2
         try:
             return await asyncio.wait_for(
-                self._local().refresh_devices(), timeout=get_remaining(deadline)
+                self._local().refresh_devices(), timeout=budget
             )
         except (OSError, RuntimeError, ValueError, asyncio.TimeoutError):
             return self._local_device_names()
