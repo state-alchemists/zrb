@@ -16,16 +16,19 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
+from types import ModuleType
 from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.speech.any_output_stream import AnyOutputStream
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.speech.remote_output_stream import RemoteOutputStream
 from zrb.llm.util.audio_devices import (
     read_portaudio_default_output,
     read_system_default_output,
 )
+from zrb.llm.util.face_server import get_remote_headers, get_remote_url
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.priority import raise_priority
 
@@ -59,6 +62,11 @@ STREAM_STOP_TIMEOUT_SECONDS = 2.0
 # given up on: it is made while the speech lock is held, so a sentence stuck
 # there silences every later one for the rest of the session.
 STREAM_OPEN_TIMEOUT_SECONDS = 3.0
+# How long one socket operation to the page's speaker may take. Kept under
+# `STREAM_OPEN_TIMEOUT_SECONDS`, so a server that does not answer is reported
+# by name instead of as a stuck audio device — and a LAN or a phone's wifi has
+# this much room for one write.
+_REMOTE_TIMEOUT_SECONDS = 2.0
 
 # The volume zrb speaks at, as a percentage of the speech's own level.
 # `FULL_VOLUME` is the level the backend rendered; a lower one is quieter, a
@@ -244,10 +252,14 @@ def _follow_the_default_output(sd: object) -> None:
 
 @functools.cache
 def is_available() -> bool:
-    """Whether sounddevice and numpy import, so speech can play in process.
-    Asked once per process; `is_available.cache_clear()` asks again."""
+    """Whether speech can play in process: numpy and sounddevice import, or —
+    where the voice is the page's — numpy alone, since nothing here opens a
+    device. Asked once per process; `is_available.cache_clear()` asks again."""
     try:
-        _import_audio()
+        if get_remote_url() is not None:
+            _import_numpy()
+        else:
+            _import_audio()
     except (ImportError, OSError):
         return False
     return True
@@ -316,6 +328,11 @@ class PcmUtterance(Utterance):
         # Fixed when the utterance is made: a sentence already being spoken
         # keeps the level it started with, rather than fading mid-word.
         self._volume = clamp_volume(volume)
+        # Where this sentence's voice goes: the page's speaker where the voice
+        # is the page's, a device on this machine otherwise. Read when the
+        # sentence is made, as the volume is, so it keeps the route it began
+        # with.
+        self._remote_url = get_remote_url()
         # Guards `_fallback_playing` against `pause` and `stop`, which may
         # come from another thread while the fallback starts.
         self._fallback_lock = threading.Lock()
@@ -405,11 +422,14 @@ class PcmUtterance(Utterance):
         try:
             self._play_in_process(timeout)
         except Exception as exc:
-            # Said even where nothing takes the sentence over: it is the device
-            # that failed, and the sentence after it must not open that device
-            # as though it were still there.
+            # Said even where nothing takes the sentence over: it is the way out
+            # that failed, and the sentence after it must not open it as though
+            # it were still there.
             self._report_device_error(
-                exc, "Could not open the audio device to play speech in process"
+                exc,
+                "Could not reach the face server's speaker"
+                if self._remote_url is not None
+                else "Could not open the audio device to play speech in process",
             )
             if self._has_opened or self._fallback is None or self.is_stopped:
                 raise
@@ -543,7 +563,8 @@ class PcmUtterance(Utterance):
                 reader.join(_READER_JOIN_SECONDS)
 
     def _open_stream(self) -> "AnyOutputStream":
-        """The output stream, on the device the machine has now.
+        """The output stream: the page's speaker, or the device the machine has
+        now.
 
         PortAudio holds the devices, and the default output, that it found when
         it was started, and never reads them again: a headset unplugged after
@@ -552,6 +573,8 @@ class PcmUtterance(Utterance):
         sentence keep its own voice across a change of output, instead of going
         unsaid or being said into the laptop speakers a headset was unplugged
         from."""
+        if self._remote_url is not None:
+            return self._build_remote_stream(self._remote_url)
         _, sd = _import_audio()
         is_resting = self._is_device_resting()
         if is_resting:
@@ -589,6 +612,26 @@ class PcmUtterance(Utterance):
         except BaseException:
             _stream_closed()
             raise
+
+    def _build_remote_stream(self, url: str) -> "AnyOutputStream":
+        """The page's speaker at *url*, built around the same callback: blocks
+        as the device would ask for them, so the volume, a pause and what
+        `on_block` hears all happen where they happen for a device."""
+        np = _import_numpy()
+        return RemoteOutputStream(
+            read=lambda frames: self._read_block(np, frames),
+            sample_rate=self._audio.sample_rate,
+            block_frames=self._block_frames,
+            url=url,
+            headers=get_remote_headers(),
+            timeout=_REMOTE_TIMEOUT_SECONDS,
+        )
+
+    def _read_block(self, np: ModuleType, frames: int) -> bytes:
+        """*frames* samples of 16-bit PCM, made by the device's callback."""
+        out = np.zeros((frames, 1), dtype=np.int16)
+        self._fill(np, out, frames, None)
+        return out.tobytes()
 
     def _close_unplayed(self, close: Callable[[], object]) -> None:
         """Close a stream that was opened and never played."""
@@ -733,11 +776,15 @@ class PcmUtterance(Utterance):
 
         The caller hears of it too, even with nothing left to play: the next
         sentence has to open the devices the machine has now, not the ones
-        PortAudio was started with."""
+        PortAudio was started with. Where the voice is the page's, a stream
+        stops the same way when that server goes away."""
         if self._is_abandoned:
             return
         self._source_error = RuntimeError(
-            "the output stream stopped playing on its own (the audio "
+            "the output stream stopped on its own (the face server may have "
+            "gone away)"
+            if self._remote_url is not None
+            else "the output stream stopped playing on its own (the audio "
             "device may have been unplugged or changed)"
         )
         self._report_device_error(self._source_error, "Speech was cut off")
@@ -944,3 +991,12 @@ def _import_audio() -> tuple[Any, Any]:
     import sounddevice as sd
 
     return np, sd
+
+
+def _import_numpy() -> ModuleType:
+    """numpy alone: the page's speaker is written to over the network, so
+    nothing here starts PortAudio or opens a device."""
+    # lazy: numpy is a zrb[voice] extra
+    import numpy as np
+
+    return np

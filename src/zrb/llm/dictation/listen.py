@@ -32,6 +32,7 @@ from zrb.llm.dictation.microphone import (
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 from zrb.llm.util.audio_devices import DeviceWatcher
+from zrb.llm.util.face_server import is_remote_voice_selected
 
 if TYPE_CHECKING:
     # Annotation-only to avoid importing the backend barrel and its audio
@@ -387,10 +388,11 @@ async def listen(
     # and not for the echo-cancelled microphone: a microphone named in the
     # setting does not move for a speaker being plugged in, and macOS voice
     # processing has its own relation to the devices (it stops on a route
-    # change, which `listen` reopens from).
+    # change, which `listen` reopens from). Nor for the page's microphone,
+    # which is another machine's: what moves here says nothing about it.
     watcher = (
         None
-        if config.device or is_echo_cancelled
+        if config.device or is_echo_cancelled or is_remote_voice_selected()
         else DeviceWatcher(sd, DEVICE_WATCH_SECONDS)
     )
 

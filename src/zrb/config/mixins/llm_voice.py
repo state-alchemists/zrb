@@ -60,3 +60,37 @@ class LLMVoiceMixin:
             "microphone."
         ),
     )
+
+    LLM_VOICE_REMOTE_URL = EnvField(
+        str,
+        doc=(
+            "Base URL of the face server whose page carries your voice, such as "
+            "http://127.0.0.1:7777. Set, this one setting moves both halves: "
+            "dictation reads the microphone from that server's GET /audio/in, "
+            "and every sentence speech says goes to its POST /say, so this "
+            "machine opens neither a microphone nor an output stream, and the "
+            "voice is only where the page is — a phone held across the room, "
+            "say. It decides over {ENV_PREFIX}_LLM_SPEECH_PLAYER: nothing here "
+            "hands a sentence to a player program on this machine, which would "
+            "speak it a second time, and a server that cannot be reached says "
+            "so instead of falling back. Echo cancellation is the browser's "
+            "(getUserMedia), so "
+            "{ENV_PREFIX}_LLM_DICTATION_ECHO_CANCEL_ENABLED is not used while "
+            "this is set. Empty (default) leaves the microphone and the "
+            "speaker exactly where they were, on this machine."
+        ),
+    )
+
+    LLM_VOICE_REMOTE_TOKEN = EnvField(
+        str,
+        aliases=["LLM_VOICE_REMOTE_TOKEN", "AVATAR_TOKEN"],
+        secret=True,
+        doc=(
+            "Token sent to the face server as `Authorization: Bearer <token>`, "
+            "which it wants on every route once its own "
+            "{ENV_PREFIX}_AVATAR_TOKEN is set. Unset here, "
+            "{ENV_PREFIX}_AVATAR_TOKEN is read instead, so one token names both "
+            "sides of the pair. Unset in both (default): no `Authorization` "
+            "header is sent, which is how a server without a token answers."
+        ),
+    )
