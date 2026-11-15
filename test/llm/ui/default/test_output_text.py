@@ -185,7 +185,7 @@ def test_get_info_bar_text_shows_active_subagent_persona():
 
 
 def test_the_sub_agent_marker_continues_the_session_row():
-    """The bar keeps three rows; the marker shares Session's, not its own."""
+    """The bar keeps four rows; the marker shares Session's, not its own."""
     from prompt_toolkit.formatted_text import to_formatted_text
 
     ui = MockOutputUI()
@@ -196,10 +196,34 @@ def test_the_sub_agent_marker_continues_the_session_row():
 
     rows = [row.strip() for row in rendered.split("\n")]
 
-    assert len(rows) == 3
-    assert "Session:" in rows[1] and "Sub-agent:" in rows[1]
-    assert rows[1].index("Session:") < rows[1].index("Sub-agent:")
+    assert len(rows) == 4
+    assert "Session:" in rows[2] and "Sub-agent:" in rows[2]
+    assert rows[2].index("Session:") < rows[2].index("Sub-agent:")
     assert "Sub-agent:" not in rows[0]
+
+
+def test_the_bar_gives_each_kind_of_fact_its_own_row():
+    """A model name long enough to wrap cannot push the switches off screen.
+
+    Row order is the point: what thinks, what it may do, which conversation,
+    where — and every switch on the one row that is read as a group.
+    """
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui.model = "ollama:deepseek-v4.1-flash:cloud"
+    ui.conversation_session_name = "rare-bell-5042-afternoon-memory"
+    rendered = "".join(
+        text for _style, text, *_ in to_formatted_text(ui.get_info_bar_text())
+    )
+
+    rows = [row.strip() for row in rendered.split("\n")]
+
+    assert len(rows) == 4
+    assert rows[0].startswith("🤖 Model:") and "Sandbox:" not in rows[0]
+    assert "Plan Mode:" in rows[1] and "YOLO:" in rows[1] and "Sandbox:" in rows[1]
+    assert rows[2].startswith("💬 Session:")
+    assert rows[3].startswith("📂 Dir:") and "Git:" in rows[3]
 
 
 def test_get_info_bar_text_accepts_style_strings_with_spaces():

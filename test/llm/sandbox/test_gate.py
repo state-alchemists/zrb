@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -313,6 +314,100 @@ async def test_gate_move_checks_src_and_dst(tmp_path, outside_root):
 
 
 # --- gate via explicit ctx.deps (ADR-0069) -----------------------------------
+
+
+class _SessionUI:
+    """The least a UI must be for the policy read: a tools role with a switch."""
+
+    def __init__(self) -> None:
+        self.tools = SimpleNamespace(sandbox_override=None)
+
+
+def test_gate_follows_a_switch_flipped_after_the_turn_started(
+    outside_root, monkeypatch
+):
+    """`deps=None` resolves the policy per call, so `/sandbox` reaches a running turn.
+
+    The runner passes `None` unless the run was handed an explicit policy. This
+    is what that buys: the gate reads the switch at the moment of the tool call,
+    not at the moment the turn started, which is the only way a `/sandbox`
+    typed mid-answer can contain the call that follows it.
+    """
+    from zrb.config.config import CFG
+    from zrb.llm.shared.agent_state import current_ui
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    session = _SessionUI()
+    ctx = SimpleNamespace(deps=None)
+    args = {"path": str(outside_root / "x.txt")}
+
+    token = current_ui.set(cast(Any, session))
+    try:
+        allowed = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+        session.tools.sandbox_override = True
+        blocked = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+    finally:
+        current_ui.reset(token)
+
+    assert allowed is None
+    assert blocked is not None and blocked.metadata.get("blocked") is True
+
+
+def test_a_toggle_in_one_session_does_not_contain_another(
+    outside_root, monkeypatch
+):
+    """`/sandbox` is the conversation's choice, so it stops at its own session.
+
+    Two chats share one process and one `CFG`. Writing the toggle into that
+    config would let a session nobody typed into change its containment, so the
+    switch is read from the session's own UI and the config is left alone.
+    """
+    from zrb.config.config import CFG
+    from zrb.llm.shared.agent_state import current_ui
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    toggled, untouched = _SessionUI(), _SessionUI()
+    ctx = SimpleNamespace(deps=None)
+    args = {"path": str(outside_root / "x.txt")}
+
+    token = current_ui.set(cast(Any, toggled))
+    try:
+        toggled.tools.sandbox_override = True
+        blocked = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+    finally:
+        current_ui.reset(token)
+
+    token = current_ui.set(cast(Any, untouched))
+    try:
+        allowed = sandbox_gate("mystery", Capability.EDIT, args, ctx)
+    finally:
+        current_ui.reset(token)
+
+    assert blocked is not None and blocked.metadata.get("blocked") is True
+    assert allowed is None
+    assert CFG.LLM_SANDBOX_ENABLED is False
+
+
+def test_the_run_policy_is_asked_before_the_session_switch(monkeypatch):
+    """A run given its own policy is what the status bar must print.
+
+    `LLMTask(sandbox=True)` over a deployment that has it off contains every
+    call it makes, and the session switch answers a different question — what
+    `/sandbox` would ask for — so reading it first would badge the containment
+    off exactly when the API-level setting is used.
+    """
+    from zrb.config.config import CFG
+    from zrb.llm.sandbox.state import is_sandbox_enabled_for
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    session = _SessionUI()
+    session.tools.sandbox_override = False
+
+    session.tools.sandbox_run_policy = True
+    assert is_sandbox_enabled_for(session) is True
+
+    session.tools.sandbox_run_policy = None
+    assert is_sandbox_enabled_for(session) is False
 
 
 def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path, outside_root):

@@ -48,6 +48,7 @@ class InputCompleter(Completer):
         self._exec_commands = list(ui_config.exec_commands)
         self._btw_commands = list(ui_config.btw_commands)
         self._plan_commands = list(ui_config.plan_commands)
+        self._sandbox_commands = list(ui_config.sandbox_commands)
         self._copy_commands = list(ui_config.copy_commands)
 
     def refresh_model_visibility(self, ui_config: UIConfig) -> None:
@@ -155,6 +156,7 @@ class InputCompleter(Completer):
             + self._exec_commands
             + self._btw_commands
             + self._plan_commands
+            + self._sandbox_commands
             + self._copy_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
@@ -231,6 +233,7 @@ class InputCompleter(Completer):
                 lambda cmd: f"Ask side question (i.e., {cmd} <question>)",
             ),
             (self._plan_commands, "Toggle PLAN mode (read-only) on/off"),
+            (self._sandbox_commands, "Toggle the tool sandbox on/off"),
             (
                 self._copy_commands,
                 lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",

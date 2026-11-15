@@ -28,6 +28,7 @@ class MockUI:
         self.redirect_output_commands = ["/redirect"]
         self.attach_commands = ["/attach"]
         self.yolo_toggle_commands = ["/yolo"]
+        self.sandbox_commands = ["/sandbox"]
         self.set_model_commands = ["/model"]
         self.set_commands = ["/set"]
         self.exec_commands = ["/exec"]

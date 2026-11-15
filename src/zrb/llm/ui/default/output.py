@@ -13,6 +13,7 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
+from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.default.app.follow import OutputFollow
@@ -603,10 +604,17 @@ class UIOutput:
         """
         model_name = self._model_name()
 
+        # One row each: what is thinking, what it is allowed to do, which
+        # conversation, and where. The switches share a row because they are
+        # read together, and a model name long enough to wrap no longer pushes
+        # them off the screen.
         line1 = [
             ("", " 🤖 "),
             ("bold", "Model:"),
-            ("", f" {model_name} | 📋 "),
+            ("", f" {model_name} "),
+        ]
+        line2 = [
+            ("", " 📋 "),
             ("bold", "Plan Mode:"),
             ("", " "),
             self._plan_fragment(),
@@ -614,8 +622,12 @@ class UIOutput:
             ("bold", "YOLO:"),
             ("", " "),
             self._yolo_fragment(),
+            ("", " | 🐚 "),
+            ("bold", "Sandbox:"),
+            ("", " "),
+            self._sandbox_fragment(),
         ]
-        line2 = [
+        line3 = [
             ("", "💬 "),
             ("bold", "Session:"),
             ("", f" {self._ui.conversation_session_name} "),
@@ -623,8 +635,8 @@ class UIOutput:
         ]
         sub_agent_frag = self._sub_agent_fragment()
         if sub_agent_frag:
-            line2 += sub_agent_frag
-        line3 = [
+            line3 += sub_agent_frag
+        line4 = [
             ("", " 📂 "),
             ("bold", "Dir:"),
             ("", f" {self._ui.cwd} | 🌿 "),
@@ -639,6 +651,8 @@ class UIOutput:
             *_center_line(line2, total_cols),
             ("", "\n"),
             *_center_line(line3, total_cols),
+            ("", "\n"),
+            *_center_line(line4, total_cols),
         ]
 
     def _model_name(self) -> str:
@@ -669,12 +683,24 @@ class UIOutput:
             return (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL), f"[{tools_str}]")
         return (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
 
+    def _sandbox_fragment(self) -> tuple:
+        """The sandbox's in-force state, asked the way the status bar asks it.
+
+        The same helper, so the two lines cannot disagree about a run that was
+        given a policy of its own. Styled with the plan-mode pair: both are
+        on/off switches, and a third colour would be a knob nobody asked to
+        tune — the red/green pair next to it means "may act without asking".
+        """
+        if is_sandbox_enabled_for(self._ui):
+            return (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
+        return (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
+
     def _sub_agent_fragment(self) -> "list | None":
         """Fragments announcing an active persona or viewed sub-agent.
 
         The clue that /load swapped which persona drives new messages, or
         which sub-agent's live view the output pane shows (UIAgentPicker).
-        ``None`` while the main agent drives, so the bar keeps its three rows.
+        ``None`` while the main agent drives, so the bar keeps its four rows.
         """
         persona = getattr(self._ui, "persona", None)
         active_persona = None if persona is None else persona.active_subagent
@@ -797,6 +823,7 @@ class UIOutput:
                     CFG.LLM_UI_STYLE_CONFIRMATION,
                     f" 👋 {assistant_name} is waiting for confirmation{dot_str} ",
                 ),
+                *self._get_sandbox_fragment(),
             ]
         if self.is_thinking:
             dots = getattr(self, "_thinking_dots", 0)
@@ -819,6 +846,7 @@ class UIOutput:
                     else []
                 ),
                 *self._get_token_usage_fragments(),
+                *self._get_sandbox_fragment(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
         # near the prompt). `current_cycle_mode` lives on BaseUIModelCommands;
@@ -834,7 +862,20 @@ class UIOutput:
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
         result.extend(self._get_token_usage_fragments())
+        result.extend(self._get_sandbox_fragment())
         return result
+
+    def _get_sandbox_fragment(self) -> list[tuple[str, str]]:
+        """The tool sandbox's state, asked of the switch rather than remembered.
+
+        A badge written only when `/sandbox` runs would be missing in a session
+        that started with the sandbox already on, and a status line that lies
+        about containment is worse than no status line. Reading `CFG` at draw
+        time cannot disagree with what the gate enforces.
+        """
+        if not is_sandbox_enabled_for(self._ui):
+            return []
+        return [(f"fg:{CFG.LLM_UI_STYLE_FAINT}", " 🐚 sandboxed ")]
 
     def _get_working_duration(self) -> str:
         """Current working-period duration, or empty when unavailable."""

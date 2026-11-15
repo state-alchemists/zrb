@@ -67,7 +67,7 @@ flowchart TD
 | --- | --- | --- |
 | `SandboxPolicy` | `src/zrb/llm/sandbox/policy.py` | The frozen policy: on or off, writable paths, deny-read paths, OS mode, fallback, whether escape is allowed |
 | `resolved_writable_roots`, `resolved_deny_read_roots` | `src/zrb/llm/sandbox/policy.py` | Turning the policy into real paths. Automatic roots are the working directory plus the temp directory; the temp directory is always writable |
-| `get_effective_sandbox_policy` | `src/zrb/llm/sandbox/state.py` | The policy in force: the one bound for this run, else built from `CFG.LLM_SANDBOX_*` |
+| `get_effective_sandbox_policy` | `src/zrb/llm/sandbox/state.py` | The policy in force: the one bound for this run, else the session's own `/sandbox` switch, else built from `CFG.LLM_SANDBOX_*` |
 | `sandbox_gate` | `src/zrb/llm/agent/gates.py` | The Python layer: picks the path arguments of a call and checks them |
 | `check_read`, `check_write`, `is_within` | `src/zrb/llm/sandbox/fs_policy.py` | Comparing a real path against the roots |
 | `build_sandboxed_argv` | `src/zrb/llm/sandbox/os_sandbox.py` | The OS layer: prefixes a subprocess argv with the platform wrapper, or applies the fallback |
@@ -76,7 +76,7 @@ flowchart TD
 
 ### How it runs
 
-**Picking the policy.** `run_agent` takes the explicit `sandbox_policy` argument, else the parent run's, else the config. It binds the result for the run and also passes it to `agent.run` as `deps`. Nothing changes the sandbox policy during a run, so `sandbox_gate` reads it from `ctx.deps` rather than from ambient state.
+**Picking the policy.** `run_agent` takes the explicit `sandbox_policy` argument, else the parent run's. It binds that for the run and passes it to `agent.run` as `deps`. When neither gave one, it passes `None`, and `sandbox_gate` resolves the policy at the moment of each call instead of at the moment the turn started: the session's own `/sandbox` switch first, then `CFG.LLM_SANDBOX_*`. That is what lets a toggle typed mid-answer reach the call that follows it, and why the switch lives on the session's UI rather than in the config — two conversations in one process each keep their own.
 
 **In-process file tools.** `SafeToolsetWrapper.call_tool` runs `sandbox_gate` right after `permission_gate`:
 

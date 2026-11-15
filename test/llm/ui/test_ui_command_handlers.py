@@ -197,6 +197,7 @@ class TestBaseUICommandHandlers:
         ui.set_commands = []
         ui.exec_commands = []
         ui.plan_commands = []
+        ui.sandbox_commands = []
         ui.copy_commands = []
         ui.btw_commands = []
         ui.custom_commands = []

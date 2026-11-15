@@ -70,7 +70,7 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
-from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
+from zrb.llm.sandbox.state import current_sandbox_policy
 from zrb.llm.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -234,9 +234,21 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
-        # Passed as `agent.run(deps=...)` for `sandbox_gate`; nothing mutates
-        # the sandbox policy mid-run, so freezing it is safe.
-        sandbox_deps = get_effective_sandbox_policy()
+        # Passed as `agent.run(deps=...)` for `sandbox_gate`. An explicit run
+        # policy is frozen for the run, as before; `None` leaves the gate to
+        # resolve from `CFG` per call, which is what lets a `/sandbox` toggle
+        # reach an in-flight turn the way it already reaches the shell tool.
+        sandbox_deps = effective_sandbox
+        # The gate reads this above through `deps`; the status bar is drawn in
+        # the UI's task, where the run's context variables are invisible, so the
+        # same answer is published on the session and cleared when it ends. A
+        # nested run inherits the session's policy and must not speak for it.
+        if not nested_run:
+            stack.callback(_publish_run_sandbox_policy, effective_ui, None)
+            _publish_run_sandbox_policy(
+                effective_ui,
+                None if effective_sandbox is None else effective_sandbox.enabled,
+            )
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
         # restores the run-start value so a missed ExitWorktree can't leak the
         # worktree past the run.
@@ -1208,6 +1220,23 @@ def _set_active_run_context(
             setattr(effective_ui, name, value)
         except AttributeError:
             pass
+
+
+def _publish_run_sandbox_policy(
+    effective_ui: AnyUI | None, is_enabled: bool | None
+) -> None:
+    """Tell the session what this run is contained by, for whatever draws it.
+
+    Best-effort like `_set_active_run_context`: a UI that does not carry the
+    tools role refuses the attribute, and `None` is the honest answer for a run
+    that was given no policy of its own.
+    """
+    if effective_ui is None:
+        return
+    try:
+        setattr(effective_ui, "sandbox_run_policy", is_enabled)
+    except AttributeError:
+        pass
 
 
 def _request_limit() -> int | None:

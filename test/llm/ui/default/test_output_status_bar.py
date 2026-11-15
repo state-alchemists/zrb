@@ -124,6 +124,61 @@ def test_get_status_bar_text_shows_queued_messages():
     assert "2 queued" in text
 
 
+def test_the_status_bar_shows_a_sandbox_that_was_on_before_the_session(monkeypatch):
+    """The line reads the switch, so starting sandboxed is not a silent state.
+
+    A badge written only when `/sandbox` runs would leave a session that began
+    with `LLM_SANDBOX_ENABLED=true` looking unsandboxed while the gate
+    enforces the opposite.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.set_thinking(True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+
+def test_the_status_bar_shows_this_session_switch_while_it_idles(monkeypatch):
+    """The bar asks the session it draws for, not whatever run is ambient.
+
+    Between turns no run is bound, so an ambient lookup would fall back to the
+    deployment's setting and a `/sandbox on` would vanish from the screen for
+    as long as the user was reading it.
+    """
+    ui = MockOutputUI()
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+    ui.sandbox_override = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.sandbox_override = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
+def test_the_status_bar_shows_the_policy_the_run_was_given(monkeypatch):
+    """What a run was handed wins, in both directions and over the config.
+
+    A task's `sandbox=` reaches the gate as `deps`, a value the task drawing
+    the bar cannot see, so the runner publishes it on the session. Without
+    that, `sandbox=True` over a sandboxless deployment contains every tool
+    call and says nothing.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    ui.sandbox_run_policy = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    ui.sandbox_run_policy = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
 def test_output_field_width_prefers_the_running_application():
     """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
     disagree with what prompt_toolkit is painting; the app's own size wins."""

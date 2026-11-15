@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.ui.ui_config import command_alias_field, model_visibility_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
@@ -68,6 +69,70 @@ class BaseUIModelCommands:
                     self._base_ui.display.invalidate_ui()
                 return True
         return False
+
+    # sandbox
+
+    def toggle_sandbox(self) -> None:
+        """Flip this session's tool sandbox and force refresh."""
+        self._apply_sandbox_state(not is_sandbox_enabled_for(self._base_ui))
+
+    def _apply_sandbox_state(self, is_enabled: bool) -> None:
+        """Record this session's choice, and say it once.
+
+        The choice is the conversation's, so it is written onto this UI and
+        nowhere else: `get_effective_sandbox_policy()` asks for it on every
+        call, which is what lets the next tool call — including one inside a
+        turn that is already running — obey it. `LLM_SANDBOX_ENABLED` keeps
+        meaning what the environment says, and a second session in the same
+        process is unaffected.
+
+        Deliberately not mid-turn for the model's own picture of itself: the
+        system prompt is composed once, when the turn starts, so a flip leaves
+        it describing the state the turn began in. The status bar and the tool
+        result are what say otherwise, and the next turn's prompt has it right.
+        """
+        self._base_ui.sandbox_override = is_enabled
+        state = "On" if is_enabled else "Off"
+        self._base_ui.append_to_output(stylize_muted(f"\n  🐚 SANDBOX: {state}\n"))
+        self._base_ui.display.invalidate_ui()
+
+    # Dispatchers answer "consumed or not" and are named `handle_*` by the
+    # table's contract, so they carry no `-> bool` annotation — ADR-0098 counts
+    # that annotation, and a handler is not the check its name would describe.
+    def handle_toggle_sandbox(self, text: str):
+        request = self._sandbox_request(text)
+        if request is None:
+            return False
+        if request == "flip":
+            self.toggle_sandbox()
+        else:
+            self._apply_sandbox_state(request == "on")
+        return True
+
+    def is_sandbox_request(self, text: str) -> bool:
+        """Whether this UI would act on `text` — asked before it is classified.
+
+        `/sandbox` is a prefix command because it takes `on` and `off`, so every
+        line beginning with the token used to look like a command that can run
+        mid-turn. A handler that then refused it did not hand the text back, and
+        `/sandbox maybe` typed while the model was thinking vanished into "not
+        available while the model is thinking". A message is classified as a
+        message instead.
+        """
+        return self._sandbox_request(text) is not None
+
+    def _sandbox_request(self, text: str) -> str | None:
+        """What `text` asks of the sandbox: `flip`, `on`, `off`, or None."""
+        stripped = text.strip().lower()
+        for cmd in self._base_ui.sandbox_commands:
+            token = cmd.lower()
+            if stripped == token:
+                return "flip"
+            if stripped == f"{token} on":
+                return "on"
+            if stripped == f"{token} off":
+                return "off"
+        return None
 
     def toggle_plan(self):
         """Toggle plan mode on/off and force refresh."""

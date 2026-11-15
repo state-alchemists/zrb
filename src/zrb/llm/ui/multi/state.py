@@ -182,6 +182,24 @@ class MultiUIState(UIStateDefaultsMixin):
         return self.main_ui.tools.yolo if self.main_ui is not None else False
 
     @property
+    def sandbox_override(self) -> bool | None:
+        return (
+            self.main_ui.tools.sandbox_override if self.main_ui is not None else None
+        )
+
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """The published run policy, held by the child that owns the run."""
+        if self.main_ui is None:
+            return None
+        return self.main_ui.tools.sandbox_run_policy
+
+    @sandbox_run_policy.setter
+    def sandbox_run_policy(self, value: bool | None):
+        if self.main_ui is not None:
+            self.main_ui.tools.sandbox_run_policy = value
+
+    @property
     def conversation(self) -> "BaseUIConversationCommands | None":
         """The conversation the main child manages, or None with no child.
 

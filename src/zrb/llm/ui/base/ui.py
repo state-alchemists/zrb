@@ -208,6 +208,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
+        # `/sandbox`, kept on the session rather than written into `CFG`: the
+        # config is the deployment's, shared by every session in this process.
+        self._sandbox_override: bool | None = None
+        # What the live run was given explicitly, published by the runner so
+        # the status bar can answer without the run's context variables.
+        self._sandbox_run_policy: bool | None = None
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -331,6 +337,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         "redirect_output", "redirect output"
     )
     yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
+    sandbox_commands = _command_alias_property("sandbox", "sandbox toggle")
     set_model_commands = _command_alias_property("set_model", "set model")
     set_commands = _command_alias_property("set", "set")
     exec_commands = _command_alias_property("exec", "exec")
@@ -603,6 +610,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def handle_toggle_yolo(self, text: str) -> bool:
         return self.models.handle_toggle_yolo(text)
 
+    def toggle_sandbox(self) -> None:
+        self.models.toggle_sandbox()
+
+    def handle_toggle_sandbox(self, text: str):
+        return self.models.handle_toggle_sandbox(text)
+
     def toggle_plan(self) -> None:
         self.models.toggle_plan()
 
@@ -825,6 +838,24 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
+
+    @property
+    def sandbox_override(self) -> bool | None:
+        """This session's `/sandbox` choice, or None while `CFG` decides."""
+        return self._sandbox_override
+
+    @sandbox_override.setter
+    def sandbox_override(self, value: bool | None):
+        self._sandbox_override = value
+
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """The live run's explicit containment, or None while none is bound."""
+        return self._sandbox_run_policy
+
+    @sandbox_run_policy.setter
+    def sandbox_run_policy(self, value: bool | None):
+        self._sandbox_run_policy = value
 
     # REQUIRED METHODS - Must be implemented by subclasses
 
