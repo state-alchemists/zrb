@@ -273,9 +273,9 @@ Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing 
 
 ## Recent
 - Week (2026-W44): The week the store stopped being a journal and started being a memory. [week/2026-W44.md]
-- Handover (2026-11-02): Deploy still blocked on the staging cert — ask for DNS access first.
-- Today (2026-11-03): Spent the day on memory design; cut confidence and identity.
-- 2026-11-01: Replaced the journal with a memory store; the migration ran on first use.
+- Handover (2026-11-02): Deploy still blocked on the staging cert — ask for DNS access first. [diary/2026-11-02.md, body 840 chars]
+- Today (2026-11-03): Spent the day on memory design; cut confidence and identity. [diary/2026-11-03.md, body 1620 chars]
+- 2026-11-01: Replaced the journal with a memory store; the migration ran on first use. [diary/2026-11-01.md, body 410 chars]
 - 19:02 — gofrendi asked what the design costs, not what it enables. (zrb, meta)
 - 18:41 — Fixed WSL ACL denial on the UNC workspace path. (zrb)
 </memory>
@@ -303,11 +303,14 @@ render_recent(diary, log):
     today    = today's diary entry claim, if one exists
     previous = the newest active entry strictly before today
     tail     = last 4 lines of today's log, then yesterday's if fewer than 4
+    ref(day) = f" [diary/{day.id}.md, body {len(day.body.strip())} chars]"
     out      = [f"- Week ({week.id}): {week.claim} [week/{week.id}.md]"] if week
-             + [f"- Handover ({handover.date}): {handover.text}"] if handover
-             + [f"- Today ({today.id}): {today.claim}"]           if today
-             + [f"- {previous.id}: {previous.claim}"]             if previous
+             + [f"- Handover ({handover.date}): {handover.text}" + ref(handover)] if handover
+             + [f"- Today ({today.id}): {today.claim}" + ref(today)]            if today
+             + [f"- {previous.id}: {previous.claim}" + ref(previous)]           if previous
              + [line if from_today else f"- {mmdd} {line}" for line in tail]
+    # A day's file is named once: today's line covers a handover from the same
+    # day, and the handover line covers a last-day entry it already named.
     return cut_to(out, 1600)       # whole lines only; half a fact is worse than none
 ```
 

@@ -282,9 +282,25 @@ def test_the_day_is_named_once_and_carries_both_fields():
         updated="2026-11-03T09:00:00",
     )
     recent = render_recent(today, today, ["- 10:00 — an event"])
-    assert recent.count("2026-11-03") == 1
+    assert recent.count("- Today (2026-11-03)") == 1
+    assert recent.count("- Handover") == 1
+    # Named twice in all: as the day's label, and inside the file that holds it.
+    # The file itself is named once, by the `Today` line.
+    assert recent.count("[diary/2026-11-03.md") == 1
     assert "Ask about the DNS access" in recent
     assert "Spent the day on memory" in recent
+
+
+def test_a_day_line_names_its_file_and_how_much_body_it_holds():
+    """A body is never injected, so the line says where the day is and how much
+    of it there is to read: the path is what makes that reading possible, and
+    the size is what says whether it is worth the tokens."""
+    body = "- 09:00 — wrote the day lines.\n- 10:00 — said what they cost."
+    today = Diary(id="2026-11-03", claim="Today.", body=body, updated="2026-11-03T09:00:00")
+
+    recent = render_recent(None, today, [])
+
+    assert f"[diary/2026-11-03.md, body {len(body)} chars]" in recent
 
 
 def test_the_recent_block_names_the_last_day_written():
@@ -302,7 +318,9 @@ def test_the_recent_block_names_the_last_day_written():
     recent = render_recent(None, today, ["- 09:00 — an event"], previous_entry=previous)
     lines = recent.splitlines()[1:]
     assert lines[0].startswith("- Today (2026-11-03):")
-    assert lines[1] == "- 2026-11-01: Cut confidence and identity."
+    assert lines[1] == (
+        "- 2026-11-01: Cut confidence and identity. [diary/2026-11-01.md]"
+    )
     # Ahead of the log: the cap cuts the tail, and the log is the tail.
     assert lines[2].endswith("an event")
 
@@ -319,3 +337,6 @@ def test_a_handover_and_a_claim_from_one_day_are_both_kept():
     recent = render_recent(yesterday, today, [], previous_entry=yesterday)
     assert "Ask about the DNS access" in recent
     assert "- 2026-11-02: Spent the day on memory design." in recent
+    # One day, one file: the `Handover` line named it, so the last-day line does
+    # not name it again.
+    assert recent.count("[diary/2026-11-02.md") == 1
