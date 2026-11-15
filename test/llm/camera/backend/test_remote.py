@@ -194,6 +194,26 @@ async def test_a_timeout_of_zero_means_no_limit_rather_than_a_dead_socket(face_p
     assert await backend.capture("phone-back") == JPEG
 
 
+@pytest.mark.asyncio
+async def test_a_page_that_never_accepts_is_given_up_on_without_a_thread(face_page):
+    """A black-holed address: the connection is never established.
+
+    `HTTPConnection` hands its timeout to `socket.create_connection`, so the
+    connect is bounded by the same number the response read is — the worker ends
+    with the capture rather than waiting for the operating system to give up.
+    """
+    backend = RemoteCameraBackend("http://10.255.255.1:9", timeout=0.4)
+    started = time.monotonic()
+
+    assert await backend.capture(None) is None
+    assert time.monotonic() - started < 3
+    for _ in range(100):
+        if not _frame_threads():
+            break
+        await asyncio.sleep(0.02)
+    assert _frame_threads() == []
+
+
 def test_the_hint_names_the_setting_that_holds_the_page():
     backend = RemoteCameraBackend("http://127.0.0.1:7777")
 
