@@ -378,3 +378,32 @@ def test_custom_command_name_completion(mock_history_manager, complete_event):
     matched = [c for c in completions if c.text == "/deploy"]
     assert matched
     assert matched[0].display_meta_text == "Deploy the app"
+
+
+def test_every_toggle_alias_is_offered_by_completion(
+    mock_history_manager, complete_event
+):
+    """A toggle that exists is a toggle the menu offers.
+
+    `/judge` shipped with a config field, a command-table row and an info-bar
+    fragment and still never appeared here: the completer keeps its own copy of
+    the alias lists, and that copy was the one nobody remembered to edit.
+    """
+    toggles = {
+        "yolo_toggle_commands": "/yolo",
+        "plan_commands": "/plan",
+        "sandbox_commands": "/sandbox",
+        "judge_commands": "/judge",
+    }
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(**{name: [alias] for name, alias in toggles.items()}),
+    )
+    for alias in toggles.values():
+        prefix = alias[:4]
+        doc = Document(text=prefix, cursor_position=len(prefix))
+        matched = [
+            c for c in completer.get_completions(doc, complete_event) if c.text == alias
+        ]
+        assert matched, f"{alias} is missing from completion"
+        assert matched[0].display_meta_text
