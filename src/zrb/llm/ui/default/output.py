@@ -627,7 +627,7 @@ class UIOutput:
             ("bold", "Sandbox:"),
             ("", " "),
             self._sandbox_fragment(),
-            ("", " | ⚖ "),
+            ("", " | 🔨 "),
             ("bold", "Judge:"),
             ("", " "),
             self._judge_fragment(),
