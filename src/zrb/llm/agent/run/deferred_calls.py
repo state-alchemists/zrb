@@ -212,10 +212,13 @@ async def _resolve_approval(
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
       3. YOLO (only with no policy ASK)
-      3b. The shell judge (may skip the prompt for a `safe` command, when the
-          auto-approve knob is on; otherwise only annotates the prompt)
-      4. Approval channel
-      5. CLI prompt
+      3b. The shell judge — a `safe` command may skip the prompt when the
+          auto-approve knob is on; otherwise it only annotates one
+      4. The `PermissionRequest` hook — fires *now that the call will prompt*,
+          which is why 3b settles first: a prompt the judge removed must not be
+          announced
+      5. Approval channel
+      6. CLI prompt
 
     ``force_ask`` (PreToolUse ``permissionDecision: "ask"``) skips the
     auto-approvals at 1-3 but still honors DENY and priority 0. Each stage
@@ -247,11 +250,11 @@ async def _resolve_approval(
     if verdict is not None:
         return verdict
 
-    verdict = await _apply_permission_request_hook(call, hook_manager)
+    verdict = await _apply_shell_judge(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
-    verdict = await _apply_shell_judge(call, policy_decision, force_ask)
+    verdict = await _apply_permission_request_hook(call, hook_manager)
     if verdict is not None:
         return verdict
 
@@ -418,11 +421,16 @@ async def _apply_shell_judge(
 ) -> "ToolApproved | None":
     """Priority 3b: one model's opinion on a shell command, and nothing more.
 
-    The last thing consulted before a person is asked. It can approve a command
-    the judge calls `safe` — and only when `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED`
-    is on, no rule of the user's said ask, and the call is not asking to leave
-    the sandbox. Otherwise it records one line for the prompt, so whoever
-    answers sees what the judge saw.
+    It sits above the `PermissionRequest` hook rather than below it, because
+    that hook's own contract is "fires now that the call will prompt": a hook
+    that announces a prompt — the speech feature reads it aloud — must not be
+    told about one a `safe` verdict is about to remove.
+
+    It can approve a command the judge calls `safe`, and only when
+    `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` is on, no rule of the user's said
+    ask, no hook forced the ask, and the call is not asking to leave the
+    sandbox. Otherwise it records one line for the prompt, so whoever answers
+    sees what the judge saw.
 
     A judge that failed records `unknown`, which is not safe: the prompt is
     still asked, now saying the command went unjudged.
