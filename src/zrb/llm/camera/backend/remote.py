@@ -209,7 +209,7 @@ class RemoteCameraBackend(AnyCameraBackend):
             raise
 
     def _request_frame(
-        self, request: "_Request", device: str | None, timeout: float
+        self, request: "_Request", device: str | None, timeout: float | None
     ) -> bytes:
         """The page's answer for *device*, or a `RuntimeError` saying what came
         back instead. Blocking: it belongs on a daemon thread."""
@@ -223,7 +223,9 @@ class RemoteCameraBackend(AnyCameraBackend):
             )
         return data
 
-    def _request_devices(self, request: "_Request", timeout: float) -> list[str]:
+    def _request_devices(
+        self, request: "_Request", timeout: float | None
+    ) -> list[str]:
         """The names the page gives its cameras. Blocking, as above."""
         url = self._url + CAMERA_DEVICES_PATH
         payload = json.loads(self._read(url, timeout, request).decode() or "{}")
@@ -232,7 +234,9 @@ class RemoteCameraBackend(AnyCameraBackend):
             raise RuntimeError(f"{url} answered without a list of devices")
         return [str(name) for name in names if str(name).strip()]
 
-    def _read(self, url: str, timeout: float, request: "_Request") -> bytes:
+    def _read(
+        self, url: str, timeout: float | None, request: "_Request"
+    ) -> bytes:
         """*url*'s body, with a failed status turned into what the server said.
 
         `send_error(code, sentence)` puts the sentence in the status line, so a
@@ -298,13 +302,22 @@ class _Request:
 
 
 def _connection_for(
-    parts: urllib.parse.SplitResult, timeout: float
+    parts: urllib.parse.SplitResult, timeout: float | None
 ) -> http.client.HTTPConnection:
-    """The connection *parts* names: `https` where it says so, plain otherwise."""
+    """The connection *parts* names: `https` where it says so, plain otherwise.
+
+    A timeout of ``0`` is no limit here, as everywhere else in this package, but
+    `HTTPConnection` reads it as a non-blocking socket: every request would fail
+    at once with `BlockingIOError`. No limit is ``None`` to both of them.
+    """
     factory = (
         http.client.HTTPSConnection
         if parts.scheme == "https"
         else http.client.HTTPConnection
     )
-    return factory(parts.hostname or "", parts.port, timeout=timeout)
+    return factory(
+        parts.hostname or "",
+        parts.port,
+        timeout=timeout if timeout and timeout > 0 else None,
+    )
 

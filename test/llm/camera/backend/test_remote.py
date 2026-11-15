@@ -185,6 +185,15 @@ async def test_a_stale_listing_refreshes_behind_the_call(face_page, monkeypatch)
     assert backend.list_devices() == ["phone-back"]
 
 
+@pytest.mark.asyncio
+async def test_a_timeout_of_zero_means_no_limit_rather_than_a_dead_socket(face_page):
+    """`HTTPConnection(timeout=0)` is a non-blocking socket, not an endless wait."""
+    backend = _backend(face_page, timeout=0)
+
+    assert await backend.refresh_devices() == ["phone-back", "phone-front"]
+    assert await backend.capture("phone-back") == JPEG
+
+
 def test_the_hint_names_the_setting_that_holds_the_page():
     backend = RemoteCameraBackend("http://127.0.0.1:7777")
 
