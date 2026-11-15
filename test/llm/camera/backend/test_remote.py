@@ -10,6 +10,7 @@ else.
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 
 import pytest
@@ -92,11 +93,11 @@ async def test_a_body_that_stops_short_is_no_photo_rather_than_a_crash(face_page
 
 @pytest.mark.asyncio
 async def test_a_body_that_drips_in_is_given_up_on_at_the_deadline(face_page):
-    """`urlopen`'s timeout bounds one socket read, not the body.
+    """A socket timeout bounds one read, not the body.
 
     A server that sends a byte every few hundred milliseconds keeps every read
-    alive, so a capture that trusted the request's own timeout would wait for as
-    long as the page cared to take.
+    alive, so a capture that trusted the per-read timeout would wait for as long
+    as the page cared to take.
     """
     face_page.jpeg = JPEG + b"\x00" * 40  # long enough to outlast the deadline
     face_page.trickle = (1, 0.05)
@@ -106,6 +107,31 @@ async def test_a_body_that_drips_in_is_given_up_on_at_the_deadline(face_page):
     assert await backend.capture("phone-back") is None
     assert time.monotonic() - started < 1.5
     assert backend.last_error
+
+
+@pytest.mark.asyncio
+async def test_a_capture_that_timed_out_leaves_no_thread_behind(face_page):
+    """The thread is hung up on, not merely stopped being waited for.
+
+    A blocked read does not wake when the response is closed; it wakes when the
+    socket is shut down. Without that, every capture that timed out kept a
+    thread and a socket for as long as the page kept trickling.
+    """
+    face_page.jpeg = JPEG + b"\x00" * 400
+    face_page.trickle = (1, 0.05)
+    backend = _backend(face_page, timeout=0.3)
+
+    assert await backend.capture("phone-back") is None
+
+    for _ in range(50):
+        if not _frame_threads():
+            break
+        await asyncio.sleep(0.02)
+    assert _frame_threads() == []
+
+
+def _frame_threads() -> list[threading.Thread]:
+    return [t for t in threading.enumerate() if t.name == "zrb-camera-frame"]
 
 
 @pytest.mark.asyncio

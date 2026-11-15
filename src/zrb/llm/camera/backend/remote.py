@@ -19,13 +19,14 @@ landing on this laptop's camera instead.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import http.client
 import json
 import logging
+import socket
+import threading
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Callable, TypeVar
 
 from zrb.config.config import CFG
@@ -178,67 +179,132 @@ class RemoteCameraBackend(AnyCameraBackend):
     ) -> _T:
         """*func* on a daemon thread, given up on after *limit* seconds.
 
-        `urlopen`'s own timeout bounds one socket operation, not the body: a
-        server that sends a byte every few hundred milliseconds keeps every read
-        alive and holds `read()` open past any limit the request was given. So
-        the deadline is enforced around the whole call here as well.
+        A socket timeout bounds one read, not the body: a server that sends a byte
+        every few hundred milliseconds keeps every read alive and holds `read()`
+        open past any limit the request was given. So the deadline is enforced
+        around the whole call here as well.
 
-        The thread cannot be stopped, and it is left where it is: it ends on its
-        next socket timeout, it writes nothing shared, and a value that lands
-        after the caller has gone is dropped by `run_in_daemon` rather than
-        reported. *limit* of ``0`` or ``None`` is no limit, as everywhere else
-        in this package.
+        `read()` cannot be interrupted by cancelling the await, so the request is
+        hung up on instead: its socket is shut down and the blocked read ends at
+        once, rather than the thread living on for a page that keeps dribbling.
+        A value that lands after the caller has gone is dropped by
+        `run_in_daemon` rather than reported. *limit* of ``0`` or ``None`` is no
+        limit, as everywhere else in this package.
         """
         limit = limit if limit and limit > 0 else None
+        request = _Request()
         try:
             return await asyncio.wait_for(
-                run_in_daemon(func, *args, name=name), timeout=limit
+                run_in_daemon(func, request, *args, name=name), timeout=limit
             )
         except asyncio.TimeoutError as e:
+            request.hang_up()
             raise TimeoutError(
                 f"the page did not answer within {limit:.1f}s"
                 if limit
                 else "the page did not answer"
             ) from e
+        except asyncio.CancelledError:
+            request.hang_up()
+            raise
 
-    def _request_frame(self, device: str | None, timeout: float) -> bytes:
+    def _request_frame(
+        self, request: "_Request", device: str | None, timeout: float
+    ) -> bytes:
         """The page's answer for *device*, or a `RuntimeError` saying what came
         back instead. Blocking: it belongs on a daemon thread."""
         url = self._url + CAMERA_PATH
         if device:
             url += "?device=" + urllib.parse.quote(device)
-        data = self._read(url, timeout)
+        data = self._read(url, timeout, request)
         if not data.startswith(_JPEG_START):
             raise RuntimeError(
                 f"{url} answered {len(data)} bytes, and they are not a JPEG"
             )
         return data
 
-    def _request_devices(self, timeout: float) -> list[str]:
+    def _request_devices(self, request: "_Request", timeout: float) -> list[str]:
         """The names the page gives its cameras. Blocking, as above."""
         url = self._url + CAMERA_DEVICES_PATH
-        payload = json.loads(self._read(url, timeout).decode() or "{}")
+        payload = json.loads(self._read(url, timeout, request).decode() or "{}")
         names = payload.get("devices") if isinstance(payload, dict) else None
         if not isinstance(names, list):
             raise RuntimeError(f"{url} answered without a list of devices")
         return [str(name) for name in names if str(name).strip()]
 
-    def _read(self, url: str, timeout: float) -> bytes:
+    def _read(self, url: str, timeout: float, request: "_Request") -> bytes:
         """*url*'s body, with a failed status turned into what the server said.
 
         `send_error(code, sentence)` puts the sentence in the status line, so a
         route that is refusing says why in one place and this side repeats it
         rather than guessing.
+
+        The connection is built by hand rather than through `urlopen`, so the
+        socket is in hand and *request* can shut it down: that is what ends a
+        capture whose deadline passed while the page was still dribbling bytes.
         """
-        request = urllib.request.Request(url, headers=self._headers)
+        parts = urllib.parse.urlsplit(url)
+        connection = _connection_for(parts, timeout)
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                return response.read()
-        except urllib.error.HTTPError as e:
-            raise RuntimeError(f"{url} answered {e.code}: {e.reason}") from e
+            connection.connect()
+            request.attach(connection.sock)
+            target = parts.path + (f"?{parts.query}" if parts.query else "")
+            connection.request("GET", target, headers=self._headers)
+            response = connection.getresponse()
+            if response.status >= 400:
+                raise RuntimeError(f"{url} answered {response.status}: {response.reason}")
+            return response.read()
         except http.client.HTTPException as e:
             # A connection that ended mid-body — `IncompleteRead` — or a status
             # line that is not one. These are `HTTPException`s and not `OSError`s,
             # so the caller's failure path would not hold them: a proxy that
             # closes early would be a crash rather than a missing photo.
             raise RuntimeError(f"{url} stopped answering: {e!r}") from e
+        finally:
+            connection.close()
+
+
+class _Request:
+    """One request's socket, so a capture that timed out can hang up on it.
+
+    `read()` cannot be interrupted, and closing the response does not wake it —
+    measured here, a blocked read kept going for ten seconds until the server
+    finished with it. Shutting the socket down does wake it, at once, which is
+    why the connection is built by hand: without this, every capture that timed
+    out left a daemon thread and a socket behind it, one per `/photo`.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._sock: "socket.socket | None" = None
+        self._is_hung_up = False
+
+    def attach(self, sock: "socket.socket | None") -> None:
+        """Take the socket, or hang up at once if the capture has already gone."""
+        with self._lock:
+            self._sock = sock
+            hung_up = self._is_hung_up
+        if hung_up:
+            self.hang_up()
+
+    def hang_up(self) -> None:
+        """End the request from this side; a blocked read wakes with an error."""
+        with self._lock:
+            self._is_hung_up = True
+            sock, self._sock = self._sock, None
+        if sock is not None:
+            with contextlib.suppress(OSError):
+                sock.shutdown(socket.SHUT_RDWR)
+
+
+def _connection_for(
+    parts: urllib.parse.SplitResult, timeout: float
+) -> http.client.HTTPConnection:
+    """The connection *parts* names: `https` where it says so, plain otherwise."""
+    factory = (
+        http.client.HTTPSConnection
+        if parts.scheme == "https"
+        else http.client.HTTPConnection
+    )
+    return factory(parts.hostname or "", parts.port, timeout=timeout)
+
