@@ -30,6 +30,7 @@ from zrb.llm.speech.pcm_player import (
     is_device_wedged,
     wait_for_streams_to_close,
 )
+from zrb.llm.util.face_server import is_remote_voice_selected
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.owner_only import makedirs_owner_only
 
@@ -410,10 +411,19 @@ class Speaker:
         later: "list[AnySpeechBackend]",
     ) -> Utterance:
         """Create an utterance, using a later backend if needed."""
+        is_remote = is_remote_voice_selected()
         if self._should_speak_in_process(later):
             audio, reason = self._render(backend, text)
             if audio is None:
                 self._handle_render_failure(backend)
+                if is_remote:
+                    # Nothing here may say it instead: the page's speaker is the
+                    # one output this voice has, so this backend cannot speak
+                    # this sentence, and the next one is asked.
+                    raise RuntimeError(
+                        f"Speech backend {backend.name} made no audio to post to "
+                        "the face server, and nothing on this machine may say it"
+                    )
                 logger.warning(
                     f"Speech backend {backend.name} could not render audio to play "
                     f"in process ({reason}); {self._what_speaks_it(backend, later)}: "
@@ -428,7 +438,10 @@ class Speaker:
                     read_ahead=self._config.player_read_ahead,
                     prebuffer_seconds=self._config.player_prebuffer_seconds,
                     fallback=self._program_fallback(backend, later, text),
-                    on_device_error=self._handle_device_error,
+                    # A server that will not take the sentence is not a device
+                    # that failed: said once as it happens, and the next
+                    # sentence tries it again rather than resting it.
+                    on_device_error=None if is_remote else self._handle_device_error,
                     device_is_resting=self._is_device_resting,
                     volume=self._volume,
                 )
@@ -478,6 +491,10 @@ class Speaker:
         text: str,
     ) -> Callable[[], Utterance] | None:
         """Return a player-program fallback for *text*, if available."""
+        if is_remote_voice_selected():
+            # The page's speaker is the only one this voice has: a program here
+            # would say the sentence a second time, in a second room.
+            return None
         if not backend.needs_zrb_playback:
             return lambda: self._program_speaks(backend, text)
         stand_ins = self._stand_ins(later)
@@ -497,9 +514,14 @@ class Speaker:
         return backend.create_utterance(text)
 
     def _can_play_in_process(self) -> bool:
-        """Whether zrb may play a sentence itself at all: not when a player
-        program was asked for, not without the extra, and not on a device that
-        was written off after the audio service wedged."""
+        """Whether zrb may play a sentence itself at all: always where the voice
+        is the page's speaker, and otherwise not when a player program was
+        asked for, not without the extra, and not on a device that was written
+        off after the audio service wedged."""
+        if is_remote_voice_selected():
+            # The page's speaker is where the voice goes, whatever a player
+            # program would do here, and it needs no device of this machine.
+            return True
         return (
             self._player_mode != "command"
             and is_in_process_available()

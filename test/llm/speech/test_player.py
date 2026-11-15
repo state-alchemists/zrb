@@ -5,6 +5,7 @@ import time
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.shared.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.player import is_speaking, play
@@ -463,3 +464,29 @@ def test_the_next_sentence_is_made_while_the_current_one_plays(lock_file):
     assert len(backend.utterances) == 2
     assert not backend.utterances[1].is_played
     speaker.close()
+
+
+def test_where_the_voice_is_the_page_nothing_here_says_the_sentence(
+    lock_file, monkeypatch
+):
+    """`LLM_VOICE_REMOTE_URL` is the one setting that moves the voice, and it
+    moves it whole: a backend that made no audio zrb could post has no stand-in
+    on this machine, so the sentence goes unsaid rather than out of a speaker
+    here — which would say it in a second room."""
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", "http://127.0.0.1:7777")
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.say("a sentence for the page")
+    speaker.drain()
+
+    assert backend.utterances == []
+
+
+def test_where_the_voice_is_the_page_it_is_played_in_process(lock_file, monkeypatch):
+    """Even with a player program asked for, the page's speaker is where the
+    voice goes: a program here would play it a second time."""
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", "http://127.0.0.1:7777")
+    speaker = Speaker(_config(FakeBackend(), lock_file))  # player: command
+
+    assert speaker.is_playing_in_process

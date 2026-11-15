@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import cache, partial
+from types import ModuleType
 from typing import Any, Callable
 
 from zrb.config.config import CFG
@@ -26,6 +27,8 @@ from zrb.llm.dictation.echo_cancel import (
     EchoCancelledMicrophone,
     get_unavailable_reason,
 )
+from zrb.llm.dictation.remote_microphone import RemoteMicrophone
+from zrb.llm.util.face_server import get_remote_headers, get_remote_url
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.teardown import close_quietly
 from zrb.util.async_thread import run_in_daemon
@@ -38,9 +41,13 @@ _OPEN_ATTEMPTS = 3
 _OPEN_RETRY_SECONDS = 0.5
 # How long the echo-cancelled microphone has to deliver its first block.
 _ECHO_CANCEL_FIRST_AUDIO_SECONDS = 2.0
+# How long the page's microphone may send nothing before it is taken for gone.
+# The server keeps a silent route alive with one frame of silence about every
+# 15 seconds, so twice that is quiet even for a route nothing is speaking into.
+REMOTE_READ_TIMEOUT_SECONDS = 30.0
 
 
-def import_audio() -> tuple[Any, Any]:
+def import_audio() -> tuple[ModuleType, ModuleType]:
     """numpy and sounddevice, or a `RuntimeError` saying how to install them."""
     try:
         # lazy: heavy third-party (numpy/sounddevice are zrb[voice] extras)
@@ -52,6 +59,23 @@ def import_audio() -> tuple[Any, Any]:
         ) from e
     guard_portaudio_exit(sd)
     return np, sd
+
+
+def import_numpy() -> ModuleType:
+    """numpy alone, or a `RuntimeError` saying how to install it.
+
+    The page's microphone is read off the network, so it needs no PortAudio:
+    nothing here opens a device to have.
+    """
+    try:
+        # lazy: numpy is a zrb[voice] extra
+        import numpy as np
+    except (ImportError, OSError) as e:
+        raise RuntimeError(
+            "The page's microphone needs numpy from the zrb[voice] extra "
+            f"({e}): pip install 'zrb[voice]'"
+        ) from e
+    return np
 
 
 def to_device(device: "str | int | None") -> "int | str | None":
@@ -78,6 +102,13 @@ async def open_microphone(
 ) -> Any:
     """The microphone, open and running, or a `RuntimeError` saying why.
 
+    With `LLM_VOICE_REMOTE_URL` set, it is the page's microphone on that
+    server, and *device* and *is_echo_cancelled* go unused: the phone picks the
+    microphone, and its browser cancels the page's own voice out of it. Nothing
+    local stands in when that server cannot be reached — a microphone here
+    would hear a room nobody is speaking into and submit it as turns, which is
+    the one thing the setting exists to prevent.
+
     With *is_echo_cancelled*, it opens through macOS voice processing
     (`EchoCancelledMicrophone`, which needs ``blocksize`` among *options*);
     when that will not start, the plain PortAudio one opens instead, so a
@@ -93,6 +124,23 @@ async def open_microphone(
     A failure to construct the stream (no such device, PortAudio missing) is
     not retried.
     """
+    remote_url = get_remote_url()
+    if remote_url is not None:
+        return await _open_remote_microphone(
+            on_audio, remote_url, options.get("blocksize")
+        )
+    return await _open_local_microphone(sd, on_audio, device, is_echo_cancelled, options)
+
+
+async def _open_local_microphone(
+    sd: ModuleType,
+    on_audio: Callable[..., None],
+    device: "str | int | None",
+    is_echo_cancelled: bool,
+    options: dict[str, Any],
+) -> Any:
+    """This machine's microphone: the echo-cancelled one where asked for, else
+    the PortAudio stream, retried as `open_microphone` describes."""
     if is_echo_cancelled:
         microphone = await _start_echo_cancelled_microphone(
             on_audio, options["blocksize"]
@@ -147,6 +195,42 @@ async def open_microphone(
             ) from opened
         logger.warning(f"Starting the microphone failed ({opened.cause}); trying again")
         await asyncio.sleep(_OPEN_RETRY_SECONDS)
+
+
+async def _open_remote_microphone(
+    on_audio: Callable[..., None], url: str, blocksize: "int | None"
+) -> RemoteMicrophone:
+    """The page's microphone, started, or a `RuntimeError` saying why not.
+
+    Opened off the event loop, as the local one is: a server that does not
+    answer would otherwise freeze the UI for the length of its timeout.
+    """
+    np = import_numpy()
+    microphone = RemoteMicrophone(
+        np,
+        on_audio,
+        url=url,
+        headers=get_remote_headers(),
+        samplerate=SAMPLE_RATE,
+        blocksize=blocksize or _remote_block_frames(),
+        timeout=REMOTE_READ_TIMEOUT_SECONDS,
+    )
+    try:
+        await run_in_daemon(microphone.start, name="zrb-remote-microphone")
+    except Exception as e:
+        await close_microphone(microphone.close, "the page's microphone")
+        raise RuntimeError(
+            f"{e} The page that carries the microphone must be open on that "
+            f"server; nothing local stands in while "
+            f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL is set."
+        ) from e
+    return microphone
+
+
+def _remote_block_frames() -> int:
+    """One block of the dictation default, for an open that names no block —
+    `record`, which opens the microphone without one."""
+    return max(1, int(SAMPLE_RATE * CFG.LLM_DICTATION_BLOCK_DURATION))
 
 
 async def close_microphone(close: Callable[[], object], what: str) -> None:
