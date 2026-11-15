@@ -18,7 +18,6 @@ headers rather than wrapped in a container, since neither side converts, mixes
 or resamples. The frame ones are a JPEG and a list of names.
 """
 
-
 from __future__ import annotations
 
 from email.message import Message

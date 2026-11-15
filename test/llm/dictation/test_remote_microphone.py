@@ -223,7 +223,9 @@ def test_open_microphone_takes_the_page_and_never_this_machine(monkeypatch):
 
     async def run():
         stream = await open_microphone(
-            sd, lambda indata, frames, time_info, status: blocks.append(indata), blocksize=4
+            sd,
+            lambda indata, frames, time_info, status: blocks.append(indata),
+            blocksize=4,
         )
         try:
             _wait_for(lambda: blocks)

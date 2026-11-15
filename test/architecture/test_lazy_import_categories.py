@@ -94,6 +94,5 @@ def test_every_lazy_import_states_a_recognized_reason():
         "to state the "
         "real reason, or update this test's keyword lists and the Imports and "
         "lazy loading section of docs/contributing/coding-conventions.md "
-        "together if it's a genuinely new category:\n"
-        + "\n".join(uncategorized)
+        "together if it's a genuinely new category:\n" + "\n".join(uncategorized)
     )

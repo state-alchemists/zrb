@@ -45,7 +45,12 @@ def test_every_circle_is_wide_by_default():
     and drawn one."""
     import unicodedata
 
-    assert set(JUDGE_GLYPHS) == {JUDGE_SAFE, JUDGE_CAUTION, JUDGE_DANGEROUS, JUDGE_UNKNOWN}
+    assert set(JUDGE_GLYPHS) == {
+        JUDGE_SAFE,
+        JUDGE_CAUTION,
+        JUDGE_DANGEROUS,
+        JUDGE_UNKNOWN,
+    }
     for glyph in JUDGE_GLYPHS.values():
         assert len(glyph) == 1
         assert "\ufe0f" not in glyph
@@ -62,7 +67,9 @@ def test_a_reason_that_spans_lines_draws_one():
     as the command to check, not as more of the verdict."""
     record_judge_note("multiline", JUDGE_CAUTION, "deletes build/\n  with no undo\tnow")
     drawn = format_judge_line("multiline")
-    assert _lines(drawn) == ["       🟡 judged caution: deletes build/ with no undo now"]
+    assert _lines(drawn) == [
+        "       🟡 judged caution: deletes build/ with no undo now"
+    ]
 
 
 def test_control_characters_cannot_redraw_the_prompt():

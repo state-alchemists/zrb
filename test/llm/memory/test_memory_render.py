@@ -296,7 +296,9 @@ def test_a_day_line_names_its_file_and_how_much_body_it_holds():
     of it there is to read: the path is what makes that reading possible, and
     the size is what says whether it is worth the tokens."""
     body = "- 09:00 — wrote the day lines.\n- 10:00 — said what they cost."
-    today = Diary(id="2026-11-03", claim="Today.", body=body, updated="2026-11-03T09:00:00")
+    today = Diary(
+        id="2026-11-03", claim="Today.", body=body, updated="2026-11-03T09:00:00"
+    )
 
     recent = render_recent(None, today, [])
 

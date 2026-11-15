@@ -163,7 +163,9 @@ class RemoteMicrophone:
         pending = self._pending + data
         whole = len(pending) - len(pending) % AUDIO_SAMPLE_WIDTH
         self._pending = pending[whole:]
-        return np.frombuffer(pending[:whole], np.int16).astype(np.float32) / _INT16_SCALE
+        return (
+            np.frombuffer(pending[:whole], np.int16).astype(np.float32) / _INT16_SCALE
+        )
 
     def _emit(self, block: "Samples") -> None:
         self._callback(block.reshape(-1, 1), len(block), None, None)

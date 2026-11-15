@@ -427,9 +427,11 @@ class PcmUtterance(Utterance):
             # it were still there.
             self._report_device_error(
                 exc,
-                "Could not reach the face server's speaker"
-                if self._remote_url is not None
-                else "Could not open the audio device to play speech in process",
+                (
+                    "Could not reach the face server's speaker"
+                    if self._remote_url is not None
+                    else "Could not open the audio device to play speech in process"
+                ),
             )
             if self._has_opened or self._fallback is None or self.is_stopped:
                 raise

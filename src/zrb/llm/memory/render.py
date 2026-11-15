@@ -292,7 +292,6 @@ def _diary_reference(entry: Diary) -> str:
     return f" [diary/{entry.id}.md, body {size} chars]"
 
 
-
 def compose_memory(
     core: str,
     recent: str,

@@ -213,9 +213,7 @@ def open_say(
     return connection
 
 
-def _connection_class(
-    scheme: str, url: str
-) -> "type[http.client.HTTPConnection]":
+def _connection_class(scheme: str, url: str) -> "type[http.client.HTTPConnection]":
     """The connection *scheme* asks for, named when it asks for neither.
 
     `http.client.HTTPConnection` speaks cleartext on whatever port it is given,

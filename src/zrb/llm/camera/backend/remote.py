@@ -237,9 +237,7 @@ class RemoteCameraBackend(AnyCameraBackend):
             )
         return data
 
-    def _request_devices(
-        self, request: "_Request", timeout: float | None
-    ) -> list[str]:
+    def _request_devices(self, request: "_Request", timeout: float | None) -> list[str]:
         """The names the page gives its cameras. Blocking, as above."""
         url = self._url + CAMERA_DEVICES_PATH
         payload = json.loads(self._read(url, timeout, request).decode() or "{}")
@@ -248,9 +246,7 @@ class RemoteCameraBackend(AnyCameraBackend):
             raise RuntimeError(f"{url} answered without a list of devices")
         return [str(name) for name in names if str(name).strip()]
 
-    def _read(
-        self, url: str, timeout: float | None, request: "_Request"
-    ) -> bytes:
+    def _read(self, url: str, timeout: float | None, request: "_Request") -> bytes:
         """*url*'s body, with a failed status turned into what the server said.
 
         `send_error(code, sentence)` puts the sentence in the status line, so a
@@ -270,7 +266,9 @@ class RemoteCameraBackend(AnyCameraBackend):
             connection.request("GET", target, headers=self._headers)
             response = connection.getresponse()
             if response.status >= 400:
-                raise RuntimeError(f"{url} answered {response.status}: {response.reason}")
+                raise RuntimeError(
+                    f"{url} answered {response.status}: {response.reason}"
+                )
             return response.read()
         except http.client.HTTPException as e:
             # A connection that ended mid-body — `IncompleteRead` — or a status
@@ -334,4 +332,3 @@ def _connection_for(
         parts.port,
         timeout=timeout if timeout and timeout > 0 else None,
     )
-

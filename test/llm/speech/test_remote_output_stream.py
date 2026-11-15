@@ -137,7 +137,9 @@ class FakeOutputStream:
 def connection(monkeypatch):
     """The socket the stream opens, and the record of it."""
     FakeConnection.instances = []
-    monkeypatch.setattr(remote_output_stream.http.client, "HTTPConnection", FakeConnection)
+    monkeypatch.setattr(
+        remote_output_stream.http.client, "HTTPConnection", FakeConnection
+    )
     return FakeConnection
 
 
@@ -311,7 +313,9 @@ def test_an_https_url_is_posted_over_tls(monkeypatch):
     base URL opened with it goes out in the clear, to port eighty. The scheme
     picks the class, and the class picks 443 when the URL names no port."""
     FakeConnection.instances = []
-    monkeypatch.setattr(remote_output_stream.http.client, "HTTPSConnection", FakeConnection)
+    monkeypatch.setattr(
+        remote_output_stream.http.client, "HTTPSConnection", FakeConnection
+    )
     monkeypatch.setattr(
         remote_output_stream.http.client, "HTTPConnection", _must_not_be_used
     )
@@ -362,4 +366,3 @@ def test_closing_while_the_writer_runs_ends_the_body_once(connection, monkeypatc
     sent = connection.instances[0]
     assert sent.written.count(b"0\r\n\r\n") == 1
     assert sent.has_terminator()
-

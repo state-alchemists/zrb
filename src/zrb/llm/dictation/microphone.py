@@ -129,7 +129,9 @@ async def open_microphone(
         return await _open_remote_microphone(
             on_audio, remote_url, options.get("blocksize")
         )
-    return await _open_local_microphone(sd, on_audio, device, is_echo_cancelled, options)
+    return await _open_local_microphone(
+        sd, on_audio, device, is_echo_cancelled, options
+    )
 
 
 async def _open_local_microphone(
