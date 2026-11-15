@@ -176,8 +176,9 @@ class LLMUICommandsMixin:
         serialize=comma_join,
         doc=(
             "Comma-separated command aliases to change the speech volume "
-            "(`<alias> +++` raises it three steps, `<alias> --` lowers two, and "
-            "`<alias>` alone reports the level)."
+            "(`<alias> 15` sets it to fifteen percent, `<alias> +++` raises it "
+            "three steps, `<alias> --` lowers two, and `<alias>` alone reports "
+            "the level; a level is held to 0-200)."
         ),
     )
 
