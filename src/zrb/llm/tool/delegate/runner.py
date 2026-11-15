@@ -168,6 +168,11 @@ async def run_agent_task(
                 run_scope=session.run_scope if session is not None else "",
                 limiter=get_run_llm_limiter(),
                 yolo=yolo,
+                # This run starts where no parent run is bound, so nothing infers it: without
+                # this, a delegated turn's Stop says `nested_run: false`, and every listener that
+                # asks "is this the user's turn?" answers yes. The speech feature was the one that
+                # got heard -- it read the sub-agent's report aloud as if it were her reply.
+                nested=True,
             )
         )
 
