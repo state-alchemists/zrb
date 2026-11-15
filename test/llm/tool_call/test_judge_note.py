@@ -3,6 +3,7 @@
 from zrb.llm.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
+    JUDGE_GLYPHS,
     JUDGE_SAFE,
     JUDGE_UNKNOWN,
     MAX_JUDGE_REASON_CHARS,
@@ -21,20 +22,34 @@ def test_a_recorded_verdict_reads_back_and_draws_one_line():
     record_judge_note("call-1", JUDGE_CAUTION, "discards uncommitted work")
     assert read_judge_note("call-1") == (JUDGE_CAUTION, "discards uncommitted work")
     assert format_judge_line("call-1") == (
-        "       judged caution: discards uncommitted work\n"
+        "       🟡 judged caution: discards uncommitted work\n"
     )
 
 
-def test_the_line_names_its_level_in_words_not_glyphs():
-    """An emoji's column width is the terminal's choice, so a verdict drawn
-    with one shifts between machines. The level word carries it instead."""
+def test_each_level_leads_with_its_own_circle():
+    """The circle is for the glance; the level word beside it is for the reader
+    who is deciding, and is still the thing the decision is made on."""
     record_judge_note("safe", JUDGE_SAFE, "read-only listing")
     record_judge_note("dangerous", JUDGE_DANGEROUS, "runs a remote script")
     record_judge_note("unknown", JUDGE_UNKNOWN, "the judge did not finish")
-    assert format_judge_line("safe") == "       judged safe: read-only listing\n"
-    assert "judged dangerous: " in format_judge_line("dangerous")
-    assert "judged unknown: " in format_judge_line("unknown")
-    assert format_judge_line("safe").isascii()
+    assert format_judge_line("safe") == "       🟢 judged safe: read-only listing\n"
+    assert "🟡 judged caution: " in format_judge_line("call-1")
+    assert "🔴 judged dangerous: " in format_judge_line("dangerous")
+    assert "⚪ judged unknown: " in format_judge_line("unknown")
+
+
+def test_every_circle_is_wide_by_default():
+    """A glyph may lead the line only if prompt_toolkit and the terminal agree on
+    its width. These four are East Asian Wide, so both count two columns — the
+    trap is a symbol made emoji by a variation selector, which is counted two
+    and drawn one."""
+    import unicodedata
+
+    assert set(JUDGE_GLYPHS) == {JUDGE_SAFE, JUDGE_CAUTION, JUDGE_DANGEROUS, JUDGE_UNKNOWN}
+    for glyph in JUDGE_GLYPHS.values():
+        assert len(glyph) == 1
+        assert "\ufe0f" not in glyph
+        assert unicodedata.east_asian_width(glyph) in ("W", "F")
 
 
 def test_an_unrecorded_call_draws_nothing():
@@ -47,14 +62,14 @@ def test_a_reason_that_spans_lines_draws_one():
     as the command to check, not as more of the verdict."""
     record_judge_note("multiline", JUDGE_CAUTION, "deletes build/\n  with no undo\tnow")
     drawn = format_judge_line("multiline")
-    assert _lines(drawn) == ["       judged caution: deletes build/ with no undo now"]
+    assert _lines(drawn) == ["       🟡 judged caution: deletes build/ with no undo now"]
 
 
 def test_control_characters_cannot_redraw_the_prompt():
     record_judge_note("escapes", JUDGE_DANGEROUS, "\x1b[2Jwipes the screen first")
     drawn = format_judge_line("escapes")
     assert "\x1b" not in drawn
-    assert _lines(drawn) == ["       judged dangerous: [2Jwipes the screen first"]
+    assert _lines(drawn) == ["       🔴 judged dangerous: [2Jwipes the screen first"]
 
 
 def test_a_long_reason_is_clamped():
@@ -65,7 +80,7 @@ def test_a_long_reason_is_clamped():
 
 def test_an_empty_reason_still_names_the_level():
     record_judge_note("empty", JUDGE_CAUTION, "   ")
-    assert format_judge_line("empty") == "       judged: caution\n"
+    assert format_judge_line("empty") == "       🟡 judged: caution\n"
 
 
 def test_reading_does_not_consume_the_line():
