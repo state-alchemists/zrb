@@ -107,6 +107,23 @@ class TestBaseUIInputCommands:
         """Flipping it mid-turn is the point, so it is not held back."""
         assert simple_ui_instance.classify_input("/sandbox") == "thinking_command"
 
+    def test_an_invalid_sandbox_argument_is_a_message_not_a_refusal(
+        self, simple_ui_instance
+    ):
+        """`/sandbox maybe` is the user's text, not a command that refuses.
+
+        The token is a prefix because it takes `on` and `off`, so every line
+        beginning with it was classified as runnable mid-turn. Mid-turn, the
+        handler then refused it and the refusal notice stood where the message
+        should have been queued.
+        """
+        ui = simple_ui_instance
+
+        assert ui.classify_input("/sandbox maybe") == "message"
+        assert ui.classify_input("/sandbox on now") == "message"
+        assert ui.classify_input("/sandbox on") == "thinking_command"
+        assert ui.classify_input("/plan xyz") == "message"
+
     def test_handle_set_model_command(self, simple_ui_instance):
         """Test _handle_set_model_command changes model."""
         ui = simple_ui_instance

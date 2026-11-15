@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.llm.custom_command.resolver import get_custom_command_match
 from zrb.llm.hook.contracts.types import HookEvent
@@ -27,6 +27,23 @@ if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
+
+
+class CommandRoute(NamedTuple):
+    """One row of the dispatch table.
+
+    ``prefix`` says the token may be followed by ``" <args>"``. ``accepts``
+    narrows that to the arguments the handler really takes: classification runs
+    before any handler, and a prefix that matches everything makes `/sandbox
+    maybe` look like a command that can run mid-turn, when the handler is about
+    to refuse it and the user's text would be dropped.
+    """
+
+    handler: "Callable[[str], object]"
+    tokens: list[str]
+    prefix: bool
+    run_while_thinking: bool
+    accepts: "Callable[[str], bool] | None" = None
 
 
 class BaseUICommands:
@@ -56,40 +73,64 @@ class BaseUICommands:
 
     # command dispatch (with hooks)
 
-    def command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
+    def command_table(self) -> "list[CommandRoute]":
         """Single source of truth for command routing.
 
-        Ordered ``(handler, tokens, prefix, run_while_thinking)`` tuples used
-        by both :meth:`classify_input` and :meth:`_run_command_chain`. Custom
-        commands are matched separately.
+        Ordered :class:`CommandRoute` rows used by both
+        :meth:`classify_input` and :meth:`_run_command_chain`. Custom commands
+        are matched separately.
 
         ``prefix=True`` → the token may be followed by ``" <args>"``;
-        ``prefix=False`` → exact-match toggle.
+        ``prefix=False`` → exact-match toggle; ``accepts`` → which arguments a
+        prefix command really takes.
         """
         base_ui = self._base_ui
         return [
-            (base_ui.handle_btw_command, base_ui.btw_commands, True, True),
-            (base_ui.handle_toggle_plan, base_ui.plan_commands, True, True),
+            CommandRoute(base_ui.handle_btw_command, base_ui.btw_commands, True, True),
+            # `/plan` takes no argument, so an exact match: `/plan xyz` is a
+            # message, not a command that refuses once it arrives.
+            CommandRoute(
+                base_ui.handle_toggle_plan, base_ui.plan_commands, False, True
+            ),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
-            (base_ui.handle_toggle_yolo, base_ui.yolo_toggle_commands, True, True),
+            CommandRoute(
+                base_ui.handle_toggle_yolo, base_ui.yolo_toggle_commands, True, True
+            ),
             # prefix=True: `/sandbox` toggles, `/sandbox on|off` names the state.
-            (base_ui.handle_toggle_sandbox, base_ui.sandbox_commands, True, True),
-            (base_ui.handle_exit_command, base_ui.exit_commands, False, False),
-            (base_ui.handle_info_command, base_ui.info_commands, False, False),
-            (base_ui.handle_save_command, base_ui.save_commands, True, False),
-            (base_ui.handle_load_command, base_ui.load_commands, True, False),
-            (base_ui.handle_rewind_command, base_ui.rewind_commands, True, False),
-            (
+            # `accepts` keeps `/sandbox maybe` a message rather than a refusal.
+            CommandRoute(
+                base_ui.handle_toggle_sandbox,
+                base_ui.sandbox_commands,
+                True,
+                True,
+                accepts=self._models.is_sandbox_request,
+            ),
+            CommandRoute(
+                base_ui.handle_exit_command, base_ui.exit_commands, False, False
+            ),
+            CommandRoute(
+                base_ui.handle_info_command, base_ui.info_commands, False, False
+            ),
+            CommandRoute(base_ui.handle_save_command, base_ui.save_commands, True, False),
+            CommandRoute(base_ui.handle_load_command, base_ui.load_commands, True, False),
+            CommandRoute(
+                base_ui.handle_rewind_command, base_ui.rewind_commands, True, False
+            ),
+            CommandRoute(
                 base_ui.handle_redirect_command,
                 base_ui.redirect_output_commands,
                 True,
                 False,
             ),
-            (base_ui.handle_attach_command, base_ui.attach_commands, True, False),
-            (base_ui.handle_set_model_command, base_ui.set_model_commands, True, False),
-            (base_ui.handle_set_command, base_ui.set_commands, True, False),
-            (base_ui.handle_exec_command, base_ui.exec_commands, True, False),
-            (base_ui.handle_copy_command, base_ui.copy_commands, True, False),
+            CommandRoute(
+                base_ui.handle_attach_command, base_ui.attach_commands, True, False
+            ),
+            CommandRoute(
+                base_ui.handle_set_model_command, base_ui.set_model_commands, True, False
+            ),
+            CommandRoute(base_ui.handle_set_command, base_ui.set_commands, True, False),
+            CommandRoute(base_ui.handle_exec_command, base_ui.exec_commands, True, False),
+            CommandRoute(base_ui.handle_copy_command, base_ui.copy_commands, True, False),
         ]
 
     def classify_input(self, text: str) -> str:
@@ -106,9 +147,12 @@ class BaseUICommands:
         stripped = text.strip()
         if not stripped:
             return "message"
-        for _handler, tokens, prefix, run_while_thinking in self.command_table():
-            if _matches(stripped, tokens, prefix):
-                return "thinking_command" if run_while_thinking else "command"
+        for route in self.command_table():
+            if not _matches(stripped, route.tokens, route.prefix):
+                continue
+            if route.accepts is not None and not route.accepts(stripped):
+                continue
+            return "thinking_command" if route.run_while_thinking else "command"
         match = get_custom_command_match(stripped, self._base_ui.custom_commands)
         if match is None:
             return "message"
@@ -210,10 +254,10 @@ class BaseUICommands:
         Returns ``True`` if a handler consumed the input. While thinking, only
         run-while-thinking commands run; custom commands are tried last.
         """
-        for handler, _tokens, _prefix, run_while_thinking in self.command_table():
-            if not run_while_thinking and self._base_ui.is_thinking:
+        for route in self.command_table():
+            if not route.run_while_thinking and self._base_ui.is_thinking:
                 break
-            if handler(text):
+            if route.handler(text):
                 return True
         return self._base_ui.handle_custom_command(text)
 

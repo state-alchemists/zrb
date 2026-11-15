@@ -100,19 +100,39 @@ class BaseUIModelCommands:
     # table's contract, so they carry no `-> bool` annotation — ADR-0098 counts
     # that annotation, and a handler is not the check its name would describe.
     def handle_toggle_sandbox(self, text: str):
+        request = self._sandbox_request(text)
+        if request is None:
+            return False
+        if request == "flip":
+            self.toggle_sandbox()
+        else:
+            self._apply_sandbox_state(request == "on")
+        return True
+
+    def is_sandbox_request(self, text: str) -> bool:
+        """Whether this UI would act on `text` — asked before it is classified.
+
+        `/sandbox` is a prefix command because it takes `on` and `off`, so every
+        line beginning with the token used to look like a command that can run
+        mid-turn. A handler that then refused it did not hand the text back, and
+        `/sandbox maybe` typed while the model was thinking vanished into "not
+        available while the model is thinking". A message is classified as a
+        message instead.
+        """
+        return self._sandbox_request(text) is not None
+
+    def _sandbox_request(self, text: str) -> str | None:
+        """What `text` asks of the sandbox: `flip`, `on`, `off`, or None."""
         stripped = text.strip().lower()
         for cmd in self._base_ui.sandbox_commands:
             token = cmd.lower()
             if stripped == token:
-                self.toggle_sandbox()
-            elif stripped == f"{token} on":
-                self._apply_sandbox_state(True)
-            elif stripped == f"{token} off":
-                self._apply_sandbox_state(False)
-            else:
-                continue
-            return True
-        return False
+                return "flip"
+            if stripped == f"{token} on":
+                return "on"
+            if stripped == f"{token} off":
+                return "off"
+        return None
 
     def toggle_plan(self):
         """Toggle plan mode on/off and force refresh."""
