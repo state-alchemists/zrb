@@ -60,6 +60,50 @@ def test_a_heading_or_a_code_fence_is_not_the_first_sentence():
     assert _first_sentence(message) == "Fixed the parser"
 
 
+def test_the_speech_markup_is_not_part_of_the_log_line():
+    """`<spoken>` marks what is read aloud; it is not the event the log records.
+
+    The tag reached the log verbatim, and from the log into the next session's
+    `## Recent` block, so a day read as a run of `<spoken>` fragments.
+    """
+    assert (
+        _first_sentence("<spoken>Fixed the parser. All tests pass.</spoken>")
+        == "Fixed the parser"
+    )
+
+
+def test_a_speech_tag_on_its_own_line_does_not_swallow_the_reply():
+    """A block-shaped reply puts the tag alone on the first line."""
+    message = "<spoken>\nFixed the parser. All tests pass.\n</spoken>"
+    assert _first_sentence(message) == "Fixed the parser"
+
+
+def test_a_quoted_speech_tag_is_content_and_is_kept():
+    """A reply may talk about the tag, and the log records what it said.
+
+    Only a block's delimiters are removed. Stripping every occurrence rewrote
+    the event: "write `<spoken>text</spoken>` around the sentence" became "write
+    `text` around the sentence".
+    """
+    message = "Write `<spoken>text</spoken>` around the sentence. Then stop."
+    assert (
+        _first_sentence(message)
+        == "Write `<spoken>text</spoken>` around the sentence"
+    )
+
+
+def test_a_full_stop_after_the_closing_tag_does_not_leave_it_behind():
+    """The sentence's own punctuation may sit outside the block.
+
+    The reviewer's case: `_without_speech_tags` matched a closing delimiter only
+    at the very end of the line, so `<spoken>Fixed the parser.</spoken>.` was
+    logged as `Fixed the parser.</spoken>` — a malformed line, in the day file
+    and then in the next session's `## Recent` block.
+    """
+    message = "<spoken>Fixed the parser.</spoken>. All tests pass."
+    assert _first_sentence(message) == "Fixed the parser"
+
+
 def test_a_list_marker_is_stripped():
     assert _first_sentence("- Fixed the parser. Then ran the suite.") == (
         "Fixed the parser"

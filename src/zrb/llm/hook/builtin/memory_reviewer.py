@@ -28,6 +28,7 @@ from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
 from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.util.spoken import split_spoken
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -277,6 +278,20 @@ def _write_log_line(context: "HookContext", text: str) -> None:
         return
 
 
+def _without_speech_tags(line: str) -> str:
+    """*line* without the `<spoken>` markers: a log line is the event, not the tags.
+
+    Which tags are markers is not this module's question, and answering it here
+    twice went wrong twice — first by stripping a quoted one, then by leaving a
+    closing delimiter behind when the sentence's own full stop came after it.
+    `split_spoken` already decides: a block is opened by `<spoken>` and closed by
+    the next `</spoken>`, and a tag inside an inline code span is a tag being
+    quoted, which stays. The log takes the shown copy of that decision.
+    """
+    _spoken, shown = split_spoken(line)
+    return shown.strip()
+
+
 def _first_sentence(message: str) -> str:
     """The reply's first sentence, flattened to one line and bounded.
 
@@ -292,7 +307,7 @@ def _first_sentence(message: str) -> str:
             continue
         if in_fence or not line or line.startswith("#"):
             continue
-        line = line.lstrip(">-* ").strip()
+        line = _without_speech_tags(line.lstrip(">-* ").strip())
         if not line:
             continue
         sentence = line.split(". ")[0].rstrip(".")
