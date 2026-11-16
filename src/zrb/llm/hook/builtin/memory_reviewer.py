@@ -62,6 +62,10 @@ _TIMEOUT_SECONDS = 90
 # recognise the turn, short enough that twenty of them fit one day file.
 _LOG_LINE_MAX_CHARS = 140
 
+# How the spoken part of a reply is marked. A log line is the event, so the
+# markup that tells the reader's ear what to say is not part of it.
+_SPEECH_TAGS = ("<spoken>", "</spoken>")
+
 # What the log holds instead of a reply whose text reads as an instruction. That
 # text would be quoted back inside a later `<memory>` block, so the log is the one
 # place where the assistant's own output can become a persistent payload; the
@@ -277,6 +281,19 @@ def _write_log_line(context: "HookContext", text: str) -> None:
         return
 
 
+def _without_speech_tags(line: str) -> str:
+    """*line* with the speech block's markup removed: the log holds words, not tags.
+
+    A reply opens with `<spoken>` because part of it is marked for the ear. The
+    tag is markup about the reply rather than the event it describes, and it was
+    reaching the log — and from the log into the next session's `## Recent`
+    block, where a day read as a run of `<spoken>` fragments.
+    """
+    for tag in _SPEECH_TAGS:
+        line = line.replace(tag, "")
+    return line.strip()
+
+
 def _first_sentence(message: str) -> str:
     """The reply's first sentence, flattened to one line and bounded.
 
@@ -292,7 +309,7 @@ def _first_sentence(message: str) -> str:
             continue
         if in_fence or not line or line.startswith("#"):
             continue
-        line = line.lstrip(">-* ").strip()
+        line = _without_speech_tags(line.lstrip(">-* ").strip())
         if not line:
             continue
         sentence = line.split(". ")[0].rstrip(".")

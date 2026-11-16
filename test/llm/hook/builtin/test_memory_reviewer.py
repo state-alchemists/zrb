@@ -60,6 +60,24 @@ def test_a_heading_or_a_code_fence_is_not_the_first_sentence():
     assert _first_sentence(message) == "Fixed the parser"
 
 
+def test_the_speech_markup_is_not_part_of_the_log_line():
+    """`<spoken>` marks what is read aloud; it is not the event the log records.
+
+    The tag reached the log verbatim, and from the log into the next session's
+    `## Recent` block, so a day read as a run of `<spoken>` fragments.
+    """
+    assert (
+        _first_sentence("<spoken>Fixed the parser. All tests pass.</spoken>")
+        == "Fixed the parser"
+    )
+
+
+def test_a_speech_tag_on_its_own_line_does_not_swallow_the_reply():
+    """A block-shaped reply puts the tag alone on the first line."""
+    message = "<spoken>\nFixed the parser. All tests pass.\n</spoken>"
+    assert _first_sentence(message) == "Fixed the parser"
+
+
 def test_a_list_marker_is_stripped():
     assert _first_sentence("- Fixed the parser. Then ran the suite.") == (
         "Fixed the parser"
