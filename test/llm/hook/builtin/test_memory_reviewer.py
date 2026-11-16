@@ -92,6 +92,18 @@ def test_a_quoted_speech_tag_is_content_and_is_kept():
     )
 
 
+def test_a_full_stop_after_the_closing_tag_does_not_leave_it_behind():
+    """The sentence's own punctuation may sit outside the block.
+
+    The reviewer's case: `_without_speech_tags` matched a closing delimiter only
+    at the very end of the line, so `<spoken>Fixed the parser.</spoken>.` was
+    logged as `Fixed the parser.</spoken>` — a malformed line, in the day file
+    and then in the next session's `## Recent` block.
+    """
+    message = "<spoken>Fixed the parser.</spoken>. All tests pass."
+    assert _first_sentence(message) == "Fixed the parser"
+
+
 def test_a_list_marker_is_stripped():
     assert _first_sentence("- Fixed the parser. Then ran the suite.") == (
         "Fixed the parser"

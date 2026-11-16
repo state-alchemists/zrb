@@ -28,6 +28,7 @@ from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
 from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.util.spoken import split_spoken
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -61,12 +62,6 @@ _TIMEOUT_SECONDS = 90
 # The log line's text, taken from the reply's first sentence. Long enough to
 # recognise the turn, short enough that twenty of them fit one day file.
 _LOG_LINE_MAX_CHARS = 140
-
-# How the spoken part of a reply is marked. A log line is the event, so the
-# delimiters that tell the reader's ear what to say are not part of it — but a
-# reply may quote them, and that is content.
-_SPEECH_OPEN = "<spoken>"
-_SPEECH_CLOSE = "</spoken>"
 
 # What the log holds instead of a reply whose text reads as an instruction. That
 # text would be quoted back inside a later `<memory>` block, so the log is the one
@@ -284,20 +279,17 @@ def _write_log_line(context: "HookContext", text: str) -> None:
 
 
 def _without_speech_tags(line: str) -> str:
-    """*line* without the delimiters of a speech block: the log holds words, not tags.
+    """*line* without the `<spoken>` markers: a log line is the event, not the tags.
 
-    Only the delimiters go — a leading `<spoken>` and a trailing `</spoken>`. A
-    reply may quote the tag itself, as in "write `<spoken>text</spoken>` around
-    the sentence", and that is content: removing every occurrence rewrote the
-    event into a description of nothing.
+    Which tags are markers is not this module's question, and answering it here
+    twice went wrong twice — first by stripping a quoted one, then by leaving a
+    closing delimiter behind when the sentence's own full stop came after it.
+    `split_spoken` already decides: a block is opened by `<spoken>` and closed by
+    the next `</spoken>`, and a tag inside an inline code span is a tag being
+    quoted, which stays. The log takes the shown copy of that decision.
     """
-    text = line.strip()
-    if text.startswith(_SPEECH_OPEN):
-        text = text[len(_SPEECH_OPEN) :]
-    text = text.rstrip()
-    if text.endswith(_SPEECH_CLOSE):
-        text = text[: -len(_SPEECH_CLOSE)]
-    return text.strip()
+    _spoken, shown = split_spoken(line)
+    return shown.strip()
 
 
 def _first_sentence(message: str) -> str:
