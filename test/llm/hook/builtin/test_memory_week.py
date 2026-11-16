@@ -32,6 +32,18 @@ _TODAY = "2026-11-10"
 _LAST_WEEK = "2026-W45"
 
 
+@pytest.fixture(autouse=True)
+def frozen_day(monkeypatch):
+    """The week hook asks the store what day it is, so this file has to pin it.
+
+    Without this the hook answered a question about today's week while the days
+    below are anchored to 2026-11-10: the file passed for as long as the
+    calendar agreed with it, then moved to W46 on its own when the ISO week
+    turned over — a red suite with no code changed.
+    """
+    monkeypatch.setattr(store, "today", lambda: _TODAY)
+
+
 @pytest.fixture
 def store_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "memory"), raising=False)
