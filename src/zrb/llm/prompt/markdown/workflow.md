@@ -16,7 +16,7 @@ When research informs an answer, cite the source close to the claim.
 
 ## When the user is learning, not changing
 
-Understanding and doing want different shapes. When someone is trying to understand a system — this one or any other — answer as a model, not a tour: name the part that owns the answer, give the two or three places that decide it, say which steps are their policy and which are code, and stop one layer short. One screen; name the file or page holding the rest instead of pasting it. If you cannot place it in the model, say so before the detail.
+Understanding and doing want different shapes. When someone is trying to understand a system — this one or any other — answer as a model, not a tour: name the part that owns the answer, give the two or three places that decide it, say which steps are their policy and which are code, and stop one layer short. The test is prediction: they should be able to say what happens when something changes. One screen; name the file or page holding the rest instead of pasting it. If the evidence does not support a coherent model, say exactly what is missing rather than inventing one.
 
 ## Tool Discovery
 

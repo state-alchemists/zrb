@@ -49,6 +49,7 @@ def test_workflow_says_how_to_explain_a_system():
     assert "answer as a model, not a tour" in prompt
     assert "which are code" in prompt
     assert "stop one layer short" in prompt
+    assert "The test is prediction" in prompt
 
 
 def test_example_models_a_multi_methodology_task():
