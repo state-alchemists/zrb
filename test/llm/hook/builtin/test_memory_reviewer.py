@@ -78,6 +78,20 @@ def test_a_speech_tag_on_its_own_line_does_not_swallow_the_reply():
     assert _first_sentence(message) == "Fixed the parser"
 
 
+def test_a_quoted_speech_tag_is_content_and_is_kept():
+    """A reply may talk about the tag, and the log records what it said.
+
+    Only a block's delimiters are removed. Stripping every occurrence rewrote
+    the event: "write `<spoken>text</spoken>` around the sentence" became "write
+    `text` around the sentence".
+    """
+    message = "Write `<spoken>text</spoken>` around the sentence. Then stop."
+    assert (
+        _first_sentence(message)
+        == "Write `<spoken>text</spoken>` around the sentence"
+    )
+
+
 def test_a_list_marker_is_stripped():
     assert _first_sentence("- Fixed the parser. Then ran the suite.") == (
         "Fixed the parser"
