@@ -2,7 +2,6 @@
 
 import pytest
 
-from zrb.config.config import CFG
 from zrb.llm.prompt.profile import PROFILES
 from zrb.llm.prompt.prompt import get_prompt
 
@@ -40,6 +39,17 @@ def test_workflow_says_the_wall_clock_belongs_to_the_user():
     assert "long sleep" in prompt
     assert "background handle" in prompt
     assert "go in sequence" in prompt
+
+
+def test_workflow_says_how_to_explain_a_system():
+    """When someone is trying to understand where something lives, the reply
+    that helps is a model: the part that owns it, the few places that decide
+    it, and whose policy each step is. A file tour is the failure this pins."""
+    prompt = get_prompt("workflow")
+    assert "answer as a model, not a tour" in prompt
+    assert "which are code" in prompt
+    assert "stop one layer short" in prompt
+    assert "The test is prediction" in prompt
 
 
 def test_example_models_a_multi_methodology_task():

@@ -10,12 +10,21 @@ Three pages answer three different questions: this section is the *why*, the [Co
 
 ## Table of Contents
 
+- [In one breath](#in-one-breath)
 - [Where to start](#where-to-start)
 - [How each page reads](#how-each-page-reads)
 - [The four tiers](#the-four-tiers)
 - [Reading paths](#reading-paths)
 - [Editing these pages](#editing-these-pages)
 - [Where the rest lives](#where-the-rest-lives)
+
+## In one breath
+
+Six boxes. A shell command or a web request resolves a task; the task runs; one kind of task is a chat; the chat builds an agent; the agent reaches tools, the UI, prompts and hooks. One task engine — everything else is either a way to start a task or something a task can reach into.
+
+Five layers on the LLM side, and an arrow only ever points down. **Presentation** is what a person sees and hears. **Orchestration** is where one message becomes a run. The **engine** is one agent turn, plus the compaction that keeps a long history inside the window. **Capabilities** are the parts a turn plugs into: tools, prompts, hooks, permissions, approval, sandbox. The **floor** is the vocabulary everything speaks — the shared module and the any-prefixed contracts, config, memory — and it is the only place a lower layer may stand.
+
+Hold those two paragraphs and one rule — one direction, talk to contracts — and any file name can be placed in the map. Everything else in this section is detail hanging under one of them.
 
 ## Where to start
 
