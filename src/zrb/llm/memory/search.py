@@ -101,6 +101,16 @@ def is_about_the_subject(query: str, hit: Hit) -> bool:
     return any(_is_word_in(word, surface) for word in wanted for surface in surfaces)
 
 
+def _word_pattern(word: str) -> re.Pattern[str]:
+    """*word* as a pattern that matches it whole, for reuse across a scoring pass.
+
+    Compiling once and searching many times is what lets the ranker hold the same
+    rule as the filter below without making a search slower than the turn it
+    serves: a store of a thousand facts is a thousand surfaces per term.
+    """
+    return re.compile(rf"(?<![0-9a-z]){re.escape(word)}(?![0-9a-z])")
+
+
 def _is_word_in(word: str, surface: str) -> bool:
     """Whether *word* appears in *surface* as a word, not inside a longer one.
 
@@ -108,19 +118,23 @@ def _is_word_in(word: str, surface: str) -> bool:
     `redbrick`. That is tolerable for a search the model asked for and wrong for
     a cue it did not: an unasked claim spends context and can steer the turn.
     """
-    return (
-        re.search(rf"(?<![0-9a-z]){re.escape(word)}(?![0-9a-z])", surface) is not None
-    )
+    return _word_pattern(word).search(surface) is not None
 
 
 def terms(query: str) -> list[str]:
-    """The words of *query* that could name a subject."""
+    """The distinct words of *query* that could name a subject.
+
+    A word said twice is one subject named twice, so it is counted once: the
+    weights below are per term, and a repeated word used to multiply its own
+    score — "memory memory memory memory" scored four times what "memory" did,
+    which let the way a question was phrased outweigh what it was about.
+    """
     words = [word for word in query.lower().split() if word]
     significant = [
         word.strip(".,;:!?()[]\"'") for word in words if word not in _STOP_WORDS
     ]
     kept = [word for word in significant if len(word) >= _MIN_TERM_CHARS]
-    return kept or [word for word in significant if word]
+    return list(dict.fromkeys(kept or [word for word in significant if word]))
 
 
 def search(
@@ -189,19 +203,29 @@ def suggest(query: str, limit: int = MAX_SUGGESTIONS) -> list[str]:
 def _fact_hits(
     wanted: list[str], active_only: bool, retired_only: bool = False
 ) -> list[Hit]:
+    patterns = {word: _word_pattern(word) for word in wanted}
     hits: list[Hit] = []
     for fact in store.load_facts(include_retired=not active_only):
         if retired_only and fact.is_active:
             continue
         if active_only and not fact.is_active:
             continue
-        score = _fact_score(wanted, fact)
+        score = _fact_score(wanted, fact, patterns)
         if score:
             hits.append(_fact_hit(fact, score))
     return hits
 
 
-def _fact_score(wanted: list[str], fact: Fact) -> int:
+def _fact_score(
+    wanted: list[str], fact: Fact, patterns: dict[str, re.Pattern[str]]
+) -> int:
+    """How well *fact* answers *wanted*, by where each word was found.
+
+    A word is matched whole, the same rule `is_about_the_subject` applies: a
+    substring test read `all` out of `small` and `Alloy`, so one common fragment
+    scored every claim that happened to contain it and buried the claim that was
+    actually about the subject.
+    """
     if fact.id.lower() in wanted:
         return ID_MATCH
     claim = fact.claim.lower()
@@ -209,11 +233,15 @@ def _fact_score(wanted: list[str], fact: Fact) -> int:
     body = fact.body.lower()
     score = 0
     for word in wanted:
-        if word in claim:
+        pattern = patterns[word]
+        # The substring test is the cheap pre-check: most terms are not in most
+        # claims at all, and only a term that is gets the pattern that decides
+        # whether it was a whole word.
+        if word in claim and pattern.search(claim):
             score += CLAIM_TERM
-        if word in tags:
+        if word in tags and pattern.search(tags):
             score += TAG_TERM
-        if word in body:
+        if word in body and pattern.search(body):
             score += BODY_TERM
     return score
 
@@ -238,23 +266,27 @@ def _fact_hit(fact: Fact, score: int) -> Hit:
 def _diary_hits(
     wanted: list[str], active_only: bool, retired_only: bool = False
 ) -> list[Hit]:
+    patterns = {word: _word_pattern(word) for word in wanted}
     hits: list[Hit] = []
     for entry in store.load_diaries(include_retired=not active_only).values():
         if retired_only and entry.is_active:
             continue
         if active_only and not entry.is_active:
             continue
-        score = _diary_score(wanted, entry)
+        score = _diary_score(wanted, entry, patterns)
         if score:
             hits.append(_diary_hit(entry, score))
     return hits
 
 
-def _diary_score(wanted: list[str], entry: Diary) -> int:
+def _diary_score(
+    wanted: list[str], entry: Diary, patterns: dict[str, re.Pattern[str]]
+) -> int:
     claim = entry.claim.lower()
     body = entry.body.lower()
     return sum(
-        (CLAIM_TERM if word in claim else 0) + (BODY_TERM if word in body else 0)
+        (CLAIM_TERM if word in claim and patterns[word].search(claim) else 0)
+        + (BODY_TERM if word in body and patterns[word].search(body) else 0)
         for word in wanted
     )
 
@@ -271,11 +303,14 @@ def _diary_hit(entry: Diary, score: int) -> Hit:
 
 
 def _log_hits(wanted: list[str]) -> list[Hit]:
+    patterns = {word: _word_pattern(word) for word in wanted}
     hits: list[Hit] = []
     for day in _log_days():
         for line in store.log_lines(day):
             folded = line.lower()
-            score = sum(LOG_TERM for word in wanted if word in folded)
+            score = sum(
+                LOG_TERM for word in wanted if word in folded and patterns[word].search(folded)
+            )
             if not score:
                 continue
             hits.append(

@@ -52,6 +52,29 @@ def test_a_term_matches_a_word_and_not_a_slice_of_one():
     assert not search.is_about_the_subject("api", unrelated)
 
 
+def test_the_ranker_matches_a_word_and_not_a_slice_of_one(store_dir):
+    """Scoring holds the same rule the filter does.
+
+    It used to read a term out of any longer word that contained it, so `all`
+    scored every claim holding `Alloy`, `small` or `installed` — one common
+    fragment outranked the claim that was actually about the subject.
+    """
+    _save(id="windows-artifacts", claim="Alloy ships windows-amd64 only.")
+    _save(id="all-of-the-run", claim="All of the run is kept.")
+    assert [hit.id for hit in search.search("all")] == ["all-of-the-run"]
+
+
+def test_a_query_word_named_twice_is_counted_once():
+    """A repeated word is one subject named twice, not two subjects.
+
+    The weights are per term, so an undeduplicated query multiplied its own
+    score: `memory memory memory memory` scored four times what `memory` did, and
+    the way a question was phrased could outweigh what it was about.
+    """
+    assert search.terms("memory memory memory") == ["memory"]
+    assert search.terms("Board memory board") == ["board", "memory"]
+
+
 def test_an_exact_id_outranks_a_claim_mention(store_dir):
     _save(id="deploy", claim="Deploy is a script.", body="")
     _save(id="other", claim="Deploy happens on Fridays.", body="")
