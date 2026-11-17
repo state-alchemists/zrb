@@ -135,12 +135,14 @@ class BaseUIModelCommands:
     def _apply_judge_state(self, is_enabled: bool) -> None:
         """Record this session's choice, and say it once.
 
-        Consultation only. `LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED` is not
-        reachable from here — that is the half that lets a `safe` verdict skip
-        the prompt, and a person's approval should not sit one keystroke away.
+        Consultation only, in both directions: `/judge on` also withdraws the
+        auto half for this conversation, even where `--judge auto-approve` or
+        the environment granted it. A keystroke may always make the judge ask
+        more; turning the second grant back on is a launch flag or the
+        environment, never a command.
         """
         self._base_ui.judge_override = is_enabled
-        state = "On" if is_enabled else "Off"
+        state = "On — a safe verdict still asks" if is_enabled else "Off"
         self._base_ui.append_to_output(stylize_muted(f"\n  ⚖ JUDGE: {state}\n"))
         self._base_ui.display.invalidate_ui()
 

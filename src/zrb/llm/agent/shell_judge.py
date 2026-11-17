@@ -78,10 +78,12 @@ _VERDICT_LINE = re.compile(
 
 @dataclass(frozen=True)
 class ShellVerdict:
-    """What the judge decided, and the one sentence it says why."""
+    """What the judge decided, the one sentence it says why, and the risk facts
+    it was shown."""
 
     level: str
     reason: str
+    facts: str = ""
 
     @property
     def is_safe(self) -> bool:
@@ -197,7 +199,9 @@ async def judge_shell_command(
             output_type=JudgeVerdict,
             resolve_model=False,
         )
-        payload = await asyncio.to_thread(_build_payload, text, cwd, sandbox_off)
+        payload, facts = await asyncio.to_thread(
+            _build_payload, text, cwd, sandbox_off
+        )
         result = await asyncio.wait_for(
             agent.run(payload), timeout=JUDGE_TIMEOUT_SECONDS
         )
@@ -206,7 +210,8 @@ async def judge_shell_command(
         raise ShellJudgeError(str(error) or type(error).__name__) from error
     record_agent_usage(result, component=COMPONENT_SHELL_JUDGE)
     _log_spend(result)
-    return verdict_from_output(getattr(result, "output", None))
+    verdict = verdict_from_output(getattr(result, "output", None))
+    return ShellVerdict(level=verdict.level, reason=verdict.reason, facts=facts)
 
 
 async def judge_or_unknown(
@@ -230,8 +235,8 @@ async def judge_or_unknown(
         return ShellVerdict(level=JUDGE_UNKNOWN, reason="the judge did not finish")
 
 
-def _build_payload(command: str, cwd: str, sandbox_off: bool) -> str:
-    """The judge's whole input: the command, and the facts it cannot carry."""
+def _build_payload(command: str, cwd: str, sandbox_off: bool) -> tuple[str, str]:
+    """The judge's whole input, and the risk facts worth showing a reader."""
     directory = cwd or os.getcwd()
     dirt = uncommitted_files(directory)
     sandbox = (
@@ -239,12 +244,29 @@ def _build_payload(command: str, cwd: str, sandbox_off: bool) -> str:
         if sandbox_off
         else "on — writes are bounded to the workspace"
     )
-    return (
+    text = (
         f"Command:\n{command}\n\n"
         f"Working directory: {directory}\n"
         f"Sandbox: {sandbox}\n"
         f"Uncommitted files in this repository: {dirt}"
     )
+    return text, shown_facts(dirt, sandbox_off)
+
+
+def shown_facts(dirt: str, sandbox_off: bool) -> str:
+    """The facts that *raise* the risk, as one line for the approval prompt.
+
+    A sandbox that is on and a clean repository are what a reader already
+    assumes, so they stay silent; the two that make a command worse are named.
+    These come from the call's arguments and from `git status`, never from the
+    model's sentence, so they cannot be vague.
+    """
+    facts: list[str] = []
+    if sandbox_off:
+        facts.append("sandbox off")
+    if dirt.isdigit() and int(dirt) > 0:
+        facts.append(f"{dirt} uncommitted")
+    return " · ".join(facts)
 
 
 def uncommitted_files(directory: str) -> str:
@@ -291,6 +313,7 @@ __all__ = [
     "judge_or_unknown",
     "judge_shell_command",
     "parse_verdict",
+    "shown_facts",
     "verdict_from_output",
     "uncommitted_files",
     "JUDGE_CAUTION",

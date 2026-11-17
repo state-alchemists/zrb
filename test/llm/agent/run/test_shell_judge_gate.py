@@ -92,7 +92,11 @@ async def test_an_enabled_judge_alone_only_annotates_the_prompt(monkeypatch):
     with _judging(ShellVerdict(JUDGE_SAFE, "rebuilds build/ from source")), _is_shell():
         verdict = await _apply_shell_judge(_call(), None, False)
     assert verdict is None
-    assert read_judge_note(_CALL_ID) == (JUDGE_SAFE, "rebuilds build/ from source")
+    assert read_judge_note(_CALL_ID) == (
+        JUDGE_SAFE,
+        "rebuilds build/ from source",
+        "",
+    )
     assert format_judge_line(_CALL_ID) == (
         "       🟢 judged safe: rebuilds build/ from source\n"
     )
@@ -115,7 +119,7 @@ async def test_only_a_safe_verdict_may_skip_the_prompt(monkeypatch, level):
     with _judging(ShellVerdict(level, "something to weigh")), _is_shell():
         verdict = await _apply_shell_judge(_call(), None, False)
     assert verdict is None
-    assert read_judge_note(_CALL_ID) == (level, "something to weigh")
+    assert read_judge_note(_CALL_ID) == (level, "something to weigh", "")
 
 
 @pytest.mark.asyncio

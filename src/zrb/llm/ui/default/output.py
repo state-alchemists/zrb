@@ -13,7 +13,10 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.llm.approval.judge_state import is_shell_judge_enabled_for
+from zrb.llm.approval.judge_state import (
+    is_shell_judge_auto_approve_enabled_for,
+    is_shell_judge_enabled_for,
+)
 from zrb.llm.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.ambient_state import get_session_ownership_key
@@ -697,11 +700,15 @@ class UIOutput:
         return self._switch_fragment(is_sandbox_enabled_for(self._ui))
 
     def _judge_fragment(self) -> tuple:
-        """The shell judge's in-force state.
+        """The shell judge's in-force state: `AUTO`, `On ` or `Off`.
 
-        Consultation only: no badge exists for the auto-approve half, because
-        no keystroke reaches it.
+        `AUTO` is the deployment's second grant, reachable for one run by
+        `--judge auto-approve`. It takes the same red the YOLO badge uses for
+        "may act without asking", because that is the claim it makes, and it
+        stays on screen for the whole session rather than being said once.
         """
+        if is_shell_judge_auto_approve_enabled_for(self._ui):
+            return (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_ON), "AUTO")
         return self._switch_fragment(is_shell_judge_enabled_for(self._ui))
 
     def _switch_fragment(self, is_enabled: bool) -> tuple:

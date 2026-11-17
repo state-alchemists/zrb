@@ -47,12 +47,14 @@ JUDGE_GLYPHS = {
     JUDGE_UNKNOWN: "⚪",
 }
 
-_pending: dict[str, tuple[str, str]] = {}
+_pending: dict[str, tuple[str, str, str]] = {}
 
 
-def record_judge_note(tool_call_id: str, level: str, reason: str) -> None:
-    """Remember what the judge said about *tool_call_id*."""
-    _pending[tool_call_id] = (level, reason)
+def record_judge_note(
+    tool_call_id: str, level: str, reason: str, facts: str = ""
+) -> None:
+    """Remember what the judge said about *tool_call_id*, and what it saw."""
+    _pending[tool_call_id] = (level, reason, facts)
 
 
 def discard_judge_note(tool_call_id: str | None) -> None:
@@ -62,8 +64,8 @@ def discard_judge_note(tool_call_id: str | None) -> None:
     _pending.pop(tool_call_id, None)
 
 
-def read_judge_note(tool_call_id: str | None) -> tuple[str, str] | None:
-    """The ``(level, reason)`` recorded for *tool_call_id*, if any.
+def read_judge_note(tool_call_id: str | None) -> tuple[str, str, str] | None:
+    """The ``(level, reason, facts)`` recorded for *tool_call_id*, if any.
 
     Read, not consumed: a prompt can be drawn more than once for one call (a
     response handler that asks again), and the line belongs on each of them.
@@ -81,15 +83,21 @@ def format_judge_line(tool_call_id: str | None) -> str:
     output must not be able to redraw the prompt someone is about to answer.
     The circle leads and the level word follows it, so the line survives being
     read at a glance and being read exactly.
+
+    The facts in parentheses come from `git status` and the call's arguments,
+    not from the model: they are the half of the line a reader can check.
     """
     note = read_judge_note(tool_call_id)
     if note is None:
         return ""
-    level, reason = note
+    level, reason, facts = note
     glyph = JUDGE_GLYPHS.get(level, JUDGE_GLYPHS[JUDGE_UNKNOWN])
+    shown_facts = (
+        " (" + " ".join(facts.split()) + ")" if facts and facts.strip() else ""
+    )
     printable = "".join(char if char.isprintable() else " " for char in reason)
     shown = " ".join(printable.split())
     if not shown:
-        return f"       {glyph} judged: {level}\n"
+        return f"       {glyph} judged: {level}{shown_facts}\n"
     shown = truncate_display(shown, MAX_JUDGE_REASON_CHARS)
-    return f"       {glyph} judged {level}: {shown}\n"
+    return f"       {glyph} judged {level}{shown_facts}: {shown}\n"
