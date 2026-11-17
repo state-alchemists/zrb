@@ -19,7 +19,10 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.shell_judge import judge_or_unknown
 from zrb.llm.approval.any_approval_channel import ApprovalContext
-from zrb.llm.approval.judge_state import is_shell_judge_enabled
+from zrb.llm.approval.judge_state import (
+    is_shell_judge_auto_approve_enabled,
+    is_shell_judge_enabled,
+)
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import ASK
@@ -452,7 +455,7 @@ async def _apply_shell_judge(
     if (
         verdict.is_safe
         and not sandbox_off
-        and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
+        and is_shell_judge_auto_approve_enabled()
         and not force_ask
         and policy_decision != ASK
     ):
@@ -462,7 +465,7 @@ async def _apply_shell_judge(
         from pydantic_ai import ToolApproved
 
         return ToolApproved()
-    record_judge_note(call.tool_call_id, verdict.level, verdict.reason)
+    record_judge_note(call.tool_call_id, verdict.level, verdict.reason, verdict.facts)
     return None
 
 

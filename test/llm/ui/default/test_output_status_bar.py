@@ -476,3 +476,17 @@ def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
 
     assert "Shell" not in text
     assert "16m 40s" not in text
+
+
+def test_the_judge_switch_says_auto_when_a_safe_verdict_may_skip():
+    """`AUTO`, not `On`: a bar saying `On` would claim the judge only annotates,
+    which is the state a deployment without the second grant leaves it in."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    with patch(
+        "zrb.llm.ui.default.output.is_shell_judge_auto_approve_enabled_for",
+        return_value=True,
+    ):
+        res = ui.get_info_bar_text()
+    assert "AUTO" in "".join(t for _style, t, *_ in to_formatted_text(res))

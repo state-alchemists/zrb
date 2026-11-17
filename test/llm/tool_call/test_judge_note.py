@@ -20,7 +20,11 @@ def _lines(text: str) -> list[str]:
 
 def test_a_recorded_verdict_reads_back_and_draws_one_line():
     record_judge_note("call-1", JUDGE_CAUTION, "discards uncommitted work")
-    assert read_judge_note("call-1") == (JUDGE_CAUTION, "discards uncommitted work")
+    assert read_judge_note("call-1") == (
+        JUDGE_CAUTION,
+        "discards uncommitted work",
+        "",
+    )
     assert format_judge_line("call-1") == (
         "       🟡 judged caution: discards uncommitted work\n"
     )
@@ -109,3 +113,31 @@ def test_discarding_drops_the_line():
 def test_discarding_an_absent_call_is_not_an_error():
     discard_judge_note("nothing-here")
     discard_judge_note(None)
+
+
+def test_the_facts_it_judged_with_sit_between_the_level_and_the_reason():
+    """The sentence is the model's; the facts are `git status` and the call's own
+    arguments, so they are the half of the line a reader can check."""
+    record_judge_note(
+        "facts", JUDGE_CAUTION, "rewrites history", "sandbox off · 12 uncommitted"
+    )
+    assert format_judge_line("facts") == (
+        "       🟡 judged caution (sandbox off · 12 uncommitted): rewrites history\n"
+    )
+
+
+def test_a_verdict_with_no_facts_keeps_the_old_line():
+    record_judge_note("clean", JUDGE_SAFE, "read-only listing", "")
+    assert format_judge_line("clean") == "       🟢 judged safe: read-only listing\n"
+
+
+def test_a_level_with_no_reason_still_carries_the_facts():
+    record_judge_note("bare", JUDGE_UNKNOWN, " ", "sandbox off")
+    assert format_judge_line("bare") == "       ⚪ judged: unknown (sandbox off)\n"
+
+
+def test_facts_that_span_lines_draw_one():
+    record_judge_note("spread", JUDGE_CAUTION, "deletes build/", "sandbox off\n12 uncommitted")
+    assert _lines(format_judge_line("spread")) == [
+        "       🟡 judged caution (sandbox off 12 uncommitted): deletes build/"
+    ]

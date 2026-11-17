@@ -214,7 +214,11 @@ FACADE_BUDGETS = {
     # +23 (1005->1028): the `capability_factories` collection (append/prepend/
     # set/remove plus its property), building a run's pydantic-ai capabilities
     # from its context, which emotion uses -- new surface.
-    "llm/task/chat/task.py": 1028,
+    # +19 (1028->1047): `before_session`, the callable a host runs once before a
+    # run's session and hooks are built, so `zrb chat` can apply its launch flags
+    # to `CFG` before the speech preset and the memory hooks have read it -- a new
+    # seam, not a delegator.
+    "llm/task/chat/task.py": 1047,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a

@@ -14,6 +14,7 @@ from zrb.llm.agent.shell_judge import (
     judge_or_unknown,
     judge_shell_command,
     parse_verdict,
+    shown_facts,
     uncommitted_files,
     verdict_from_output,
 )
@@ -99,6 +100,16 @@ def test_a_safe_verdict_built_by_hand_still_needs_a_reason():
     assert not ShellVerdict(JUDGE_SAFE, "   ").is_safe
 
 
+def test_the_facts_name_only_what_raises_the_risk():
+    """A sandbox that is on and a clean repository are what a reader already
+    assumes, so naming them would crowd out the two facts that matter."""
+    assert shown_facts("0", False) == ""
+    assert shown_facts("unknown (not a git repository)", False) == ""
+    assert shown_facts("12", False) == "12 uncommitted"
+    assert shown_facts("0", True) == "sandbox off"
+    assert shown_facts("12", True) == "sandbox off · 12 uncommitted"
+
+
 def test_the_first_verdict_line_wins():
     """A model that explains itself after answering must not move the verdict
     by saying 'dangerous' in the prose below it."""
@@ -114,7 +125,9 @@ async def test_a_verdict_from_the_model_reaches_the_caller():
     ):
         verdict = await judge_shell_command("git reset --hard")
     assert verdict == ShellVerdict(
-        level=JUDGE_CAUTION, reason="discards uncommitted work"
+        level=JUDGE_CAUTION,
+        reason="discards uncommitted work",
+        facts="3 uncommitted",
     )
     assert not verdict.is_safe
 

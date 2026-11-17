@@ -277,6 +277,9 @@ class LLMChatTask(BaseTask):
         self._conversation_name = conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
+        # Set by a host that needs a run's own settings applied first; see the
+        # `before_session` property.
+        self._before_session: Callable[[AnyContext], None] | None = None
         self._init_ui_surface(ui, ui_factory, approval_channel)
         self._permissions = permissions
         self._sandbox = sandbox
@@ -785,6 +788,29 @@ class LLMChatTask(BaseTask):
         self._active_hook_manager = value
 
     @property
+    def before_session(self) -> Callable[[AnyContext], None] | None:
+        """Called once at the start of a run, before the session and its hooks.
+
+        The seam a host uses to apply what this run was told, where the
+        environment and `zrb_init.py` otherwise decide: the speech and dictation
+        presets resolve when the session starts, and the memory hooks decide at
+        registration whether they join, so a setting written after either has
+        already run changes nothing. The built-in chat task passes its launch
+        flags through here.
+        """
+        return self._before_session
+
+    @before_session.setter
+    def before_session(self, value: Callable[[AnyContext], None] | None) -> None:
+        """Replace the pre-session callable, or None to run nothing."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.before_session must be callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._before_session = value
+
+    @property
     def yolo(self) -> BoolAttr:
         """The raw `yolo` attribute (unevaluated bool/template/callable)."""
         return self._yolo
@@ -990,6 +1016,8 @@ class LLMChatTask(BaseTask):
         return self._execution.get_system_prompt(ctx)
 
     async def _exec_action(self, ctx: AnyContext) -> object:
+        if self._before_session is not None:
+            self._before_session(ctx)
         return await self._execution.exec_action(ctx)
 
     async def teardown_interactive_resources(self) -> None:
