@@ -235,9 +235,12 @@ async def test_a_program_that_cannot_start_fails(every_tool_installed):
 
 @pytest.mark.asyncio
 async def test_a_hanging_program_is_abandoned(every_tool_installed):
+    # The budget must outlast starting the program, and the hang outlast the
+    # budget: at 50ms a loaded Windows runner spends the deadline before
+    # `run_program` reads it and reports "no time left" instead of a timeout.
     proc = _FakeProcess(hang_seconds=5)
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=proc)):
-        backend = _backend("grim", timeout=0.05)
+        backend = _backend("grim", timeout=1.0)
         result = await backend.capture(None)
 
     assert result is None
