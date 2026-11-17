@@ -7,8 +7,8 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.hook.builtin.memory_reviewer import (
-    INTERRUPTED_LOG_TEXT,
     _DAY_APPEND_RESERVE,
+    INTERRUPTED_LOG_TEXT,
     _append_event_line,
     _day_note,
     _first_sentence,
