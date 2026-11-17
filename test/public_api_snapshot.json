@@ -950,6 +950,7 @@
         "argument_formatters",
         "async_run",
         "attachment",
+        "before_session",
         "capabilities",
         "capability_factories",
         "color",

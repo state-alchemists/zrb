@@ -2,6 +2,7 @@ import sys
 
 from zrb.attr.tpl import Tpl
 from zrb.builtin.group import llm_group
+from zrb.builtin.llm.chat_flags import apply_launch_flags
 from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_notes_dir,
     approve_if_path_inside_cwd,
@@ -85,6 +86,48 @@ llm_chat = LLMChatTask(
             allow_empty=True,
             always_prompt=False,
         ),
+        StrInput(
+            "voice",
+            "Voice Preset (off/speak/turns/conversation)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "volume",
+            "Speech Volume (0-200)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "thinking",
+            "Thinking Level (minimal/low/medium/high/xhigh/true/false)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "profile",
+            "Prompt Profile (minimal/standard/capable/auto)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "memory",
+            "Memory (true/false)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "self-review",
+            "Self Review (true/false)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
+        StrInput(
+            "judge",
+            "Shell Judge (on/off/auto-approve)",
+            allow_empty=True,
+            always_prompt=False,
+        ),
     ],
     model=Tpl("{ctx.input.model}"),
     yolo=Tpl("{ctx.input.yolo}"),
@@ -102,6 +145,9 @@ llm_chat = LLMChatTask(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ),
 )
+
+# A flag reaches `CFG` here, before the session and its hooks are built.
+llm_chat.before_session = apply_launch_flags
 
 # The zrb-shipped default tools. Storage-only: nothing resolves (and
 # `pydantic_ai` does not load) until the first agent build.

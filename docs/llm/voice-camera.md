@@ -11,7 +11,7 @@
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
 
-To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Voice and Camera configuration](../configuration/llm-voice-camera.md#voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
+To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Voice and Camera configuration](../configuration/llm-voice-camera.md#voice-and-camera); for one run, `zrb chat --voice conversation` and `zrb chat --volume 60` set the same two without an export, while an environment variable still decides any setting the preset only supplies a default for. Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
 ## Table of Contents
 
