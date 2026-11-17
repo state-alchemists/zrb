@@ -58,9 +58,7 @@ def apply_launch_flags(ctx: AnyContext) -> None:
 def _apply_setting(name: str, raw: str) -> None:
     """Cast *raw* the way a read of *name* would, then keep it for this process."""
     if name == "LLM_PROFILE" and raw.lower() not in PROFILE_NAMES:
-        raise ValueError(
-            f"--profile {raw!r} is not one of: {', '.join(PROFILE_NAMES)}"
-        )
+        raise ValueError(f"--profile {raw!r} is not one of: {', '.join(PROFILE_NAMES)}")
     value = CFG.convert_setting_value(name, raw)
     if name == "LLM_SPEECH_VOLUME":
         value = _checked_volume(value)

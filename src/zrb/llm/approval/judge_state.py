@@ -49,7 +49,9 @@ def is_shell_judge_auto_approve_enabled_for(ui: object) -> bool:
     """
     if judge_override_of(ui) is not None:
         return False
-    return bool(CFG.LLM_SHELL_JUDGE_ENABLED and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED)
+    return bool(
+        CFG.LLM_SHELL_JUDGE_ENABLED and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
+    )
 
 
 def is_shell_judge_enabled() -> bool:

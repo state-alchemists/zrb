@@ -87,8 +87,7 @@ def test_a_quoted_speech_tag_is_content_and_is_kept():
     """
     message = "Write `<spoken>text</spoken>` around the sentence. Then stop."
     assert (
-        _first_sentence(message)
-        == "Write `<spoken>text</spoken>` around the sentence"
+        _first_sentence(message) == "Write `<spoken>text</spoken>` around the sentence"
     )
 
 

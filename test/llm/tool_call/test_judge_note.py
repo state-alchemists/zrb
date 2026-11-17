@@ -137,7 +137,9 @@ def test_a_level_with_no_reason_still_carries_the_facts():
 
 
 def test_facts_that_span_lines_draw_one():
-    record_judge_note("spread", JUDGE_CAUTION, "deletes build/", "sandbox off\n12 uncommitted")
+    record_judge_note(
+        "spread", JUDGE_CAUTION, "deletes build/", "sandbox off\n12 uncommitted"
+    )
     assert _lines(format_judge_line("spread")) == [
         "       🟡 judged caution (sandbox off 12 uncommitted): deletes build/"
     ]

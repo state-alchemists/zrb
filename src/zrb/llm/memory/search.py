@@ -309,7 +309,9 @@ def _log_hits(wanted: list[str]) -> list[Hit]:
         for line in store.log_lines(day):
             folded = line.lower()
             score = sum(
-                LOG_TERM for word in wanted if word in folded and patterns[word].search(folded)
+                LOG_TERM
+                for word in wanted
+                if word in folded and patterns[word].search(folded)
             )
             if not score:
                 continue
