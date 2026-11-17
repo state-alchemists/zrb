@@ -317,6 +317,60 @@ async def test_an_auto_approving_config_reaches_the_agent():
 
 
 @pytest.mark.asyncio
+async def test_a_config_note_follows_the_event_in_the_turn():
+    """A hook can need the state of a file and not only the event.
+
+    The memory reviewer is handed the day's body that way: a config is built once
+    and outlives many turns, so its note is a function of the context rather than
+    a string fixed at registration.
+    """
+    config = AgentHookConfig(
+        system_prompt="sp",
+        model="fake-model",
+        input_note=lambda context: "the page is full",
+    )
+    hook = create_agent_hook(config)
+    context = HookContext(event=HookEvent.STOP, event_data={"a": 1})
+
+    agent_cls = _agent_returning("plain")
+    mock_config, mock_module = _patched_agent(agent_cls)
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
+        await hook(context)
+
+    assert agent_cls.return_value.run.call_args.args[0] == (
+        "{'a': 1}\n\nthe page is full"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_note_that_cannot_be_built_leaves_the_turn_as_it_was():
+    """A note is read off the store, which can be unreadable.
+
+    The reviewer is fire-and-forget: a turn it never saw is a turn nobody
+    recorded, so a missing paragraph is the cheaper failure.
+    """
+
+    def unreadable(context):
+        raise OSError("the store cannot be read")
+
+    config = AgentHookConfig(
+        system_prompt="sp", model="fake-model", input_note=unreadable
+    )
+    hook = create_agent_hook(config)
+    context = HookContext(event=HookEvent.STOP, event_data={"a": 1})
+
+    agent_cls = _agent_returning("plain")
+    mock_config, mock_module = _patched_agent(agent_cls)
+    with mock_config as mock_resolve_model, mock_module:
+        mock_resolve_model.return_value = "resolved"
+        result = await hook(context)
+
+    assert result.success is True
+    assert agent_cls.return_value.run.call_args.args[0] == "{'a': 1}"
+
+
+@pytest.mark.asyncio
 async def test_agent_hook_exception_returns_failure():
     config = AgentHookConfig(system_prompt="sp", model="fake-model")
     hook = create_agent_hook(config)

@@ -52,3 +52,16 @@ def test_the_prompt_revises_the_write_the_turn_already_made():
     text = get_prompt("memory_reviewer")
     assert "revise **that id**" in text
     assert "reply `skip`" in text
+
+
+def test_the_prompt_says_a_full_day_is_written_back():
+    """A day that fills its page used to stop recording at the hour it filled.
+
+    The reviewer appends without ever seeing the day, so the page being full was a
+    refusal it could not read; the hook hands the body over and the prompt has to
+    say what to do with it.
+    """
+    text = get_prompt("memory_reviewer")
+    assert "A full day is handed to you" in text
+    assert 'body_mode="w"' in text
+    assert "drop the weakest paragraph" in text

@@ -9,6 +9,7 @@ from zrb.config.config import CFG
 from zrb.llm.hook.builtin.memory_reviewer import (
     INTERRUPTED_LOG_TEXT,
     _append_event_line,
+    _day_note,
     _first_sentence,
     _tags,
     build_completed_log_hook_config,
@@ -21,6 +22,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.memory import paths, store
+from zrb.llm.memory.model import Diary
 
 
 @pytest.fixture
@@ -335,6 +337,45 @@ async def test_a_cancelled_turn_leaves_an_event_line_and_no_guess(store_dir):
     assert len(lines) == 1
     assert INTERRUPTED_LOG_TEXT in lines[0]
     assert lines[0].endswith("(zrb)")
+
+
+def test_a_day_with_room_is_not_handed_to_the_reviewer(store_dir):
+    """The body is a page, and paying for it on every turn buys nothing.
+
+    The reviewer appends to a day that has room without ever needing to see it —
+    and the day it would otherwise read is the one thing that grows all day.
+    """
+    store.save_diary(Diary(id=store.today(), claim="A day.", body="Wrote it down."))
+    assert _day_note(HookContext(event=HookEvent.STOP, event_data={})) == ""
+
+
+def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
+    """A page that is full refuses the append, and the reviewer cannot see why.
+
+    The reviewer holds one turn's transcript, so an append that comes back refused
+    is indistinguishable from a day that did not change. On 2026-11-17 the body
+    reached 7,962 of 8,000 characters at half past ten and every paragraph after
+    that was lost, which is the failure this hands the page over to prevent.
+    """
+    limit = CFG.LLM_MEMORY_DIARY_MAX_CHARS
+    body = "x" * (limit - 100)
+    day = store.today()
+    store.save_diary(Diary(id=day, claim="A long day.", body=body))
+
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+    assert f"{len(body)} of {limit}" in note
+    assert body in note
+    assert f'Remember(id="{day}", kind="diary", body_mode="w"' in note
+    # A day that already has a sentence keeps it: the page is being shortened,
+    # not re-titled from one turn's transcript.
+    assert "Omit `claim`" in note
+
+
+def test_the_note_is_offered_to_the_reviewer_but_not_to_the_log_hooks(store_dir):
+    """The log hooks build no agent, so a note would be read for nothing."""
+    assert build_memory_reviewer_hook_config().config.input_note is _day_note
+    assert build_completed_log_hook_config().config.input_note is None
 
 
 def test_the_project_tag_is_the_directory_on_a_windows_path_too():
