@@ -465,7 +465,7 @@ async def _apply_shell_judge(
         from pydantic_ai import ToolApproved
 
         return ToolApproved()
-    record_judge_note(call.tool_call_id, verdict.level, verdict.reason)
+    record_judge_note(call.tool_call_id, verdict.level, verdict.reason, verdict.facts)
     return None
 
 

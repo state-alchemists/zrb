@@ -89,16 +89,19 @@ async def test_a_tool_that_is_not_a_shell_command_is_not_judged(monkeypatch):
 @pytest.mark.asyncio
 async def test_an_enabled_judge_alone_only_annotates_the_prompt(monkeypatch):
     _knobs(monkeypatch, judge=True, auto_approve=False)
-    with _judging(ShellVerdict(JUDGE_SAFE, "rebuilds build/ from source")), _is_shell():
+    judged = ShellVerdict(
+        JUDGE_SAFE, "rebuilds build/ from source", facts="12 uncommitted"
+    )
+    with _judging(judged), _is_shell():
         verdict = await _apply_shell_judge(_call(), None, False)
     assert verdict is None
     assert read_judge_note(_CALL_ID) == (
         JUDGE_SAFE,
         "rebuilds build/ from source",
-        "",
+        "12 uncommitted",
     )
     assert format_judge_line(_CALL_ID) == (
-        "       🟢 judged safe: rebuilds build/ from source\n"
+        "       🟢 judged safe (12 uncommitted): rebuilds build/ from source\n"
     )
 
 

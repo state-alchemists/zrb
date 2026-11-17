@@ -34,17 +34,22 @@ def is_shell_judge_enabled_for(ui: object) -> bool:
 def is_shell_judge_auto_approve_enabled_for(ui: object) -> bool:
     """Whether a `safe` verdict may skip the prompt for the session behind `ui`.
 
-    The deployment's setting, unless the session touched the switch itself:
-    `/judge on` says "consult, and still ask", so it withdraws the auto half
-    for that conversation even where the deployment granted it. Every keystroke
-    can only move towards asking; a launch flag or the environment is the only
-    way to the second grant. `--judge auto-approve` is that launch flag: it
-    writes both settings for the run, so a session that never touched `/judge`
-    keeps the answer it started with.
+    The deployment's second setting, unless the session touched the switch
+    itself: `/judge on` says "consult, and still ask", so it withdraws the auto
+    half for that conversation even where the deployment granted it. Every
+    keystroke can only move towards asking; a launch flag or the environment is
+    the only way to the second grant. `--judge auto-approve` is that launch
+    flag: it writes both settings for the run, so a session that never touched
+    `/judge` keeps the answer it started with.
+
+    Both settings are read because the second is meaningless without the first:
+    a deployment that turned consultation off has no verdict to skip a prompt
+    with, and a badge that said otherwise would be describing a grant nothing
+    can use.
     """
     if judge_override_of(ui) is not None:
         return False
-    return CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED
+    return bool(CFG.LLM_SHELL_JUDGE_ENABLED and CFG.LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED)
 
 
 def is_shell_judge_enabled() -> bool:

@@ -56,6 +56,21 @@ def test_a_silent_session_follows_the_deployment_on_both_halves(monkeypatch):
     assert is_shell_judge_auto_approve_enabled_for(session) is False
 
 
+def test_a_deployment_that_does_not_judge_cannot_auto_approve(monkeypatch):
+    """The second grant is meaningless without the first, and a badge that
+    showed it would be describing a grant nothing can use."""
+    from zrb.config.config import CFG
+    from zrb.llm.approval.judge_state import (
+        is_shell_judge_auto_approve_enabled_for,
+    )
+
+    monkeypatch.setattr(CFG, "LLM_SHELL_JUDGE_ENABLED", False)
+    monkeypatch.setattr(CFG, "LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED", True)
+    session = SimpleNamespace(tools=SimpleNamespace(judge_override=None))
+
+    assert is_shell_judge_auto_approve_enabled_for(session) is False
+
+
 def test_a_session_that_asks_to_be_consulted_withdraws_the_auto_half(monkeypatch):
     """`/judge on` says "consult, and still ask". Every keystroke may move the
     judge towards asking; only a launch flag or the environment may hand a
