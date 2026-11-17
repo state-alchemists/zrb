@@ -168,11 +168,13 @@ turn only.
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
 | `claim` | yes | The day in one line, ≤ 160 chars. This is what the recent block shows for that day, so a day stops being inferred from its log lines. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
-| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (8,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. |
+| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (8,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. `body_mode="w"` replaces the page, and with `body_digest` — the digest shown beside the body it read — the write is refused when the day moved in between. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
 | `status` | yes | Always `active`; only `forget(reason="wrong")` can retire it. `stale` and `done` are refused, because a day does not stop being true. |
 
 A second session on the same day `remember`s into the same file and merges — which is what adding to a diary is. Omitted fields keep their stored values, so a session that only appends a paragraph cannot wipe the handover. `body_mode="a"` is how that paragraph is added without reading the day back: the join happens inside the store's lock, one blank line apart, because only the lock knows what the day already says.
+
+A rewrite is the one diary write that can lose another's work. It replaces the whole page, and whoever wrote it read the day some seconds earlier — long enough for a second session to append a paragraph that the rewrite then replaces with a copy that never held it. `body_digest` names the body that was read; the store compares it under the lock, against the body being replaced, and refuses a stale rewrite with the day as it is now, so the caller merges instead of overwriting. An append carries no digest: it is measured against the day as it stands, which the lock already guarantees.
 
 ### 3.4 A week note — `week/<YYYY-Www>.md` with `kind: week`
 

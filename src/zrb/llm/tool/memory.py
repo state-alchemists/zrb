@@ -40,6 +40,7 @@ from zrb.llm.memory.model import (
     body_overflow,
     claim_error,
     date_error,
+    digest_body,
     handover_error,
     id_error,
     is_date_shaped,
@@ -193,6 +194,18 @@ def remember(
             )
         ),
     ] = None,
+    body_digest: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Diary only, with body_mode='w': the digest shown beside the body "
+                "you read. A rewrite whose digest no longer matches the stored day "
+                "is refused instead of overwriting a paragraph written after you "
+                "read it; the refusal carries the day as it is now, so you can "
+                "merge and send it once more."
+            )
+        ),
+    ] = None,
     purpose: Purpose = "",
 ) -> str:
     """Records a claim, an open loop, a diary entry, or a day's handover.
@@ -215,24 +228,16 @@ def remember(
         wanted_kind = KIND_DIARY
     if wanted_kind is not None and wanted_kind not in KINDS:
         return f"{_NOT_A_KIND} [SYSTEM SUGGESTION]: retry with one of them."
-    if body_mode is not None and wanted_kind != KIND_DIARY:
-        return (
-            "`body_mode` governs a diary body only: a fact's body is evidence "
-            "about one subject and is replaced as a whole. [SYSTEM SUGGESTION]: "
-            "re-send without it; nothing was written."
-        )
+    problem = _not_a_diary_error(wanted_kind, body_mode, body_digest)
+    if problem:
+        return problem
     if wanted_kind == KIND_DIARY:
-        if pin is not None:
-            return (
-                "A diary entry never enters the core, so `pin` does not apply to "
-                "one. [SYSTEM SUGGESTION]: re-send without it; nothing was "
-                "written."
-            )
-        problem = _body_mode_error(body_mode, body)
+        problem = _diary_argument_error(pin, body_mode, body, body_digest)
         if problem:
-            return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
-        append = (body_mode or "").strip().lower() == BODY_APPEND
-        return _remember_diary(id, claim, handover, source, body, append)
+            return problem
+        return _remember_diary(
+            id, claim, handover, source, body, _should_append(body_mode), body_digest
+        )
     if claim is None:
         return (
             "A fact needs a `claim`: one sentence saying what is true. Omit it "
@@ -488,6 +493,64 @@ def _remembered(fact: Fact, core_chars: int) -> str:
     )
 
 
+def _not_a_diary_error(
+    wanted_kind: str | None, body_mode: str | None, body_digest: str | None
+) -> str | None:
+    """Why a diary-only argument was sent to something that is not a diary.
+
+    Both arguments describe a page — one how it is written, the other which page
+    it replaces — and a fact has neither: its body is evidence about one subject,
+    replaced as a whole, so there is nothing for either to act on. Refusing is the
+    only honest answer, because ignoring one in silence would tell the caller its
+    write happened the way it asked.
+    """
+    if wanted_kind == KIND_DIARY:
+        return None
+    for argument, value in (("body_mode", body_mode), ("body_digest", body_digest)):
+        if value is not None:
+            return (
+                f"`{argument}` governs a diary body only: a fact's body is "
+                "evidence about one subject and is replaced as a whole, with "
+                "nothing to check it against. [SYSTEM SUGGESTION]: re-send "
+                "without it; nothing was written."
+            )
+    return None
+
+
+def _diary_argument_error(
+    pin: bool | None,
+    body_mode: str | None,
+    body: str | None,
+    body_digest: str | None,
+) -> str | None:
+    """Why these arguments do not fit a diary write, or ``None``.
+
+    A digest names the page a rewrite replaces. An append is already measured
+    against the day as it stands, inside the lock, so it cannot lose a paragraph
+    and it has nothing to check a digest against.
+    """
+    if pin is not None:
+        return (
+            "A diary entry never enters the core, so `pin` does not apply to one. "
+            "[SYSTEM SUGGESTION]: re-send without it; nothing was written."
+        )
+    problem = _body_mode_error(body_mode, body)
+    if problem:
+        return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
+    if body_digest is not None and _should_append(body_mode):
+        return (
+            "`body_digest` names the body a rewrite replaces; an append is "
+            "measured against the day as it stands. [SYSTEM SUGGESTION]: "
+            "re-send without it; nothing was written."
+        )
+    return None
+
+
+def _should_append(body_mode: str | None) -> bool:
+    """Whether *body_mode* asks for the paragraph to be added to the page."""
+    return (body_mode or "").strip().lower() == BODY_APPEND
+
+
 def _body_mode_error(body_mode: str | None, body: str | None) -> str | None:
     """Why *body_mode* cannot govern this write, or ``None``."""
     if body_mode is None:
@@ -526,9 +589,10 @@ def _remember_diary(
     source: str | None,
     body: str | None,
     append: bool,
+    expected_digest: str | None,
 ) -> str:
     """Write a day. *claim* may be ``None``, which keeps the stored sentence
-    (see `_claim_to_store`).
+    (see `_claim_to_store`), and *expected_digest* is the body a rewrite read.
     """
     for problem in (
         date_error(day),
@@ -541,7 +605,9 @@ def _remember_diary(
     try:
         paths.prepare()
         with store.locked():
-            return _remember_diary_locked(day, claim, handover, source, body, append)
+            return _remember_diary_locked(
+                day, claim, handover, source, body, append, expected_digest
+            )
     except FileLockTimeout:
         return _busy()
     except OSError as e:
@@ -560,6 +626,59 @@ def _claim_to_store(claim: str | None, old: "Diary | None") -> str | None:
     return old.claim if old is not None else None
 
 
+def _stale_rewrite(day: str, old: "Diary | None", expected_digest: str) -> str | None:
+    """Why a rewrite read a body the day no longer holds, or ``None``.
+
+    A rewrite replaces the whole page, so the gap between reading the day and
+    writing it back is where one writer's paragraph gets overwritten by another's
+    stale copy: two reviewers on one day, each compacting what it read. The digest
+    is compared under the lock, against the body being replaced, and the refusal
+    carries that body — the caller merges instead of guessing at what it missed.
+    """
+    if old is None:
+        return (
+            f"`diary/{day}.md` no longer exists, so the body whose digest was "
+            f"{expected_digest} is not the one this rewrite would replace. "
+            "[SYSTEM SUGGESTION]: nothing was written; send the day as a new "
+            "entry."
+        )
+    current = digest_body(old.body)
+    if current == expected_digest:
+        return None
+    return (
+        f"The day moved while you were reading it: `diary/{day}.md` is no longer "
+        f"the body whose digest was {expected_digest}. Nothing was written, and "
+        f"nothing of yours is lost — it is still in this transcript. The day now "
+        f"reads:\n\n{old.body}\n\n"
+        "[SYSTEM SUGGESTION]: merge your paragraph into this body and send the "
+        f"rewrite once more with body_digest={current}."
+    )
+
+
+def _diary_entry_after(
+    old: Diary | None,
+    day: str,
+    claim: str,
+    handover: str | None,
+    source: str | None,
+    body_text: str,
+) -> Diary:
+    """The day as this write stores it, every omitted field keeping its stored value.
+
+    A reviewer that only appends a paragraph never reads the handover or the
+    source, and must not wipe them: omitted keeps, exactly as it does for `claim`.
+    """
+    return Diary(
+        id=day,
+        claim=claim,
+        handover=handover if handover is not None else (old.handover if old else ""),
+        status=STATUS_ACTIVE,
+        source=source if source is not None else (old.source if old else ""),
+        updated=store.now(),
+        body=body_text,
+    )
+
+
 def _remember_diary_locked(
     day: str,
     claim: str | None,
@@ -567,6 +686,7 @@ def _remember_diary_locked(
     source: str | None,
     body: str | None,
     append: bool,
+    expected_digest: str | None,
 ) -> str:
     old = store.load_diary(day)
     if old is None and not body:
@@ -575,6 +695,10 @@ def _remember_diary_locked(
             "it was rather than what happened (the log holds that). "
             "[SYSTEM SUGGESTION]: nothing was written."
         )
+    if expected_digest is not None:
+        problem = _stale_rewrite(day, old, expected_digest)
+        if problem:
+            return problem
     claim = _claim_to_store(claim, old)
     if claim is None:
         return (
@@ -587,15 +711,7 @@ def _remember_diary_locked(
     problem = body_overflow(body_text) if append else None
     if problem:
         return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
-    entry = Diary(
-        id=day,
-        claim=claim,
-        handover=old.handover if handover is None and old else (handover or ""),
-        status=STATUS_ACTIVE,
-        source=old.source if source is None and old else (source or ""),
-        updated=store.now(),
-        body=body_text,
-    )
+    entry = _diary_entry_after(old, day, claim, handover, source, body_text)
     store.save_diary(entry)
     store.git_commit(f"diary: {entry.id}")
     if append:

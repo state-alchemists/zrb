@@ -29,7 +29,7 @@ from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
-from zrb.llm.memory.model import KIND_DIARY, body_limit, injection_reason
+from zrb.llm.memory.model import KIND_DIARY, body_limit, digest_body, injection_reason
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.util.spoken import split_spoken
 
@@ -329,13 +329,18 @@ def _first_sentence(message: str) -> str:
 
 
 def _day_note(context: "HookContext") -> str:
-    """The day's body, when there is no room left to append to it.
+    """The day's date and how full its page is, and its body when it is tight.
 
     A day is written one paragraph per turn, so a page that fills up stops
     recording and says nothing: the append comes back refused to a reviewer that
-    has the transcript and never the page, and the day loses its evening — which
-    is what happened on 2026-11-17, where the body reached 7,962 of 8,000
-    characters at half past ten in the morning and did not grow again.
+    has the transcript and never the page, and the day loses its evening — which is
+    what happened on 2026-11-17, where the body reached 7,962 of 8,000 characters
+    at half past ten in the morning and did not grow again.
+
+    The room is stated on every turn, not only when it is short, because a reserve
+    is a guess: a paragraph can be longer than what is left while the page looks
+    comfortable. The body is handed over only when the page is nearly full, since
+    that is the one thing worth paying for every turn.
 
     Read without the lock, which `store.write_document`'s rename makes safe: a
     reader never sees a document that is still being written.
@@ -343,25 +348,36 @@ def _day_note(context: "HookContext") -> str:
     day = store.today()
     entry = store.load_diary(day)
     if entry is None:
-        return ""
+        return (
+            f"Today is `{day}`, which has no diary entry yet: `claim` and `body` "
+            "create one."
+        )
     limit = body_limit(KIND_DIARY)
-    if len(entry.body) + _DAY_APPEND_RESERVE <= limit:
-        return ""
-    return _full_day_note(day, entry.body, limit)
+    room = limit - len(entry.body)
+    head = (
+        f"Today is `{day}`; its page holds {len(entry.body)} of {limit} "
+        f"characters, so {room} remain. A paragraph that does not fit is written "
+        "back as the whole day, not appended."
+    )
+    if room > _DAY_APPEND_RESERVE:
+        return head
+    return f"{head}\n\n{_full_day_note(day, entry.body, limit)}"
 
 
 def _full_day_note(day: str, body: str, limit: int) -> str:
     """What the reviewer is told when the day cannot take another paragraph."""
     return (
-        f"The day's page has no room left: `diary/{day}.md` holds {len(body)} of "
-        f"{limit} characters, so an append is refused rather than shortened. Its "
-        f"body, as it stands:\n\n{body}\n\n"
+        f"The page is nearly full, so an append is refused rather than shortened. "
+        f"Its body, as it stands (digest `{digest_body(body)}`):\n\n{body}\n\n"
         "If this turn belongs in the day, write the whole day back instead: "
-        f'`Remember(id="{day}", kind="diary", body_mode="w", body="…")`, with '
-        "every paragraph worth keeping plus this turn's, and the whole under "
-        f"{limit} characters. Make room by dropping the weakest paragraph, never a "
-        "moment — a quote and the line saying why it mattered stays, and so does "
-        "the reason behind a decision. Omit `claim`: a day that has one keeps it."
+        f'`Remember(id="{day}", kind="diary", body_mode="w", '
+        f'body_digest="{digest_body(body)}", body="…")`, with every paragraph worth '
+        f"keeping plus this turn's, and the whole under {limit} characters. Make "
+        "room by dropping the weakest paragraph, never a moment — a quote and the "
+        "line saying why it mattered stays, and so does the reason behind a "
+        "decision. Omit `claim`: a day that has one keeps it. If the rewrite is "
+        "refused because the day moved, merge into the body the refusal shows you "
+        "and send it once more."
     )
 
 

@@ -8,6 +8,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.hook.builtin.memory_reviewer import (
     INTERRUPTED_LOG_TEXT,
+    _DAY_APPEND_RESERVE,
     _append_event_line,
     _day_note,
     _first_sentence,
@@ -22,7 +23,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.memory import paths, store
-from zrb.llm.memory.model import Diary
+from zrb.llm.memory.model import Diary, digest_body
 
 
 @pytest.fixture
@@ -339,14 +340,21 @@ async def test_a_cancelled_turn_leaves_an_event_line_and_no_guess(store_dir):
     assert lines[0].endswith("(zrb)")
 
 
-def test_a_day_with_room_is_not_handed_to_the_reviewer(store_dir):
-    """The body is a page, and paying for it on every turn buys nothing.
+def test_a_day_with_room_is_measured_but_not_handed_over(store_dir):
+    """The room is stated every turn; the body is paid for only when it is tight.
 
-    The reviewer appends to a day that has room without ever needing to see it —
-    and the day it would otherwise read is the one thing that grows all day.
+    A reserve is a guess, and a paragraph can be longer than what is left while
+    the page still looks comfortable — so the reviewer gets the measurement every
+    turn and the page itself only when it is nearly full.
     """
-    store.save_diary(Diary(id=store.today(), claim="A day.", body="Wrote it down."))
-    assert _day_note(HookContext(event=HookEvent.STOP, event_data={})) == ""
+    body = "Wrote it down."
+    store.save_diary(Diary(id=store.today(), claim="A day.", body=body))
+
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+    assert store.today() in note
+    assert body not in note
+    assert "remain" in note
 
 
 def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
@@ -355,7 +363,7 @@ def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
     The reviewer holds one turn's transcript, so an append that comes back refused
     is indistinguishable from a day that did not change. On 2026-11-17 the body
     reached 7,962 of 8,000 characters at half past ten and every paragraph after
-    that was lost, which is the failure this hands the page over to prevent.
+    that was lost, which is the failure handing the page over prevents.
     """
     limit = CFG.LLM_MEMORY_DIARY_MAX_CHARS
     body = "x" * (limit - 100)
@@ -367,9 +375,33 @@ def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
     assert f"{len(body)} of {limit}" in note
     assert body in note
     assert f'Remember(id="{day}", kind="diary", body_mode="w"' in note
+    # The digest is what makes the rewrite refusable: two reviewers reading the
+    # same day would otherwise each write their own copy over the other's.
+    assert f'body_digest="{digest_body(body)}"' in note
     # A day that already has a sentence keeps it: the page is being shortened,
     # not re-titled from one turn's transcript.
     assert "Omit `claim`" in note
+
+
+def test_a_day_at_exactly_the_reserve_is_handed_over(store_dir):
+    """A paragraph can outrun the reserve, so the boundary gives the page away.
+
+    At exactly 600 characters of room a 601-character paragraph is valid and
+    cannot fit; the note used to stop one character short of handing the day over,
+    and the reviewer was left with a refusal and no page to shorten.
+    """
+    limit = CFG.LLM_MEMORY_DIARY_MAX_CHARS
+    body = "x" * (limit - _DAY_APPEND_RESERVE)
+    store.save_diary(Diary(id=store.today(), claim="A long day.", body=body))
+
+    assert body in _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+
+def test_a_day_with_no_entry_names_the_date_so_one_can_be_created(store_dir):
+    """The reviewer is told `<today>` in the prompt and never what it is."""
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+    assert store.today() in note
+    assert "no diary entry yet" in note
 
 
 def test_the_note_is_offered_to_the_reviewer_but_not_to_the_log_hooks(store_dir):
