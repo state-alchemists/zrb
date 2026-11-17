@@ -37,12 +37,13 @@ def test_every_remember_example_uses_a_parameter_the_tool_has():
         assert named <= accepted, f"unknown parameter in Remember({arguments})"
 
 
-def test_the_prompt_writes_a_claim_in_the_first_person():
-    """The block is read by the assistant, so a third-person claim reads as
-    somebody else's note: the sentence has to carry what was decided and why."""
+def test_the_prompt_bends_the_pronoun_and_keeps_the_reason():
+    """A decision is the assistant's and reads as "I"; a project fact narrated the
+    same way is a lie in its voice. The reason stays either way."""
     text = get_prompt("memory_reviewer")
-    assert "in the first person" in text
-    assert "the decision and the reason for it" in text
+    assert "when the decision is the assistant's" in text
+    assert "the reason the turn gave for it" in text
+    assert "A fact narrated as `I` is a lie" in text
 
 
 def test_the_prompt_revises_the_write_the_turn_already_made():
