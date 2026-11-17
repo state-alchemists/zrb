@@ -35,3 +35,19 @@ def test_every_remember_example_uses_a_parameter_the_tool_has():
     for arguments in _examples():
         named = set(re.findall(r"(\w+)\s*=", arguments))
         assert named <= accepted, f"unknown parameter in Remember({arguments})"
+
+
+def test_the_prompt_writes_a_claim_in_the_first_person():
+    """The block is read by the assistant, so a third-person claim reads as
+    somebody else's note: the sentence has to carry what was decided and why."""
+    text = get_prompt("memory_reviewer")
+    assert "in the first person" in text
+    assert "the decision and the reason for it" in text
+
+
+def test_the_prompt_revises_the_write_the_turn_already_made():
+    """A turn that called `Remember` leaves the call in the transcript, and filing
+    beside it is how one subject came to hold two files."""
+    text = get_prompt("memory_reviewer")
+    assert "revise **that id**" in text
+    assert "reply `skip`" in text
