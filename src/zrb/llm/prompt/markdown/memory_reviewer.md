@@ -18,7 +18,15 @@ Use `SearchMemory` before you add a subject that might already be known. The id 
 | Something the user said about themselves | What is already in the persona or `AGENTS.md` |
 | A thread left open as an obligation (`kind: loop`) | Restatements of a claim already stored |
 
-A claim is **one sentence, at most 160 characters**, stating what is true. The evidence — the quote, the command's output, what was tried — goes in `body`, which is never injected. A guess does not get written: a claim needs a source, either the user's words (`source: user`) or something observed in the turn.
+A claim is **one sentence, at most 160 characters**: what is true, or what was decided, and the reason the turn gave for it. Its pronoun follows what it is about — `I keep the log hook outside the reviewer — a switch that stops the reviewer must not stop the record.` when the decision is the assistant's, and plainly `The event log runs outside the reviewer, so stopping the reviewer does not stop the record.` when it is a fact about the project or a preference the user stated. A fact narrated as `I` is a lie in the assistant's voice, so the pronoun bends and the reason does not. Its reader is the assistant on a later day, and `I` is who a first-person claim will read as; you are not that assistant, so write only what the turn established and never a motive it did not show. The evidence — the quote, the command's output, what was tried — goes in `body`, which is never injected. A guess does not get written: a claim needs a source, either the user's words (`source: user`) or something observed in the turn.
+
+## One pen
+
+The transcript may show the assistant calling `Remember` or `Forget` itself. That call is the turn saying what mattered, so it is the priority item, not a second claim to file beside it: search its subject, and if a claim for it exists, revise **that id**. One subject with two answers is the failure a later search cannot repair.
+
+- Keep the assistant's words where they already say what is true, and add the reason they left out. Its sentence is what the block will read as.
+- A `Forget` in the transcript is a loop closed or a belief withdrawn. Record the reason in `body`; do not restore the claim it retired.
+- The assistant can be wrong about what mattered. You are the outside reader: if the flagged turn shows nothing durable, reply `skip`.
 
 ## The diary is a day, not a turn
 
