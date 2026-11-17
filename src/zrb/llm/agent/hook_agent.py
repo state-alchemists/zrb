@@ -45,7 +45,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
             kind="agent",
             model=config.model,
             system_prompt=config.system_prompt,
-            user_prompt=_agent_hook_input(context),
+            user_prompt=_agent_hook_input(context, config),
             tools=resolved_tools,
             auto_approve=config.auto_approve,
         )
@@ -102,13 +102,28 @@ def _undeferred(tool: Any) -> Any:
     return tool
 
 
-def _agent_hook_input(context: HookContext) -> str:
-    """What to hand the agent as its user turn, best available first.
+def _agent_hook_input(context: HookContext, config: AgentHookConfig) -> str:
+    """What to hand the agent as its user turn: the event, then the config's note.
 
     A `history`/`turn` payload (a list of pydantic-ai `ModelMessage`) is
     rendered through the shared transcript renderer rather than `str()`'d —
     the raw payload is a dict of Python objects, not text a model should read.
+
+    `input_note` follows it because a hook can need the state of a file and not
+    only the event. A note that cannot be built leaves the turn as it was: the
+    hook's own write is what reports the failure, and a reviewer that never ran
+    would be a worse answer than one that ran without the extra paragraph.
     """
+    text = _event_text(context)
+    try:
+        note = config.input_note(context).strip() if config.input_note else ""
+    except OSError:
+        return text
+    return f"{text}\n\n{note}" if note else text
+
+
+def _event_text(context: HookContext) -> str:
+    """The event's own payload, as text an agent can read."""
     payload = context.event_data
     if isinstance(payload, dict):
         messages = payload.get("turn") or payload.get("history")

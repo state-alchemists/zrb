@@ -435,3 +435,5 @@ def test_search_returns_a_pointer_with_a_path(store_dir):
 def test_search_with_an_unknown_scope_is_refused(store_dir):
     text = search_memory("x", scope="sessions")
     assert "retry with one of the listed scopes" in text
+
+

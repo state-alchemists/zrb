@@ -3,7 +3,11 @@ from typing import TYPE_CHECKING
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pydantic_ai.models import Model
+
+    from zrb.llm.hook.contracts.interface import HookContext
 
 
 class MatcherConfig:
@@ -57,10 +61,16 @@ class AgentHookConfig:
         tools: list[str] | None = None,
         model: "str | Model | None" = None,
         auto_approve: bool = False,
+        input_note: "Callable[[HookContext], str] | None" = None,
     ):
         self.system_prompt = system_prompt
         self.tools = tools if tools is not None else []
         self.model = model
+        # Added after the event's own payload, because what a hook needs to know
+        # can be the state of a file rather than the event: a config is built once
+        # and outlives many turns, so a note is a function of the context and the
+        # store, never a string fixed at registration.
+        self.input_note = input_note
         # A hook runs without a UI and outside the approval cascade, so a tool
         # call it makes is returned as a deferred request nobody answers and the
         # tool never runs. `auto_approve` runs the hook's agent with yolo, which

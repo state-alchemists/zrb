@@ -22,6 +22,7 @@ and the migration agree:
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -453,6 +454,19 @@ def body_overflow(merged: str, kind: str = KIND_DIARY) -> str | None:
         f"{limit}. Nothing was written. Shorten this paragraph, or replace the "
         "body as a whole; the cap is the setting `LLM_MEMORY_DIARY_MAX_CHARS`."
     )
+
+
+def digest_body(body: str) -> str:
+    """A short digest of a body: what a rewrite names as the page it read.
+
+    Reading the day and writing it back are two moments with a model in between,
+    and a day can move in that gap: two reviewers on the same day each read it,
+    each compact it, and the second write replaced the first one's paragraph with
+    a body that never held it. Compaction is a rewrite of the whole page, so it is
+    the one write that can lose another's work — the digest is compared inside the
+    lock, where the body it describes is the body being replaced.
+    """
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()[:8]
 
 
 def handover_error(handover: str | None) -> str | None:
