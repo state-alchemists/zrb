@@ -21,6 +21,7 @@ nothing, and neither is an error.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -342,22 +343,34 @@ def _day_note(context: "HookContext") -> str:
     comfortable. The body is handed over only when the page is nearly full, since
     that is the one thing worth paying for every turn.
 
+    The hour is stated with the date because the reviewer writes a narrative and
+    has no other clock: given a day and no hour it names one from the shape of the
+    transcript, and a review that arrives as a conversation ends reads as night.
+    On 2026-11-18 three paragraphs written between six and seven in the morning
+    said "late in the morning", "late in the evening" and "late in the night".
+
+    Both are read from one instant. Two reads can straddle local midnight, and the
+    note would then name yesterday's day beside today's hour — a page that records
+    a midnight turn under the wrong date.
+
     Read without the lock, which `store.write_document`'s rename makes safe: a
     reader never sees a document that is still being written.
     """
-    day = store.today()
+    at = datetime.now().astimezone()
+    day = at.date().isoformat()
+    clock = at.strftime(_CLOCK_FORMAT)
     entry = store.load_diary(day)
     if entry is None:
         return (
-            f"Today is `{day}`, which has no diary entry yet: `claim` and `body` "
-            "create one."
+            f"Today is `{day}` and the clock reads {clock}. It has no diary "
+            "entry yet: `claim` and `body` create one."
         )
     limit = body_limit(KIND_DIARY)
     room = limit - len(entry.body)
     head = (
-        f"Today is `{day}`; its page holds {len(entry.body)} of {limit} "
-        f"characters, so {room} remain. A paragraph that does not fit is written "
-        "back as the whole day, not appended."
+        f"Today is `{day}` and the clock reads {clock}; its page holds "
+        f"{len(entry.body)} of {limit} characters, so {room} remain. A paragraph "
+        "that does not fit is written back as the whole day, not appended."
     )
     if room > _DAY_APPEND_RESERVE:
         return head
@@ -379,6 +392,9 @@ def _full_day_note(day: str, body: str, limit: int) -> str:
         "refused because the day moved, merge into the body the refusal shows you "
         "and send it once more."
     )
+
+
+_CLOCK_FORMAT = "%H:%M"
 
 
 def _tags(context: "HookContext") -> str:
