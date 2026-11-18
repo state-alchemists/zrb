@@ -486,27 +486,6 @@ def _is_paste_burst(
     return (now - previous.submitted_at).total_seconds() * 1000 <= window_ms
 
 
-def steer_into_live_run(
-    run_context: Any, text: str, attachments: "Sequence[UserContent]"
-) -> bool:
-    """Try to inject `text`/`attachments` into the turn `run_context` belongs to.
-
-    Returns False when there is no live run or the enqueue failed (the run
-    just finished); the caller then queues normally.
-    """
-    if run_context is None:
-        return False
-    try:
-        run_context.enqueue(text, *attachments, priority="asap")
-        return True
-    except Exception:
-        CFG.LOGGER.debug(
-            "steer_into_live_run: enqueue failed, falling back to queue",
-            exc_info=True,
-        )
-        return False
-
-
 def raise_if_cancelling() -> None:
     """Raise `CancelledError` when the running task has a cancel pending.
 
