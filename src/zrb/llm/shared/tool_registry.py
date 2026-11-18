@@ -13,6 +13,7 @@ from collections.abc import Callable
 from typing import Any, TypeAlias
 
 from zrb.config.config import CFG
+from zrb.llm.shared.tool_resolver import resolved_tool_name
 
 #: Static tool: a plain function or a pydantic-ai ``Tool`` wrapping one.
 ToolLike: TypeAlias = Callable | Any
@@ -127,6 +128,20 @@ class ToolRegistry:
         _, _, toolsets = self._resolved()
         return list(toolsets)
 
+    def tools_by_name(self) -> dict[str, ToolLike]:
+        """The resolved static tools keyed by registered name; first wins.
+
+        The map a name list is resolved against (`resolve_tools_by_name`). A
+        host that layers its own registrations over the shared set copies this
+        map first and fills its own names in, as `SubAgentBuilding` does.
+        """
+        named: dict[str, ToolLike] = {}
+        for tool in self.get_tools():
+            registered = resolved_tool_name(tool)
+            if registered is not None:
+                named.setdefault(registered, tool)
+        return named
+
     def append_tool(self, *tool: ToolLike) -> None:
         """Append *tool* after everything currently registered (runs last)."""
         self._resolved()
@@ -236,5 +251,5 @@ class ToolRegistry:
         host.append_toolset_factory(*self.get_toolset_factories())
 
 
-#: The shared registry; its seed is wired in ``zrb.llm.common_tools``.
+#: The shared registry; its seed is wired in ``zrb.llm.agent.tool_seed``.
 tool_registry = ToolRegistry()

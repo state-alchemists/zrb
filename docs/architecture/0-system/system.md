@@ -117,7 +117,7 @@ Most changes land on one of the Tier 2 pages:
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/tool/`, `src/zrb/llm/common_tools.py` | `test/llm/tool/` |
+| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/tool/`, `src/zrb/llm/agent/tool_seed.py` | `test/llm/tool/` |
 | Change what the terminal shows — [UI](../2-extension-surface/ui.md) | `src/zrb/llm/ui/` | `test/llm/ui/` |
 | Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/prompt/` | `test/llm/prompt/` |
 | Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/hook/` | `test/llm/hook/` |

@@ -58,8 +58,8 @@ Each one fails silently if broken: the code keeps running and does the wrong thi
 
 ```mermaid
 flowchart TD
-    Fn[tool function] -->|tagged, listed in| Common[common_tools]
-    Common -->|seeds| Registry[ToolRegistry]
+    Fn[tool function] -->|tagged, listed in| Seed[agent/tool_seed]
+    Seed -->|seeds| Registry[ToolRegistry]
     Registry -->|resolved per run by| Task[LLMTask / LLMChatTask]
     Task -->|builds| Agent[create_agent]
     Agent -->|wraps every call in| Gate[SafeToolsetWrapper]
@@ -68,7 +68,7 @@ flowchart TD
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
 | Tool functions | `src/zrb/llm/tool/` | A package per domain with more than one module — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — each re-exporting the names its flat module used to export; every other tool is one module (`memory.py`, `skill.py`, `mcp.py`, ...) |
-| `common_tools` | `src/zrb/llm/common_tools.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories |
+| `agent/tool_seed` | `src/zrb/llm/agent/tool_seed.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories; importing it installs them as the registry's seed |
 | `ToolRegistry` | `src/zrb/llm/shared/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
 | `Capability`, `tag`, `tool_capability` | `src/zrb/llm/permission/capability.py` | Writing and reading the capability tag |
@@ -85,7 +85,7 @@ def run_shell_command(command: str) -> str: ...
 run_shell_command.__name__ = "Shell"
 ```
 
-Then add it to the list in `src/zrb/llm/common_tools.py` with `tag(run_shell_command, Capability.EXECUTE)`. That's the whole contract.
+Then add it to the list in `src/zrb/llm/agent/tool_seed.py`, and `tag()` it where it is defined. That's the whole contract.
 
 **Getting tools to a run.** The registry holds providers, not finished tools. They are resolved when the run starts, so the answer can change from one run to the next:
 
@@ -115,8 +115,8 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
-| A tool that depends on config or context | A factory in `src/zrb/llm/common_tools.py` | Created fresh for each run, so its gate is read again every time |
-| A rarely used tool | `Tool(..., defer_loading=True)` in `src/zrb/llm/common_tools.py` | The model sees its name; the schema loads only when requested |
+| A tool that depends on config or context | A factory in `src/zrb/llm/agent/tool_seed.py` | Created fresh for each run, so its gate is read again every time |
+| A rarely used tool | `Tool(..., defer_loading=True)` in `src/zrb/llm/agent/tool_seed.py` | The model sees its name; the schema loads only when requested |
 | MCP or another external toolset | `src/zrb/llm/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](../3-peripheral-flow/mcp-and-lsp.md) |
 | A sub-agent's `tools:` list | `resolve_tools_by_name` | Names are looked up, not invented; a name that matches nothing is silently dropped, and delegate tools are always excluded |
 | A Claude-style `Bash` name | `canonical_tool_name` | Maps to the one `Shell` tool; zrb never registers a second shell tool ([ADR-0066](../../adr/adr-0066.md)) |
@@ -126,8 +126,8 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add a built-in tool | `src/zrb/llm/common_tools.py` | `test/llm/test_common_tools.py` |
-| Add a tool gated by config | `src/zrb/llm/common_tools.py` (the factories) | `test/llm/test_common_tools.py` |
+| Add a built-in tool | `src/zrb/llm/agent/tool_seed.py` | `test/llm/test_common_tools.py` |
+| Add a tool gated by config | `src/zrb/llm/agent/tool_seed.py` (the factories) | `test/llm/test_common_tools.py` |
 | Rename a tool the model sees | the tool's `__name__` line in `src/zrb/llm/tool/` | `test/llm/tool/` |
 | Change how capabilities are read | `src/zrb/llm/permission/capability.py` | `test/llm/permission/test_capability.py` |
 | Change registry order or mutation | `src/zrb/llm/shared/tool_registry.py` | `test/llm/shared/test_tool_registry.py` |

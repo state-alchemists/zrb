@@ -59,10 +59,9 @@ _CONTRACT_PATHS = {"agent/types.py"}
 _FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
 
 # Upward runtime imports that exist today, as "importer -> imported" paths
-# under src/zrb/llm. Fix one, delete its line.
-KNOWN_UPWARD_EDGES: set[str] = {
-    "agent/hook_agent.py -> subagent/manager/manager.py",
-}
+# under src/zrb/llm. Fix one, delete its line. Empty is where this ends: a new
+# upward import fails the ratchet instead of joining a list.
+KNOWN_UPWARD_EDGES: set[str] = set()
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".
 KNOWN_SAME_LAYER_CYCLES: set[str] = {
