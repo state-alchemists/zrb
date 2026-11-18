@@ -1,6 +1,8 @@
 """The memory reviewer: its config, its log line, and its gate."""
 
+import re
 from contextlib import contextmanager
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +12,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
     _DAY_APPEND_RESERVE,
     INTERRUPTED_LOG_TEXT,
     _append_event_line,
+    _clock_text,
     _day_note,
     _first_sentence,
     _tags,
@@ -355,6 +358,26 @@ def test_a_day_with_room_is_measured_but_not_handed_over(store_dir):
     assert store.today() in note
     assert body not in note
     assert "remain" in note
+
+
+def test_the_note_carries_the_clock_so_a_paragraph_cannot_lend_itself_one(store_dir):
+    """A date and no hour is a reviewer writing night into a morning.
+
+    On 2026-11-18 three paragraphs about events between six and seven in the
+    morning said "late in the morning", "late in the evening" and "late in the
+    night": the transcript's last turn ended a conversation, and an ending reads
+    as night to a model that cannot check. The hour is stated so the guess stops.
+    """
+    store.save_diary(Diary(id=store.today(), claim="A day.", body="Wrote it down."))
+
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+    assert re.search(r"the clock reads \d{2}:\d{2}\b", note)
+
+
+def test_the_clock_is_the_local_hour_and_minute():
+    """Pinned exactly, because the note is the only clock the reviewer has."""
+    assert _clock_text(datetime(2026, 11, 18, 6, 56)) == "06:56"
 
 
 def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
