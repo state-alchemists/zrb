@@ -75,7 +75,8 @@ flowchart TD
 | --- | --- | --- |
 | `LLMChatTask` | `src/zrb/llm/task/chat/task.py` | The chat session's configuration: tools, UIs, hooks, history processors, approval channels |
 | `ChatExecution` | `src/zrb/llm/task/chat/execution.py` | Resolves the session once and builds the inner `LLMTask`, adding the summarizer processor |
-| `ChatRunning` | `src/zrb/llm/task/chat/running.py` | Chooses the UI (one, several via `MultiUI`, or the default terminal UI) and runs the session loop |
+| `ChatRunning` | `src/zrb/llm/task/chat/running.py` | Runs a one-shot session, and hands an interactive one to the presentation layer |
+| `run_interactive_session` | `src/zrb/llm/ui/session.py` | Chooses the UI (one, several via `MultiUI`, or the default terminal UI) and runs the session loop |
 | `resolve_history_manager`, `build_session_history_config`, `replay_conversation` | `src/zrb/llm/task/chat/persistence.py` | Where a session's conversation is kept: the manager and session name the inner task runs with, and a resumed session's stored conversation put back on screen |
 | `copy_conversation`, `truncate_conversation` | `src/zrb/llm/history_manager/conversation_edits.py` | What `/save` and `/rewind` do to a stored conversation: keep it under a second name, drop what a restored snapshot did not have |
 | `release_chat_resources` | `src/zrb/llm/task/chat/teardown.py` | Releases what an interactive session holds, in order, at exit: `SessionEnd`, features, LSP servers, detached hooks, background subprocesses |
@@ -137,7 +138,7 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change how the inner task is built per session | `src/zrb/llm/task/chat/execution.py` | `test/llm/task/chat/test_execution.py` |
-| Change UI selection | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/` |
+| Change UI selection | `src/zrb/llm/ui/session.py` | `test/llm/task/chat/` |
 | Change where a session's conversation is stored or replayed | `src/zrb/llm/task/chat/persistence.py` | `test/llm/task/chat/test_persistence.py` |
 | Change what `/save` or `/rewind` does to a stored conversation | `src/zrb/llm/history_manager/conversation_edits.py` | `test/llm/history_manager/test_conversation_edits.py` |
 | Change what a session releases at exit, or in what order | `src/zrb/llm/task/chat/teardown.py` | `test/llm/task/chat/test_llm_chat_task_teardown.py` |

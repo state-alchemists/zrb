@@ -58,10 +58,10 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 flowchart TD
     Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution.exec_action()"]
     Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
-    Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
+    Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py → src/zrb/llm/ui/session.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves UIs/triggers/commands. Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
+`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 

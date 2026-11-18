@@ -1,31 +1,23 @@
 """`LLMChatTask` session runners: drive a built inner `LLMTask` either as a
 one-shot run or through an interactive UI.
+
+The interactive half is presentation work — it assembles a UI, runs its loop
+and reads its display — and lives in `zrb.llm.ui.session`. `ChatRunning` asks
+`shared/session_presentation.py` for it and keeps the one-shot half here, which
+needs no UI beyond the ones already attached.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from contextlib import contextmanager
-from dataclasses import replace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.custom_command.resolver import (
-    resolve_custom_commands,
-    run_custom_command,
-)
-from zrb.llm.shared.feature_config import (
-    get_session_ui,
-    reset_session_ui,
-    set_session_ui,
-)
-from zrb.llm.task.chat.message_expansion import expand_message, is_action_command
-from zrb.llm.task.chat.persistence import replay_conversation
-from zrb.llm.ui.assembly import assemble_ui
+from zrb.llm.custom_command.resolver import resolve_custom_commands
+from zrb.llm.shared.feature_config import bound_session_ui
+from zrb.llm.shared.session_presentation import get_interactive_runner
+from zrb.llm.task.chat.message_expansion import expand_message
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
-from zrb.util.attr import get_attr
-from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -38,7 +30,6 @@ if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.base.ui import BaseUI
 
     #: Builds the UI(s) a session runs through, from the session's own values.
     #: The interactive path also passes `custom_commands`, a ninth keyword
@@ -83,7 +74,12 @@ if TYPE_CHECKING:
 
 
 class ChatRunning:
-    """Interactive + non-interactive session orchestration for LLMChatTask."""
+    """The one-shot session for LLMChatTask, and the interactive one's way in.
+
+    A one-shot run needs no UI it was not given, so it lives here. An
+    interactive run builds one, and that half is asked for from the
+    presentation layer — see `run_interactive_session`.
+    """
 
     def __init__(self, llm_chat_task: "LLMChatTask") -> None:
         self._llm_chat_task = llm_chat_task
@@ -143,7 +139,7 @@ class ChatRunning:
         uis = llm_task_core.get_uis()
         # the first sink stands for the session; the web runner
         # attaches one HTTPUI, so there is no second to choose from.
-        with _bound_session_ui(uis[0] if uis else None):
+        with bound_session_ui(uis[0] if uis else None):
             result = await llm_task_core.async_run(session)
         # Unlike stream_ai_response, this path never finalizes with a rendered
         # pass, so do it here for every UI that supports it. The answer keeps
@@ -198,148 +194,35 @@ class ChatRunning:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> object:
-        resolved_custom_commands = self._resolve_custom_commands()
-        # An action may need the UI (`/photo` attaches to it), which does not
-        # exist yet: run it once the UI does.
-        initial_action = ""
-        if is_action_command(initial_message, resolved_custom_commands):
-            initial_action, initial_message, reply = initial_message, "", None
-        else:
-            initial_message, reply = expand_message(
-                initial_message, resolved_custom_commands
-            )
-        if initial_message is None:
-            initial_message = ""
+        """Run the session through the UI the presentation layer assembles.
 
-        resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
-        for factory in self._llm_chat_task.ui_factories:
-            factory_ui = factory(
-                ctx=ctx,
-                llm_task=llm_task_core,
-                history_manager=history_manager,
-                ui_commands=ui_commands,
-                initial_message=initial_message,
-                initial_conversation_name=initial_conversation_name,
-                initial_yolo=initial_yolo,
-                initial_attachments=initial_attachments,
-                custom_commands=resolved_custom_commands,
+        Assembling that UI, and running its loop, is presentation work and
+        lives in `zrb.llm.ui.session`; the command offering an interactive
+        chat registers it there (`builtin/llm/chat.py`). A task asked to run
+        interactively with nothing registered has no way to present itself, so
+        it says that instead of running without the session loop.
+        """
+        runner = get_interactive_runner()
+        if runner is None:
+            raise RuntimeError(
+                "No interactive session runner is registered. An interactive "
+                "chat presents itself through `zrb llm chat`, which registers "
+                "one; a task run another way can only run one-shot "
+                "(run_non_interactive_session)."
             )
-            if isinstance(factory_ui, list):
-                resolved_uis.extend(factory_ui)
-            else:
-                resolved_uis.append(factory_ui)
-
-        default_ui_kwargs = self._build_default_ui_kwargs(
+        return await runner(
+            self._llm_chat_task,
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
+            ui_commands=ui_commands,
             initial_message=initial_message,
             initial_conversation_name=initial_conversation_name,
             initial_yolo=initial_yolo,
             initial_attachments=initial_attachments,
             enable_rewind=enable_rewind,
             snapshot_dir=snapshot_dir,
-            resolved_custom_commands=resolved_custom_commands,
         )
-
-        ui = assemble_ui(
-            uis=resolved_uis,
-            default_kwargs=default_ui_kwargs,
-            include_default_ui=self._llm_chat_task.include_default_ui,
-            approval_channels=self._llm_chat_task.approval_channels,
-        )
-
-        if initial_conversation_name:
-            replay_conversation(ui, history_manager, initial_conversation_name)
-        if initial_action:
-            outcome = run_custom_command(
-                initial_action, resolved_custom_commands, _get_action_ui(ui)
-            )
-            reply = outcome.reply if outcome is not None else None
-        if reply:
-            ui.append_to_output(stylize_muted(f"\n  {reply}\n"))
-
-        with _bound_session_ui(_get_action_ui(ui)):
-            await ui.run_async()
-        last_output = ui.display.last_output
-        final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
-            ui, initial_conversation_name
-        )
-        ctx.xcom["__conversation_name__"] = final_conversation_name
-        return last_output
-
-    def _build_default_ui_kwargs(
-        self,
-        ctx: "AnyContext",
-        llm_task_core: "LLMTask",
-        history_manager: "AnyHistoryManager",
-        initial_message: str | None,
-        initial_conversation_name: str,
-        initial_yolo: "bool | frozenset[str]",
-        initial_attachments: "list[UserContent]",
-        enable_rewind: bool = False,
-        snapshot_dir: str = "",
-        resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
-    ) -> dict[str, Any]:
-        """Build keyword arguments shared by all default UI constructor calls."""
-        resolved_custom_model_names = (
-            get_attr(ctx, self._llm_chat_task.custom_model_names, []) or []
-        )
-        if not isinstance(resolved_custom_model_names, list):
-            resolved_custom_model_names = []
-
-        if resolved_custom_commands is None:
-            resolved_custom_commands = self._resolve_custom_commands()
-
-        # Layer this run's yolo state and session name over the task's ui_config.
-        ui_config = replace(
-            self._llm_chat_task.ui_config,
-            is_yolo=initial_yolo,
-            conversation_session_name=initial_conversation_name,
-        )
-
-        return {
-            "ctx": ctx,
-            "output_lexer": None,  # resolved lazily to avoid early import
-            "llm_task": llm_task_core,
-            "history_manager": history_manager,
-            "initial_message": initial_message,
-            "initial_attachments": initial_attachments,
-            "ui_config": ui_config,
-            "triggers": self._llm_chat_task.triggers,
-            "response_handlers": self._llm_chat_task.response_handlers,
-            "tool_policies": self._llm_chat_task.tool_policies,
-            "argument_formatters": self._llm_chat_task.argument_formatters,
-            "markdown_theme": self._llm_chat_task.markdown_theme,
-            "custom_commands": resolved_custom_commands,
-            "model": self._llm_chat_task.get_model(ctx),
-            "custom_model_names": resolved_custom_model_names,
-            "enable_rewind": enable_rewind,
-            "snapshot_dir": snapshot_dir,
-        }
-
-
-@contextmanager
-def _bound_session_ui(ui: "AnyUI | None") -> Iterator[None]:
-    """Make *ui* the session's UI for the block, ``None`` meaning none, then
-    put back the one bound before it, if any."""
-    previous = get_session_ui()
-    if ui is None:
-        reset_session_ui()
-    else:
-        set_session_ui(ui)
-    try:
-        yield
-    finally:
-        if previous is None:
-            reset_session_ui()
-        else:
-            set_session_ui(previous)
-
-
-def _get_action_ui(ui: "AnyUI") -> "BaseUI":
-    """The UI an action command acts on: a `MultiUI`'s main UI, else *ui*."""
-    return cast("BaseUI", getattr(ui, "main_ui", None) or ui)
 
 
 def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
