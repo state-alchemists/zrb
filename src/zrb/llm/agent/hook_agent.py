@@ -19,6 +19,7 @@ from zrb.llm.agent.common import wrap_tool
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig
+from zrb.llm.shared.tool_resolver import resolve_tools_by_name
 
 
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
@@ -65,7 +66,6 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     # closure; the summarizer imports zrb.llm.agent back, so only the closure
     # is circular (test_circular_import_allowlist.py).
     from zrb.llm.subagent.manager.manager import sub_agent_manager
-    from zrb.llm.subagent.tool_resolver import resolve_tools_by_name
 
     # Mirrors resolve_agent_build's own ctx-less fallback
     # (subagent/manager/manager.py) — a hook fires outside any task run, so

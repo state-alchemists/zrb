@@ -21,7 +21,7 @@ from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.llm.shared.tool_registry import tool_registry
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.parent_message import send_message_to_parent
-from zrb.llm.subagent.tool_resolver import (
+from zrb.llm.shared.tool_resolver import (
     canonical_tool_name,
     resolve_tools_by_name,
     resolved_tool_name,

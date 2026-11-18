@@ -1,6 +1,6 @@
 """Tests for the standalone tool-name resolver used by sub-agents and hooks."""
 
-from zrb.llm.subagent.tool_resolver import (
+from zrb.llm.shared.tool_resolver import (
     canonical_tool_name,
     resolve_tools_by_name,
     resolved_tool_name,

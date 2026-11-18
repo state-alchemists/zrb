@@ -46,7 +46,7 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
 | A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
-| A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/subagent/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
+| A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/shared/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 | A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
 | Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
 | A child starts with no parent history | The child sees the parent's whole conversation, so it is neither a fresh view nor cheap | **unpinned** |
@@ -73,7 +73,7 @@ flowchart TD
 | `SubAgentRegistry` | `src/zrb/llm/subagent/registry.py` | Two layers, manual and discovered; a manual entry wins a name collision and survives a rescan |
 | `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
 | `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
-| `resolve_tools_by_name` | `src/zrb/llm/subagent/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
+| `resolve_tools_by_name` | `src/zrb/llm/shared/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
 | `DelegateToAgent` | `src/zrb/llm/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
 | `start_background_run` | `src/zrb/llm/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
 | `run_agent_task` | `src/zrb/llm/tool/delegate/runner.py` | One child's whole turn as the tool sees it: build, envelope, hooks, the run, transcript, result |
@@ -150,7 +150,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Change discovery, search order or registration | `src/zrb/llm/subagent/manager/manager.py` | `test/llm/subagent/` |
 | Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
-| Change how tool names resolve | `src/zrb/llm/subagent/tool_resolver.py` | `test/llm/subagent/test_tool_resolver.py` |
+| Change how tool names resolve | `src/zrb/llm/shared/tool_resolver.py` | `test/llm/shared/test_tool_resolver.py` |
 | Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate/runner.py` | `test/llm/tool/` |
 | Change background handles and waiting | `src/zrb/llm/tool/delegate/background.py` | `test/llm/tool/delegate/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
