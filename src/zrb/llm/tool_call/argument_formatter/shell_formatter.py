@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 from zrb.cmd.command import resolve_shell
 from zrb.config.helper import get_shell_name
 from zrb.llm.tool_call.argument_formatter.util import render_indented_markdown
-from zrb.llm.tool_call.shell_call import shell_command, shell_command_args
+from zrb.llm.tool_call.shell_call import (
+    is_sandbox_off,
+    shell_command,
+    shell_command_args,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -130,7 +134,7 @@ def _format_flags(args: Mapping[str, object]) -> str:
         flags.append(f"shell={_escape_unprintable(args['shell'])}")
     if args.get("background"):
         flags.append("background")
-    if args.get("dangerously_skip_sandbox"):
+    if is_sandbox_off(args):
         flags.append("⚠ NO SANDBOX")
     if not flags:
         return ""

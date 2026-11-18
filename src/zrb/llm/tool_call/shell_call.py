@@ -14,6 +14,7 @@ carries the command, and the two questions every caller asks of a call.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -60,7 +61,7 @@ def shell_command(args: dict[str, object]) -> str:
     return str(args[COMMAND_ARG])
 
 
-def is_sandbox_off(args: dict[str, object]) -> bool:
+def is_sandbox_off(args: Mapping[str, object]) -> bool:
     """Whether *args* ask to run outside the sandbox."""
     return bool(args.get(NO_SANDBOX_ARG))
 
