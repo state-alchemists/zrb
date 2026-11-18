@@ -30,6 +30,11 @@ from zrb.llm.shared.delegation_api import (
 )
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.shared.subagent_turn import SubAgentTurn, run_subagent_turn
+from zrb.llm.tool.delegate.background import (
+    get_background_registry,
+    register_background_handle,
+    start_background_run,
+)
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree
 from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.ui.buffered.ui import BufferedUI
@@ -555,13 +560,6 @@ def _adopt_delegation(
     to `GetDelegationResult`. Its buffered transcript goes with it, so what the
     sub-agent has already printed stays readable there.
     """
-    # lazy: circular — delegate_background imports this module's BufferedUI, so
-    # this direction has to stay deferred.
-    from zrb.llm.tool.delegate.background import (
-        get_background_registry,
-        register_background_handle,
-    )
-
     handle = get_random_name(separator="-", add_random_digit=True)
     get_background_registry().adopt(
         handle, agent_name, run, buffered_ui, buffered_ui.session_id
@@ -968,9 +966,6 @@ def create_delegate_to_agent_tool(
     ) -> str:
         def _launch_background() -> str:
             """Hand this call to the background registry and return its handle."""
-            # lazy: circular — delegate_background imports this module's BufferedUI
-            from zrb.llm.tool.delegate.background import start_background_run
-
             if tasks:
                 error = _batch_spec_error(tasks)
                 if error is not None:

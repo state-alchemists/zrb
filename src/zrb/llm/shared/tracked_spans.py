@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from zrb.llm.ui.output_chunk import (
+from zrb.llm.shared.output_chunk import (
     CollapsibleBlockSource,
     OpenCollapsibleBlock,
     rebase_tracked_spans,
