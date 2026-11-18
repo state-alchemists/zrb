@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import logging
 import weakref
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import fields, replace
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
@@ -194,6 +195,30 @@ def get_session_ui() -> "AnyUI | None":
 def reset_session_ui() -> None:
     """Forget the session's UI, once it stops running."""
     _session_uis.pop(current_session_key(), None)
+
+
+@contextmanager
+def bound_session_ui(ui: "AnyUI | None") -> Iterator[None]:
+    """Make *ui* the session's UI for the block, ``None`` meaning none, then
+    put back the one bound before it, if any.
+
+    Both halves of a chat session bind the session's UI — the interactive loop
+    for as long as the UI runs, a one-shot run for the length of its single
+    `async_run` — so the rule lives here, beside the three functions it wraps,
+    rather than in either runner.
+    """
+    previous = get_session_ui()
+    if ui is None:
+        reset_session_ui()
+    else:
+        set_session_ui(ui)
+    try:
+        yield
+    finally:
+        if previous is None:
+            reset_session_ui()
+        else:
+            set_session_ui(previous)
 
 
 _registered: "weakref.WeakKeyDictionary[Any, dict[str, list[tuple[str, Any]]]]" = (

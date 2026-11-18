@@ -27,6 +27,12 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # zrb.llm.agent is a lazy facade; its registration adapter resolves
     # engine pieces on first call to avoid pulling pydantic_ai at import time.
     "llm/agent/__init__.py": 2,
+    # The interactive session loop reads the typed message and puts the stored
+    # conversation back on screen. `task/chat/execution.py` imports
+    # `ui/fallback/resolution.py` for `resolve_ui`, so importing `task/` back at
+    # module level would make the two packages import each other; the helpers
+    # are needed once per session instead.
+    "llm/ui/session.py": 1,
 }
 
 

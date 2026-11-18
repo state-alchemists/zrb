@@ -83,10 +83,11 @@ flowchart TD
 | `HTTPUI` | `src/zrb/runner/chat/http_ui.py` | The web chat: output as session broadcasts, input from the session queue; built by `create_http_ui_factory` |
 | `create_ui_factory` | `src/zrb/llm/ui/ui_factory.py` | Turning a UI class into a factory a chat task can register |
 | `create_combined_ui` | `src/zrb/llm/ui/fallback/resolution.py` | Normalizing a UI or a list: one stays one, many become the `MultiUI` the presentation layer registers |
+| `run_interactive_session` | `src/zrb/llm/ui/session.py` | Building the session's UI, replaying the stored conversation onto it, running its loop and reading its last output |
 
 ### How it runs
 
-**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `ChatRunning.run_interactive_session` (`src/zrb/llm/task/chat/running.py`), after history and the first message are known. It collects the task's UIs and calls each registered factory. Then:
+**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `run_interactive_session` (`src/zrb/llm/ui/session.py`), after history and the first message are known. The task reaches it through `src/zrb/llm/shared/session_presentation.py`, so `task/` never imports `ui/`. It collects the task's UIs and calls each registered factory. Then:
 
 - nothing configured → the built-in terminal `UI`;
 - configured UIs with the default UI turned off → that one UI, or a `MultiUI` of several;
@@ -136,7 +137,7 @@ sequenceDiagram
 | Change the UI contract | `src/zrb/llm/ui/any_ui.py` | `test/llm/ui/test_extension_levels.py` |
 | Change the queue, turn or command handling | `src/zrb/llm/ui/base/` | `test/llm/ui/base/` |
 | Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
-| Change which UI a chat picks | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/test_running_sessions.py` |
+| Change which UI a chat picks | `src/zrb/llm/ui/session.py` | `test/llm/task/chat/test_running_sessions.py` |
 | Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/multi/test_multi_ui_confirmation.py`, `test/llm/ui/multi/test_multi_ui_fanout.py` |
 | Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/buffered/test_buffered_ui.py` |
 | Change the web output or input | `src/zrb/runner/chat/http_ui.py` | `test/runner/chat/test_http_ui.py` |

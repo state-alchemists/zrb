@@ -62,7 +62,6 @@ _FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
 # under src/zrb/llm. Fix one, delete its line.
 KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/manager/manager.py",
-    "task/chat/running.py -> ui/assembly.py",
 }
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".
