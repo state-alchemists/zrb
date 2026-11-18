@@ -16,8 +16,8 @@ from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_into_block
-from zrb.llm.ui.tracked_spans import TrackedSpans
+from zrb.llm.shared.output_chunk import CollapsibleBlockSource, merge_into_block
+from zrb.llm.shared.tracked_spans import TrackedSpans
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:

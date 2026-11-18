@@ -50,9 +50,13 @@ _CONTRACT_PATHS = {"agent/types.py"}
 # Path prefixes that sit below the layer of the package holding them. A floor is
 # a part of a package that the layers beneath it must be able to build with:
 # `ui/fallback/` is the plain terminal UI that a headless run needs, and it
-# cannot drag `ui/` with it, so it scores L0 while its neighbours score L4. The
-# unit still ends up in the allowlists above if it reaches back up.
-_FLOOR_PREFIXES = {"ui/fallback/": 0}
+# cannot drag `ui/` with it, so it scores L0 while its neighbours score L4.
+# `ui/buffered/` is the same shape for delegation — `tool/delegate/runner.py`
+# builds one buffer per sub-agent and hands it to `subagent/live_session.py` —
+# and its own runtime imports, `output_chunk` and `tracked_spans` included, now
+# sit at L0 beside it. The unit still ends up in the allowlists above if it
+# reaches back up.
+_FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
 
 # Upward runtime imports that exist today, as "importer -> imported" paths
 # under src/zrb/llm. Fix one, delete its line.
@@ -61,7 +65,6 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/tool_resolver.py",
     "subagent/live_session.py -> ui/base/message_queue.py",
     "task/chat/running.py -> ui/assembly.py",
-    "tool/delegate/runner.py -> ui/buffered/ui.py",
 }
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".

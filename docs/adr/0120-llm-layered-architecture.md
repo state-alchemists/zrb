@@ -32,3 +32,4 @@ Notes
 
 - agent/__init__.py resolves engine symbols lazily; two "# lazy: circular" imports are allowlisted.
 - A list of 2+ UIs requires the ui/multi/ package to register the combiner; the fallback lives in ui/fallback/, a floor the ratchet scores L0 while the rest of the package is L4.
+- A delegation's child buffer lives in ui/buffered/, the second floor: `tool/delegate/runner.py` builds one per sub-agent and `subagent/live_session.py` speaks to it, so the layers beneath the presentation layer must be able to construct it. Only `ui/fallback/` and `ui/buffered/` score L0; every other module under `ui/` scores L4, and the ratchet still fails on anything a floor imports from above.

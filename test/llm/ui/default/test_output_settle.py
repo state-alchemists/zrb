@@ -129,7 +129,7 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     # painted form is the open one.
     assert len(ui.rendered_blocks) == 1
     start, end, source, _renderer = ui.rendered_blocks[0]
-    from zrb.llm.ui.output_chunk import CollapsibleBlockSource
+    from zrb.llm.shared.output_chunk import CollapsibleBlockSource
 
     assert isinstance(source, CollapsibleBlockSource)
     assert source.expanded is True
