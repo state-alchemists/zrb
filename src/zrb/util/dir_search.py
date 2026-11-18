@@ -200,13 +200,22 @@ def _children_with_manifest(directories: list[Path]) -> list[Path]:
 
 
 def _subdirectories(directory: Path) -> list[Path]:
-    """The immediate, non-hidden children of *directory*; empty when unreadable."""
+    """The immediate, non-hidden children of *directory*.
+
+    An absent directory contributes nothing and says nothing: most optional
+    tiers — ``plugins/marketplaces/`` on a machine that never installed a
+    marketplace — are missing on purpose, and a warning about one is noise on
+    every scan. A directory that is there and cannot be read is news, and is
+    reported.
+    """
     try:
         return [
             item
             for item in directory.iterdir()
             if item.is_dir() and not item.name.startswith(".")
         ]
+    except FileNotFoundError:
+        return []
     except OSError:
         # Best-effort: one bad directory must not stop the rest.
         _LOGGER.warning("Failed to read directory: %s", directory, exc_info=True)

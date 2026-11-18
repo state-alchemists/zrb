@@ -1,6 +1,7 @@
 """Tests for util/dir_search.py — covers happy paths and exception fallbacks."""
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -50,10 +51,27 @@ def test_scan_plugin_dirs_collects_valid_manifests(tmp_path):
     assert hidden not in result
 
 
-def test_scan_plugin_dirs_returns_empty_on_error():
+def test_scan_plugin_dirs_is_quiet_about_a_plugins_root_that_is_not_there(caplog):
+    """An absent tier is not a failure: nothing is read, and nothing is said."""
     bogus = Path("/no/such/dir/anywhere/123")
-    # iterdir() on a nonexistent dir raises FileNotFoundError; helper must swallow.
-    assert scan_plugin_dirs(bogus) == []
+    with caplog.at_level(logging.WARNING, logger="zrb.util.dir_search"):
+        assert scan_plugin_dirs(bogus) == []
+    assert caplog.records == []
+
+
+def test_scan_plugin_dirs_is_quiet_about_a_missing_marketplaces_dir(tmp_path, caplog):
+    """A project `plugins/` with no `marketplaces/` beside it is the normal case.
+
+    `~/bsim/ai-workflow/plugins/` is one: a plugin checked out in place, and no
+    marketplace ever installed. The scan must still find the plugin, and say
+    nothing about the directory that is not there.
+    """
+    manifest = tmp_path / "claude-usage-tracker" / ".claude-plugin"
+    manifest.mkdir(parents=True)
+    (manifest / "plugin.json").write_text("{}", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="zrb.util.dir_search"):
+        assert scan_plugin_dirs(tmp_path) == [tmp_path / "claude-usage-tracker"]
+    assert caplog.records == []
 
 
 def _write_plugin_index(plugins_root: Path, plugins: dict) -> None:
@@ -237,10 +255,13 @@ def test_scan_plugin_dirs_survives_an_unreadable_index(tmp_path):
         assert scan_plugin_dirs(tmp_path) == []
 
 
-def test_scan_plugin_dirs_survives_an_unreadable_root(tmp_path):
+def test_scan_plugin_dirs_warns_about_a_directory_it_cannot_read(tmp_path, caplog):
+    """A directory that is there and unreadable is news; an absent one is not."""
     (tmp_path / "marketplaces").mkdir()
-    with patch.object(Path, "iterdir", side_effect=OSError("denied")):
-        assert scan_plugin_dirs(tmp_path) == []
+    with caplog.at_level(logging.WARNING, logger="zrb.util.dir_search"):
+        with patch.object(Path, "iterdir", side_effect=PermissionError("denied")):
+            assert scan_plugin_dirs(tmp_path) == []
+    assert "Failed to read directory" in caplog.text
 
 
 def test_get_dirs_up_to_home_walks_nearest_first(tmp_path):
