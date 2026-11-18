@@ -12,7 +12,6 @@ from zrb.llm.hook.builtin.memory_reviewer import (
     _DAY_APPEND_RESERVE,
     INTERRUPTED_LOG_TEXT,
     _append_event_line,
-    _clock_text,
     _day_note,
     _first_sentence,
     _tags,
@@ -375,9 +374,28 @@ def test_the_note_carries_the_clock_so_a_paragraph_cannot_lend_itself_one(store_
     assert re.search(r"the clock reads \d{2}:\d{2}\b", note)
 
 
-def test_the_clock_is_the_local_hour_and_minute():
-    """Pinned exactly, because the note is the only clock the reviewer has."""
-    assert _clock_text(datetime(2026, 11, 18, 6, 56)) == "06:56"
+def test_the_day_and_the_hour_come_from_one_read_of_the_clock(store_dir, monkeypatch):
+    """Two reads can straddle midnight: yesterday's date beside today's hour.
+
+    The reviewer is told the day so it can name it in `Remember`, and told the hour
+    so it does not invent one. Read separately they can disagree, and a midnight
+    turn lands under the wrong date — so both come from one instant.
+    """
+    reads = []
+
+    class _Midnight:
+        @staticmethod
+        def now(tz=None):
+            reads.append(1)
+            return datetime(2026, 11, 18, 0, 0, 1)
+
+    monkeypatch.setattr("zrb.llm.hook.builtin.memory_reviewer.datetime", _Midnight)
+
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+    assert len(reads) == 1
+    assert "2026-11-18" in note
+    assert "00:00" in note
 
 
 def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
