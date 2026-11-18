@@ -19,7 +19,8 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from zrb.llm.ui.base.message_queue import MessageQueue, steer_into_live_run
+from zrb.llm.shared.live_delivery import steer_into_live_run
+from zrb.llm.ui.base.message_queue import MessageQueue
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:

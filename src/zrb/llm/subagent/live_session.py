@@ -23,9 +23,9 @@ from zrb.llm.shared.delegation_api import (
     register_live_session_registry,
     register_start_titling,
 )
+from zrb.llm.shared.live_delivery import steer_into_live_run
 from zrb.llm.shared.subagent_turn import SubAgentTurn, run_subagent_turn
 from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.base.message_queue import steer_into_live_run
 
 if TYPE_CHECKING:
     from zrb.llm.agent.run.authority_snapshot import AuthoritySnapshot

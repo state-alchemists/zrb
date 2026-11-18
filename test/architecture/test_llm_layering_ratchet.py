@@ -63,7 +63,6 @@ _FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
 KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/manager/manager.py",
     "agent/hook_agent.py -> subagent/tool_resolver.py",
-    "subagent/live_session.py -> ui/base/message_queue.py",
     "task/chat/running.py -> ui/assembly.py",
 }
 
