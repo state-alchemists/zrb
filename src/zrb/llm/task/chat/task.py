@@ -37,7 +37,7 @@ from zrb.llm.tool_call import (
     shell_formatter,
     write_file_formatter,
 )
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
 

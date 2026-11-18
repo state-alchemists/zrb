@@ -10,7 +10,7 @@ from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.base.usage import BaseUIUsage
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 
 class MockUI:

@@ -9,7 +9,7 @@ import pytest
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 
 @pytest.fixture(autouse=True)

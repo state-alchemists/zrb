@@ -16,7 +16,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.snapshot import RestoreOutcome
 from zrb.llm.snapshot.manager import Snapshot
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 _COMMANDS = dict(
     conversation_session_name="session-one",

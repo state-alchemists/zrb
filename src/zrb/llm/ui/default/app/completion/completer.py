@@ -28,7 +28,7 @@ from zrb.llm.ui.default.app.completion.caches import (
     load_ollama_models,
     walk_recursive_files,
 )
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 from zrb.util.match import fuzzy_match
 
 

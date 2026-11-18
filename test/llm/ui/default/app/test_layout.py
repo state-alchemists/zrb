@@ -20,7 +20,7 @@ from zrb.llm.ui.default.app.layout import (
     create_layout,
     create_output_field,
 )
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 
 def _config(**overrides) -> UIConfig:
