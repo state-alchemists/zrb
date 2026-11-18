@@ -73,7 +73,7 @@ from zrb.llm.ui.fallback.resolution import create_combined_ui
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_execution import run_turn
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 from zrb.llm.util.spoken import shown_text
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.style import stylize_muted

@@ -62,7 +62,6 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "subagent/live_session.py -> ui/base/message_queue.py",
     "subagent/parent_message.py -> ui/buffered/ui.py",
     "task/chat/running.py -> ui/assembly.py",
-    "task/chat/task.py -> ui/ui_config.py",
     "tool/delegate/runner.py -> ui/buffered/ui.py",
 }
 

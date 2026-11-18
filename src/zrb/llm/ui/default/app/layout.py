@@ -25,7 +25,7 @@ from zrb.llm.ui.default.app.keybinding import (
     bind_choice_navigation,
     create_output_keybindings,
 )
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.app.follow import OutputFollow

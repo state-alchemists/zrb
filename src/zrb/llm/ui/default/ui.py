@@ -34,7 +34,7 @@ from zrb.llm.ui.default.picker import UIPicker
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
 from zrb.llm.ui.default.side_question import UISideQuestion
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 from zrb.llm.util.history_formatter import extract_user_message_texts
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size

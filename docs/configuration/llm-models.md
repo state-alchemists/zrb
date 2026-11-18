@@ -165,7 +165,7 @@ Which sources feed `/model` autocomplete in LLM chat:
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.config.ui_config import UIConfig
 
 task = LLMChatTask(
     name="chat",

@@ -45,7 +45,7 @@ if TYPE_CHECKING:
         TriggerMessage,
         TriggerReply,
     )
-    from zrb.llm.ui.ui_config import UIConfig  # noqa: F401
+    from zrb.llm.config.ui_config import UIConfig  # noqa: F401
     from zrb.llm.ui.ui_factory import create_ui_factory  # noqa: F401
 
 #: Name -> module that defines it, resolved on first use.
@@ -68,7 +68,7 @@ _SOURCES = {
     # Simple API (RECOMMENDED)
     "SimpleUI": "zrb.llm.ui.simple_ui_base",
     "EventDrivenUI": "zrb.llm.ui.event_driven.ui",
-    "UIConfig": "zrb.llm.ui.ui_config",
+    "UIConfig": "zrb.llm.config.ui_config",
     "TriggerInput": "zrb.llm.ui.trigger",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",
