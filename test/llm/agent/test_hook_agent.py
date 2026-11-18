@@ -7,16 +7,22 @@ that shared body's own tests, which is why some patches below still target
 `zrb.llm.hook.execution.creator` (where `run_llm_hook`, `CFG`, and `resolve_configured_model` live).
 """
 
+import os
+import subprocess
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import RunContext
 
-from zrb.llm.agent.hook_agent import create_agent_hook
+from zrb.llm.agent.hook_agent import create_agent_hook, resolve_agent_hook_tools
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.schema import AgentHookConfig
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.shared.tool_registry import tool_registry
+from zrb.llm.shared.tool_resolver import resolved_tool_name
 
 
 def _agent_returning(output):
@@ -151,12 +157,12 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
     mock_config, mock_module = _patched_agent(agent_cls)
     with (
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_registry",
-            return_value={},
+            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            return_value=[],
         ),
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_factories",
-            return_value=(),
+            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            return_value=[],
         ),
         mock_config,
         mock_module,
@@ -183,12 +189,12 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
 
     with (
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_registry",
-            return_value={"FlakyTool": flaky_tool},
+            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            return_value=[flaky_tool],
         ),
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_factories",
-            return_value=(),
+            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            return_value=[],
         ),
     ):
         resolved = resolve_agent_hook_tools(["FlakyTool"])
@@ -216,11 +222,11 @@ async def test_resolved_agent_hook_tools_are_undeferred():
 
     with (
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_registry",
-            return_value={},
+            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            return_value=[],
         ),
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_factories",
+            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
             return_value=[lambda ctx: [Tool(deferred_tool, defer_loading=True)]],
         ),
     ):
@@ -252,12 +258,12 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         # wrap_tool builds around the resolved tool, below.
         patch("pydantic_ai.Agent", agent_cls),
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_registry",
-            return_value={"Remember": fake_log_activity},
+            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            return_value=[fake_log_activity],
         ),
         patch(
-            "zrb.llm.subagent.manager.manager.sub_agent_manager.get_tool_factories",
-            return_value=(),
+            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            return_value=[],
         ),
     ):
         mock_resolve_model.return_value = "resolved"
@@ -385,3 +391,83 @@ async def test_agent_hook_exception_returns_failure():
 
     assert result.success is False
     assert "boom" in (result.output or "")
+
+
+_SRC = Path(__file__).resolve().parents[3] / "src"
+
+# Imports the hook and nothing else — never `zrb.llm.common_tools` — so the
+# built-in tools have to come from the engine.
+_NO_HOST_PROBE = """
+import sys
+from zrb.llm.agent.hook_agent import resolve_agent_hook_tools
+
+print(len(resolve_agent_hook_tools(["Read"])), "zrb.llm.common_tools" in sys.modules)
+"""
+
+
+def test_a_hook_resolves_a_built_in_tool_with_no_host_imported():
+    """A hook fires outside any task run, so its lookup cannot go through a host.
+
+    The sub-agent manager was the only thing that answered "what is `Read`?",
+    and the registry behind it was seeded by `zrb.llm.common_tools` — an
+    orchestration module a hook could reach only by importing the layer above
+    it. A fresh interpreter that never imports it is the proof that the built-in
+    set is the engine's: the hook reads `tool_registry`, which
+    `agent/tool_seed.py` fills as the hook imports it.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _NO_HOST_PROBE],
+        capture_output=True,
+        text=True,
+        cwd=_SRC.parent,
+        env={**os.environ, "PYTHONPATH": str(_SRC)},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == ["1", "False"], result.stdout
+
+
+def test_a_hook_resolves_a_tool_a_host_registered_on_the_manager():
+    """A host's own registration is part of what delegation offers.
+
+    `SubAgentManager.append_tool` is public, and a hook naming such a tool in
+    its `tools:` list resolved it before this module stopped importing the
+    manager. It still does: the manager is read through
+    `shared/delegation_api.py`, which the subagent package registers into, so
+    the agent package never imports the layer above it.
+    """
+    from zrb.llm.subagent.manager.manager import sub_agent_manager
+
+    def HostTool(ctx):
+        return "host"
+
+    sub_agent_manager.append_tool(HostTool)
+    try:
+        resolved = resolve_agent_hook_tools(["HostTool"])
+    finally:
+        sub_agent_manager.tool_registry_overrides.pop("HostTool", None)
+
+    assert [resolved_tool_name(tool) for tool in resolved] == ["HostTool"]
+
+
+def test_a_host_tool_beats_a_shipped_tool_of_the_same_name():
+    """A name collision resolves the way it does for a sub-agent: the host's.
+
+    The manager's registry is the shared one with the host's entries laid over
+    it, so a hook asking for a name both provide gets the host's copy.
+    """
+    shipped = tool_registry.tools_by_name()["Read"]
+
+    def Read(ctx):
+        return "host's read"
+
+    from zrb.llm.subagent.manager.manager import sub_agent_manager
+
+    sub_agent_manager.append_tool(Read)
+    try:
+        resolved = resolve_agent_hook_tools(["Read"])
+    finally:
+        sub_agent_manager.tool_registry_overrides.pop("Read", None)
+
+    assert len(resolved) == 1
+    assert resolved[0] is not shipped

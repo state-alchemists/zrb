@@ -14,15 +14,15 @@ Key units (one-liners)
 
 - L0: `shared/` (the vocabulary every other package speaks: the ambient state, the two seams, the tool registry, the message shapes), the `any_*.py` contracts, `ui/fallback` (the floor inside the UI package), and the `config`, `memory` and `util` packages.
 - L1: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager.
-- L2: agent (engine), summarizer.
-- L3: task (LLMChatTask), subagent (personas/live sessions), common_tools (seed registry), custom_command.
+- L2: agent (engine, and the built-in tool seed), summarizer.
+- L3: task (LLMChatTask), subagent (personas/live sessions), common_tools (host glue), custom_command.
 - L4: ui (terminal/web), speech/dictation/camera/screenshot/voice/emotion, app.
 
 Change map (do this → open this)
 
 - Build/run agent from a tool: `src/zrb/llm/shared/agent_runner.py`.
 - Delegate without importing subagent: `src/zrb/llm/shared/delegation_api.py`.
-- Add a tool: `src/zrb/llm/tool/<family>.py` and register via `common_tools.py`.
+- Add a tool: `src/zrb/llm/tool/<family>.py` and register via `agent/tool_seed.py`.
 - Change the agent loop: `src/zrb/llm/agent/run/runner.py`.
 - Change the prompt: `src/zrb/llm/prompt/manager.py`.
 - Persist/compact history: `src/zrb/llm/history_manager/*`.

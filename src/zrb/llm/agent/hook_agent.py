@@ -16,10 +16,17 @@ from typing import Any
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
+
+# Importing the seed is what gives `tool_registry` the built-in tools, which is
+# the surface a hook resolves against — and the reason this module can answer
+# "what is `Read`?" without a sub-agent manager.
+from zrb.llm.agent.tool_seed import seed_default_tools  # noqa: F401
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig
-from zrb.llm.shared.tool_resolver import resolve_tools_by_name
+from zrb.llm.shared.delegation_api import registered_sub_agent_manager
+from zrb.llm.shared.tool_registry import tool_registry
+from zrb.llm.shared.tool_resolver import resolve_tools_by_name, resolved_tool_name
 
 
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
@@ -57,37 +64,63 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
 def resolve_agent_hook_tools(names: list[str]) -> list:
     """Resolve `AgentHookConfig.tools` (names, Claude-compatible aliases
     honored) into real tool callables — including config-gated tools like the
-    memory ones, which live behind factories rather than the static
-    registry."""
+    memory ones, which live behind factories rather than the static registry.
+
+    Two surfaces are merged: what zrb ships to every agent — `tool_registry`,
+    which `agent/tool_seed.py` fills — and whatever a host registered on the
+    delegation manager, which a hook has always been able to name and which
+    wins a collision, as it does for a sub-agent. The manager is asked through
+    `shared/delegation_api.py`: an agent may not import the subagent package,
+    and a manager nobody loaded cannot be holding a registration.
+    """
     if not names:
         return []
-    # lazy: zrb internal (heavy via transitive). Hoisting pulls
-    # subagent/building.py and zrb.llm.summarizer into zrb.llm.agent's
-    # closure; the summarizer imports zrb.llm.agent back, so only the closure
-    # is circular (test_circular_import_allowlist.py).
-    from zrb.llm.subagent.manager.manager import sub_agent_manager
-
-    # Mirrors resolve_agent_build's own ctx-less fallback
-    # (subagent/manager/manager.py) — a hook fires outside any task run, so
-    # there is no real ctx to reuse.
+    # Mirrors resolve_agent_build's own ctx-less fallback (subagent/building.py)
+    # — a hook fires outside any task run, so there is no real ctx to reuse.
     ctx = Context(
         shared_ctx=SharedContext(), task_name="agent-hook", color=0, icon="🪝"
     )
-    resolved = resolve_tools_by_name(
-        names,
-        sub_agent_manager.get_tool_registry(),
-        sub_agent_manager.get_tool_factories(),
-        ctx,
-    )
+    tools, factories = _hook_tool_surface()
+    resolved = resolve_tools_by_name(names, tools, factories, ctx)
     # Same error containment as create_agent: a `[SYSTEM SUGGESTION]` error
     # returns as a tool result instead of aborting the hook run.
-    return [wrap_tool(_undeferred(tool)) for tool in resolved]
+    return [wrap_tool(_undeferred(tool)) for tool in _first_by_name(resolved)]
+
+
+def _hook_tool_surface() -> "tuple[dict[str, Any], list[Any]]":
+    """The tools and factories a hook resolves a name against."""
+    manager = registered_sub_agent_manager()
+    if manager is None:
+        return tool_registry.tools_by_name(), list(tool_registry.get_tool_factories())
+    return (
+        dict(manager.get_tool_registry()),
+        [*manager.get_tool_factories(), *tool_registry.get_tool_factories()],
+    )
+
+
+def _first_by_name(tools: list) -> list:
+    """One tool per name, the earlier one kept.
+
+    A host may register a factory that produces a tool the shipped set also
+    produces; the manager's factories come first, so the host's copy is the one
+    that reaches the hook, and the agent never receives two tools with one name.
+    """
+    seen: set[str] = set()
+    kept: list = []
+    for tool in tools:
+        name = resolved_tool_name(tool)
+        if name is not None:
+            if name in seen:
+                continue
+            seen.add(name)
+        kept.append(tool)
+    return kept
 
 
 def _undeferred(tool: Any) -> Any:
     """Strip `defer_loading` from *tool* if the shared registry/factories set
     it (e.g. a tool deferred for the main agent's rare use — see
-    `common_tools.py::_seed_tool_factories`).
+    `agent/tool_seed.py::seed_tool_factories`).
 
     A hook names its tools explicitly in its own config; there is no big
     catalogue for `defer_loading` to hide a rare tool inside, so all it would

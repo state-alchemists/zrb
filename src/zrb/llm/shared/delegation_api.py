@@ -47,6 +47,16 @@ def default_sub_agent_manager() -> SubAgentManagerAPI:
     return _manager
 
 
+def registered_sub_agent_manager() -> SubAgentManagerAPI | None:
+    """The registered manager, or ``None`` when nothing registered one.
+
+    For callers whose work is *optional*: an agent hook asks here for the tools
+    a host registered on the manager, and a manager nobody loaded cannot be
+    holding one, so a missing registration is an answer rather than an error.
+    """
+    return _manager
+
+
 def register_live_session_registry(registry: LiveSessionRegistryAPI) -> None:
     global _live_registry
     _live_registry = registry

@@ -1929,7 +1929,8 @@
         "set_seed",
         "set_tool_factories",
         "set_tools",
-        "set_toolset_factories"
+        "set_toolset_factories",
+        "tools_by_name"
       ]
     },
     "Tpl": {
