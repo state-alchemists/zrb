@@ -69,8 +69,9 @@ EXTENSION_POINT_EXCEPTIONS = {
     # public way to swap it yet (dead extensibility, like the old
     # LLMConfig.model_settings, which R12 found and deleted).
     "OverflowStore",
-    # run_agent_task's isinstance check for "can this UI feed the activity
-    # panel" — a capability probe, not a slot any task/UI constructor takes.
+    # Two isinstance checks — run_agent_task's "can this UI feed the activity
+    # panel", and the sub-agent messaging tool's "is this a sub-agent with a
+    # parent" — capability probes, not slots any task/UI constructor takes.
     "HasActivityTracking",
     # llm/tool/shell/command.py's narrowing of "can this UI render a command's output
     # as one live line" — the same kind of probe: no constructor takes a
