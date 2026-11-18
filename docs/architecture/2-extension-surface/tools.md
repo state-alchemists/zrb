@@ -72,7 +72,7 @@ flowchart TD
 | `ToolRegistry` | `src/zrb/llm/shared/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
 | `Capability`, `tag`, `tool_capability` | `src/zrb/llm/permission/capability.py` | Writing and reading the capability tag |
-| `resolve_tools_by_name` | `src/zrb/llm/subagent/tool_resolver.py` | Turning the tool names a sub-agent asks for into tool objects |
+| `resolve_tools_by_name` | `src/zrb/llm/shared/tool_resolver.py` | Turning the tool names a sub-agent asks for into tool objects |
 | `create_agent` | `src/zrb/llm/agent/common.py` | The only place a `pydantic_ai.Agent` is built |
 | `SafeToolsetWrapper` | `src/zrb/llm/agent/common.py` | The checkpoint every call passes: hooks, permission and sandbox checks, then the call |
 
@@ -131,7 +131,7 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 | Rename a tool the model sees | the tool's `__name__` line in `src/zrb/llm/tool/` | `test/llm/tool/` |
 | Change how capabilities are read | `src/zrb/llm/permission/capability.py` | `test/llm/permission/test_capability.py` |
 | Change registry order or mutation | `src/zrb/llm/shared/tool_registry.py` | `test/llm/shared/test_tool_registry.py` |
-| Change sub-agent tool lookup or aliases | `src/zrb/llm/subagent/tool_resolver.py` | `test/llm/subagent/test_tool_resolver.py` |
+| Change sub-agent tool lookup or aliases | `src/zrb/llm/shared/tool_resolver.py` | `test/llm/shared/test_tool_resolver.py` |
 | Change the execution checkpoint | `src/zrb/llm/agent/common.py` | `test/llm/agent/test_common_tool_wrapping.py` |
 
 ## See Also

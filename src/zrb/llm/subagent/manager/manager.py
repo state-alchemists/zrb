@@ -12,7 +12,7 @@ from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager.loading import SubAgentManagerLoading
 from zrb.llm.subagent.manager.search import SubAgentManagerSearch
 from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
-from zrb.llm.subagent.tool_resolver import resolved_tool_name
+from zrb.llm.shared.tool_resolver import resolved_tool_name
 from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:
