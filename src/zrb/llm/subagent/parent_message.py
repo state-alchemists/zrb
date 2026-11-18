@@ -12,9 +12,9 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
+from zrb.llm.shared.agent_activity import HasActivityTracking
 from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.subagent.live_session import live_subagent_session_registry
-from zrb.llm.ui.buffered.ui import BufferedUI
 
 
 async def send_message_to_parent(
@@ -26,9 +26,9 @@ async def send_message_to_parent(
     interrupting for. The main agent sees it as coming from you.
     """
     ui = get_current_ui()
-    agent_id = ui.agent_id if isinstance(ui, BufferedUI) else None
-    if not isinstance(ui, BufferedUI) or agent_id is None:
+    if not isinstance(ui, HasActivityTracking) or ui.agent_id is None:
         return "[SYSTEM SUGGESTION] You are not a delegated sub-agent; there is no parent to message."
+    agent_id = ui.agent_id
     registry = live_subagent_session_registry
     entry = registry.get(ui.session_id, agent_id)
     if entry is None or not registry.has_message_budget(ui.session_id, agent_id):

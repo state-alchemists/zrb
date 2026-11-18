@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.llm.shared.agent_activity import HasActivityTracking
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.tool.delegate.message import create_send_message_to_subagent_tool
@@ -100,3 +101,42 @@ async def test_a_parent_that_is_not_a_ui_cannot_receive_a_message(registry):
 async def test_outside_a_sub_agent_there_is_no_parent(registry):
     with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=None):
         assert "not a delegated sub-agent" in await send_message_to_parent("x")
+
+
+class _StubTrackedUI:
+    """Answers the five members of `HasActivityTracking`, and is nothing else.
+
+    Deliberately not a `BufferedUI`, not even an `AnyUI`: what decides whether
+    a sub-agent may message its parent is the protocol the members make up.
+    """
+
+    def __init__(self) -> None:
+        self.agent_id: str | None = "abcd1234"
+        self.session_id = SESSION
+        self.label = ""
+
+    def set_activity_id(self, agent_id: str) -> None:
+        self.agent_id = agent_id
+
+    def set_label(self, prefix: str) -> None:
+        self.label = prefix
+
+
+@pytest.mark.asyncio
+async def test_a_ui_that_only_answers_the_protocol_can_message_its_parent(registry):
+    parent = MagicMock(spec=AnyUI)
+    _add(registry, parent)
+    stub = _StubTrackedUI()
+    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=stub):
+        result = await send_message_to_parent("need the repo path")
+    assert "sent" in result
+    assert parent.input.submit_message.call_args.args[0].endswith("need the repo path")
+
+
+def test_the_buffered_ui_answers_the_whole_protocol():
+    """The class that is tracked today must still satisfy every member it widened.
+
+    Without this, widening the protocol is free: a member could be dropped from
+    `BufferedUI` and only the runtime path would notice.
+    """
+    assert isinstance(BufferedUI(MagicMock(spec=AnyUI), session_id=SESSION), HasActivityTracking)

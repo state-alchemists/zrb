@@ -8,9 +8,26 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class HasActivityTracking(Protocol):
-    """UI protocol for feeding the sub-agent activity panel."""
+    """A UI that knows which sub-agent it is, and can report that run's activity.
+
+    Structural on purpose: two callers ask this question of a UI they received
+    as `AnyUI` and must not name the class that answers it — `BufferedUI` sits
+    in the presentation layer, four layers above them. `tool/delegate/runner.py`
+    asks it to decide whether to track a run; `subagent/parent_message.py` asks
+    it to learn whether the current UI is a sub-agent that has a parent to
+    message. A backend that answers all five members is one, whatever it is
+    called.
+    """
 
     def set_activity_id(self, agent_id: str) -> None: ...
+    @property
+    def agent_id(self) -> str | None:
+        """The delegated agent's id, or None until `set_activity_id` is called."""
+        ...
+    @property
+    def session_id(self) -> str:
+        """The chat session this sub-agent belongs to."""
+        ...
     def set_label(self, prefix: str) -> None: ...
     @property
     def label(self) -> str: ...
