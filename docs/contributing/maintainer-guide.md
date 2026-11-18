@@ -99,7 +99,7 @@ Prose is one line per paragraph, with no wrapping at a fixed column. Markdown re
 
 Nothing enforces this. There is no reflow script and no CI gate, because a correct one is a Markdown block parser and the failures that come with getting it wrong are worse than a wrapped paragraph; the guard is a review comment. `docs/` was reflowed once so the tree starts from a consistent baseline.
 
-Two places stay out of scope, deliberately. `src/zrb/llm/prompt/markdown/` is model-facing prompt text: its wording is pinned by ADR-0049 and its bytes are part of the cached prefix (ADR-0042), so a reformat there is a behaviour change, not a formatting one. Skill bodies and their companions under `src/zrb/llm_plugin/` are the same kind of text.
+Two places stay out of scope, deliberately. `src/zrb/llm/shared/markdown/` is model-facing prompt text: its wording is pinned by ADR-0049 and its bytes are part of the cached prefix (ADR-0042), so a reformat there is a behaviour change, not a formatting one. Skill bodies and their companions under `src/zrb/llm_plugin/` are the same kind of text.
 
 ---
 

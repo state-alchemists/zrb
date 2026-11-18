@@ -21,7 +21,7 @@ PROMPT = (
     / "src"
     / "zrb"
     / "llm"
-    / "prompt"
+    / "shared"
     / "markdown"
     / "conversational_summarizer.md"
 )

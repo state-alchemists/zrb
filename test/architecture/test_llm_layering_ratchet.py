@@ -65,7 +65,6 @@ KNOWN_UPWARD_EDGES: set[str] = set()
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".
 KNOWN_SAME_LAYER_CYCLES: set[str] = {
-    "prompt <-> tool",
     "subagent <-> task",
 }
 

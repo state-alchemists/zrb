@@ -31,7 +31,7 @@ from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherCo
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
 from zrb.llm.memory.model import KIND_DIARY, body_limit, digest_body, injection_reason
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.util.spoken import split_spoken
 
 if TYPE_CHECKING:

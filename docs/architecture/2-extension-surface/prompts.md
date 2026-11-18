@@ -70,8 +70,8 @@ flowchart TD
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
 | `PromptManager` | `src/zrb/llm/prompt/manager.py` | Resolves the section list, chains the sections as middleware, appends extra prompts, and renders the live-context block |
-| `get_prompt` | `src/zrb/llm/prompt/prompt.py` | Loads one file section through the override chain and fills its placeholders |
-| Section files | `src/zrb/llm/prompt/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
+| `get_prompt` | `src/zrb/llm/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders |
+| Section files | `src/zrb/llm/shared/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
 | `active_profile` | `src/zrb/llm/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
 | `system_context` | `src/zrb/llm/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |
 | `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
@@ -81,6 +81,8 @@ flowchart TD
 | `render_memory_block`, `render_memory_delta` | `src/zrb/llm/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
 | `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
 | `create_agent` | `src/zrb/llm/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
+
+`get_prompt` and the section files sit at L0, under `shared/`, while the composition stays at L1. Reading a section and filling its placeholders is pure lookup: it needs `CFG` and the filesystem, and knows nothing about how sections are ordered. A tool that builds its own small agent — a summarizer, an extractor — needs a system prompt, and `tool/` may not import `prompt/`; putting the lookup between them is what keeps the two packages from importing each other (ADR-0049).
 
 ### How it runs
 
@@ -126,11 +128,11 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the wording of a section | `src/zrb/llm/prompt/markdown/` | `test/llm/prompt/test_prompt_mandates.py` |
-| Change a profile adjustment | `src/zrb/llm/prompt/markdown/profile.capable.md` (and its two siblings) | `test/llm/prompt/test_profile.py` |
+| Change the wording of a section | `src/zrb/llm/shared/markdown/` | `test/llm/prompt/test_prompt_mandates.py` |
+| Change a profile adjustment | `src/zrb/llm/shared/markdown/profile.capable.md` (and its two siblings) | `test/llm/prompt/test_profile.py` |
 | Change how `auto` picks a profile | `src/zrb/llm/prompt/profile.py` | `test/llm/prompt/test_profile.py` |
 | Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
-| Change override lookup | `src/zrb/llm/prompt/prompt.py` | `test/llm/prompt/test_default_prompt.py` |
+| Change override lookup | `src/zrb/llm/shared/prompt_text.py` | `test/llm/prompt/test_default_prompt.py` |
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
 | Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/live_context/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |

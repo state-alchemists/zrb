@@ -11,7 +11,7 @@ from zrb.llm.prompt.profile import (
     builtin_profile,
     resolve_profile,
 )
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 
 
 @pytest.mark.parametrize("profile", PROFILES)

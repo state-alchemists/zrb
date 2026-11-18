@@ -10,7 +10,7 @@ said was only for new ones.
 import inspect
 import re
 
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.tool.memory import remember
 
 _CALL = re.compile(r"Remember\(([^)]*)\)")

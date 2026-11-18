@@ -19,7 +19,7 @@ from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.ambient_state import get_current_reply_emotion
 from zrb.llm.shared.feature_config import (
     current_session_key,
