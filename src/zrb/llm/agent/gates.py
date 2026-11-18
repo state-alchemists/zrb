@@ -38,6 +38,7 @@ from zrb.llm.permission import (
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.llm.sandbox.policy import SandboxPolicy
 from zrb.llm.shared.agent_tool_result import tool_return
+from zrb.llm.tool_call.shell_call import is_sandbox_off
 
 if TYPE_CHECKING:
     from pydantic_ai import RunContext, ToolReturn
@@ -118,7 +119,7 @@ def sandbox_gate(
             blocked=True,
         )
 
-    if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
+    if not policy.allow_escape and is_sandbox_off(args):
         return _blocked(
             "dangerously_skip_sandbox was requested but escaping the sandbox "
             "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE_ENABLED=false)"

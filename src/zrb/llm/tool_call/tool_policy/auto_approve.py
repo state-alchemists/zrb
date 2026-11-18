@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.handler import ToolPolicy
+from zrb.llm.tool_call.shell_call import is_sandbox_off
 from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
 
         args = parse_tool_args(call)
         # A sandbox-escape request must always reach a human.
-        if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
+        if isinstance(args, dict) and is_sandbox_off(args):
             return await next_handler(ui, call)
 
         if not kwargs_patterns:

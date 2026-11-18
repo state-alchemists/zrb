@@ -396,7 +396,7 @@ def _approve_by_default(
         return None
     # The same invariant the tool policies keep: a request to leave the sandbox
     # is a request for a human, however ordinary the tool is.
-    if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
+    if isinstance(args, dict) and is_sandbox_off(args):
         return None
     # lazy: heavy third-party
     from pydantic_ai import ToolApproved
