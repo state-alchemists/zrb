@@ -85,7 +85,7 @@ async def _run(text: str, model: "str | Model | None") -> str:
     agent = create_speech_summarizer_agent(model)
     result = await agent.run(text)
     record_agent_usage(result, component=COMPONENT_OTHER)
-    record_standalone_requests(result, REASON_SPEECH)
+    record_standalone_requests(result, REASON_SPEECH, component=COMPONENT_OTHER)
     return str(result.output or "")
 
 

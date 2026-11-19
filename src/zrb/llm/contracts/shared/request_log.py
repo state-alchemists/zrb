@@ -241,7 +241,11 @@ def record_round_requests(
 
 
 def record_standalone_requests(
-    result: object, reason: str, *, history: History | None = None
+    result: object,
+    reason: str,
+    *,
+    component: str,
+    history: History | None = None,
 ) -> list[RequestRecord]:
     """Write a row for every request a run outside the turn loop sent.
 
@@ -256,6 +260,13 @@ def record_standalone_requests(
     minted here: a call's rows join on it, and it joins nothing else. A later
     request inside the same run is filed as a follow-up, the same way a round's
     are.
+
+    *component* is the name the site also gives `record_agent_usage`, and it is
+    required because these calls run *beside* a turn rather than inside it: the
+    ambient component is whatever the turn set, so reading it here would file a
+    hook's tokens under the main agent and leave the request row disagreeing
+    with the summed line it is meant to explain. Both writers are handed the
+    same constant, which is the one way the two cannot drift.
 
     *history* is what the run was handed as `message_history`, when it was
     handed one: a side question reads the conversation so far and sends it with
@@ -277,6 +288,7 @@ def record_standalone_requests(
             turn=uuid.uuid4().hex,
             first_index=0,
             reason=reason,
+            component=component,
         )
     )
 
@@ -297,15 +309,18 @@ def _rows_for(
     turn: str,
     first_index: int,
     reason: str,
+    component: str | None = None,
 ) -> list[RequestRecord]:
     """The rows one run's requests make, numbered from *first_index*.
 
     Shared by the turn's writer and the standalone one so the two cannot drift
-    on what a row says; the only difference between them is where the turn id
-    and the starting index come from.
+    on what a row says; the only difference between them is where the turn id,
+    the starting index and the component come from. *component* left out is the
+    ambient one, which is right for a round: the turn loop binds it, so a
+    round's rows are filed under the component that ran it.
     """
     session = current_conversation_name()
-    component = current_component()
+    row_component = current_component() if component is None else component
     rows: list[RequestRecord] = []
     index = first_index
     for digest, prompt_messages, response in _requests_sent(history, new_messages):
@@ -314,7 +329,7 @@ def _rows_for(
                 timestamp=_stamp(response),
                 model=_model_of(response),
                 session=session,
-                component=component,
+                component=row_component,
                 reason=reason if index == first_index else REASON_FOLLOW_UP,
                 turn=turn,
                 index=index,

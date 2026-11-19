@@ -25,7 +25,11 @@ from zrb.llm.contracts.shared.request_log import (
     read_requests,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, usage_component
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_HOOK,
+    COMPONENT_MAIN,
+    usage_component,
+)
 
 
 @pytest.fixture
@@ -66,8 +70,9 @@ def _run(prompt: str = "Hi", answer: str = "done") -> list:
 
 
 def test_a_standalone_call_writes_one_row_per_request(usage_dir):
-    with usage_component(COMPONENT_HOOK):
-        rows = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+    rows = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
 
     assert [row.index for row in rows] == [0, 1]
     assert [row.reason for row in rows] == [REASON_HOOK, REASON_FOLLOW_UP]
@@ -92,10 +97,17 @@ def test_a_standalone_call_folds_the_history_it_was_given(usage_dir):
     ]
 
     with_history = record_standalone_requests(
-        FakeResult(_run()), REASON_HOOK, history=history
+        FakeResult(_run()),
+        REASON_HOOK,
+        component=COMPONENT_HOOK,
+        history=history,
     )
-    without = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
-    again = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+    without = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
+    again = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
 
     assert [row.prompt_messages for row in with_history] == [4, 6]
     assert without[0].prompt_messages == 1
@@ -107,25 +119,55 @@ def test_a_standalone_call_folds_the_history_it_was_given(usage_dir):
 
 def test_a_standalone_call_owns_its_turn_id(usage_dir):
     """One call's rows join on a turn of their own, and on nobody else's."""
-    first = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
-    second = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+    first = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
+    second = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
 
     assert first[0].turn == first[1].turn
     assert second[0].turn != first[0].turn
 
 
+def test_the_row_is_filed_under_the_component_it_was_handed(usage_dir):
+    """The ambient component belongs to the turn, and these calls run beside it.
+
+    `record_agent_usage` writes its `component` into the summed line; it does not
+    bind the context. A row read from the context would file a hook's tokens
+    under the main agent while the bill beside it said `hook_agent`, which is the
+    disagreement these rows exist to prevent.
+    """
+    with usage_component(COMPONENT_MAIN):
+        rows = record_standalone_requests(
+            FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+        )
+
+    assert [row.component for row in rows] == [COMPONENT_HOOK, COMPONENT_HOOK]
+
+
 def test_the_rows_are_appended_where_the_read_finds_them(usage_dir):
-    record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+    record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, component=COMPONENT_HOOK
+    )
 
     assert len(read_requests()) == 2
 
 
 @pytest.mark.parametrize("result", [object(), None])
 def test_a_result_that_cannot_give_its_messages_writes_nothing(usage_dir, result):
-    assert record_standalone_requests(result, REASON_HOOK) == []
+    rows = record_standalone_requests(
+        result, REASON_HOOK, component=COMPONENT_HOOK
+    )
+
+    assert rows == []
     assert read_requests() == []
 
 
 def test_a_result_with_no_messages_writes_nothing(usage_dir):
-    assert record_standalone_requests(FakeResult([]), REASON_HOOK) == []
+    rows = record_standalone_requests(
+        FakeResult([]), REASON_HOOK, component=COMPONENT_HOOK
+    )
+
+    assert rows == []
     assert read_requests() == []

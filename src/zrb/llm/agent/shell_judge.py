@@ -211,7 +211,9 @@ async def judge_shell_command(
         CFG.LOGGER.debug(f"Shell judge failed: {error}")
         raise ShellJudgeError(str(error) or type(error).__name__) from error
     record_agent_usage(result, component=COMPONENT_SHELL_JUDGE)
-    record_standalone_requests(result, REASON_SHELL_JUDGE)
+    record_standalone_requests(
+        result, REASON_SHELL_JUDGE, component=COMPONENT_SHELL_JUDGE
+    )
     _log_spend(result)
     verdict = verdict_from_output(getattr(result, "output", None))
     return ShellVerdict(level=verdict.level, reason=verdict.reason, facts=facts)

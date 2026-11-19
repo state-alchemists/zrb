@@ -200,7 +200,9 @@ async def _ask_model(material: str) -> str:
         )
         result = await agent.run(material)
         record_agent_usage(result, component=COMPONENT_HOOK)
-        record_standalone_requests(result, REASON_MEMORY_WEEK)
+        record_standalone_requests(
+            result, REASON_MEMORY_WEEK, component=COMPONENT_HOOK
+        )
     except (OSError, RuntimeError) as error:
         # The two shapes a one-shot call fails in: a model that could not be
         # resolved or did not answer, which pydantic-ai raises as a

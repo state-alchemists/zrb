@@ -392,7 +392,7 @@ async def run_llm_hook(
         # it above. The result's own response names the model that served the
         # request, which is what `/usage` groups by.
         record_agent_usage(result, component=COMPONENT_HOOK)
-        record_standalone_requests(result, REASON_HOOK)
+        record_standalone_requests(result, REASON_HOOK, component=COMPONENT_HOOK)
         return HookResult(
             success=True,
             output=output_text,

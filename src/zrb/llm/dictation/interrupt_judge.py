@@ -88,7 +88,9 @@ async def judge_barge_in(
             timeout if timeout is not None else DEFAULT_JUDGE_TIMEOUT_SECONDS,
         )
         record_agent_usage(result, component=COMPONENT_OTHER)
-        record_standalone_requests(result, REASON_DICTATION_JUDGE)
+        record_standalone_requests(
+            result, REASON_DICTATION_JUDGE, component=COMPONENT_OTHER
+        )
         return result.output
     except asyncio.CancelledError:
         # A turn being cancelled is not a judge that failed: let it unwind.
