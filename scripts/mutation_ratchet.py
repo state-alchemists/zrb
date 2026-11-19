@@ -55,9 +55,13 @@ TESTS = REPO_ROOT / "test"
 # line-count budgets which are pinned exact -- an edit to a package shifts which
 # mutation sites get drawn, so the rate moves a little with no test changing.
 # The margin absorbs that drift; it is not slack for new untested code.
+#
+# cmd is measured at 39 mutants rather than 25 (see SAMPLE_SIZES): on
+# 2026-11-19 its output-buffer comparisons scored 49% there before they were
+# asserted on and 69% after, and a 25-mutant draw is too sparse to see them.
 FLOORS: dict[str, int] = {
     "task/base": 50,
-    "cmd": 30,
+    "cmd": 64,
     "llm/skill": 55,
     "llm/prompt": 50,
 }
@@ -66,6 +70,12 @@ FLOORS: dict[str, int] = {
 # fixed and the count explicit so a rate is reproducible across runs.
 DEFAULT_MUTANTS_PER_PACKAGE = 25
 SEED = 20260918
+
+# Packages whose pool of mutation sites is wide enough that the default sample
+# misses a whole family of them. `cmd` holds eight mutants in the five
+# comparisons that bound a child's output; at 25, too few are drawn to tell
+# `>` from `>=`, so its floor is measured -- and reproduced -- at 39.
+SAMPLE_SIZES: dict[str, int] = {"cmd": 39}
 
 # A hang is a detection, not a survival (pytest-timeout fails it), so this only
 # has to exceed a healthy run of one package's tests.
@@ -391,8 +401,11 @@ def main() -> int:
     parser.add_argument(
         "--mutants",
         type=positive_int,
-        default=DEFAULT_MUTANTS_PER_PACKAGE,
-        help=f"mutants sampled per package (default: {DEFAULT_MUTANTS_PER_PACKAGE})",
+        default=None,
+        help=(
+            "mutants sampled per package (default: 25, or SAMPLE_SIZES for a "
+            "package that needs a wider one)"
+        ),
     )
     parser.add_argument(
         "--json", type=Path, help="also write the per-package results here"
@@ -440,8 +453,11 @@ def main() -> int:
 
     for package in packages:
         print(f"\n{package} (floor {FLOORS[package]}%)")
+        sample_size = args.mutants or SAMPLE_SIZES.get(
+            package, DEFAULT_MUTANTS_PER_PACKAGE
+        )
         try:
-            killed, scored = score_package(package, args.mutants, args.verbose)
+            killed, scored = score_package(package, sample_size, args.verbose)
         except RatchetError as error:
             print(f"  ! {error}")
             return 1
