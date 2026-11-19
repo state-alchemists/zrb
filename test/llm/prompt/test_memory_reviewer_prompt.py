@@ -59,9 +59,12 @@ def test_the_prompt_says_a_full_day_is_written_back():
 
     The reviewer appends without ever seeing the day, so the page being full was a
     refusal it could not read; the hook hands the body over and the prompt has to
-    say what to do with it.
+    say what to do with it. "Under the point where it is compacted" and not "under
+    the cap": a rewrite asked to fit 8,000 chars landed at 7,980, freed nothing,
+    and the next append was refused against the same wall.
     """
     text = get_prompt("memory_reviewer")
-    assert "A full day is handed to you" in text
+    assert "A day is compacted before it is full" in text
     assert 'body_mode="w"' in text
     assert "drop the weakest paragraph" in text
+    assert "under that point, not merely under the page's cap" in text

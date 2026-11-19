@@ -168,7 +168,7 @@ turn only.
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
 | `claim` | yes | The day in one line, ≤ 160 chars. This is what the recent block shows for that day, so a day stops being inferred from its log lines. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
-| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (8,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. `body_mode="w"` replaces the page, and with `body_digest` — the digest shown beside the body it read — the write is refused when the day moved in between. |
+| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (8,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the whole it becomes; past `LLM_MEMORY_DIARY_COMPACT_AT` (6,000) it is refused, because the page is meant to be shortened before it is grown. `body_mode="w"` replaces the page, and with `body_digest` — the digest shown beside the body it read — the write is refused when the day moved in between. From a page past the threshold a rewrite must land below it: a body that lands at or over the threshold again has dropped nothing and is refused. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
 | `status` | yes | Always `active`; only `forget(reason="wrong")` can retire it. `stale` and `done` are refused, because a day does not stop being true. |
 
@@ -691,6 +691,7 @@ Two lines the Journal section had are absent rather than zeroed. A search's **ou
 | `LLM_MEMORY_RECENT_MAX_CHARS` | `1600` | The recent block cap |
 | `LLM_MEMORY_LOG_RETENTION_DAYS` | `0` | `0` keeps every day file; `180` prunes logs only — never facts or diaries |
 | `LLM_MEMORY_DIARY_MAX_CHARS` | `8000` | Diary body cap; a page, not a transcript |
+| `LLM_MEMORY_DIARY_COMPACT_AT` | `6000` | Where the page is compacted instead of grown: an append is refused past it, and a rewrite from past it must land below it |
 | `LLM_MEMORY_HANDOVER_MAX_CHARS` | `700` | The handover field cap |
 | `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS` | `7` | How far back a handover is still current |
 | `LLM_MEMORY_DELTA_PER_TURN` | `3` | Lines in `<memory-delta>` |

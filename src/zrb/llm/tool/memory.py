@@ -35,16 +35,19 @@ from zrb.llm.contracts.memory.model import (
     STATUS_RETIRED,
     Diary,
     Fact,
+    append_past_compaction,
     body_error,
     body_limit,
     body_overflow,
     claim_error,
+    compact_at,
     date_error,
     digest_body,
     handover_error,
     id_error,
     is_date_shaped,
     reason_error,
+    rewrite_not_compacted,
 )
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.purpose import Purpose, requires_purpose
@@ -655,6 +658,57 @@ def _stale_rewrite(day: str, old: "Diary | None", expected_digest: str) -> str |
     )
 
 
+def _append_to_a_full_page(old: "Diary | None", body: str) -> str | None:
+    """Why this paragraph has to wait for the day to be compacted, or ``None``.
+
+    Only an existing day can be too full to grow: a new entry has no page to
+    shorten, so it is bounded by the cap alone.
+    """
+    if old is None:
+        return None
+    problem = append_past_compaction(body)
+    if problem is None:
+        return None
+    return _compaction_refusal(
+        old,
+        problem,
+        "write the whole day back, then add this paragraph to what you wrote.",
+    )
+
+
+def _rewrite_that_frees_nothing(old: "Diary | None", body: str) -> str | None:
+    """Why a rewrite of this day has to cut further, or ``None``."""
+    if old is None:
+        return None
+    problem = rewrite_not_compacted(old.body, body)
+    if problem is None:
+        return None
+    return _compaction_refusal(
+        old,
+        problem,
+        "cut further: a compaction lands under the threshold, not on the "
+        "ceiling it started from.",
+    )
+
+
+def _compaction_refusal(old: "Diary", problem: str, next_step: str) -> str:
+    """*problem*, with the day it is about and the call that would answer it.
+
+    The writer holds its own paragraph and never the page, so a refusal that says
+    only "too full" leaves it guessing at what to cut — the same reason a stale
+    rewrite carries the day it found. Without the digest the answering write is
+    the one a second session's paragraph disappears from.
+    """
+    at = compact_at(KIND_DIARY)
+    return (
+        f"{problem} Nothing was written. The day reads:\n\n{old.body}\n\n"
+        f"[SYSTEM SUGGESTION]: {next_step} Send it as `Remember(id=\"{old.id}\", "
+        f'kind="diary", body_mode="w", body_digest="{digest_body(old.body)}", '
+        f'body="…")` with the whole under {at} characters, keeping every quoted '
+        "moment and the reason behind a decision."
+    )
+
+
 def _diary_entry_after(
     old: Diary | None,
     day: str,
@@ -711,6 +765,18 @@ def _remember_diary_locked(
     problem = body_overflow(body_text) if append else None
     if problem:
         return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
+    # An append has to fit the page it joins, and a rewrite has to free something.
+    # A write that supplies no body is neither: the claim, the handover or the
+    # source changed and the body is carried over as it was, so there is nothing
+    # to measure and nothing to free.
+    if append:
+        refused = _append_to_a_full_page(old, body_text)
+    elif body is None:
+        refused = None
+    else:
+        refused = _rewrite_that_frees_nothing(old, body_text)
+    if refused:
+        return refused
     entry = _diary_entry_after(old, day, claim, handover, source, body_text)
     store.save_diary(entry)
     store.git_commit(f"diary: {entry.id}")

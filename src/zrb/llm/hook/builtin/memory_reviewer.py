@@ -30,7 +30,13 @@ from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.contracts.memory import store
-from zrb.llm.contracts.memory.model import KIND_DIARY, body_limit, digest_body, injection_reason
+from zrb.llm.contracts.memory.model import (
+    KIND_DIARY,
+    body_limit,
+    compact_at,
+    digest_body,
+    injection_reason,
+)
 from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.contracts.util.spoken import split_spoken
 
@@ -73,11 +79,13 @@ _LOG_LINE_MAX_CHARS = 140
 # event stays, the words do not.
 WITHHELD_LOG_TEXT = "a reply was kept out of the log: its text reads as an instruction"
 
-# Room a day needs before an append is worth asking for. A paragraph that lands in
-# the day is a moment — the user's words quoted, then the line saying why they
-# mattered — and 600 characters is a generous one. Less room than this and the
-# append is a refusal the reviewer cannot see coming: it holds the transcript, not
-# the page, so it is handed the page instead of being told to guess.
+# Room a day needs below the point where it must be compacted, before an append is
+# worth asking for. A paragraph that lands in the day is a moment — the user's words
+# quoted, then the line saying why they mattered — and 600 characters is a generous
+# one. Less room than this and the append is a refusal the reviewer cannot see
+# coming: it holds the transcript, not the page, so it is handed the page instead of
+# being told to guess. Measured against `compact_at`, not the cap: the append is
+# refused at the threshold, so the page has to arrive before it, not before it fills.
 _DAY_APPEND_RESERVE = 600
 
 
@@ -366,29 +374,38 @@ def _day_note(context: "HookContext") -> str:
             "entry yet: `claim` and `body` create one."
         )
     limit = body_limit(KIND_DIARY)
-    room = limit - len(entry.body)
+    at = compact_at(KIND_DIARY)
+    room = at - len(entry.body)
     head = (
         f"Today is `{day}` and the clock reads {clock}; its page holds "
-        f"{len(entry.body)} of {limit} characters, so {room} remain. A paragraph "
-        "that does not fit is written back as the whole day, not appended."
+        f"{len(entry.body)} of {limit} characters and is compacted from {at}, so "
+        f"{max(room, 0)} remain below that. A paragraph that would carry it past "
+        "is written back as the whole day, not appended."
     )
     if room > _DAY_APPEND_RESERVE:
         return head
-    return f"{head}\n\n{_full_day_note(day, entry.body, limit)}"
+    return f"{head}\n\n{_full_day_note(day, entry.body, at)}"
 
 
-def _full_day_note(day: str, body: str, limit: int) -> str:
-    """What the reviewer is told when the day cannot take another paragraph."""
+def _full_day_note(day: str, body: str, at: int) -> str:
+    """What the reviewer is told when the day cannot take another paragraph.
+
+    The target is the threshold, not the cap. A rewrite asked to fit "under
+    8,000" fits at 7,980 and frees nothing: the next paragraph is refused again,
+    and the page reads as frozen for as long as the day lasts.
+    """
     return (
-        f"The page is nearly full, so an append is refused rather than shortened. "
-        f"Its body, as it stands (digest `{digest_body(body)}`):\n\n{body}\n\n"
+        f"The page is past the point where it is compacted, so an append is "
+        f"refused rather than shortened. Its body, as it stands (digest "
+        f"`{digest_body(body)}`):\n\n{body}\n\n"
         "If this turn belongs in the day, write the whole day back instead: "
         f'`Remember(id="{day}", kind="diary", body_mode="w", '
         f'body_digest="{digest_body(body)}", body="…")`, with every paragraph worth '
-        f"keeping plus this turn's, and the whole under {limit} characters. Make "
-        "room by dropping the weakest paragraph, never a moment — a quote and the "
-        "line saying why it mattered stays, and so does the reason behind a "
-        "decision. Omit `claim`: a day that has one keeps it. If the rewrite is "
+        f"keeping plus this turn's, and the whole under {at} characters. Make room "
+        "by dropping the weakest paragraph, never a moment — a quote and the line "
+        "saying why it mattered stays, and so does the reason behind a decision. "
+        f"A body that lands at or over {at} is refused, because it has freed "
+        "nothing. Omit `claim`: a day that has one keeps it. If the rewrite is "
         "refused because the day moved, merge into the body the refusal shows you "
         "and send it once more."
     )
