@@ -114,6 +114,10 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
 
 async def _summarize(ctx, repo_dir, template, tag, previous, model):
     from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
+    from zrb.llm.contracts.shared.request_log import (
+        REASON_CHANGELOG,
+        record_standalone_requests,
+    )
     from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
     log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
@@ -142,6 +146,7 @@ async def _summarize(ctx, repo_dir, template, tag, previous, model):
     agent = create_agent(model=model, tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
     result = await agent.run(instruction)
     record_agent_usage(result, component=COMPONENT_OTHER)
+    record_standalone_requests(result, REASON_CHANGELOG, component=COMPONENT_OTHER)
     return result.output
 
 

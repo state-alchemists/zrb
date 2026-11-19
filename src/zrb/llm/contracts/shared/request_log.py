@@ -150,6 +150,10 @@ REASON_DICTATION_JUDGE = "dictation_judge"
 """The judge that decides whether spoken words interrupt the run."""
 REASON_SPEECH = "speech"
 """An answer's text read down to the part worth saying out loud."""
+REASON_PLEASE = "please"
+"""`zrb llm please`: a sentence read into one command line."""
+REASON_CHANGELOG = "changelog"
+"""A changelog draft, written from the commits since the previous tag."""
 
 
 @dataclass(frozen=True)
