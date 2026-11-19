@@ -5,9 +5,13 @@ on:
   push:
     branches:
       - main
+      # The 4.0 line: a long-lived branch where `zrb.llm`'s five-directory move
+      # lands, so it is checked like `main` until it becomes `main` again.
+      - v4
   pull_request:
     branches:
       - main
+      - v4
 
 permissions:
   contents: read
