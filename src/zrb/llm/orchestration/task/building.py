@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.permission import PermissionPolicyInput
     from zrb.llm.capabilities.sandbox import SandboxInput
     from zrb.llm.orchestration.task.llm_task import LLMTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 class LLMTaskBuilding:

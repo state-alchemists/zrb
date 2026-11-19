@@ -24,7 +24,7 @@ def test_agent_output_stays_narrow():
 
 
 def test_any_ui_satisfies_agent_output():
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     for name in _members():
         assert hasattr(AnyUI, name), f"AnyUI is missing {name}"

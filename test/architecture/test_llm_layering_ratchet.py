@@ -188,8 +188,8 @@ def test_an_import_spelled_as_a_call_is_an_edge():
     an upward import the ratchet cannot see — and a deferred import upward is
     an import upward however it is spelled.
     """
-    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.ui.session")'))
-    assert "zrb.llm.ui.session" in names
+    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.presentation.ui.session")'))
+    assert "zrb.llm.presentation.ui.session" in names
 
 
 def test_a_relative_import_resolves_against_the_importing_package():
@@ -202,18 +202,18 @@ def test_a_relative_import_resolves_against_the_importing_package():
 
 
 def test_a_relative_import_module_resolves_its_own_package():
-    """`import_module("..ui", package=__package__)` is an edge to `zrb.llm.ui`."""
+    """`import_module(".ui", package=__package__)` is an edge to the UI package."""
     names = _runtime_imports(
-        ast.parse('importlib.import_module("..ui", package=__package__)'),
-        ["zrb", "llm", "agent"],
+        ast.parse('importlib.import_module(".ui", package=__package__)'),
+        ["zrb", "llm", "presentation"],
     )
-    assert "zrb.llm.ui" in names
+    assert "zrb.llm.presentation.ui" in names
 
 
 def test_a_relative_import_module_resolves_a_literal_package():
     """`package=` anchors a relative name exactly as Python anchors it.
 
-    Not `zrb.llm.ui`: the anchor is the dotted name given, so `..ui` from
+    Not `zrb.llm.presentation.ui`: the anchor is the dotted name given, so `..ui` from
     `zrb.llm.engine.agent.loader` is `zrb.llm.engine.agent.ui`. Asked of `importlib` itself,
     so this expectation cannot drift from the rule it describes.
     """
@@ -233,9 +233,9 @@ def test_a_type_checking_block_is_not_an_edge():
     source = (
         "from typing import TYPE_CHECKING\n"
         "if TYPE_CHECKING:\n"
-        "    import zrb.llm.ui.session\n"
+        "    import zrb.llm.presentation.ui.session\n"
     )
-    assert "zrb.llm.ui.session" not in _runtime_imports(ast.parse(source))
+    assert "zrb.llm.presentation.ui.session" not in _runtime_imports(ast.parse(source))
 
 
 def _file_edges() -> set[tuple[str, str]]:

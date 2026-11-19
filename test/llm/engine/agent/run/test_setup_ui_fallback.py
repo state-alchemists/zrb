@@ -2,7 +2,7 @@
 
 `resolve_context_dependencies` falls back to `StdUI` when a run has no UI.
 `StdUI` lives inside the presentation package, in `ui/fallback/`, so
-`zrb/llm/ui/__init__.py` resolves every export through PEP 562 instead of
+`zrb/llm/presentation/ui/__init__.py` resolves every export through PEP 562 instead of
 importing one: the package node enters `sys.modules` the moment the fallback
 loads, and an eager re-export there would put the terminal client, the base UI
 and prompt_toolkit back into a headless run's import graph. The probe runs in a
@@ -35,10 +35,10 @@ _NO_UI_FALLBACK_PROBE = """
 import sys
 
 from zrb.llm.engine.agent.run.setup import resolve_context_dependencies
-from zrb.llm.ui.fallback.resolution import get_main_ui
-from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.presentation.ui.fallback.resolution import get_main_ui
+from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 
-PRESENTATION = ("zrb.llm.ui.base", "zrb.llm.ui.default", "zrb.llm.ui.multi",
+PRESENTATION = ("zrb.llm.presentation.ui.base", "zrb.llm.presentation.ui.default", "zrb.llm.presentation.ui.multi",
                 "prompt_toolkit")
 
 
@@ -57,8 +57,8 @@ print("ok")
 """
 
 _UNREGISTERED_COMBINER_PROBE = """
-from zrb.llm.ui.fallback.resolution import create_combined_ui
-from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.presentation.ui.fallback.resolution import create_combined_ui
+from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 
 try:
     create_combined_ui([StdUI(), StdUI()], fallback=StdUI())

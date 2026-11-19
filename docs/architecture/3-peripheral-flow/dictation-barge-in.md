@@ -97,8 +97,8 @@ flowchart TD
 | `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
 | `Speaker` | `src/zrb/llm/speech/player.py` | Queuing, synthesizing and playing speech; pause, resume and interrupt |
 | `StreamedReply` | `src/zrb/llm/speech/streamed_reply.py` | Turning stream events into sentences; muting a reply that was talked over |
-| `TriggerReply` | `src/zrb/llm/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
-| `BaseUITriggers` | `src/zrb/llm/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
+| `TriggerReply` | `src/zrb/llm/presentation/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
+| `BaseUITriggers` | `src/zrb/llm/presentation/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
 | `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/contracts/shared/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
 
 ### How it runs
@@ -196,7 +196,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Change how the macOS microphone takes zrb's voice out | `src/zrb/llm/dictation/echo_cancel.py` | `test/llm/dictation/test_echo_cancel.py`, `test/llm/dictation/test_listen_echo_cancel.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
-| Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |
+| Change how a spoken reply reaches a prompt | `src/zrb/llm/presentation/ui/base/triggers.py` | `test/llm/presentation/ui/base/` |
 | Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |
 | Change where the voice lives — the face server's microphone and speaker | `src/zrb/llm/contracts/util/face_server.py`, `src/zrb/llm/dictation/remote_microphone.py`, `src/zrb/llm/speech/remote_output_stream.py` | `test/llm/contracts/util/test_face_server.py`, `test/llm/dictation/test_remote_microphone.py`, `test/llm/speech/test_remote_output_stream.py` |
 

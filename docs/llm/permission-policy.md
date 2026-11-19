@@ -168,7 +168,7 @@ Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the po
 
 ```python
 from zrb import LLMChatTask, LLMTask, cli
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 safe_task = cli.add_task(
     LLMTask(

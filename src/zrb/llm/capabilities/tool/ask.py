@@ -22,7 +22,7 @@ from zrb.llm.capabilities.tool_call.always_approve import register_always_auto_a
 from zrb.llm.contracts.util.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
+    from zrb.llm.presentation.ui.any_ui import ChoiceOption, ChoiceSpec
 
 
 @tool_safe_async

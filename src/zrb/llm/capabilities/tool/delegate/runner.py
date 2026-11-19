@@ -37,8 +37,8 @@ from zrb.llm.capabilities.tool.delegate.background import (
 )
 from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree, exit_worktree
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
-from zrb.llm.ui.buffered.ui import BufferedUI
-from zrb.llm.ui.fallback.resolution import resolve_ui
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.llm.contracts.util.roster import cap_items, search_roster
 from zrb.llm.contracts.util.subagent_session_naming import (
     format_delegated_session_name,
@@ -51,7 +51,7 @@ from zrb.util.string.suggestion import suggest_name
 if TYPE_CHECKING:
     from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.contracts.shared.delegation_api import SubAgentManagerAPI
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 @dataclass

@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     )
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.orchestration.task.shared_getters import ModelAttr, ToolFactory
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 class LLMTask(BaseTask):
@@ -748,7 +748,7 @@ class LLMTask(BaseTask):
         # A forced compaction answers no limit, so the trigger's fire line never
         # sees it; the summarizer says the reason for this one.
         warn_forced_compaction(user_message.strip(), len(message_history))
-        # lazy: heavy third-party (via zrb.llm.ui)
+        # lazy: heavy third-party (via zrb.llm.presentation.ui)
         from zrb.llm.engine.agent.run.setup import session_model_scope
 
         # `/compress` runs before any agent publishes model bindings; without

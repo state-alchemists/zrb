@@ -30,7 +30,7 @@ from typing import Unpack, get_origin
 
 from zrb.llm.orchestration.task.chat.task import LLMChatTask
 from zrb.llm.orchestration.task.llm_task import LLMTask
-from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.presentation.ui.base.ui import BaseUI
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.cmd_task import CmdTask

@@ -2,7 +2,7 @@
 one-shot run or through an interactive UI.
 
 The interactive half is presentation work — it assembles a UI, runs its loop
-and reads its display — and lives in `zrb.llm.ui.session`. `ChatRunning` asks
+and reads its display — and lives in `zrb.llm.presentation.ui.session`. `ChatRunning` asks
 `shared/session_presentation.py` for it and keeps the one-shot half here, which
 needs no UI beyond the ones already attached.
 """
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.llm_task import LLMTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     #: Builds the UI(s) a session runs through, from the session's own values.
     #: The interactive path also passes `custom_commands`, a ninth keyword
@@ -197,7 +197,7 @@ class ChatRunning:
         """Run the session through the UI the presentation layer assembles.
 
         Assembling that UI, and running its loop, is presentation work and
-        lives in `zrb.llm.ui.session`; the command offering an interactive
+        lives in `zrb.llm.presentation.ui.session`; the command offering an interactive
         chat registers it there (`builtin/llm/chat.py`). A task asked to run
         interactively with nothing registered has no way to present itself, so
         it says that instead of running without the session loop.

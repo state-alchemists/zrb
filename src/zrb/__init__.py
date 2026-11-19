@@ -80,8 +80,8 @@ if TYPE_CHECKING:
         register_default_auto_approve,
         register_default_auto_approve_if,
     )
-    from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
+    from zrb.llm.presentation.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.contracts.util.capabilities import model_capabilities
     from zrb.llm.voice.manager import (
         STTServiceManager,
@@ -329,9 +329,9 @@ _LAZY_EXPORTS = {
     "tts_registry": "zrb.llm.voice.registry",
     "ToolRegistry": "zrb.llm.contracts.shared.tool_registry",
     "tool_registry": "zrb.llm.contracts.shared.tool_registry",
-    "AnyUI": "zrb.llm.ui.any_ui",
-    "TriggerMessage": "zrb.llm.ui.trigger",
-    "TriggerReply": "zrb.llm.ui.trigger",
+    "AnyUI": "zrb.llm.presentation.ui.any_ui",
+    "TriggerMessage": "zrb.llm.presentation.ui.trigger",
+    "TriggerReply": "zrb.llm.presentation.ui.trigger",
     "model_capabilities": "zrb.llm.contracts.util.capabilities",
     "register_theme": "zrb.config.theme",
     "register_always_auto_approve": "zrb.llm.capabilities.tool_call.always_approve",

@@ -39,7 +39,7 @@ from telegram.ext import (
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.contracts.shared.input_source import InputProvenance
-from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
+from zrb.llm.presentation.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -419,7 +419,7 @@ if BOT_TOKEN and CHAT_ID:
     # create_ui_factory wires the 8 standard factory kwargs (ctx, llm_task,
     # history_manager, ui_commands, initial_*, ...) to TelegramUI for us, so we
     # only add the per-instance approval-channel wiring on top.
-    from zrb.llm.ui import create_ui_factory
+    from zrb.llm.presentation.ui import create_ui_factory
 
     _telegram_ui_factory = create_ui_factory(
         TelegramUI, bot=bot, chat_id=CHAT_ID, skip_kinds=SKIP_KINDS

@@ -106,7 +106,7 @@ async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_co
     mock_ui = SimpleMockUI()
 
     with (
-        patch("zrb.llm.ui.default.ui.UI") as MockUI,
+        patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI,
         patch(
             "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention",
             return_value="NUDGED:hi @researcher",
@@ -152,7 +152,7 @@ async def test_run_interactive_session_slash_command_skips_mention_resolution(
     mock_ui = SimpleMockUI()
 
     with (
-        patch("zrb.llm.ui.default.ui.UI") as MockUI,
+        patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI,
         patch(
             "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention"
         ) as mock_resolve_mention,
@@ -255,7 +255,7 @@ async def test_interactive_action_command_shows_reply_and_sends_nothing(
     shown: list = []
     mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
 
-    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
         await runner.run_interactive_session(
             ctx=ctx,
@@ -294,7 +294,7 @@ async def test_interactive_initial_action_command_runs_with_the_ui(runner, ui_co
     shown: list = []
     mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
 
-    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
         await runner.run_interactive_session(
             ctx=ctx,
@@ -334,9 +334,9 @@ async def test_initial_action_command_gets_the_main_ui_of_a_combined_ui(
     main_ui.tool_call_handler = None
 
     with (
-        patch("zrb.llm.ui.default.ui.UI", return_value=main_ui),
+        patch("zrb.llm.presentation.ui.default.ui.UI", return_value=main_ui),
         patch(
-            "zrb.llm.ui.multi.multi_ui.MultiUI.run_async",
+            "zrb.llm.presentation.ui.multi.multi_ui.MultiUI.run_async",
             new=AsyncMock(return_value=""),
         ),
     ):

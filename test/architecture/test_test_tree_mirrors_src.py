@@ -40,7 +40,7 @@ TEST_ONLY_DIRS = {
 COVERED_FROM_ABOVE = {
     # Five inert per-role defaults, assembled by `UIStateDefaultsMixin`: what
     # they must do is what the mixin and `MultiUI` assert of them.
-    "llm/ui/fallback/defaults": "test/llm/ui/multi/test_multi_ui_defaults.py",
+    "llm/presentation/ui/fallback/defaults": "test/llm/presentation/ui/multi/test_multi_ui_defaults.py",
 }
 
 # Not code the package imports: a skill's companion scripts, shipped as files

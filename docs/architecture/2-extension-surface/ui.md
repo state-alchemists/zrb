@@ -2,7 +2,7 @@
 
 # UI
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/ui/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/presentation/ui/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 The UI is whatever shows the agent's output and brings back the user's answers: the full-screen terminal, plain stdin/stdout, the web chat, a chat bot, or several of them at once. This page covers how one agent run talks to any of them through the same small contract. The one idea to take away: the agent never knows which screen it is on.
 
@@ -46,11 +46,11 @@ Each one fails silently if broken: the chat keeps running and output or answers 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| One failing surface does not stop output to the others | A dropped web connection kills the terminal session too | `test/llm/ui/multi/test_multi_ui_fanout.py::test_append_to_output_handles_exception` |
-| A surface that errors cannot answer a question | A network error approves or denies a tool call with no human input | `test/llm/ui/multi/test_multi_ui_confirmation.py::test_failing_child_does_not_win_the_race` |
-| Answering one question leaves other open questions waiting | Approving one sub-agent silently cancels another's prompt | `test/llm/ui/multi/test_multi_ui_confirmation.py::test_answering_one_race_leaves_a_concurrent_race_waiting` |
-| Parallel sub-agents do not wait for each other's approval | Every sibling's approval queues behind the first unanswered one | `test/llm/ui/buffered/test_buffered_ui.py::test_buffered_ui_shared_lock_does_not_block_sibling_enqueue` |
-| With several surfaces, session name and model come from the primary one | The session identity or approval mode changes depending on list order | `test/llm/ui/multi/test_multi_ui.py::test_session_config_comes_from_the_primary_child_not_the_first` |
+| One failing surface does not stop output to the others | A dropped web connection kills the terminal session too | `test/llm/presentation/ui/multi/test_multi_ui_fanout.py::test_append_to_output_handles_exception` |
+| A surface that errors cannot answer a question | A network error approves or denies a tool call with no human input | `test/llm/presentation/ui/multi/test_multi_ui_confirmation.py::test_failing_child_does_not_win_the_race` |
+| Answering one question leaves other open questions waiting | Approving one sub-agent silently cancels another's prompt | `test/llm/presentation/ui/multi/test_multi_ui_confirmation.py::test_answering_one_race_leaves_a_concurrent_race_waiting` |
+| Parallel sub-agents do not wait for each other's approval | Every sibling's approval queues behind the first unanswered one | `test/llm/presentation/ui/buffered/test_buffered_ui.py::test_buffered_ui_shared_lock_does_not_block_sibling_enqueue` |
+| With several surfaces, session name and model come from the primary one | The session identity or approval mode changes depending on list order | `test/llm/presentation/ui/multi/test_multi_ui.py::test_session_config_comes_from_the_primary_child_not_the_first` |
 | The web gets markdown source, not terminal-rendered text | The browser shows ANSI codes and Unicode-art instead of rendered output | `test/runner/chat/test_http_ui.py::test_append_markdown_broadcasts_raw_text_as_markdown_kind` |
 | A nested run with no UI argument uses the parent's UI | A sub-agent's output and questions go to stderr instead of the user's screen | **unpinned** |
 
@@ -72,22 +72,22 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `AnyUI` | `src/zrb/llm/ui/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation. It sits beside the implementations, and `ui/__init__.py` imports nothing eagerly, so naming the contract does not load the terminal client |
-| `BaseUI` | `src/zrb/llm/ui/base/ui.py` | Shared chat logic: the message queue, slash commands, history replay, snapshots, the side-question destination (`begin_side_question` and the three methods that end it), and the text fallback for `ask_user_choice`. A turn is `stream_ai_response`, which is one call into `run_turn` |
-| `run_turn` | `src/zrb/llm/ui/turn_execution.py` | The one chat turn: the pre-turn snapshot, the header, the session it runs in (`build_turn_session`), the mode, the run, the answer handed to the display role, and both failure paths. It resets `last_result_data` before the run, so a failed turn cannot leave the previous reply as `last_output`. Beside it: `turn_snapshot.py` (the snapshot before a turn) and `turn_hooks.py` (the hooks around it) |
-| `UI` | `src/zrb/llm/ui/default/ui.py` | The full-screen prompt_toolkit terminal, built from parts: `UIOutput` (rendering), `UIConfirmation` (the approval queue), selection and keybindings |
-| `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/ui/simple_ui_base.py`, `src/zrb/llm/ui/event_driven/ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
-| `StdUI` | `src/zrb/llm/ui/fallback/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured, in the package's L0 floor so a headless run does not load the rest |
-| `MultiUI` | `src/zrb/llm/ui/multi/` | Several surfaces as one: broadcast output, race input, one shared turn queue, state from the primary child. A package, one module per job: `state`, `fanout`, `tools`, `turn`, `streaming`, `input`, `run` |
-| `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A sub-agent's view: its own output buffer, prompts forwarded to the parent |
+| `AnyUI` | `src/zrb/llm/presentation/ui/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation. It sits beside the implementations, and `ui/__init__.py` imports nothing eagerly, so naming the contract does not load the terminal client |
+| `BaseUI` | `src/zrb/llm/presentation/ui/base/ui.py` | Shared chat logic: the message queue, slash commands, history replay, snapshots, the side-question destination (`begin_side_question` and the three methods that end it), and the text fallback for `ask_user_choice`. A turn is `stream_ai_response`, which is one call into `run_turn` |
+| `run_turn` | `src/zrb/llm/presentation/ui/turn_execution.py` | The one chat turn: the pre-turn snapshot, the header, the session it runs in (`build_turn_session`), the mode, the run, the answer handed to the display role, and both failure paths. It resets `last_result_data` before the run, so a failed turn cannot leave the previous reply as `last_output`. Beside it: `turn_snapshot.py` (the snapshot before a turn) and `turn_hooks.py` (the hooks around it) |
+| `UI` | `src/zrb/llm/presentation/ui/default/ui.py` | The full-screen prompt_toolkit terminal, built from parts: `UIOutput` (rendering), `UIConfirmation` (the approval queue), selection and keybindings |
+| `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/presentation/ui/simple_ui_base.py`, `src/zrb/llm/presentation/ui/event_driven/ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
+| `StdUI` | `src/zrb/llm/presentation/ui/fallback/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured, in the package's L0 floor so a headless run does not load the rest |
+| `MultiUI` | `src/zrb/llm/presentation/ui/multi/` | Several surfaces as one: broadcast output, race input, one shared turn queue, state from the primary child. A package, one module per job: `state`, `fanout`, `tools`, `turn`, `streaming`, `input`, `run` |
+| `BufferedUI` | `src/zrb/llm/presentation/ui/buffered/ui.py` | A sub-agent's view: its own output buffer, prompts forwarded to the parent |
 | `HTTPUI` | `src/zrb/runner/chat/http_ui.py` | The web chat: output as session broadcasts, input from the session queue; built by `create_http_ui_factory` |
-| `create_ui_factory` | `src/zrb/llm/ui/ui_factory.py` | Turning a UI class into a factory a chat task can register |
-| `create_combined_ui` | `src/zrb/llm/ui/fallback/resolution.py` | Normalizing a UI or a list: one stays one, many become the `MultiUI` the presentation layer registers |
-| `run_interactive_session` | `src/zrb/llm/ui/session.py` | Building the session's UI, replaying the stored conversation onto it, running its loop and reading its last output |
+| `create_ui_factory` | `src/zrb/llm/presentation/ui/ui_factory.py` | Turning a UI class into a factory a chat task can register |
+| `create_combined_ui` | `src/zrb/llm/presentation/ui/fallback/resolution.py` | Normalizing a UI or a list: one stays one, many become the `MultiUI` the presentation layer registers |
+| `run_interactive_session` | `src/zrb/llm/presentation/ui/session.py` | Building the session's UI, replaying the stored conversation onto it, running its loop and reading its last output |
 
 ### How it runs
 
-**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `run_interactive_session` (`src/zrb/llm/ui/session.py`), after history and the first message are known. The task reaches it through `src/zrb/llm/contracts/shared/session_presentation.py`, so `task/` never imports `ui/`. It collects the task's UIs and calls each registered factory. Then:
+**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `run_interactive_session` (`src/zrb/llm/presentation/ui/session.py`), after history and the first message are known. The task reaches it through `src/zrb/llm/contracts/shared/session_presentation.py`, so `task/` never imports `ui/`. It collects the task's UIs and calls each registered factory. Then:
 
 - nothing configured → the built-in terminal `UI`;
 - configured UIs with the default UI turned off → that one UI, or a `MultiUI` of several;
@@ -114,7 +114,7 @@ sequenceDiagram
     T-->>B: final text, shown by append_markdown
 ```
 
-`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/engine/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui` (`src/zrb/llm/ui/fallback/resolution.py`). Two or more UIs become the `MultiUI` that `ui/multi/` registers when the presentation package loads. The result is bound to `current_ui` on an `ExitStack` and reset when the run ends.
+`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/engine/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui` (`src/zrb/llm/presentation/ui/fallback/resolution.py`). Two or more UIs become the `MultiUI` that `ui/multi/` registers when the presentation package loads. The result is bound to `current_ui` on an `ExitStack` and reset when the run ends.
 
 **Asking the user.** An approval goes through `TerminalApprovalChannel`, which writes the prompt with `append_to_output` and waits on `ask_user`. In a `MultiUI` it asks the primary child. The turn is suspended at that `await`; the UI's own event loop keeps running and delivers the answer. In the terminal, `UIConfirmation` queues concurrent prompts and shows one at a time. See [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) for what happens to the answer.
 
@@ -134,12 +134,12 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the UI contract | `src/zrb/llm/ui/any_ui.py` | `test/llm/ui/test_extension_levels.py` |
-| Change the queue, turn or command handling | `src/zrb/llm/ui/base/` | `test/llm/ui/base/` |
-| Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
-| Change which UI a chat picks | `src/zrb/llm/ui/session.py` | `test/llm/orchestration/task/chat/test_running_sessions.py` |
-| Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/multi/test_multi_ui_confirmation.py`, `test/llm/ui/multi/test_multi_ui_fanout.py` |
-| Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/buffered/test_buffered_ui.py` |
+| Change the UI contract | `src/zrb/llm/presentation/ui/any_ui.py` | `test/llm/presentation/ui/test_extension_levels.py` |
+| Change the queue, turn or command handling | `src/zrb/llm/presentation/ui/base/` | `test/llm/presentation/ui/base/` |
+| Change terminal rendering or keys | `src/zrb/llm/presentation/ui/default/` | `test/llm/presentation/ui/default/` |
+| Change which UI a chat picks | `src/zrb/llm/presentation/ui/session.py` | `test/llm/orchestration/task/chat/test_running_sessions.py` |
+| Change multi-surface fan-out or input races | `src/zrb/llm/presentation/ui/multi/` | `test/llm/presentation/ui/multi/test_multi_ui_confirmation.py`, `test/llm/presentation/ui/multi/test_multi_ui_fanout.py` |
+| Change sub-agent buffering | `src/zrb/llm/presentation/ui/buffered/ui.py` | `test/llm/presentation/ui/buffered/test_buffered_ui.py` |
 | Change the web output or input | `src/zrb/runner/chat/http_ui.py` | `test/runner/chat/test_http_ui.py` |
 
 ## See Also

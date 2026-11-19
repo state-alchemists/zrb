@@ -558,7 +558,7 @@ A task's own `model_getter`/`model_renderer`, when set, still applies on top of 
 LLMChatTask(ui_commands=UICommands(exit="/quit"))
 
 # After
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 LLMChatTask(ui_config=UIConfig(exit_commands=["/quit"]))
 ```

@@ -1,7 +1,7 @@
 """What one send-now attempt did, as a plain result type.
 
 Lives in `util/` so an inert UI state mixin can name the result without
-importing `zrb.llm.ui`. `ui/base/queue_delivery.py` re-exports these names for
+importing `zrb.llm.presentation.ui`. `ui/base/queue_delivery.py` re-exports these names for
 its existing callers.
 """
 
@@ -12,7 +12,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.base.message_queue import QueuedMessage
+    from zrb.llm.presentation.ui.base.message_queue import QueuedMessage
 
 
 class DeliveryOutcome(str, Enum):

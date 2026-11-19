@@ -21,7 +21,7 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change how a command line finds a task | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | [The Task Model](1-spine/task-model.md) |
 | Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
 | Add or rename a tool | `src/zrb/llm/capabilities/tool/` | [Tools](2-extension-surface/tools.md) |
-| Change what the terminal shows | `src/zrb/llm/ui/default/` | [UI](2-extension-surface/ui.md) |
+| Change what the terminal shows | `src/zrb/llm/presentation/ui/default/` | [UI](2-extension-surface/ui.md) |
 | Build/run an agent from a tool or hook | `src/zrb/llm/contracts/shared/agent_runner.py` | [Tools](2-extension-surface/tools.md) |
 | Use delegation from a tool without importing subagent | `src/zrb/llm/contracts/shared/delegation_api.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Resume a delegated session as a chat task | `src/zrb/llm/orchestration/resumed_session.py` | [Sub-agents](2-extension-surface/sub-agents.md) |

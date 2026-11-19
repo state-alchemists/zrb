@@ -128,7 +128,7 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.capabilities.permission.policy import PermissionPolicy
     from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     # What a run hands back: the model's output (typed by the agent's own
     # `output_type`, so unknowable here) and the history it produced.

@@ -18,7 +18,7 @@ from zrb.llm.contracts.shared.shell_cut import (
     is_cut_while_waiting,
 )
 from zrb.llm.capabilities.tool.delegate.background import _BackgroundRegistry
-from zrb.llm.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 
 
 async def _finish_soon(task: asyncio.Task, seconds: float = 0.01) -> None:

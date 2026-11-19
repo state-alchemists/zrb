@@ -11,7 +11,7 @@ from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.contracts.shared.input_source import DICTATION_INPUT
-from zrb.llm.ui.trigger import TriggerReply
+from zrb.llm.presentation.ui.trigger import TriggerReply
 
 
 class FakeBackend(AnyDictationBackend):

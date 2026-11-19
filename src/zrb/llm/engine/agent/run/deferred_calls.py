@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.contracts.shared.agent_state import AnyToolConfirmation
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 def _as_tool_input(args: object) -> object:

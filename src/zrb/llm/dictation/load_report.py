@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from zrb.util.cli.style import stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 
 class AnyCustomCommand(ABC):

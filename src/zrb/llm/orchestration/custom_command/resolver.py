@@ -8,7 +8,7 @@ from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCom
 from zrb.util.signature import can_take_positional
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 
 def resolve_custom_commands(

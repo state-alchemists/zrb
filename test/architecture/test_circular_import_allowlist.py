@@ -29,11 +29,11 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # engine pieces on first call to avoid pulling pydantic_ai at import time.
     "llm/engine/agent/__init__.py": 2,
     # The interactive session loop reads the typed message and puts the stored
-    # conversation back on screen. `task/chat/execution.py` imports
-    # `ui/fallback/resolution.py` for `resolve_ui`, so importing `task/` back at
-    # module level would make the two packages import each other; the helpers
-    # are needed once per session instead.
-    "llm/ui/session.py": 1,
+    # conversation back on screen. `orchestration/task/chat/execution.py` imports
+    # `presentation/ui/fallback/resolution.py` for `resolve_ui`, so importing the
+    # task package back at module level would make the two packages import each
+    # other; the helpers are needed once per session instead.
+    "llm/presentation/ui/session.py": 1,
 }
 
 

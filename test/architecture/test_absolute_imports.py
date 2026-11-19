@@ -55,7 +55,7 @@ def test_the_guard_reads_imports_not_prose(tmp_path):
     sample = tmp_path / "sample.py"
     sample.write_text(
         '"""Written as `from .manager import X` before this rule."""\n'
-        "from zrb.llm.ui.any_ui import AnyUI\n",
+        "from zrb.llm.presentation.ui.any_ui import AnyUI\n",
         encoding="utf-8",
     )
     assert _relative_imports(sample) == []

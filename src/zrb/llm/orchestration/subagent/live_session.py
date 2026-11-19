@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from zrb.llm.engine.agent.run.authority_snapshot import AuthoritySnapshot
     from zrb.llm.contracts.shared.delegation_api import LiveSessionRegistryAPI
     from zrb.llm.orchestration.subagent.manager.manager import SubAgentManager
-    from zrb.llm.ui.buffered import BufferedUI
+    from zrb.llm.presentation.ui.buffered import BufferedUI
 
 
 @dataclass

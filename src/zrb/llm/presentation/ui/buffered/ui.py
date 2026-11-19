@@ -1,0 +1,365 @@
+"""An `AnyUI` that buffers its output instead of writing it through.
+
+Used when several sub-agents run in parallel: each gets one of these, so their
+interleaved output is collected and flushed as a block rather than shredded
+across the terminal, while `ask`-style prompts are forwarded to the real UI one
+at a time under a shared lock.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import TYPE_CHECKING, Any, TextIO
+
+from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
+from zrb.llm.contracts.shared.output_chunk import CollapsibleBlockSource, merge_into_block
+from zrb.llm.contracts.shared.tracked_spans import TrackedSpans
+from zrb.llm.presentation.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
+from zrb.util.cli.style import stylize_muted
+
+if TYPE_CHECKING:
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
+    from zrb.llm.presentation.ui.any_ui import ChoiceSpec
+
+
+class BufferedPicker(AnyUIPicker):
+    """A sub-agent's choice, answered by the UI this one buffers into.
+
+    No parent write to guard, so no lock: the answer never touches the buffered
+    output this UI exists to collect.
+    """
+
+    def __init__(self, wrapped: AnyUI, host: "BufferedUI") -> None:
+        self._wrapped = wrapped
+        self._host = host
+
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
+        """Ask the wrapped UI, defaulting to this sub-agent's own id."""
+        return await self._wrapped.picker.ask_user_choice(
+            spec, agent_id=agent_id if agent_id is not None else self._host.agent_id
+        )
+
+
+class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
+    """UI wrapper that buffers all output and forwards asks to parent sequentially."""
+
+    def __init__(
+        self,
+        wrapped_ui: AnyUI,
+        prefix: str = "",
+        shared_lock: asyncio.Lock | None = None,
+        session_id: str = "",
+    ):
+        self._wrapped = wrapped_ui
+        self._prefix = prefix
+        self._merged_output: str = ""
+        # Ctrl+O blocks of this sub-agent's own live view.
+        self._rendered_blocks: list = []
+        self._spans = TrackedSpans(
+            get_text=lambda: self._merged_output,
+            set_text=self._set_merged_output,
+            get_blocks=lambda: self._rendered_blocks,
+            register_block=self._register_collapsed_block,
+            append=self._append_progress_line,
+        )
+        # Set by run_agent_task so buffered output also feeds the activity panel.
+        self._agent_id: str | None = None
+        # Scopes activity-panel updates so sessions don't bleed into each other.
+        self._session_id = session_id
+        # Empty means "the conversation my parent belongs to" (see the property).
+        self._own_session_name: str = ""
+        self._lock = shared_lock if shared_lock is not None else asyncio.Lock()
+
+    def set_activity_id(self, agent_id: str) -> None:
+        """Route this sub-agent's output lines to the activity registry."""
+        self._agent_id = agent_id
+
+    @property
+    def agent_id(self) -> str | None:
+        """The delegated agent's id, once `set_activity_id` has been called."""
+        return self._agent_id
+
+    @property
+    def session_id(self) -> str:
+        """The chat session this sub-agent belongs to."""
+        return self._session_id
+
+    def set_label(self, prefix: str) -> None:
+        """Set the per-line output prefix (e.g. ``[generalist #1] ``)."""
+        self._prefix = prefix
+
+    @property
+    def label(self) -> str:
+        """The output prefix without surrounding whitespace (e.g. ``[generalist #1]``)."""
+        return self._prefix.strip()
+
+    @property
+    def parent_ui(self) -> AnyUI:
+        """The UI this buffer flushes to (the parent agent's UI)."""
+        return self._wrapped
+
+    @property
+    def is_local(self) -> bool:
+        """Whether the wrapped UI's user sits at this machine."""
+        return self._wrapped.is_local
+
+    @property
+    def conversation_session_name(self) -> str:
+        """The conversation this sub-agent belongs to: its parent's, not its own.
+
+        A delegated run is spend on the conversation that asked for it, and
+        `/usage session` files a run by this name; the sub-agent's transcript
+        name identifies a transcript, and a buffer of its own has none. Reading
+        it through is what keeps a fan-out's tokens in the total of the chat that
+        paid for them.
+
+        A name set on the buffer itself wins, so a caller that wants one can have
+        it, and setting it never reaches the parent: this is a buffer, and a
+        write here must not rename the conversation behind it.
+        """
+        return self._own_session_name or self._wrapped.session.conversation_session_name
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str) -> None:
+        self._own_session_name = value
+
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
+        # Lock only the parent write: wrapping the wait would serialize every
+        # sibling's approval behind the first.
+        async with self._lock:
+            if output_to_parent:
+                self._wrapped.append_to_output(output_to_parent, end="")
+            prefixed_prompt = (
+                f"{self._prefix}{prompt}"
+                if self._prefix and prompt.strip() != ""
+                else prompt
+            )
+        # Keep the originating agent's id through nested delegation; only the
+        # layer closest to the caller stamps its own.
+        return await self._wrapped.input.ask_user(
+            prefixed_prompt,
+            agent_id=agent_id if agent_id is not None else self._agent_id,
+        )
+
+    def append_to_output(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+        kind: str = "text",
+    ):
+        text = sep.join(str(v) for v in values) + end
+        # The activity panel renders plain text, so it gets the unstyled line.
+        if self._agent_id:
+            agent_activity_registry.update(
+                self._agent_id, text, session_id=self._session_id
+            )
+
+        # As in UIOutput: everything but text/todo_progress is muted.
+        styled_text = (
+            stylize_muted(text) if kind not in ("text", "todo_progress") else text
+        )
+        previous = self._merged_output
+        self._merged_output, rebase_from = merge_into_block(
+            previous, styled_text, self._spans.open_block, kind
+        )
+        if rebase_from >= 0:
+            self._spans.rebase(rebase_from, len(self._merged_output) - len(previous))
+
+    def _set_merged_output(self, text: str) -> None:
+        self._merged_output = text
+
+    def _register_collapsed_block(
+        self, start: int, end: int, source: CollapsibleBlockSource
+    ) -> None:
+        self._rendered_blocks.append([start, end, source])
+
+    def _append_progress_line(self, text: str) -> None:
+        self.append_to_output(text, end="", kind="progress")
+
+    def append_answer(self, markdown_text: str) -> None:
+        """Accept the turn's answer, pre-rendered: this buffer keeps no source.
+
+        Same render `MultiUI` gives a child with no markdown step of its own,
+        so a sub-agent's transcript reads the way it did before the hook.
+        """
+        # lazy: transitively heavy -- the renderer pulls the theme and the
+        # markdown stack.
+        from zrb.util.cli.markdown import render_markdown
+
+        self.append_to_output(render_markdown(markdown_text, width=None), end="")
+
+    def append_toggle_block(self, collapsed: str, full: str) -> None:
+        """Append a tool-call/result line that can later be expanded in place."""
+        if collapsed == full:
+            self.append_to_output(collapsed, end="")
+            return
+        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
+        start = len(self._merged_output)
+        self.append_to_output(source.collapsed, end="")
+        self._rendered_blocks.append([start, len(self._merged_output), source])
+
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        self.append_toggle_block(collapsed, full)
+
+    def mark_thinking_block_start(self) -> None:
+        self._spans.mark_block_start("thinking")
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the thinking block opened by `mark_thinking_block_start`."""
+        return self._spans.collapse_block(collapsed, full)
+
+    def mark_text_block_start(self) -> None:
+        """Open the final-text reply block."""
+        self._spans.mark_block_start("streaming")
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool:
+        """Collapse the final-text block opened by `mark_text_block_start`."""
+        return self._spans.collapse_block(collapsed, full)
+
+    def settle_text_block(self, source: str) -> None:
+        """End an intermediate text block without hiding it.
+
+        This buffer renders no markdown and reaches the parent as plain text,
+        so the streamed copy already is the readable form; only the span
+        bookkeeping has to be released.
+        """
+        self._spans.end_block()
+
+    def set_stream_indentation(self, indent: str) -> None:
+        """Accept the stream's column and drop it.
+
+        The copy this buffer keeps was streamed at that column already, so
+        re-indenting it would move it twice.
+        """
+
+    def update_shell_output(self, key: str, text: str) -> None:
+        """Grow or replace `key`'s own live shell-output line with `text`."""
+        self._spans.update_shell_output(key, text)
+
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
+        """Collapse `key`'s live line into Ctrl+O-expandable `collapsed`."""
+        return self._spans.finish_shell_output(key, collapsed, full)
+
+    def update_tool_prepare(self, key: str, text: str) -> None:
+        """Print or update `key`'s own "Prepare tool parameters" line.
+
+        Passing an empty `text` erases the line and stops tracking `key`.
+        """
+        self._spans.update_tool_prepare(key, text)
+
+    def toggle_collapsible_block_at_offset(self, offset: int) -> bool:
+        """Expand/collapse the collapsible block at-or-before `offset`.
+
+        This class has no cursor, so the caller supplies the offset. Returns
+        whether a block was found and toggled.
+        """
+        return self._spans.toggle_at(offset)
+
+    @property
+    def rendered_blocks(self) -> list:
+        """[start, end, source] per tracked toggle block."""
+        return self._rendered_blocks
+
+    @property
+    def picker(self) -> AnyUIPicker:
+        """Ask a choice through the UI this one buffers into."""
+        return BufferedPicker(self._wrapped, self)
+
+    async def run_interactive_command(
+        self, cmd: str | list[str], shell: bool = False
+    ) -> Any:
+        return await self._wrapped.input.run_interactive_command(cmd, shell)
+
+    async def run_async(self) -> Any:
+        return await self._wrapped.run_async()
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Forward token usage to the parent UI's session totals.
+
+        `context_usage` is not forwarded: this sub-agent's context window is
+        not the parent's.
+        """
+        self._wrapped.session.accumulate_usage(usage)
+
+    def get_buffered_output(self) -> str:
+        """Get all buffered output."""
+        return self._merged_output
+
+    def flush_to_parent(self) -> None:
+        """Flush buffered output to parent UI."""
+        output = self.get_buffered_output()
+        if not output:
+            return
+        if self._prefix:
+            output = "\n".join(
+                f"{self._prefix}{line}" if line.strip() != "" else ""
+                for line in output.split("\n")
+            )
+        self._wrapped.append_to_output(output)
+
+    def clear_buffer(self) -> None:
+        """Clear the buffer without flushing."""
+        self._merged_output = ""
+        self._rendered_blocks = []
+        self._spans.reset()
+
+    @property
+    def yolo(self) -> bool | frozenset:
+        """Delegate YOLO mode to the wrapped parent UI."""
+        return self._wrapped.tools.yolo
+
+    @property
+    def sandbox_override(self) -> bool | None:
+        """Delegate the sandbox switch: a child runs under the session it serves."""
+        return self._wrapped.tools.sandbox_override
+
+    @property
+    def sandbox_run_policy(self) -> bool | None:
+        """Delegate the live run's policy: the run belongs to the parent."""
+        return self._wrapped.tools.sandbox_run_policy
+
+    @sandbox_run_policy.setter
+    def sandbox_run_policy(self, value: bool | None):
+        # `setattr`: the tools role declares the policy read-only, as it does
+        # the `/sandbox` switch, and the setter that stores it lives on the UI
+        # that owns the run — here, the parent's.
+        setattr(self._wrapped.tools, "sandbox_run_policy", value)
+
+    @property
+    def judge_override(self) -> bool | None:
+        """Delegate the judge switch: a child runs under the session it serves."""
+        return self._wrapped.tools.judge_override
+
+    @judge_override.setter
+    def judge_override(self, value: bool | None):
+        setattr(self._wrapped.tools, "judge_override", value)
+
+    def stream_to_parent(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+        kind: str = "text",
+    ) -> None:
+        """Buffered like `append_to_output`, not bypassed to the parent, so
+        sub-agent chatter stays in its own live view."""
+        self.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )

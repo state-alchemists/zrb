@@ -58,7 +58,7 @@ unit's layer from the directory it sits in when that directory is one of the fiv
 
 ## An `__init__.py` is optional
 
-A package here does not need an `__init__.py`: many directories under `src/zrb` are implicit namespace packages, including packages a reader works in daily (`cmd/`, `util/`, `config/`, `group/`, `runner/`). The file earns its place two ways: it curates names with a re-export (`llm/ui/`, `llm/capabilities/tool/`), or it carries a package-level note (`llm/contracts/shared/` explains its layer rule). `zrb/llm/` itself has none, so that a narrow `zrb.llm.capabilities.sandbox` import does not pull the whole LLM stack (changelog 2.58.0). Add one when the package has something to curate or say — not to make it "real".
+A package here does not need an `__init__.py`: many directories under `src/zrb` are implicit namespace packages, including packages a reader works in daily (`cmd/`, `util/`, `config/`, `group/`, `runner/`). The file earns its place two ways: it curates names with a re-export (`llm/presentation/ui/`, `llm/capabilities/tool/`), or it carries a package-level note (`llm/contracts/shared/` explains its layer rule). `zrb/llm/` itself has none, so that a narrow `zrb.llm.capabilities.sandbox` import does not pull the whole LLM stack (changelog 2.58.0). Add one when the package has something to curate or say — not to make it "real".
 
 ## Test tree
 

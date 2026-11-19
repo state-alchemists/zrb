@@ -1,0 +1,211 @@
+from unittest.mock import MagicMock
+
+from zrb.config.config import CFG
+from zrb.llm.presentation.ui import UIConfig
+
+
+class TestUIConfig:
+    """Tests for UIConfig dataclass."""
+
+    def test_default_config(self):
+        """Test UIConfig.default() creates default config."""
+
+        config = UIConfig.default()
+
+        assert config.assistant_name == CFG.LLM_ASSISTANT_NAME
+        assert "/exit" in config.exit_commands
+        assert "/help" in config.info_commands
+
+    def test_merge_commands(self):
+        """Test UIConfig.merge_commands() merges command dict."""
+
+        config = UIConfig.default()
+        ui_commands = {
+            "exit": ["/quit", "/q"],
+            "info": ["/commands"],
+        }
+
+        merged = config.merge_commands(ui_commands)
+
+        assert merged.exit_commands == ["/quit", "/q"]
+        assert merged.info_commands == ["/commands"]
+        assert merged.summarize_commands == config.summarize_commands
+
+    def test_config_with_custom_values(self):
+        """Test UIConfig with custom values."""
+
+        config = UIConfig(
+            assistant_name="MyBot",
+            is_yolo=True,
+            conversation_session_name="my-session",
+        )
+
+        assert config.assistant_name == "MyBot"
+        assert config.is_yolo is True
+        assert config.conversation_session_name == "my-session"
+
+
+class TestCreateUIFactory:
+    """Tests for create_ui_factory function."""
+
+    def test_create_ui_factory_basic(self):
+        """Test create_ui_factory creates working factory."""
+        from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        factory = create_ui_factory(TestSimpleUI)
+
+        from zrb.context.shared_context import SharedContext
+
+        ui = factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="Hello",
+            initial_conversation_name="test-session",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        # Use public properties
+        assert ui is not None
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME
+        assert ui.conversation_session_name == "test-session"
+
+    def test_create_ui_factory_with_custom_config(self):
+        """Test create_ui_factory with custom UIConfig."""
+        from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        config = UIConfig(assistant_name="CustomBot")
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
+
+        from zrb.context.shared_context import SharedContext
+
+        ui = factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert ui.assistant_name == "CustomBot"
+
+    def test_create_ui_factory_merges_commands(self):
+        """Test create_ui_factory merges ui_commands with config."""
+        from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        config = UIConfig(exit_commands=["/exit"])
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
+
+        from zrb.context.shared_context import SharedContext
+
+        ui = factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={"exit": ["/quit"]},
+            initial_message="",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert ui.exit_commands == ["/quit"]
+
+    def test_create_ui_factory_does_not_mutate_shared_config(self):
+        """A config object passed once and reused across repeated factory
+        invocations (e.g. a long-lived bot serving multiple chats) must not
+        have its yolo/session-name fields clobbered by a later call."""
+        from zrb.context.shared_context import SharedContext
+        from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        shared_config = UIConfig(assistant_name="SharedBot")
+        factory = create_ui_factory(TestSimpleUI, config=shared_config)
+
+        factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="",
+            initial_conversation_name="chat-a",
+            initial_yolo=True,
+            initial_attachments=[],
+        )
+        factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="",
+            initial_conversation_name="chat-b",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert shared_config.conversation_session_name == ""
+        assert shared_config.is_yolo is False
+
+    def test_create_ui_factory_creates_ui(self):
+        """Test create_ui_factory creates UI with correct configuration."""
+        from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        factory = create_ui_factory(TestSimpleUI)
+
+        from zrb.context.shared_context import SharedContext
+
+        ctx = SharedContext()
+        ui = factory(
+            ctx=ctx,
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="Test message",
+            initial_conversation_name="my-session",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        # Verify UI was created with correct settings using public properties
+        assert ui.conversation_session_name == "my-session"
+        assert ui.initial_message == "Test message"
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME

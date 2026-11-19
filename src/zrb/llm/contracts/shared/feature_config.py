@@ -23,7 +23,7 @@ from zrb.config.env_field import warn_deprecated
 from zrb.llm.contracts.shared.ambient_state import get_session_ownership_key
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)

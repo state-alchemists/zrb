@@ -19,7 +19,7 @@ LLM = SRC / "zrb" / "llm"
 # The table, for a unit that has not moved into the five-directory layout yet.
 # It is deleted when the last one has (the P7 step of the 4.0 move).
 _UNITS_BY_LAYER = {
-    4: "camera dictation emotion screenshot speech ui voice",
+    4: "camera dictation emotion screenshot speech voice",
 }
 LAYER_OF_UNIT = {
     unit: layer for layer, units in _UNITS_BY_LAYER.items() for unit in units.split()
@@ -57,14 +57,18 @@ _CONTRACT_PATHS = {"engine/agent/types.py"}
 
 # Path prefixes that sit below the layer of the package holding them. A floor is
 # a part of a package that the layers beneath it must be able to build with:
-# `ui/fallback/` is the plain terminal UI that a headless run needs, and it
-# cannot drag `ui/` with it, so it scores L0 while its neighbours score L4.
-# `ui/buffered/` is the same shape for delegation — `tool/delegate/runner.py`
-# builds one buffer per sub-agent and hands it to `subagent/live_session.py` —
-# and its own runtime imports, `output_chunk` and `tracked_spans` included, now
-# sit at L0 beside it. The unit still ends up in the allowlists above if it
-# reaches back up.
-_FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
+# `presentation/ui/fallback/` is the plain terminal UI that a headless run needs,
+# and it cannot drag `presentation/ui/` with it, so it scores L0 while its
+# neighbours score L4. `presentation/ui/buffered/` is the same shape for
+# delegation — `capabilities/tool/delegate/runner.py` builds one buffer per
+# sub-agent and hands it to `orchestration/subagent/live_session.py` — and its
+# own runtime imports, `output_chunk` and `tracked_spans` included, now sit at L0
+# beside it. The unit still ends up in the allowlists above if it reaches back
+# up. The `AnyUI*` protocols these two floors build with stay in
+# `presentation/ui/`, beside the implementers that answer them: sent down to
+# `contracts/` they would import `presentation/` back at it, which is the edge
+# the floors exist to avoid.
+_FLOOR_PREFIXES = {"presentation/ui/fallback/": 0, "presentation/ui/buffered/": 0}
 
 
 def _is_contract(path: str) -> bool:
@@ -145,20 +149,12 @@ def _present_units() -> set[str]:
 # still to do, and `test_every_unit_has_a_destination` keeps that worklist equal
 # to the units the table still scores.
 _UNIT_DESTINATIONS = {
-    # presentation — the two floors travel inside `ui/`, so their destination is
-    # the one `ui` gets. Go settled this on 2026-11-19: the `AnyUI*` protocols
-    # live in `presentation/ui`, beside the implementers that answer them, so a
-    # floor cannot move down to `contracts/` without importing `presentation/`
-    # back at it.
-    "ui/fallback": "presentation/ui/fallback",
-    "ui/buffered": "presentation/ui/buffered",
     # presentation
     "camera": "presentation/camera",
     "dictation": "presentation/dictation",
     "emotion": "presentation/emotion",
     "screenshot": "presentation/screenshot",
     "speech": "presentation/speech",
-    "ui": "presentation/ui",
     "voice": "presentation/voice",
 }
 

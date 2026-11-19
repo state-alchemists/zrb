@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.llm_task import LLMTask
-    from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 

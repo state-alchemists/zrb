@@ -80,7 +80,7 @@ flowchart TD
 | `run_subagent_turn` | `src/zrb/llm/contracts/shared/subagent_turn.py` | **The** sub-agent run call: the limiter, the usage tag, the captured grant. Both the tool and a live-session continuation go through it, so they cannot drift apart |
 | `SendMessageToSubagent` | `src/zrb/llm/capabilities/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
 | `SendMessageToParent` | `src/zrb/llm/orchestration/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
-| `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
+| `BufferedUI` | `src/zrb/llm/presentation/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
 | `LiveSubAgentSessionRegistry` | `src/zrb/llm/orchestration/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
 | `AuthoritySnapshot` | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | The permission policy, yolo, sandbox, hook manager, approval handler (tool policies, formatters, response handlers) and approval channel captured at delegation |
 

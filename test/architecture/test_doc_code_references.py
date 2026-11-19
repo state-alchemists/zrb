@@ -2,7 +2,7 @@
 
 An audit found 8 dead `.py` references across the repository map (then in
 `AGENTS.md`) and the ADR log, plus one dead directory in the orientation table
-(`llm/app/`, which had moved to `llm/ui/default/app/`). Every one of them was
+(`llm/app/`, which had moved to `llm/presentation/ui/default/app/`). Every one of them was
 a rename or a test-file split that swept the source but not the prose pointing
 at it. The map is the first page a contributor or an agent reads, and an
 ADR's "Where it lives" line is the only index from a decision back to the

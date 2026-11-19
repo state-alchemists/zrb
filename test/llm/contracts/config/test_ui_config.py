@@ -4,7 +4,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.config.ui_config import model_visibility_field
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 
 class TestUIConfig:

@@ -3,7 +3,7 @@
 `contracts/ui/` exists because a layer beneath `ui/` names these protocols:
 `tool_call`, `approval`, `dictation` and `custom_command` type the user's output
 and input side, and `tool/ask.py` builds a choice question. Importing one of
-them has to cost that module and nothing else. If it pulled `zrb.llm.ui` in,
+them has to cost that module and nothing else. If it pulled `zrb.llm.presentation.ui` in,
 the capability would still be presentation's and the upward edge would only have
 moved from import time to load time — the move would have bought the ratchet a
 green line and nothing else.
@@ -43,7 +43,7 @@ def _modules_loaded_by(module: str) -> list[str]:
 def test_a_capability_does_not_load_the_ui():
     for module in CAPABILITY_MODULES:
         dragged = sorted(
-            name for name in _modules_loaded_by(module) if name.startswith("zrb.llm.ui")
+            name for name in _modules_loaded_by(module) if name.startswith("zrb.llm.presentation.ui")
         )
         assert not dragged, (
             f"importing {module} loads {dragged}. A capability that loads the UI "

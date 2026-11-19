@@ -46,15 +46,15 @@ from zrb.llm.contracts.shared.feature_config import (
 )
 from zrb.llm.contracts.shared.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
-from zrb.llm.ui.trigger import TriggerReply
+from zrb.llm.presentation.ui.trigger import TriggerReply
 from zrb.llm.contracts.util.teardown import close_quietly
 
 if TYPE_CHECKING:
     from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 

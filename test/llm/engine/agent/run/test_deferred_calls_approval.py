@@ -8,7 +8,7 @@ from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 class MockToolApproved:

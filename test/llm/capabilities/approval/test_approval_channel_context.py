@@ -14,7 +14,7 @@ from zrb.llm.capabilities.approval import (
     TerminalApprovalChannel,
     current_approval_channel,
 )
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 @pytest.fixture

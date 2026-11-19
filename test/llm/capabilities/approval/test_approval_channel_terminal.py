@@ -6,7 +6,7 @@ import pytest
 from pydantic_ai import ToolApproved
 
 from zrb.llm.capabilities.approval import ApprovalContext, TerminalApprovalChannel
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 @pytest.fixture

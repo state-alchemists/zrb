@@ -44,7 +44,7 @@ from zrb.llm.contracts.shared.usage_log import (
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 PERIODS = ("session", "today", "week", "all")
 _DEFAULT_PERIOD = "all"

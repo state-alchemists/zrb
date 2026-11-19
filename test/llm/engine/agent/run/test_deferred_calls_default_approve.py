@@ -12,7 +12,7 @@ from zrb.llm.engine.agent.run.deferred_calls import process_deferred_requests
 from zrb.llm.engine.agent.run.hook_result_extractor import PreToolDecision
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.permission import ASK
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 class _Approved:

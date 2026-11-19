@@ -16,7 +16,7 @@ def test_a_message_sink_declares_one_member():
 
 
 def test_a_ui_that_declares_an_input_side_is_a_sink():
-    from zrb.llm.ui.fallback.std_ui import StdUI
+    from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 
     assert isinstance(StdUI(), AnyUIMessageSink)
 

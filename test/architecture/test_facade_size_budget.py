@@ -136,7 +136,7 @@ FACADE_BUDGETS = {
     # writes one event line per cut turn however many keys were pressed, and the
     # `turn_cancelled` payload field the log-only hook matches. New surface on a
     # method `AnyUI` already declares; the multi-UI copy lives in `multi/turn.py`.
-    "llm/ui/base/ui.py": 1294,
+    "llm/presentation/ui/base/ui.py": 1294,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -207,7 +207,7 @@ FACADE_BUDGETS = {
     # message puts the reader back on the tail — because the base queue knows
     # nothing about a view. The three lines of comment on the output-field
     # construction are the part that could move if this grows again.
-    "llm/ui/default/ui.py": 823,
+    "llm/presentation/ui/default/ui.py": 823,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

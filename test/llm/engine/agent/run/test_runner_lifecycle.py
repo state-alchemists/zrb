@@ -416,7 +416,7 @@ async def test_run_agent_multi_ui_resolution():
 
     # create_combined_ui builds the MultiUI inside multi_ui.py, so patch there.
     with patch(
-        "zrb.llm.ui.multi.multi_ui.MultiUI", return_value=MagicMock()
+        "zrb.llm.presentation.ui.multi.multi_ui.MultiUI", return_value=MagicMock()
     ) as mock_multi:
         await run_agent(
             agent=agent,

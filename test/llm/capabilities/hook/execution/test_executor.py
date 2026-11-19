@@ -18,7 +18,7 @@ from zrb.llm.capabilities.hook.execution.executor import (
     get_hook_executor,
     shutdown_hook_executor,
 )
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 @pytest.mark.asyncio
