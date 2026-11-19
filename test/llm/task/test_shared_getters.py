@@ -3,7 +3,7 @@ call's own arguments whenever the caller has them."""
 
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.permission import ALLOW, ASK, PermissionPolicy, Rule
+from zrb.llm.capabilities.permission import ALLOW, ASK, PermissionPolicy, Rule
 from zrb.llm.task.shared_getters import get_policy_skip_decision
 
 

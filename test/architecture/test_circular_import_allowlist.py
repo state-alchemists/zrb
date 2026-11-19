@@ -15,6 +15,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from llm_layers import _LAYERS
 
 REPO_ROOT = Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
@@ -68,8 +69,13 @@ PACKAGE_CYCLE_ALLOWLIST: set[frozenset[str]] = {
 
 def _package_of(module: str) -> str:
     parts = module.split(".")
-    depth = 3 if len(parts) > 2 and parts[1] == "llm" else 2
-    return ".".join(parts[:depth])
+    if len(parts) > 2 and parts[1] == "llm":
+        # The 4.0 layout names the layer in the path: `zrb.llm.<layer>.<unit>`.
+        # Before it, a unit sat directly under `llm/` and three parts were the
+        # package. Both are read here while the move is half done.
+        depth = 4 if len(parts) > 3 and parts[2] in _LAYERS else 3
+        return ".".join(parts[:depth])
+    return ".".join(parts[:2])
 
 
 def _runtime_imports(tree: ast.Module) -> list[str]:

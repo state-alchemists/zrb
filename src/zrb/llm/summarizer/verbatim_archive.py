@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.archive_layout import (
+from zrb.llm.capabilities.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
     archive_lock_path,
     conversation_key,

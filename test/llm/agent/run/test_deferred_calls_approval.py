@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.agent.run.deferred_calls import process_deferred_requests
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.execution.executor import HookExecutionResult
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.any_ui import AnyUI
 
 

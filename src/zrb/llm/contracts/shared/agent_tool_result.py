@@ -8,7 +8,7 @@ user turn after every tool call).
 a dict through as a native ``functionResponse`` but wraps a string, and
 multimodal parts are only extracted from a non-stringified value.
 
-Lives outside ``zrb.llm.agent`` because ``zrb.llm.tool.wrapper`` needs it and
+Lives outside ``zrb.llm.agent`` because ``zrb.llm.capabilities.tool.wrapper`` needs it and
 importing that package from there is circular (see
 ``test/architecture/test_circular_import_allowlist.py``).
 """

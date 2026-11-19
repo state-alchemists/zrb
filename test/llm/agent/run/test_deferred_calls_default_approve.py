@@ -10,8 +10,8 @@ import pytest
 
 from zrb.llm.agent.run.deferred_calls import process_deferred_requests
 from zrb.llm.agent.run.hook_result_extractor import PreToolDecision
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.permission import ASK
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.permission import ASK
 from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -61,8 +61,8 @@ async def _approval(call, policy=None, pre_tool=None):
     result_output.calls = [call]
     result_output.approvals = []
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=policy),
-        patch("zrb.llm.permission.tool_capability", return_value="cap"),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=policy),
+        patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
         patch(
             "zrb.llm.agent.run.deferred_calls.extract_pre_tool_decision",
             return_value=pre_tool or PreToolDecision(),

@@ -16,8 +16,8 @@ from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.snapshot.manager import SnapshotManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.snapshot.manager import SnapshotManager
     from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 
 

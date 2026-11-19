@@ -15,7 +15,7 @@ from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.builtin import get_camera_backend
 from zrb.llm.camera.config import CameraConfig
 from zrb.llm.custom_command.action_command import ActionCommand
-from zrb.llm.permission.capability import Capability, tag
+from zrb.llm.capabilities.permission.capability import Capability, tag
 from zrb.llm.contracts.shared.feature_config import replace_registration
 from zrb.llm.contracts.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
@@ -116,7 +116,7 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
         user unprompted. The user approves each photo.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.tool.multimodal_describe import create_image_tool_return
+        from zrb.llm.capabilities.tool.multimodal_describe import create_image_tool_return
 
         photo = await capture_photo(backend, device or config.device or None)
         if photo is None:

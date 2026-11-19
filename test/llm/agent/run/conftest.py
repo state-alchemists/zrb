@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import HookManager
 
 
 @pytest.fixture(autouse=True)

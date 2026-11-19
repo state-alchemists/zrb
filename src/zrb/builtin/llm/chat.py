@@ -22,28 +22,28 @@ from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.custom_command.usage.command import create_usage_commands
 from zrb.llm.dictation import enable_dictation
 from zrb.llm.emotion import enable_emotion
-from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
+from zrb.llm.capabilities.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.screenshot import enable_screenshot
 from zrb.llm.contracts.shared.session_presentation import register_interactive_runner
-from zrb.llm.skill.manager import skill_manager
+from zrb.llm.capabilities.skill.manager import skill_manager
 from zrb.llm.speech import enable_speech
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import (
+from zrb.llm.capabilities.tool.delegate import (
     create_delegate_to_agent_tool,
     create_search_agent_tool,
 )
-from zrb.llm.tool.delegate.background import (
+from zrb.llm.capabilities.tool.delegate.background import (
     background_delegation_live_context,
     create_get_delegation_result_tool,
 )
-from zrb.llm.tool.delegate.message import create_send_message_to_subagent_tool
-from zrb.llm.tool_call import (
+from zrb.llm.capabilities.tool.delegate.message import create_send_message_to_subagent_tool
+from zrb.llm.capabilities.tool_call import (
     auto_approve,
     read_file_validation_policy,
     replace_in_file_response_handler,
 )
-from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
+from zrb.llm.capabilities.tool_call.tool_policy.replace_in_file_validation import (
     replace_in_file_validation_policy,
 )
 from zrb.llm.ui.session import run_interactive_session

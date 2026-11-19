@@ -29,29 +29,29 @@ if TYPE_CHECKING:
 def seed_default_tools() -> ToolSeed:
     """The built-in tool content: (tools, tool_factories, toolset_factories).
 
-    A new tool under `llm/tool/` tags itself where it is defined — `tag(...)`
+    A new tool under `llm/capabilities/tool/` tags itself where it is defined — `tag(...)`
     with its `Capability` — and is exported and appended here. A tool also
     reaches an agent by reference (`LLMTask(tools=[read_file])`), and that path
     never resolves this registry: only the tag on the tool itself says what it
     may touch. Without one the sandbox write-checks every path it names.
     """
-    # Imported from source modules, not the ``zrb.llm.tool`` re-export: that
+    # Imported from source modules, not the ``zrb.llm.capabilities.tool`` re-export: that
     # loads ``delegate.py`` -> ``SubAgentManager``, which re-enters this function.
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb internal (heavy via transitive) — the LSP client stack
-    from zrb.llm.lsp.configs import detect_available_lsp_servers
-    from zrb.llm.lsp.tools import create_lsp_tools
+    from zrb.llm.capabilities.lsp.configs import detect_available_lsp_servers
+    from zrb.llm.capabilities.lsp.tools import create_lsp_tools
 
-    # lazy: zrb.llm.tool.* transitively load pydantic_ai
-    from zrb.llm.tool.code import analyze_code
-    from zrb.llm.tool.delegate.worktree import (
+    # lazy: zrb.llm.capabilities.tool.* transitively load pydantic_ai
+    from zrb.llm.capabilities.tool.code import analyze_code
+    from zrb.llm.capabilities.tool.delegate.worktree import (
         enter_worktree,
         exit_worktree,
         list_worktrees,
     )
-    from zrb.llm.tool.file import (
+    from zrb.llm.capabilities.tool.file import (
         analyze_file,
         glob_files,
         list_files,
@@ -62,9 +62,9 @@ def seed_default_tools() -> ToolSeed:
         search_files,
         write_file,
     )
-    from zrb.llm.tool.plan import get_todos, write_todos
-    from zrb.llm.tool.shell import run_shell_command
-    from zrb.llm.tool.web import open_web_page, search_internet
+    from zrb.llm.capabilities.tool.plan import get_todos, write_todos
+    from zrb.llm.capabilities.tool.shell import run_shell_command
+    from zrb.llm.capabilities.tool.web import open_web_page, search_internet
 
     # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
@@ -107,14 +107,14 @@ def seed_tool_factories() -> tuple[list, list]:
     from zrb.llm.agent.spill import read_tool_result
     from zrb.llm.agent.types import Tool
 
-    # lazy: zrb.llm.tool.* transitively load pydantic_ai
-    from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.mcp import load_mcp_config
-    from zrb.llm.tool.memory import forget, remember, search_memory
-    from zrb.llm.tool.plan.mode import enter_plan_mode, exit_plan_mode
-    from zrb.llm.tool.shell.background import create_monitor_process_tool
-    from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
-    from zrb.llm.tool.zrb_task import (
+    # lazy: zrb.llm.capabilities.tool.* transitively load pydantic_ai
+    from zrb.llm.capabilities.tool.ask import ask_user_question
+    from zrb.llm.capabilities.tool.mcp import load_mcp_config
+    from zrb.llm.capabilities.tool.memory import forget, remember, search_memory
+    from zrb.llm.capabilities.tool.plan.mode import enter_plan_mode, exit_plan_mode
+    from zrb.llm.capabilities.tool.shell.background import create_monitor_process_tool
+    from zrb.llm.capabilities.tool.skill import create_activate_skill_tool, create_search_skill_tool
+    from zrb.llm.capabilities.tool.zrb_task import (
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )

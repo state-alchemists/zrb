@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.permission import ALLOW, ASK, DENY, Capability
+from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, Capability
 
 
 def make_yolo_inheritance_checker() -> (
@@ -16,9 +16,9 @@ def make_yolo_inheritance_checker() -> (
     # lazy: tests patch `zrb.llm.contracts.shared.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
-    # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
+    # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy; hoisting
     # would bind the name at this module's load time and bypass the mock.
-    from zrb.llm.permission import get_effective_policy
+    from zrb.llm.capabilities.permission import get_effective_policy
     from zrb.llm.contracts.shared.agent_state import get_current_ui, get_current_yolo
 
     def check_yolo_inheritance(tool_def: Any = None, args: dict | None = None) -> bool:

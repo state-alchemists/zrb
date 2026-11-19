@@ -5,7 +5,7 @@ import json
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.approval.any_approval_channel import (
+from zrb.llm.capabilities.approval.any_approval_channel import (
     AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,

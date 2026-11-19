@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.contracts.shared.input_source import InputProvenance
 from zrb.llm.ui.event_driven.input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI

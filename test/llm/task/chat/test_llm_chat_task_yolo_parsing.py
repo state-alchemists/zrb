@@ -5,9 +5,9 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval import NullApprovalChannel
-from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.registry import PromptRegistry
+from zrb.llm.capabilities.approval import NullApprovalChannel
+from zrb.llm.capabilities.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.registry import PromptRegistry
 from zrb.llm.task.chat.execution import parse_yolo_value
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.ui.any_ui import AnyUI

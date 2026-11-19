@@ -55,14 +55,14 @@ class TestProperties:
         assert task.approval_channel is channel
 
     def test_permissions_constructor_and_property(self):
-        from zrb.llm.permission import ALLOW, PermissionPolicy, Rule
+        from zrb.llm.capabilities.permission import ALLOW, PermissionPolicy, Rule
 
         policy = PermissionPolicy((Rule("*", ALLOW),))
         task = LLMTask(name="test-task", permissions=policy)
         assert task.permissions is policy
 
     def test_permissions_setter(self):
-        from zrb.llm.permission import DENY, PermissionPolicy, Rule
+        from zrb.llm.capabilities.permission import DENY, PermissionPolicy, Rule
 
         policy = PermissionPolicy((Rule("*", DENY),))
         task = LLMTask(name="test-task")
@@ -71,14 +71,14 @@ class TestProperties:
         assert task.permissions is policy
 
     def test_sandbox_constructor_and_property(self):
-        from zrb.llm.sandbox import SandboxPolicy
+        from zrb.llm.capabilities.sandbox import SandboxPolicy
 
         policy = SandboxPolicy(enabled=True)
         task = LLMTask(name="test-task", sandbox=policy)
         assert task.sandbox is policy
 
     def test_sandbox_setter(self):
-        from zrb.llm.sandbox import SandboxPolicy
+        from zrb.llm.capabilities.sandbox import SandboxPolicy
 
         policy = SandboxPolicy(enabled=True)
         task = LLMTask(name="test-task")
@@ -88,7 +88,7 @@ class TestProperties:
 
     def test_prompt_manager_setter_replaces_wholesale(self):
         """A persona swap (the TUI's /load) replaces the whole PromptManager."""
-        from zrb.llm.prompt.manager import PromptManager
+        from zrb.llm.capabilities.prompt.manager import PromptManager
 
         task = LLMTask(name="test-task")
         original = task.prompt_manager
@@ -155,9 +155,9 @@ class TestRegistration:
     @pytest.mark.asyncio
     async def test_add_hook_factory_isolates_and_reaches_runner(self, session):
         """append_hook_factory registers on a task-local manager, leaving the global one alone."""
-        from zrb.llm.hook.contracts.interface import HookContext, HookResult
-        from zrb.llm.hook.contracts.types import HookEvent
-        from zrb.llm.hook.manager import hook_manager as global_manager
+        from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+        from zrb.llm.capabilities.hook.contracts.types import HookEvent
+        from zrb.llm.capabilities.hook.manager import hook_manager as global_manager
 
         fired: list[str] = []
 

@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.shared.ambient_state import get_current_reply_emotion
 from zrb.llm.contracts.shared.feature_config import (
     current_session_key,
@@ -47,7 +47,7 @@ from zrb.llm.contracts.util.spoken import split_spoken
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI

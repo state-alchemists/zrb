@@ -305,7 +305,7 @@ async def _init_snapshot_lines(unavailable_reason: str, *events) -> str:
 
 @pytest.mark.asyncio
 async def test_an_init_snapshot_failure_says_rewind_resumes_next_turn():
-    from zrb.llm.snapshot import SnapshotProgress
+    from zrb.llm.capabilities.snapshot import SnapshotProgress
 
     lines = await _init_snapshot_lines("", SnapshotProgress("error", reason="boom"))
 
@@ -315,7 +315,7 @@ async def test_an_init_snapshot_failure_says_rewind_resumes_next_turn():
 
 @pytest.mark.asyncio
 async def test_a_shallow_snapshot_says_so_on_its_done_line():
-    from zrb.llm.snapshot import SnapshotProgress
+    from zrb.llm.capabilities.snapshot import SnapshotProgress
 
     lines = await _init_snapshot_lines(
         "",
@@ -332,8 +332,8 @@ async def test_a_shallow_snapshot_says_so_on_its_done_line():
 
 @pytest.mark.asyncio
 async def test_a_missing_git_prints_nothing_at_startup():
-    from zrb.llm.snapshot import SnapshotProgress
-    from zrb.llm.snapshot.manager import GIT_MISSING_REASON
+    from zrb.llm.capabilities.snapshot import SnapshotProgress
+    from zrb.llm.capabilities.snapshot.manager import GIT_MISSING_REASON
 
     lines = await _init_snapshot_lines(
         GIT_MISSING_REASON, SnapshotProgress("error", reason=GIT_MISSING_REASON)
@@ -344,7 +344,7 @@ async def test_a_missing_git_prints_nothing_at_startup():
 
 @pytest.mark.asyncio
 async def test_a_directory_that_cannot_be_snapshotted_says_rewind_is_off():
-    from zrb.llm.snapshot import SnapshotProgress
+    from zrb.llm.capabilities.snapshot import SnapshotProgress
 
     reason = "too many loose files"
     lines = await _init_snapshot_lines(reason, SnapshotProgress("error", reason=reason))

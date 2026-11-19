@@ -20,10 +20,10 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.contracts.config.limiter import LLMLimiter
-    from zrb.llm.hook.manager import HookManager
-    from zrb.llm.tool_call.handler import ToolCallHandler
+    from zrb.llm.capabilities.hook.manager import HookManager
+    from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
     from zrb.llm.ui.any_ui import AnyUI
 
     AnyToolConfirmation: TypeAlias = (

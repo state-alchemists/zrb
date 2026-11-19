@@ -1,0 +1,178 @@
+"""Tests for zrb_task.py - Zrb task tools."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from zrb.group.root_group import get_root_group, set_root_group
+from zrb.llm.capabilities.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+
+
+@pytest.fixture
+def root_group():
+    """The CLI's tree, registered for one test and put back afterwards.
+
+    The tool reads whatever the process registered instead of importing
+    `zrb.runner`, so a test that lists tasks has to register the tree the way the
+    CLI does — and clear it again, or the next test in this worker inherits it.
+    """
+    from zrb.runner.cli import cli
+
+    previous = get_root_group()
+    set_root_group(cli)
+    yield cli
+    set_root_group(previous)
+
+
+class TestListZrbTaskTool:
+    """Test create_list_zrb_task_tool."""
+
+    def test_create_function_returns_callable(self):
+        """Test that create_list_zrb_task_tool returns a callable."""
+        func = create_list_zrb_task_tool()
+        assert callable(func)
+
+    def test_function_name_includes_zrb(self):
+        """Test that function name includes Zrb or zrb."""
+        func = create_list_zrb_task_tool()
+        # The name should include the command name
+        assert func.__name__ is not None
+        assert len(func.__name__) > 0
+
+    def test_function_has_docstring(self):
+        """Test that function has docstring."""
+        func = create_list_zrb_task_tool()
+        assert func.__doc__ is not None
+        # Check for key concepts in docstring (case-insensitive)
+        doc_lower = func.__doc__.lower()
+        assert "discover" in doc_lower or "lists" in doc_lower
+
+    def test_list_tasks_no_group(self, root_group):
+        """Test listing tasks with no group specified."""
+        func = create_list_zrb_task_tool()
+        result = func()
+
+        # Should return a string describing tasks
+        assert isinstance(result, str)
+        assert "Tasks" in result or "tasks" in result
+
+    def test_list_tasks_with_group(self, root_group):
+        """Test listing tasks with a valid group."""
+        func = create_list_zrb_task_tool()
+
+        # This will list tasks, may return error if group not found
+        result = func(group_name="builtin")
+        assert isinstance(result, str)
+
+    def test_list_tasks_invalid_group(self, root_group):
+        """Test listing tasks with invalid group."""
+        func = create_list_zrb_task_tool()
+
+        result = func(group_name="nonexistent_invalid_group_xyz")
+        assert isinstance(result, str)
+        assert "Error" in result or "not found" in result
+
+    def test_listing_without_a_registered_tree_says_so(self):
+        """An embedder that never built the CLI gets an answer, not an ImportError."""
+        previous = get_root_group()
+        set_root_group(None)
+        try:
+            result = create_list_zrb_task_tool()()
+        finally:
+            set_root_group(previous)
+
+        assert "no zrb root group" in result
+        assert "[SYSTEM SUGGESTION]" in result
+
+
+class TestRunZrbTaskTool:
+    """Test create_run_zrb_task_tool."""
+
+    def test_create_function_returns_callable(self):
+        """Test that create_run_zrb_task_tool returns a callable."""
+        func = create_run_zrb_task_tool()
+        assert callable(func)
+
+    def test_function_has_docstring(self):
+        """Test that function has docstring."""
+        func = create_run_zrb_task_tool()
+        assert func.__doc__ is not None
+        assert "MANDATES" in func.__doc__ or "Executes" in func.__doc__
+
+    def test_function_is_async(self):
+        """Test that the returned function is async."""
+        import inspect
+
+        func = create_run_zrb_task_tool()
+        assert inspect.iscoroutinefunction(func)
+
+    @pytest.mark.asyncio
+    async def test_run_nonexistent_task(self):
+        """Test running a nonexistent task."""
+        func = create_run_zrb_task_tool()
+
+        result = await func(task_name="nonexistent_task_xyz_123")
+        assert isinstance(result, str)
+        # The task doesn't exist, should return some response (error or not found)
+        # The actual behavior depends on run_shell_command
+        assert len(result) >= 0  # Just verify it returns a string
+
+    @pytest.mark.asyncio
+    async def test_run_task_with_args(self):
+        """Test running a task with args."""
+        func = create_run_zrb_task_tool()
+
+        # This will fail because the task doesn't exist
+        result = await func(
+            task_name="nonexistent_task", args={"arg1": "value1"}, timeout=5
+        )
+        assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_run_task_timeout_parameter(self):
+        """Test that timeout parameter is accepted."""
+        func = create_run_zrb_task_tool()
+
+        # Timeout should be passed to run_shell_command
+        # Since task doesn't exist, it will fail but should accept timeout
+        result = await func(task_name="test_task", timeout=10)
+        assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_run_task_quotes_args_with_spaces(self):
+        """B16: arg values with spaces/metacharacters must be shell-quoted."""
+        func = create_run_zrb_task_tool()
+        with patch(
+            "zrb.llm.capabilities.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+        ) as mock_run:
+            mock_run.return_value = "ok"
+            await func(
+                task_name="my task",
+                args={"name": "hello world; rm -rf /"},
+            )
+            command = mock_run.call_args.args[0]
+            # The injected metacharacters must be neutralized via quoting.
+            assert "rm -rf /'" in command or "'hello world; rm -rf /'" in command
+            assert "; rm -rf /" not in command.replace("'hello world; rm -rf /'", "")
+
+    @pytest.mark.asyncio
+    async def test_run_task_default_args_not_shared(self):
+        """B13: mutable default arg must not leak state between calls."""
+        func = create_run_zrb_task_tool()
+        with patch(
+            "zrb.llm.capabilities.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+        ) as mock_run:
+            mock_run.return_value = "ok"
+            # Two calls with no args should both produce a bare command.
+            await func(task_name="task_a")
+            first = mock_run.call_args.args[0]
+            await func(task_name="task_b")
+            second = mock_run.call_args.args[0]
+            assert "--" not in first
+            assert "--" not in second
+
+    def test_list_tasks_invalid_group_has_system_suggestion(self, root_group):
+        """Group-not-found error must carry actionable [SYSTEM SUGGESTION]."""
+        func = create_list_zrb_task_tool()
+        result = func(group_name="nonexistent_invalid_group_xyz")
+        assert "[SYSTEM SUGGESTION]" in result

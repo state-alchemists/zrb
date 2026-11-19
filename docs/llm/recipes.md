@@ -35,7 +35,7 @@ Ollama, OpenRouter, vLLM and LiteLLM all work this way. Provider-prefixed names 
 <!-- recipe: add-tool -->
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.permission import Capability, tag
+from zrb.llm.capabilities.permission import Capability, tag
 
 
 def lookup_ticket(ticket_id: str) -> str:
@@ -63,7 +63,7 @@ zrb uses that file instead of the built-in persona; the other sections stay. The
 
 <!-- recipe: append-prompt -->
 ```python
-from zrb.llm.prompt.registry import prompt_registry
+from zrb.llm.capabilities.prompt.registry import prompt_registry
 
 prompt_registry.append_prompt(
     "Our services run on Kubernetes, so prefer kubectl over ssh, and never restart prod."

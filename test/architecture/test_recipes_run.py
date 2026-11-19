@@ -56,7 +56,7 @@ def test_every_marked_recipe_is_checked():
 
 def test_add_tool(tmp_path):
     check = """
-from zrb.llm.permission import Capability, tool_capability
+from zrb.llm.capabilities.permission import Capability, tool_capability
 tool = next(t for t in llm_chat.tools if getattr(t, "__name__", "") == "lookup_ticket")
 assert tool_capability(tool) == Capability.READ
 """
@@ -85,7 +85,7 @@ def test_skill(tmp_path):
         _get_snippets()["skill"],
     )
     _run(
-        "from zrb.llm.skill.manager import skill_manager\n"
+        "from zrb.llm.capabilities.skill.manager import skill_manager\n"
         'skill = skill_manager.get_skill("release-notes")\n'
         "assert skill is not None\n"
         'assert "git log" in skill_manager.get_skill_content("release-notes")\n',

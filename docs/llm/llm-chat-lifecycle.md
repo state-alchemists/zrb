@@ -65,7 +65,7 @@ flowchart TD
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.capabilities.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.capabilities.skill.SkillManager`, `zrb.llm.capabilities.hook.HookManager`, and `zrb.llm.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -141,7 +141,7 @@ Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_
 
 ### Tracing an AGENT-type hook (the memory reviewer)
 
-The built-in memory reviewer (`llm/hook/builtin/memory_reviewer.py`, see [hooks.md](./hooks.md#the-memory-reviewer)) is the one hook type whose builder can't live in `hook/execution/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
+The built-in memory reviewer (`llm/capabilities/hook/builtin/memory_reviewer.py`, see [hooks.md](./hooks.md#the-memory-reviewer)) is the one hook type whose builder can't live in `hook/execution/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
 
 1. `memory_reviewer.py::register_memory_reviewer_hook` — a hook factory, seeded into every fresh `HookManager`'s `_hook_factories` (`hook/manager/manager.py.__init__`). It registers three hooks: `memory-event-log` and `memory-interrupt-log` whenever `LLM_MEMORY_ENABLED` is on, each through `register_hook_config` and then swapped by `_register_log_hook` for a callable that writes the line and builds no agent (the registry does not refuse a duplicate, so `_register_log_hook` checks the name itself — a re-scan of a live manager would otherwise add a second copy); and `memory-reviewer` itself, on the `memory_reviewer` system prompt with `SearchMemory`/`Remember`/`Forget`, when `LLM_MEMORY_REVIEWER_ENABLED` is on as well.
 2. `agent/run/runner.py` fires `HookEvent.STOP`, computing `wrote_files`, `changed_paths` (via `hook/turn_evidence.py`) and `memory_due` — true on every completed turn while `LLM_MEMORY_ENABLED` is on, whether or not the reviewer is, because the log hooks match it and the reviewer's own switch decides whether it joins them.
@@ -158,7 +158,7 @@ A hook-only test that never imports `zrb.llm.agent` sees `get_agent_hook_builder
 
 ```mermaid
 flowchart LR
-    Save["src/zrb/llm/history_manager/file_history_manager.py :: save()"]
+    Save["src/zrb/llm/capabilities/history_manager/file_history_manager.py :: save()"]
     Save -->|default path| File["~/.zrb/llm-history/&lt;session_name&gt;.json"]
 ```
 
@@ -192,11 +192,11 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
-| Hooks | `src/zrb/llm/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
+| Hooks | `src/zrb/llm/capabilities/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
 | Sub-agents | `src/zrb/llm/subagent/` |
-| Permission policy | `src/zrb/llm/permission/` |
-| Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
-| Snapshots | `src/zrb/llm/snapshot/manager.py` |
+| Permission policy | `src/zrb/llm/capabilities/permission/` |
+| Persistence | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` |
+| Snapshots | `src/zrb/llm/capabilities/snapshot/manager.py` |
 | ContextVars index | `src/zrb/contextvars.py` |
 
 ---

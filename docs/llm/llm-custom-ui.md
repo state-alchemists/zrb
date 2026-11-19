@@ -714,7 +714,7 @@ The framework then wraps them automatically:
 | Class | Module | Behavior |
 |-------|--------|----------|
 | `MultiUI` | `zrb.llm.ui` | **Output** broadcasts to all UIs; **input** waits for the first response from any channel |
-| `MultiplexApprovalChannel` | `zrb.llm.approval` | First approval response wins (CLI or external) |
+| `MultiplexApprovalChannel` | `zrb.llm.capabilities.approval` | First approval response wins (CLI or external) |
 
 ### The primary child
 
@@ -774,7 +774,7 @@ Three more hooks are not declared on `AnyUI`, because a UI that has them behaves
 For tool confirmations, implement `AnyApprovalChannel`:
 
 ```python
-from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 
 class TelegramApprovalChannel(AnyApprovalChannel):
     """Send approval requests to Telegram."""
@@ -835,14 +835,14 @@ llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 | `message` | Reason shown with the decision (optional) |
 | `override_args` | Replacement tool arguments, for an "edit then approve" flow (optional) |
 
-`ApprovalResult.to_pydantic_result()` converts a result to pydantic-ai's `ToolApproved` / `ToolDenied`, for code that drives an agent run directly. `resolve_approval_channel(channels)` from `zrb.llm.approval` turns a list into one channel the way the task does: `None` for an empty list, the channel itself for one, a `MultiplexApprovalChannel` for more.
+`ApprovalResult.to_pydantic_result()` converts a result to pydantic-ai's `ToolApproved` / `ToolDenied`, for code that drives an agent run directly. `resolve_approval_channel(channels)` from `zrb.llm.capabilities.approval` turns a list into one channel the way the task does: `None` for an empty list, the channel itself for one, a `MultiplexApprovalChannel` for more.
 
 When a result carries `override_args`, the call runs with them, and the model sees a note appended to the tool result: `[SYSTEM NOTE] The user edited this tool call's arguments before it ran.`, followed by the changed arguments. The call in history still shows what the model wrote, so without the note the result would not match its request.
 
 Built-in channels: `TerminalApprovalChannel` (terminal confirmation through a UI instance) and `NullApprovalChannel` (auto-approves everything — YOLO mode):
 
 ```python
-from zrb.llm.approval import NullApprovalChannel
+from zrb.llm.capabilities.approval import NullApprovalChannel
 
 # Auto-approve all tool calls
 llm_chat.approval_channels = [NullApprovalChannel()]

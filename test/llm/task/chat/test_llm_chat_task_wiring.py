@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.session.session import Session
 
@@ -43,7 +43,7 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
 
 
 def test_llm_chat_task_permissions_constructor_and_property():
-    from zrb.llm.permission import ALLOW, PermissionPolicy, Rule
+    from zrb.llm.capabilities.permission import ALLOW, PermissionPolicy, Rule
 
     policy = PermissionPolicy((Rule("*", ALLOW),))
     task = LLMChatTask(name="test-task", permissions=policy)
@@ -51,7 +51,7 @@ def test_llm_chat_task_permissions_constructor_and_property():
 
 
 def test_llm_chat_task_permissions_setter():
-    from zrb.llm.permission import DENY, PermissionPolicy, Rule
+    from zrb.llm.capabilities.permission import DENY, PermissionPolicy, Rule
 
     policy = PermissionPolicy((Rule("*", DENY),))
     task = LLMChatTask(name="test-task")
@@ -63,7 +63,7 @@ def test_llm_chat_task_permissions_setter():
 @pytest.mark.asyncio
 async def test_llm_chat_task_forwards_permissions_to_run_agent():
     """The permissions policy reaches run_agent as permission_policy."""
-    from zrb.llm.permission import ASK, PermissionPolicy, Rule
+    from zrb.llm.capabilities.permission import ASK, PermissionPolicy, Rule
 
     policy = PermissionPolicy((Rule("Edit", ASK), Rule("*", ASK)))
     task = LLMChatTask(
@@ -90,8 +90,8 @@ async def test_llm_chat_task_forwards_permissions_to_run_agent():
 async def test_llm_chat_task_judges_an_arg_pattern_rule_with_the_calls_arguments():
     """The chat path's dynamic yolo hands the call's arguments to the policy,
     so an `arg_pattern` ASK is not auto-approved under yolo."""
-    from zrb.llm.permission import ASK, PermissionPolicy, Rule
-    from zrb.llm.permission.state import permission_policy
+    from zrb.llm.capabilities.permission import ASK, PermissionPolicy, Rule
+    from zrb.llm.capabilities.permission.state import permission_policy
 
     policy = PermissionPolicy((Rule("Bash", ASK, arg_pattern="rm -rf*"),))
     task = LLMChatTask(
@@ -170,7 +170,7 @@ def test_llm_chat_task_history_manager_setter_rejects_wrong_type():
 
 
 def test_llm_chat_task_sandbox_constructor_and_property():
-    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
 
     policy = SandboxPolicy(enabled=True)
     task = LLMChatTask(name="test-task", sandbox=policy)
@@ -178,7 +178,7 @@ def test_llm_chat_task_sandbox_constructor_and_property():
 
 
 def test_llm_chat_task_sandbox_setter():
-    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
 
     policy = SandboxPolicy(enabled=True)
     task = LLMChatTask(name="test-task")
@@ -190,7 +190,7 @@ def test_llm_chat_task_sandbox_setter():
 @pytest.mark.asyncio
 async def test_llm_chat_task_forwards_sandbox_to_run_agent():
     """The sandbox policy reaches run_agent as sandbox_policy."""
-    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
 
     policy = SandboxPolicy(enabled=True)
     task = LLMChatTask(
@@ -216,7 +216,7 @@ async def test_llm_chat_task_forwards_sandbox_to_run_agent():
 @pytest.mark.asyncio
 async def test_non_interactive_run_settles_its_background_hooks():
     """A one-shot run drains its detached hooks before returning."""
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     with (
         patch(

@@ -80,9 +80,9 @@ Anything an env var can't express — a callable tool, a discovered-skill collis
 # zrb_init.py — ran once at CLI startup, before any task runs.
 from zrb import hook_registry, prompt_registry, skill_registry, sub_agent_registry
 from zrb.llm.subagent.definition import SubAgentDefinition
-from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.skill.manager import Skill
+from zrb.llm.capabilities.hook.contracts.interface import HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.skill.manager import Skill
 
 # Skills and sub-agents — add to what discovery found.
 skill_registry.add_skill(
@@ -131,7 +131,7 @@ A manager or host constructor argument overrides the registry for that instance 
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 
 task = LLMChatTask(
     name="chat",
@@ -148,7 +148,7 @@ Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`)
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 
 llm_chat.prompt_manager = PromptManager(
     prompts=["Just this one bot."], include_sections=[]

@@ -17,13 +17,13 @@ import pathlib
 SRC = pathlib.Path(__file__).parents[2] / "src" / "zrb"
 
 # The module that defines the singleton and the fallback accessors.
-_ALLOWED = {"llm/hook/manager/manager.py"}
+_ALLOWED = {"llm/capabilities/hook/manager/manager.py"}
 
 # The module that defines it, and the package that re-exports it: an import from
 # either one is an import of the singleton.
 _SINGLETON_MODULES = {
-    "zrb.llm.hook.manager",
-    "zrb.llm.hook.manager.manager",
+    "zrb.llm.capabilities.hook.manager",
+    "zrb.llm.capabilities.hook.manager.manager",
 }
 
 

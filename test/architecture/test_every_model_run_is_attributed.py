@@ -49,13 +49,13 @@ KNOWN_UNATTRIBUTED = {
         "its calls are folded into the compaction total that writes the line, so a "
         "second line here would count the same tokens twice"
     ),
-    "llm/tool/file/analyze.py": (
+    "llm/capabilities/tool/file/analyze.py": (
         "goes through `run_agent`, so it is recorded, but filed as `main_agent`; "
         "naming it needs a component threaded through the tool path"
     ),
-    "llm/tool/web/tools.py": "same as `tool/file/analyze.py`",
-    "llm/tool/code/analysis.py": "same as `tool/file/analyze.py`",
-    "llm/tool/multimodal_describe.py": "same as `tool/file/analyze.py`",
+    "llm/capabilities/tool/web/tools.py": "same as `tool/file/analyze.py`",
+    "llm/capabilities/tool/code/analysis.py": "same as `tool/file/analyze.py`",
+    "llm/capabilities/tool/multimodal_describe.py": "same as `tool/file/analyze.py`",
     "llm/dictation/backend/multimodal.py": "same as `tool/file/analyze.py`",
     "llm/task/llm_task.py": (
         "same as `tool/file/analyze.py`: an LLMTask's rounds reach the engine "

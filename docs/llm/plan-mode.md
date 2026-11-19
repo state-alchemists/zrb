@@ -51,7 +51,7 @@ The LLM can also toggle Plan Mode via the `EnterPlanMode` and `ExitPlanMode` too
 A tool or hook can read or switch the mode itself, the way `EnterPlanMode` does:
 
 ```python
-from zrb.llm.permission import AgentMode, get_current_agent_mode, set_current_agent_mode
+from zrb.llm.capabilities.permission import AgentMode, get_current_agent_mode, set_current_agent_mode
 
 if get_current_agent_mode() == AgentMode.BUILD:
     set_current_agent_mode(AgentMode.PLAN)

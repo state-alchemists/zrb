@@ -2,7 +2,7 @@
 
 # Sandbox Enforcement
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/sandbox/` · Read first: [Tool Call & Approval](tool-call-approval.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/capabilities/sandbox/` · Read first: [Tool Call & Approval](tool-call-approval.md)
 
 The sandbox limits which files a tool call can touch, even after the call was approved. It is off by default. When it is on, an approved but prompt-injected command still cannot write outside the project or read `~/.ssh`-style secrets. The one idea to take away: approval controls *intent*, the sandbox controls *reach*, and one policy drives two different enforcement layers.
 
@@ -41,13 +41,13 @@ The sandbox limits which files a tool call can touch, even after the call was ap
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| The sandbox is off unless the deployment turns it on | Every user's shell and file tools change behaviour on upgrade | `test/llm/sandbox/test_policy.py::test_default_policy_is_disabled` |
-| An untagged tool's path arguments are write-checked | An MCP tool writes outside the writable roots | `test/llm/sandbox/test_gate.py::test_gate_write_checks_untagged_tools` |
-| A write is judged by its real path, compared as a path rather than a string prefix | `/project-other` passes as `/project`, or a symlink walks out of the root | `test/llm/sandbox/test_fs_policy.py::test_is_within_rejects_sibling_prefix`, `test/llm/sandbox/test_fs_policy.py::test_symlink_escape_is_blocked` |
-| A credential directory stays protected even inside a writable root | A secret can be overwritten or planted, like `authorized_keys` | `test/llm/sandbox/test_fs_policy.py::test_write_into_deny_read_root_blocked_even_if_writable`, `test/llm/sandbox/test_bwrap.py::test_masks_come_after_writable_binds` |
-| A missing OS mechanism is never silent | A shell command runs uncontained and nobody knows | `test/llm/sandbox/test_os_sandbox.py::test_windows_warn_mode_is_not_silent` |
-| An escape request is blocked when escape is disabled | The one setting that removes the escape hatch does nothing | `test/llm/sandbox/test_gate.py::test_gate_blocks_escape_when_disallowed` |
-| A tool argument never moves the writable boundary | The model widens its own sandbox by choosing where to run | `test/llm/tool/shell/test_shell_sandbox.py::test_run_shell_command_cwd_does_not_widen_the_sandbox` |
+| The sandbox is off unless the deployment turns it on | Every user's shell and file tools change behaviour on upgrade | `test/llm/capabilities/sandbox/test_policy.py::test_default_policy_is_disabled` |
+| An untagged tool's path arguments are write-checked | An MCP tool writes outside the writable roots | `test/llm/capabilities/sandbox/test_gate.py::test_gate_write_checks_untagged_tools` |
+| A write is judged by its real path, compared as a path rather than a string prefix | `/project-other` passes as `/project`, or a symlink walks out of the root | `test/llm/capabilities/sandbox/test_fs_policy.py::test_is_within_rejects_sibling_prefix`, `test/llm/capabilities/sandbox/test_fs_policy.py::test_symlink_escape_is_blocked` |
+| A credential directory stays protected even inside a writable root | A secret can be overwritten or planted, like `authorized_keys` | `test/llm/capabilities/sandbox/test_fs_policy.py::test_write_into_deny_read_root_blocked_even_if_writable`, `test/llm/capabilities/sandbox/test_bwrap.py::test_masks_come_after_writable_binds` |
+| A missing OS mechanism is never silent | A shell command runs uncontained and nobody knows | `test/llm/capabilities/sandbox/test_os_sandbox.py::test_windows_warn_mode_is_not_silent` |
+| An escape request is blocked when escape is disabled | The one setting that removes the escape hatch does nothing | `test/llm/capabilities/sandbox/test_gate.py::test_gate_blocks_escape_when_disallowed` |
+| A tool argument never moves the writable boundary | The model widens its own sandbox by choosing where to run | `test/llm/capabilities/tool/shell/test_shell_sandbox.py::test_run_shell_command_cwd_does_not_widen_the_sandbox` |
 
 ## Realization
 
@@ -65,14 +65,14 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `SandboxPolicy` | `src/zrb/llm/sandbox/policy.py` | The frozen policy: on or off, writable paths, deny-read paths, OS mode, fallback, whether escape is allowed |
-| `resolved_writable_roots`, `resolved_deny_read_roots` | `src/zrb/llm/sandbox/policy.py` | Turning the policy into real paths. Automatic roots are the working directory plus the temp directory; the temp directory is always writable |
-| `get_effective_sandbox_policy` | `src/zrb/llm/sandbox/state.py` | The policy in force: the one bound for this run, else the session's own `/sandbox` switch, else built from `CFG.LLM_SANDBOX_*` |
+| `SandboxPolicy` | `src/zrb/llm/capabilities/sandbox/policy.py` | The frozen policy: on or off, writable paths, deny-read paths, OS mode, fallback, whether escape is allowed |
+| `resolved_writable_roots`, `resolved_deny_read_roots` | `src/zrb/llm/capabilities/sandbox/policy.py` | Turning the policy into real paths. Automatic roots are the working directory plus the temp directory; the temp directory is always writable |
+| `get_effective_sandbox_policy` | `src/zrb/llm/capabilities/sandbox/state.py` | The policy in force: the one bound for this run, else the session's own `/sandbox` switch, else built from `CFG.LLM_SANDBOX_*` |
 | `sandbox_gate` | `src/zrb/llm/agent/gates.py` | The Python layer: picks the path arguments of a call and checks them |
-| `check_read`, `check_write`, `is_within` | `src/zrb/llm/sandbox/fs_policy.py` | Comparing a real path against the roots |
-| `build_sandboxed_argv` | `src/zrb/llm/sandbox/os_sandbox.py` | The OS layer: prefixes a subprocess argv with the platform wrapper, or applies the fallback |
-| `build_bwrap_argv` | `src/zrb/llm/sandbox/bwrap.py` | Linux bubblewrap arguments |
-| `build_sbpl` | `src/zrb/llm/sandbox/seatbelt.py` | The macOS Seatbelt profile |
+| `check_read`, `check_write`, `is_within` | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | Comparing a real path against the roots |
+| `build_sandboxed_argv` | `src/zrb/llm/capabilities/sandbox/os_sandbox.py` | The OS layer: prefixes a subprocess argv with the platform wrapper, or applies the fallback |
+| `build_bwrap_argv` | `src/zrb/llm/capabilities/sandbox/bwrap.py` | Linux bubblewrap arguments |
+| `build_sbpl` | `src/zrb/llm/capabilities/sandbox/seatbelt.py` | The macOS Seatbelt profile |
 
 ### How it runs
 
@@ -122,8 +122,8 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 | macOS | `build_sbpl` | `sandbox-exec` with a last-match-wins profile. Set-uid binaries such as `ps` and `sudo` cannot run inside it |
 | Windows, or Linux without `bwrap` | `build_sandboxed_argv` | The `fallback` setting: `warn` runs with a visible warning, `deny` refuses with `format_sandbox_denied_message` |
 | `dangerously_skip_sandbox` | `build_sandboxed_argv`, `sandbox_gate` | Shell tools only. Runs unwrapped with a note in the output. No tool policy auto-approves it, but yolo or an `allow` rule will |
-| Worktree tools | `src/zrb/llm/tool/delegate/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
-| Background shell | `src/zrb/llm/tool/shell/background.py` | Same wrapper as `Shell`, applied when the process starts |
+| Worktree tools | `src/zrb/llm/capabilities/tool/delegate/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
+| Background shell | `src/zrb/llm/capabilities/tool/shell/background.py` | Same wrapper as `Shell`, applied when the process starts |
 | Sub-agent, or a live session resumed later | the run context; `AuthoritySnapshot` | A child inherits the parent's policy. A continuation that starts after the parent's run ended gets it passed explicitly ([ADR-0069](../../adr/adr-0069.md)) |
 | Oversized tool results | `src/zrb/llm/agent/spill.py` | The spill store checks its own directory with `check_read` and `check_write` |
 
@@ -131,11 +131,11 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the policy fields or defaults | `src/zrb/llm/sandbox/policy.py`, `src/zrb/config/mixins/llm_sandbox.py` | `test/llm/sandbox/test_policy.py` |
-| Change which arguments are checked | `src/zrb/llm/agent/gates.py` | `test/llm/sandbox/test_gate.py` |
-| Change the path comparison | `src/zrb/llm/sandbox/fs_policy.py` | `test/llm/sandbox/test_fs_policy.py` |
-| Change platform dispatch or the fallback | `src/zrb/llm/sandbox/os_sandbox.py` | `test/llm/sandbox/test_os_sandbox.py` |
-| Change the Linux or macOS wrapper | `src/zrb/llm/sandbox/bwrap.py`, `src/zrb/llm/sandbox/seatbelt.py` | `test/llm/sandbox/test_bwrap.py`, `test/llm/sandbox/test_seatbelt.py`, then `test/llm/sandbox/test_integration.py` on that platform |
+| Change the policy fields or defaults | `src/zrb/llm/capabilities/sandbox/policy.py`, `src/zrb/config/mixins/llm_sandbox.py` | `test/llm/capabilities/sandbox/test_policy.py` |
+| Change which arguments are checked | `src/zrb/llm/agent/gates.py` | `test/llm/capabilities/sandbox/test_gate.py` |
+| Change the path comparison | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | `test/llm/capabilities/sandbox/test_fs_policy.py` |
+| Change platform dispatch or the fallback | `src/zrb/llm/capabilities/sandbox/os_sandbox.py` | `test/llm/capabilities/sandbox/test_os_sandbox.py` |
+| Change the Linux or macOS wrapper | `src/zrb/llm/capabilities/sandbox/bwrap.py`, `src/zrb/llm/capabilities/sandbox/seatbelt.py` | `test/llm/capabilities/sandbox/test_bwrap.py`, `test/llm/capabilities/sandbox/test_seatbelt.py`, then `test/llm/capabilities/sandbox/test_integration.py` on that platform |
 
 ## See Also
 

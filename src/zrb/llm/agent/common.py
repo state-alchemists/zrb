@@ -18,8 +18,8 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import get_run_hook_manager
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import get_run_hook_manager
 from zrb.llm.contracts.shared.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.contracts.util.capabilities import model_capabilities
 from zrb.llm.contracts.util.prompt import expand_prompt
@@ -53,9 +53,9 @@ if TYPE_CHECKING:
 
 def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
-    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # lazy: tests patch zrb.llm.capabilities.permission.tool_capability; hoisting would
     # bind the name at this module's load time and bypass the mock.
-    from zrb.llm.permission import capability_metadata, tool_capability
+    from zrb.llm.capabilities.permission import capability_metadata, tool_capability
 
     if hasattr(tool, "function"):
         # lazy: heavy third-party
@@ -167,9 +167,9 @@ def create_safe_wrapper(
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
 
-    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # lazy: tests patch zrb.llm.capabilities.permission.tool_capability; hoisting would
     # bind the name at this module's load time and bypass the mock.
-    from zrb.llm.permission import tool_capability
+    from zrb.llm.capabilities.permission import tool_capability
 
     capability = tool_capability(func)
     tool_name = name or func.__name__
@@ -181,8 +181,8 @@ def create_safe_wrapper(
     # is spent again with the whole context re-sent. Every tool zrb builds comes
     # through here, so this is the one place that closes it. A toolset that owns
     # its own schema — an MCP server's — never reaches this function; that edge is
-    # closed in `zrb.llm.tool.mcp.add_purpose_to_mcp_tools`.
-    from zrb.llm.tool.purpose import Purpose, add_optional_purpose, has_purpose
+    # closed in `zrb.llm.capabilities.tool.mcp.add_purpose_to_mcp_tools`.
+    from zrb.llm.capabilities.tool.purpose import Purpose, add_optional_purpose, has_purpose
 
     passes_purpose = has_purpose(func)
     signature = None if passes_purpose else inspect.signature(func)
@@ -256,10 +256,10 @@ def wrap_toolset(
     from pydantic_ai import ModelRetry, ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
-    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # lazy: tests patch zrb.llm.capabilities.permission.tool_capability; hoisting would
     # bind the name at this module's load time and bypass the mock.
-    from zrb.llm.permission import tool_capability
-    from zrb.llm.tool_call.override_registry import pop_override_note
+    from zrb.llm.capabilities.permission import tool_capability
+    from zrb.llm.capabilities.tool_call.override_registry import pop_override_note
 
     class SafeToolsetWrapper(WrapperToolset[None]):
         async def call_tool(
@@ -690,7 +690,7 @@ def _apply_capability_constraints(
     Caller-supplied ``parallel_tool_calls`` wins. This is defense in depth:
     OpenAI/Azure honor the flag, but Ollama-cloud ignores it (verified with
     minimax-m2.7 and glm-4.7), so the prompt-side line in
-    ``zrb.llm.prompt.system_context`` is what changes those models. Both read
+    ``zrb.llm.capabilities.prompt.system_context`` is what changes those models. Both read
     the same capability registry.
 
     Models that *reject* the parameter (OpenAI o-series, kimi-k2.5 on NVIDIA

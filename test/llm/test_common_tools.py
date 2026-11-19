@@ -28,7 +28,7 @@ from zrb.llm.common_tools import (
     apply_common_tools,
     tool_name,
 )
-from zrb.llm.permission import Capability, tool_capability
+from zrb.llm.capabilities.permission import Capability, tool_capability
 
 
 @pytest.fixture(autouse=True)
@@ -237,8 +237,8 @@ def _requires_purpose(tool) -> bool:
 # reading a spilled result — and are named after what they do, so their calls
 # have no intent a listener is missing.
 #
-# The language-server tools are exempt as a group: they live in `zrb.llm.lsp`,
-# which may not import `zrb.llm.tool`, where the alias lives, so reaching
+# The language-server tools are exempt as a group: they live in `zrb.llm.capabilities.lsp`,
+# which may not import `zrb.llm.capabilities.tool`, where the alias lives, so reaching
 # `Purpose` from there would close a layering cycle. Giving them one starts with
 # moving the alias.
 _LSP_PREFIX = "Lsp"
@@ -269,11 +269,11 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 # materializes the registry that `apply_common_tools` reads.
 _BY_REFERENCE_PROBE = """
 import json
-from zrb.llm.permission import tool_capability
-from zrb.llm.tool.file import read_file, write_file
-from zrb.llm.tool.shell import run_shell_command
-from zrb.llm.tool.skill import create_activate_skill_tool
-from zrb.llm.tool.zrb_task import create_list_zrb_task_tool
+from zrb.llm.capabilities.permission import tool_capability
+from zrb.llm.capabilities.tool.file import read_file, write_file
+from zrb.llm.capabilities.tool.shell import run_shell_command
+from zrb.llm.capabilities.tool.skill import create_activate_skill_tool
+from zrb.llm.capabilities.tool.zrb_task import create_list_zrb_task_tool
 
 print(json.dumps({
     "read": tool_capability(read_file).value,
@@ -324,8 +324,8 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
     This turns a missing description into a review-time failure instead of a
     silent gap.
 
-    Scoped to zrb's own tools (`zrb.llm.tool.*`) — third-party MCP toolsets and
-    the LSP-server tools (`zrb.llm.lsp.tools`) aren't ours to annotate.
+    Scoped to zrb's own tools (`zrb.llm.capabilities.tool.*`) — third-party MCP toolsets and
+    the LSP-server tools (`zrb.llm.capabilities.lsp.tools`) aren't ours to annotate.
     """
     from pydantic_ai import Tool as PydanticTool
 
@@ -335,7 +335,7 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
     gaps: list[str] = []
     for tool in host.resolved_tools():
         fn = getattr(tool, "function", tool)
-        if not getattr(fn, "__module__", "").startswith("zrb.llm.tool."):
+        if not getattr(fn, "__module__", "").startswith("zrb.llm.capabilities.tool."):
             continue
         schema = (
             tool.function_schema.json_schema

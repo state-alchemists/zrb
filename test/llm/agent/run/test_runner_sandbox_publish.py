@@ -6,7 +6,7 @@ import pytest
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.sandbox.policy import SandboxPolicy
+from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
 
 
 def _agent_that_observes(observe):

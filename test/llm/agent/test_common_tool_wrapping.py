@@ -21,7 +21,7 @@ def test_wrap_tool_callable():
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import wrap_tool
-    from zrb.llm.permission import Capability, tag
+    from zrb.llm.capabilities.permission import Capability, tag
 
     def my_tool(x: int):
         return x
@@ -37,7 +37,7 @@ def test_wrap_tool_instance():
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import wrap_tool
-    from zrb.llm.permission import Capability, tag
+    from zrb.llm.capabilities.permission import Capability, tag
 
     def my_tool(x: int):
         return x
@@ -59,7 +59,7 @@ def test_wrap_tool_duck_typed_instance():
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import wrap_tool
-    from zrb.llm.permission import Capability, tag
+    from zrb.llm.capabilities.permission import Capability, tag
 
     def my_tool(ctx, x: int):
         return x
@@ -151,8 +151,8 @@ async def test_apply_tool_result_limit_survives_none_metadata():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.execution.executor import HookExecutionResult
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(
@@ -161,7 +161,7 @@ async def test_apply_tool_result_limit_survives_none_metadata():
     raw = ToolReturn(return_value="small", metadata=None)
     with (
         patch(
-            "zrb.llm.hook.manager.manager.hook_manager.execute_hooks",
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
             _route_hooks({HookEvent.POST_TOOL_USE: [transform]}),
         ),
         patch(
@@ -214,8 +214,8 @@ async def test_call_tool_backstop_still_applies_to_hook_rewritten_output():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.execution.executor import HookExecutionResult
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(
@@ -224,7 +224,7 @@ async def test_call_tool_backstop_still_applies_to_hook_rewritten_output():
     self_framed = ToolReturn(return_value="small")
     with (
         patch(
-            "zrb.llm.hook.manager.manager.hook_manager.execute_hooks",
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
             _route_hooks({HookEvent.POST_TOOL_USE: [transform]}),
         ),
         patch(

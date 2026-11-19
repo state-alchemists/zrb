@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
-from zrb.llm.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
+from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.util.attr import get_attr
 from zrb.util.string.name import get_random_name
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from zrb.attr.type import StrAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
-    from zrb.llm.prompt.manager import PromptManager
+    from zrb.llm.capabilities.prompt.manager import PromptManager
     from zrb.task.base.params import BaseTaskParams
 
     #: Builds tools for one run from the task context.

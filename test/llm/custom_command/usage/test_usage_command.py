@@ -11,7 +11,7 @@ from zrb.llm.custom_command.usage.command import (
     create_usage_commands,
     render_usage,
 )
-from zrb.llm.history_manager.conversation_naming import with_slug
+from zrb.llm.capabilities.history_manager.conversation_naming import with_slug
 from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, KIND_TURN, record_usage
 from zrb.util.string.name import get_random_name
 

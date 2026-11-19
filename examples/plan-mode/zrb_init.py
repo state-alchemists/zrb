@@ -10,7 +10,7 @@ Usage:
 """
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.permission import (
+from zrb.llm.capabilities.permission import (
     ALLOW,
     DENY,
     Capability,

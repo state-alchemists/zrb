@@ -100,10 +100,10 @@ async def test_confirm_tool_execution_delegation(base_ui):
 
 def test_execute_hook_observable(base_ui):
     """Test execute_hook by mocking the global hook manager."""
-    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
     with patch(
-        "zrb.llm.hook.manager.manager.hook_manager.execute_hooks",
+        "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
         new_callable=AsyncMock,
     ) as mock_exec:
         base_ui.execute_hook(HookEvent.NOTIFICATION, {"msg": "hi"})
@@ -113,11 +113,11 @@ def test_execute_hook_observable(base_ui):
 @pytest.mark.asyncio
 async def test_execute_hook_blocking_returns_results(base_ui):
     """execute_hook_blocking awaits the manager and returns its results."""
-    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
     sentinel = ["result"]
     with patch(
-        "zrb.llm.hook.manager.manager.hook_manager.execute_hooks",
+        "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
         new_callable=AsyncMock,
     ) as mock_exec:
         mock_exec.return_value = sentinel
@@ -418,7 +418,7 @@ async def test_delete_queued_message_leaves_a_started_message_alone():
 @pytest.mark.asyncio
 async def test_execute_hook_blocking_uses_the_task_hook_manager(base_ui):
     """A PreCommand hook registered on the task's own manager can block."""
-    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
     base_ui.llm_task.hook_manager = MagicMock()
     base_ui.llm_task.hook_manager.execute_hooks = AsyncMock(return_value=["mine"])

@@ -9,13 +9,13 @@ Use this page as the short orientation to the LLM subsystem. For deep details, f
 - Delegation from tools: `from zrb.llm.contracts.shared.delegation_api import default_sub_agent_manager, get_live_session_registry, start_titling`.
 - Resume a delegated session as a chat task: `from zrb.llm.resumed_session import create_resumed_chat_task` (a third unit of the orchestration layer: it names `task/`, `subagent/` names it, and neither package names the other).
 - Run one sub-agent turn (the delegate tool and a live-session continuation both do): `from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn`.
-- Multimodal helper: `from zrb.llm.tool.multimodal_describe import ...`.
+- Multimodal helper: `from zrb.llm.capabilities.tool.multimodal_describe import ...`.
 
 Key units (one-liners)
 
 - L0: `shared/` (the vocabulary every other package speaks: the ambient state, the three seams, the tool registry, the message shapes), the contracts a lower layer must name — those live under `contracts/` (`contracts/ui/`, `contracts/shared/`), because a module is scored by the directory it sits in and not by its filename: `ui/any_ui.py` scores L4, beside the UI that answers it — `ui/fallback` (the floor inside the UI package), and the `config`, `memory` and `util` packages.
 - L0 too: `shared/prompt_text.py` reads a prompt section by name and fills its placeholders — the lookup a tool needs to prompt its own small agent, kept out of `prompt/` so the two packages do not import each other. Its section files are in `shared/markdown/`.
-- L1: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager.
+- L1: `capabilities/` — the eleven units a run uses but does not decide: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager, skill, lsp, snapshot.
 - L2: agent (engine, and the built-in tool seed), summarizer.
 - L3: task (LLMChatTask), subagent (personas/live sessions), common_tools (host glue), custom_command.
 - L4: ui (terminal/web), speech/dictation/camera/screenshot/voice/emotion, app.
@@ -25,10 +25,10 @@ Change map (do this → open this)
 - Build/run agent from a tool: `src/zrb/llm/contracts/shared/agent_runner.py`.
 - Delegate without importing subagent: `src/zrb/llm/contracts/shared/delegation_api.py`.
 - Resume a sub-agent session without importing the chat task: `src/zrb/llm/resumed_session.py`.
-- Add a tool: `src/zrb/llm/tool/<family>.py` and register via `agent/tool_seed.py`.
+- Add a tool: `src/zrb/llm/capabilities/tool/<family>.py` and register via `agent/tool_seed.py`.
 - Change the agent loop: `src/zrb/llm/agent/run/runner.py`.
-- Change the prompt: `src/zrb/llm/prompt/manager.py`.
-- Persist/compact history: `src/zrb/llm/history_manager/*`.
+- Change the prompt: `src/zrb/llm/capabilities/prompt/manager.py`.
+- Persist/compact history: `src/zrb/llm/capabilities/history_manager/*`.
 - UI behaviour: `src/zrb/llm/ui/*` and `src/zrb/llm/ui/fallback/*`.
 
 Guards and tests

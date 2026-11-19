@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.snapshot.manager import SnapshotManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.snapshot.manager import SnapshotManager
 
 logger = logging.getLogger(__name__)
 

@@ -13,13 +13,13 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.snapshot.manager import GIT_MISSING_REASON
+from zrb.llm.capabilities.snapshot.manager import GIT_MISSING_REASON
 from zrb.llm.ui.default.app.focus import invalidate_app
 from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
-    from zrb.llm.snapshot.manager import SnapshotManager, SnapshotProgress
+    from zrb.llm.capabilities.snapshot.manager import SnapshotManager, SnapshotProgress
     from zrb.llm.ui.default.ui import UI
 
 

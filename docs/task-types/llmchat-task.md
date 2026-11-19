@@ -137,7 +137,7 @@ Every component a task may hold exactly one of is a settable property (R8) — t
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.ui import UIConfig
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
@@ -324,7 +324,7 @@ Camera, dictation and speech are added with one call each — see [Voice and cam
 ### History Manager
 
 ```python
-from zrb.llm.history_manager import FileHistoryManager
+from zrb.llm.capabilities.history_manager import FileHistoryManager
 
 chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
@@ -338,7 +338,7 @@ chat.history_config.conversation_name
 
 Same property, same fields, on both `LLMTask` and `LLMChatTask`.
 
-To store history somewhere else (a database, an object store), subclass `AnyHistoryManager` from `zrb.llm.history_manager.any_history_manager`. The setter rejects anything else with a `TypeError`. It has four methods:
+To store history somewhere else (a database, an object store), subclass `AnyHistoryManager` from `zrb.llm.capabilities.history_manager.any_history_manager`. The setter rejects anything else with a `TypeError`. It has four methods:
 
 | Method | Called to |
 |---|---|

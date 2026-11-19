@@ -14,7 +14,7 @@ from pydantic_ai.usage import RunUsage
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.history_manager.conversation_naming import with_slug
+from zrb.llm.capabilities.history_manager.conversation_naming import with_slug
 from zrb.llm.contracts.shared.usage_log import (
     COMPONENT_OTHER,
     KIND_SUMMARIZATION,

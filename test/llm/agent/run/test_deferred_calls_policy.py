@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.agent.run.deferred_calls import process_deferred_requests
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -46,7 +46,7 @@ def _permission_request_calls(hook_manager):
 
 def _ask_policy():
     """A permission policy that returns ASK for any tool (the 'hard ask')."""
-    from zrb.llm.permission import ASK
+    from zrb.llm.capabilities.permission import ASK
 
     policy = MagicMock()
     policy.decide.return_value = ASK
@@ -56,7 +56,7 @@ def _ask_policy():
 @pytest.mark.asyncio
 async def test_permission_policy_deny_blocks():
     """Priority 2: a permission policy returning DENY blocks (lines 251-255)."""
-    from zrb.llm.permission import DENY
+    from zrb.llm.capabilities.permission import DENY
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
@@ -75,8 +75,8 @@ async def test_permission_policy_deny_blocks():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=policy),
-        patch("zrb.llm.permission.tool_capability", return_value="cap"),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=policy),
+        patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
     ):
         result = await process_deferred_requests(result_output, None, ui, hook_manager)
 
@@ -107,7 +107,7 @@ async def test_yolo_auto_approves_with_no_policy_opinion():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
@@ -146,7 +146,7 @@ async def test_approval_channel_with_invalid_json_string_args():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
@@ -179,8 +179,8 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
-        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
@@ -212,7 +212,7 @@ async def test_no_approval_mechanism_without_ask_returns_none():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=None),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
@@ -248,8 +248,8 @@ async def test_interactive_exit_plan_mode_still_prompts():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.permission.get_effective_policy", return_value=_ask_policy()),
-        patch("zrb.llm.permission.tool_capability", return_value=None),
+        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
@@ -267,7 +267,7 @@ async def test_edited_approval_records_override_note_for_execution():
     """An approval channel that edits a call's args registers the change so
     `SafeToolsetWrapper.call_tool` can tell the model what actually ran
     (override_registry, see docs/adr/adr-0085.md)."""
-    from zrb.llm.tool_call.override_registry import pop_override_note
+    from zrb.llm.capabilities.tool_call.override_registry import pop_override_note
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
@@ -302,7 +302,7 @@ async def test_edited_approval_records_override_note_for_execution():
 @pytest.mark.asyncio
 async def test_unedited_approval_does_not_record_override_note():
     """override_args left unset (approved as-is) must not touch the registry."""
-    from zrb.llm.tool_call.override_registry import pop_override_note
+    from zrb.llm.capabilities.tool_call.override_registry import pop_override_note
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
@@ -334,7 +334,7 @@ async def test_edited_approval_with_unparseable_original_args_still_records_note
     """call.args that fails to parse must not silently drop the override — the
     model still needs to learn its edited call ran with different arguments,
     even without a clean "before" baseline to diff against."""
-    from zrb.llm.tool_call.override_registry import pop_override_note
+    from zrb.llm.capabilities.tool_call.override_registry import pop_override_note
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)

@@ -44,7 +44,7 @@ from zrb.llm.contracts.shared.request_log import (
     record_standalone_requests,
 )
 from zrb.llm.contracts.shared.usage_log import COMPONENT_SHELL_JUDGE, record_agent_usage
-from zrb.llm.tool_call.judge_note import (
+from zrb.llm.capabilities.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
     JUDGE_SAFE,

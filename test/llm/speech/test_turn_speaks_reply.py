@@ -13,7 +13,7 @@ from pydantic_ai import AgentRunResultEvent
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.contracts.shared.stream_observer import create_observed_event_handler
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession

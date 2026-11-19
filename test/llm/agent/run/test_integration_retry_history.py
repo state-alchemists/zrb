@@ -5,7 +5,7 @@ Real internal units wired together (`run_agent`, `TurnCursor`, `retry_loop`,
 `history_utils`) with real `pydantic_ai.messages` objects — nothing mocked
 below the model-call boundary (`agent.run` itself), matching the house style
 of `test/llm/summarizer/test_integration_summarization.py` and
-`test/llm/tool_call/test_tool_policy_integration.py`. Closes the coverage gap
+`test/llm/capabilities/tool_call/test_tool_policy_integration.py`. Closes the coverage gap
 `test_retry_loop.py`/`test_turn_cursor.py` leave: those operate on plain
 string lists, never real `tool_call_id`-bearing message objects, so a real
 duplication/loss regression in this already-correct mechanism would not be

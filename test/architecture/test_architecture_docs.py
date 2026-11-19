@@ -3,7 +3,7 @@
 THE SHAPE. Each tier is a directory under `docs/architecture/`, and every page
 in it declares its tier in a header line:
 
-    > **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+    > **Tier 2 · Extension surface** · Code: `src/zrb/llm/capabilities/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 - **`0-system/`** — the parts, the objects that own state, the invariants.
 - **`1-spine/`** — the two runtimes: deterministic work, and the agentic turn.

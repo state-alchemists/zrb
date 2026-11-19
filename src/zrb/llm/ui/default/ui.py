@@ -10,9 +10,9 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT, InputProvenance
-from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
+from zrb.llm.capabilities.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.base.ui import BaseUI

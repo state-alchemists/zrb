@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Union, cast
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.permission.state import (
+from zrb.llm.capabilities.permission.state import (
     AgentMode,
     get_current_agent_mode,
     set_current_agent_mode,

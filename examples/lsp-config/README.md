@@ -38,8 +38,8 @@ Where is the `parseConfig` function defined?
 ## Code
 
 ```python
-from zrb.llm.lsp.configs import LSPServerConfig
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.lsp.configs import LSPServerConfig
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 
 lsp_manager.register_lsp_server(
     "zls",
@@ -77,5 +77,5 @@ Names that don't match a given file are skipped, so one flat list can span langu
 ## See Also
 
 - [`docs/llm/lsp-support.md`](../../docs/llm/lsp-support.md) — full LSP guide, including [Custom LSP Servers](../../docs/llm/lsp-support.md#custom-lsp-servers)
-- `src/zrb/llm/lsp/configs.py` — the built-in `LSP_SERVER_CONFIGS` catalogue and the registry
-- `src/zrb/llm/lsp/manager/manager.py` — `lsp_manager.register_lsp_server()`
+- `src/zrb/llm/capabilities/lsp/configs.py` — the built-in `LSP_SERVER_CONFIGS` catalogue and the registry
+- `src/zrb/llm/capabilities/lsp/manager/manager.py` — `lsp_manager.register_lsp_server()`

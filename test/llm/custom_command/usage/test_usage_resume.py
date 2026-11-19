@@ -18,7 +18,7 @@ from zrb.llm.custom_command.usage.resume import (
     _to_datetime,
     read_resume,
 )
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, record_usage
 
 # A history well over the default `LLM_UI_USAGE_RESUME_HISTORY_TOKENS`: both of

@@ -48,10 +48,10 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 | A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
 | A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/contracts/shared/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 | A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
-| Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
+| Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/capabilities/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
 | A child starts with no parent history | The child sees the parent's whole conversation, so it is neither a fresh view nor cheap | **unpinned** |
-| Cancelling one sub-agent does not cancel the parent's turn | Esc on one fan-out child kills the whole main turn | `test/llm/tool/delegate/test_delegate_tool_run.py::test_delegate_human_cancel_returns_gracefully` |
-| Fan-out never runs more children at once than the cap allows | A large batch floods the rate limiter and the worktree store | `test/llm/tool/delegate/test_delegate_tool_cancel.py::test_delegate_fan_out_respects_parallel_cap` |
+| Cancelling one sub-agent does not cancel the parent's turn | Esc on one fan-out child kills the whole main turn | `test/llm/capabilities/tool/delegate/test_delegate_tool_run.py::test_delegate_human_cancel_returns_gracefully` |
+| Fan-out never runs more children at once than the cap allows | A large batch floods the rate limiter and the worktree store | `test/llm/capabilities/tool/delegate/test_delegate_tool_cancel.py::test_delegate_fan_out_respects_parallel_cap` |
 
 ## Realization
 
@@ -74,11 +74,11 @@ flowchart TD
 | `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
 | `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
 | `resolve_tools_by_name` | `src/zrb/llm/contracts/shared/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
-| `DelegateToAgent` | `src/zrb/llm/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
-| `start_background_run` | `src/zrb/llm/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
-| `run_agent_task` | `src/zrb/llm/tool/delegate/runner.py` | One child's whole turn as the tool sees it: build, envelope, hooks, the run, transcript, result |
+| `DelegateToAgent` | `src/zrb/llm/capabilities/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
+| `start_background_run` | `src/zrb/llm/capabilities/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
+| `run_agent_task` | `src/zrb/llm/capabilities/tool/delegate/runner.py` | One child's whole turn as the tool sees it: build, envelope, hooks, the run, transcript, result |
 | `run_subagent_turn` | `src/zrb/llm/contracts/shared/subagent_turn.py` | **The** sub-agent run call: the limiter, the usage tag, the captured grant. Both the tool and a live-session continuation go through it, so they cannot drift apart |
-| `SendMessageToSubagent` | `src/zrb/llm/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
+| `SendMessageToSubagent` | `src/zrb/llm/capabilities/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
 | `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
 | `LiveSubAgentSessionRegistry` | `src/zrb/llm/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
@@ -139,7 +139,7 @@ sequenceDiagram
 | Fan-out (`tasks` list) | `DelegateToAgent` | All tasks run concurrently, at most `LLM_MAX_PARALLEL_DELEGATIONS` at once, and the results are combined into one reply |
 | `isolate_worktree: true` | `DelegateToAgent` fan-out | The task runs in its own git worktree; a clean one is removed, one with changes is left and its path reported |
 | Background delegation | `DelegateToAgent(background=true)` | Returns a handle at once — one handle for a single task, or one for the whole fan-out; `GetDelegationResult` waits up to `LLM_BACKGROUND_WAIT_MAX` seconds; handles live only in this process |
-| Plan mode | `PLAN_MODE_POLICY` in `src/zrb/llm/permission/policy.py` | The `DELEGATE` capability is denied, so no delegation runs at all |
+| Plan mode | `PLAN_MODE_POLICY` in `src/zrb/llm/capabilities/permission/policy.py` | The `DELEGATE` capability is denied, so no delegation runs at all |
 | A policy denies one agent | `DelegateToAgent`'s roster | That agent is left out of the roster in the tool description |
 | A human cancels a running child | `LiveSubAgentSessionRegistry.cancel` | The child returns "Cancelled by user"; if the human then continues it, its last reply is sent to the main agent when it ends |
 | A definition built from a ready agent | `SubAgentDefinition` with `agent_instance` or `agent_factory` | Used as is: no tool, prompt or yolo resolution, and it cannot be resumed as a chat task |
@@ -151,10 +151,10 @@ sequenceDiagram
 | Change discovery, search order or registration | `src/zrb/llm/subagent/manager/manager.py` | `test/llm/subagent/` |
 | Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
 | Change how tool names resolve | `src/zrb/llm/contracts/shared/tool_resolver.py` | `test/llm/contracts/shared/test_tool_resolver.py` |
-| Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate/runner.py` | `test/llm/tool/` |
-| Change background handles and waiting | `src/zrb/llm/tool/delegate/background.py` | `test/llm/tool/delegate/test_delegate_background_results.py` |
+| Change the envelope, fan-out or the child run | `src/zrb/llm/capabilities/tool/delegate/runner.py` | `test/llm/capabilities/tool/` |
+| Change background handles and waiting | `src/zrb/llm/capabilities/tool/delegate/background.py` | `test/llm/capabilities/tool/delegate/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
-| Change agent-to-agent messages | `src/zrb/llm/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/tool/delegate/test_delegate_message.py` |
+| Change agent-to-agent messages | `src/zrb/llm/capabilities/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/capabilities/tool/delegate/test_delegate_message.py` |
 | Change what authority is captured | `src/zrb/llm/agent/run/authority_snapshot.py` | `test/llm/agent/run/test_authority_snapshot.py` |
 
 ## See Also

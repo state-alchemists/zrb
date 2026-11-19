@@ -2,7 +2,7 @@
 
 # Tools
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/capabilities/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 A tool is how the model acts on the world: reading a file, running a command, asking a sub-agent for help. This page covers how a Python function becomes something the model can call, and why every one of those calls ends up passing through the same checkpoint. The one idea to take away: a tool declares what it does with a capability tag, and the checks that matter run at the checkpoint where the call executes — not where it was approved.
 
@@ -67,11 +67,11 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| Tool functions | `src/zrb/llm/tool/` | A package per domain with more than one module — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — each re-exporting the names its flat module used to export; every other tool is one module (`memory.py`, `skill.py`, `mcp.py`, ...) |
+| Tool functions | `src/zrb/llm/capabilities/tool/` | A package per domain with more than one module — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — each re-exporting the names its flat module used to export; every other tool is one module (`memory.py`, `skill.py`, `mcp.py`, ...) |
 | `agent/tool_seed` | `src/zrb/llm/agent/tool_seed.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories; importing it installs them as the registry's seed |
 | `ToolRegistry` | `src/zrb/llm/contracts/shared/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
-| `Capability`, `tag`, `tool_capability` | `src/zrb/llm/permission/capability.py` | Writing and reading the capability tag |
+| `Capability`, `tag`, `tool_capability` | `src/zrb/llm/capabilities/permission/capability.py` | Writing and reading the capability tag |
 | `resolve_tools_by_name` | `src/zrb/llm/contracts/shared/tool_resolver.py` | Turning the tool names a sub-agent asks for into tool objects |
 | `create_agent` | `src/zrb/llm/agent/common.py` | The only place a `pydantic_ai.Agent` is built |
 | `SafeToolsetWrapper` | `src/zrb/llm/agent/common.py` | The checkpoint every call passes: hooks, permission and sandbox checks, then the call |
@@ -117,10 +117,10 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 | --- | --- | --- |
 | A tool that depends on config or context | A factory in `src/zrb/llm/agent/tool_seed.py` | Created fresh for each run, so its gate is read again every time |
 | A rarely used tool | `Tool(..., defer_loading=True)` in `src/zrb/llm/agent/tool_seed.py` | The model sees its name; the schema loads only when requested |
-| MCP or another external toolset | `src/zrb/llm/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](../3-peripheral-flow/mcp-and-lsp.md) |
+| MCP or another external toolset | `src/zrb/llm/capabilities/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](../3-peripheral-flow/mcp-and-lsp.md) |
 | A sub-agent's `tools:` list | `resolve_tools_by_name` | Names are looked up, not invented; a name that matches nothing is silently dropped, and delegate tools are always excluded |
 | A Claude-style `Bash` name | `canonical_tool_name` | Maps to the one `Shell` tool; zrb never registers a second shell tool ([ADR-0066](../../adr/adr-0066.md)) |
-| Delegation | `src/zrb/llm/tool/delegate/runner.py` | Loads eagerly, because its schema lists the available agents — see [Sub-agents](sub-agents.md) |
+| Delegation | `src/zrb/llm/capabilities/tool/delegate/runner.py` | Loads eagerly, because its schema lists the available agents — see [Sub-agents](sub-agents.md) |
 
 ### Change it here
 
@@ -128,8 +128,8 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 | --- | --- | --- |
 | Add a built-in tool | `src/zrb/llm/agent/tool_seed.py` | `test/llm/test_common_tools.py` |
 | Add a tool gated by config | `src/zrb/llm/agent/tool_seed.py` (the factories) | `test/llm/test_common_tools.py` |
-| Rename a tool the model sees | the tool's `__name__` line in `src/zrb/llm/tool/` | `test/llm/tool/` |
-| Change how capabilities are read | `src/zrb/llm/permission/capability.py` | `test/llm/permission/test_capability.py` |
+| Rename a tool the model sees | the tool's `__name__` line in `src/zrb/llm/capabilities/tool/` | `test/llm/capabilities/tool/` |
+| Change how capabilities are read | `src/zrb/llm/capabilities/permission/capability.py` | `test/llm/capabilities/permission/test_capability.py` |
 | Change registry order or mutation | `src/zrb/llm/contracts/shared/tool_registry.py` | `test/llm/contracts/shared/test_tool_registry.py` |
 | Change sub-agent tool lookup or aliases | `src/zrb/llm/contracts/shared/tool_resolver.py` | `test/llm/contracts/shared/test_tool_resolver.py` |
 | Change the execution checkpoint | `src/zrb/llm/agent/common.py` | `test/llm/agent/test_common_tool_wrapping.py` |

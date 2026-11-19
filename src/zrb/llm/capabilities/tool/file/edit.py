@@ -1,0 +1,330 @@
+import ast
+import os
+import re
+from typing import Annotated
+
+from pydantic import Field
+
+from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.tool.file.observation import path_write_lock, record_observed
+from zrb.llm.capabilities.tool.file.post_write_check import (
+    compose_write_result,
+    format_post_write_diagnostics,
+)
+from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
+from zrb.util.string.fuzzy_match import find_fuzzy_match
+from zrb.util.truncate import truncate_display
+
+_READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
+
+
+@requires_purpose
+async def replace_in_file(
+    path: Annotated[str, Field(description="File to edit.")],
+    old_text: Annotated[
+        str, Field(description="Exact text to replace, copied from Read.")
+    ],
+    new_text: Annotated[str, Field(description="Replacement text.")],
+    count: Annotated[
+        int,
+        Field(
+            description=(
+                "Occurrences to replace; -1 replaces EVERY one. Pass 1 unless "
+                "you confirmed old_text is unique or want a file-wide replace."
+            )
+        ),
+    ] = -1,
+    purpose: Purpose = "",
+) -> str:
+    """
+    Replaces text in a file. Always Read the file first to get exact text.
+
+    Read prefixes every line with its number (`cat -n` style: six columns, then
+    a tab). That prefix is not in the file — strip it from old_text and
+    new_text.
+
+    Read the result, not just its status. It reports how many replacements
+    happened, and says so when old_text matched only after whitespace was
+    normalized — a fuzzy match can land on a block at a different indentation
+    level. If either is not what you expected, Read the file before doing
+    anything else.
+
+    Keep the result structurally valid — indentation, imports, syntax. A
+    result the tool cannot parse is refused: nothing is written, and the
+    error is returned. A trailing newline dropped from `new_text` is
+    restored and reported.
+
+    LSP/static checks run after the write. When they find errors, the result
+    opens with `FAILED` and a `[DIAGNOSTIC]` list: the replacement did reach
+    disk, so do not re-issue it. Read the file and make a targeted fix — the
+    requested change is not complete until those errors are gone.
+    """
+    if old_text == "":
+        # str.replace("", x) would insert x between every character.
+        return (
+            f"Error: old_text is empty for {path}. "
+            "[SYSTEM SUGGESTION]: old_text must be a non-empty snippet copied "
+            "verbatim from the file. To create or fully overwrite a file, use "
+            "Write instead."
+        )
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    async with path_write_lock(abs_path):
+        return await _replace_in_file_locked(path, abs_path, old_text, new_text, count)
+
+
+async def _replace_in_file_locked(
+    path: str,
+    abs_path: str,
+    old_text: str,
+    new_text: str,
+    count: int,
+) -> str:
+    missing = _describe_missing_file(path, abs_path)
+    if missing is not None:
+        return missing
+
+    try:
+        with open(abs_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        return (
+            f"Error: Cannot read file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the path and your read permissions, "
+            "then retry."
+        )
+
+    actual_old, old_text, new_text, fuzzy_note = _locate_match(
+        content, old_text, new_text
+    )
+    if actual_old is None:
+        return _describe_missing_match(content, old_text, path)
+
+    new_text, newline_note = _keep_line_break(actual_old, new_text)
+    match_count = content.count(actual_old)
+    new_content = content.replace(actual_old, new_text, count)
+
+    if content == new_content:
+        return _describe_noop(path, old_text, new_text, count)
+
+    refused = _describe_unparsable_result(path, abs_path, content, new_content)
+    if refused is not None:
+        return refused
+
+    try:
+        with open(abs_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+    except Exception as e:
+        return (
+            f"Error: Cannot write file {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify the path and your write permissions, "
+            "then retry."
+        )
+    record_observed(abs_path, new_content)
+
+    replacements = match_count if count < 0 else min(match_count, count)
+    return compose_write_result(
+        f"Successfully updated {path} ({replacements} replacement(s))"
+        f"{fuzzy_note}{newline_note}",
+        await format_post_write_diagnostics(abs_path),
+    )
+
+
+def _describe_missing_file(path: str, abs_path: str) -> str | None:
+    """Explain an unreadable path, or return None when the file exists."""
+    if os.path.exists(abs_path):
+        return None
+    parent = os.path.dirname(abs_path)
+    if parent and not os.path.isdir(parent):
+        # A missing directory means a wrong base path; suggesting Write would
+        # create a new tree where nothing reads it.
+        return (
+            f"Error: File not found: {path} — its directory does not exist "
+            f"either ({parent}). "
+            "[SYSTEM SUGGESTION]: This is a wrong path, not a missing file. "
+            "Re-resolve it against the working directory in System Context. "
+            "Do not Write to it: that would create the directory and leave "
+            "the file where nothing reads it."
+        )
+    return (
+        f"Error: File not found: {path}. "
+        "[SYSTEM SUGGESTION]: Check the path, or use Write to create the "
+        "file if it should not exist yet."
+    )
+
+
+def _locate_match(
+    content: str, old_text: str, new_text: str
+) -> tuple[str | None, str, str, str]:
+    """Locate `old_text`: exact, then fuzzy, then with Read's line prefix stripped.
+
+    Returns `(actual_old, old_text, new_text, note)`; `actual_old` is None when
+    nothing matched. The prefix-strip strategy rewrites `old_text`/`new_text`.
+    """
+    if old_text in content:
+        return old_text, old_text, new_text, ""
+
+    matched = find_fuzzy_match(content, old_text)
+    if matched is not None:
+        return (
+            matched,
+            old_text,
+            new_text,
+            " — fuzzy match: old_text matched only after whitespace was "
+            "normalized, so new_text was written with the indentation you "
+            "supplied, not the file's. Read the edited region and confirm the "
+            "indentation is correct before moving on.",
+        )
+
+    stripped_old = _strip_read_line_numbers(old_text)
+    if stripped_old is not None:
+        matched = (
+            stripped_old
+            if stripped_old in content
+            else find_fuzzy_match(content, stripped_old)
+        )
+        if matched is not None:
+            return (
+                matched,
+                stripped_old,
+                _strip_prefix_per_line(new_text),
+                " (stripped Read's line-number prefix from old_text)",
+            )
+
+    return None, old_text, new_text, ""
+
+
+def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
+    """Give `new_text` back the line break `actual_old` ended with.
+
+    `str.replace` splices text and knows nothing about lines: replacing
+    `"first = 1\\n"` with `"first = 100"` yields `"first = 100second = 2"`, a
+    file that no longer parses, broken by an edit that looked local. Almost
+    every such call means to keep the break, so it is restored and the result
+    says so rather than leaving the caller to notice.
+    """
+    if new_text == actual_old or not new_text:
+        return new_text, ""
+    ending = "\r\n" if actual_old.endswith("\r\n") else "\n"
+    if not actual_old.endswith(ending) or new_text.endswith(("\n", "\r")):
+        return new_text, ""
+    return new_text + ending, (
+        " — new_text had no trailing newline; old_text's line break was kept, "
+        "so the line after it is not joined onto the replacement."
+    )
+
+
+def _describe_missing_match(content: str, old_text: str, path: str) -> str:
+    """Explain a failed match, pointing at near-misses when there are any."""
+    lines = content.splitlines()
+    old_lines = (_strip_read_line_numbers(old_text) or old_text).splitlines()
+    if old_lines:
+        first_line = old_lines[0]
+        near_matches = [
+            (i + 1, line) for i, line in enumerate(lines) if first_line in line
+        ]
+        if near_matches:
+            preview = "\n".join(
+                f"  Line {num}: {line[:120]}" for num, line in near_matches[:3]
+            )
+            return (
+                f"Error: '{truncate_display(old_text, 80)}' not found in {path}.\n"
+                f"Similar lines found:\n{preview}\n"
+                f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
+                f"Check for trailing spaces or indentation differences. "
+                f"The lines above are shown as the file holds them — copy "
+                f"from those, without Read's line-number prefix."
+            )
+    return (
+        f"Error: '{truncate_display(old_text, 80)}' not found in {path}.\n"
+        f"[SYSTEM SUGGESTION]: Re-Read the region and copy old_text from it, "
+        f"dropping the line-number prefix through the first tab. Do not "
+        f"retry with guessed text."
+    )
+
+
+def _describe_noop(path: str, old_text: str, new_text: str, count: int) -> str:
+    """Explain which of three causes made a located match change nothing."""
+    if old_text == new_text:
+        return (
+            f"No changes made to {path}: old_text and new_text are "
+            "identical, so this call cannot change the file. "
+            "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+            "returning this. Re-issue it with a new_text that differs from "
+            "old_text, or, if the file already holds the intended content, "
+            "move on to the next step."
+        )
+    if count == 0:
+        return (
+            f"No changes made to {path}: count=0 asks for zero "
+            "replacements. "
+            "[SYSTEM SUGGESTION]: Do not repeat this call as-is. Omit "
+            "count to replace every occurrence, or pass count=1 to replace "
+            "only the first."
+        )
+    # A fuzzy match whose region already equals new_text.
+    return (
+        f"No changes made to {path}: the matched region already reads "
+        "exactly as new_text, so this edit is already applied — only "
+        "whitespace told old_text apart from it. "
+        "[SYSTEM SUGGESTION]: Do not repeat this call — it will keep "
+        "returning this. Read the file to confirm its current state, then "
+        "move on or edit a different region."
+    )
+
+
+def _describe_unparsable_result(
+    path: str, abs_path: str, before: str, after: str
+) -> str | None:
+    """Refuse a result that would break a file which parsed before.
+
+    `post_write_check` reports this too, but only once the bytes are on disk,
+    so the caller's next move is repairing a file it never meant to break.
+    Checking the candidate first makes the failure atomic. A file that did not
+    parse before is left alone: refusing there would trap a caller who is
+    fixing the breakage, and a template holding placeholders is not broken.
+    """
+    if not abs_path.endswith(".py"):
+        return None
+    reason = _parse_error(after, abs_path)
+    if reason is None or _parse_error(before, abs_path) is not None:
+        return None
+    return (
+        f"Error: this edit was not applied to {path}: the result would not "
+        f"parse ({reason}). The file is unchanged.\n"
+        "[SYSTEM SUGGESTION]: Widen old_text to include the structure the "
+        "replacement has to sit in, or fix new_text. Nothing was written, so "
+        "what you read earlier is still current — Read again only if you need "
+        "to see the exact surrounding text."
+    )
+
+
+def _parse_error(source: str, abs_path: str) -> str | None:
+    """Where *source* fails to parse, or None when it parses."""
+    try:
+        ast.parse(source, filename=abs_path)
+    except SyntaxError as e:
+        return f"{type(e).__name__}: line {e.lineno}: {e.msg}"
+    return None
+
+
+def _strip_read_line_numbers(text: str) -> str | None:
+    """Undo ``Read``'s ``cat -n`` prefix, or ``None`` unless every line carries it."""
+    lines = text.splitlines(keepends=True)
+    if not lines or not all(_READ_LINE_NUMBER.match(line) for line in lines):
+        return None
+    return _strip_prefix_per_line(text)
+
+
+def _strip_prefix_per_line(text: str) -> str:
+    """Drop ``Read``'s prefix from whichever lines carry it.
+
+    Per-line (not all-or-nothing) for ``new_text``: a rewritten line has no
+    prefix while the copied ones do.
+    """
+    return "".join(
+        _READ_LINE_NUMBER.sub("", line, count=1)
+        for line in text.splitlines(keepends=True)
+    )
+
+
+tag(replace_in_file, Capability.EDIT)

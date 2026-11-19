@@ -30,11 +30,11 @@ from zrb.llm.contracts.shared.tool_registry import (  # noqa: F401 -- re-exporte
     tool_name,
     tool_registry,
 )
-from zrb.llm.tool_call.always_approve import (
+from zrb.llm.capabilities.tool_call.always_approve import (
     register_default_auto_approve,
     register_default_auto_approve_if,
 )
-from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
+from zrb.llm.capabilities.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext

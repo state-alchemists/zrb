@@ -4,10 +4,10 @@ import pytest
 
 from zrb.llm.emotion import EmotionConfig, enable_emotion
 from zrb.llm.emotion.feature import EmotionSession
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.contracts.shared.ambient_state import current_reply_emotion, input_provenance
 from zrb.llm.contracts.shared.feature_config import close_feature_sessions
 from zrb.llm.contracts.shared.input_source import DICTATION_INPUT, KEYBOARD_INPUT, InputProvenance

@@ -121,7 +121,7 @@ def test_load_restores_the_conversations_sub_agent_sessions(conv_ui):
 
 @pytest.mark.asyncio
 async def test_a_failed_naming_keeps_the_generated_name(conv_ui):
-    from zrb.llm.history_manager.conversation_naming import ConversationNamingError
+    from zrb.llm.capabilities.history_manager.conversation_naming import ConversationNamingError
 
     conv_ui.conversation_session_name = "bold-arch-1234"
     conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")

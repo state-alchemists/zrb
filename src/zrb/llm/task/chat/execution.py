@@ -14,10 +14,10 @@ from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.approval import resolve_approval_channel
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.permission import tool_capability
-from zrb.llm.sandbox import coerce_sandbox
+from zrb.llm.capabilities.approval import resolve_approval_channel
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.permission import tool_capability
+from zrb.llm.capabilities.sandbox import coerce_sandbox
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.persistence import (
@@ -37,8 +37,8 @@ from zrb.llm.task.shared_getters import (
     resolve_model,
     resolve_system_prompt,
 )
-from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
-from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
@@ -53,9 +53,9 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.history_config import HistoryConfig
     from zrb.llm.ui.any_ui import AnyUI

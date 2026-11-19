@@ -59,7 +59,7 @@ def test_several_uis_are_combined_into_one_multi_ui(monkeypatch, wired_channels)
     first, second = _ui(), _ui()
     channel = MagicMock()
     monkeypatch.setattr(
-        "zrb.llm.approval.resolve_approval_channel", lambda channels: channel
+        "zrb.llm.capabilities.approval.resolve_approval_channel", lambda channels: channel
     )
 
     assembled = assemble_ui(
@@ -76,7 +76,7 @@ def test_several_uis_are_combined_into_one_multi_ui(monkeypatch, wired_channels)
 
 def test_no_channel_means_none_is_wired(monkeypatch, wired_channels):
     monkeypatch.setattr(
-        "zrb.llm.approval.resolve_approval_channel", lambda channels: None
+        "zrb.llm.capabilities.approval.resolve_approval_channel", lambda channels: None
     )
 
     assemble_ui(

@@ -13,9 +13,9 @@ from zrb.llm.task.chat.task import LLMChatTask
 async def test_interactive_teardown_fires_terminal_session_end():
     """SESSION_END fires once when the interactive chat session tears down
     (Claude-compatible: terminal, not per-turn)."""
-    from zrb.llm.hook.contracts.interface import HookContext, HookResult
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     fired: list[str] = []
 
@@ -37,8 +37,8 @@ async def test_interactive_teardown_fires_terminal_session_end():
 @pytest.mark.asyncio
 async def test_interactive_teardown_shuts_down_the_session_hook_manager():
     """Teardown settles the per-run hook manager, not the module singleton."""
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
@@ -87,7 +87,7 @@ async def test_a_cancelled_interactive_teardown_still_runs_to_the_end():
     task.active_hook_manager = manager
 
     with patch(
-        "zrb.llm.hook.execution.executor.shutdown_hook_executor"
+        "zrb.llm.capabilities.hook.execution.executor.shutdown_hook_executor"
     ) as shutdown_executor:
         teardown = asyncio.create_task(task.teardown_interactive_resources())
         await session_end_started.wait()
@@ -161,7 +161,7 @@ def _register_sleeper(manager, name: str, event: str, *, is_async: bool) -> None
 @pytest.mark.skipif(os.name == "nt", reason="uses POSIX `sleep`")
 async def test_a_slow_session_end_hook_is_cancelled_at_the_exit_budget(monkeypatch):
     from zrb.config.config import CFG
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     monkeypatch.setattr(CFG, "HOOKS_EXIT_TIMEOUT", 300)
     manager = HookManager(search_dirs=[])
@@ -170,7 +170,7 @@ async def test_a_slow_session_end_hook_is_cancelled_at_the_exit_budget(monkeypat
     task.active_hook_manager = manager
 
     started = time.monotonic()
-    with patch("zrb.llm.hook.execution.executor.shutdown_hook_executor"):
+    with patch("zrb.llm.capabilities.hook.execution.executor.shutdown_hook_executor"):
         await task.teardown_interactive_resources()
 
     # Its own timeout is 600 s; the budget, plus the kill, is what it gets.
@@ -181,8 +181,8 @@ async def test_a_slow_session_end_hook_is_cancelled_at_the_exit_budget(monkeypat
 @pytest.mark.skipif(os.name == "nt", reason="uses POSIX `sleep`")
 async def test_session_end_and_detached_hooks_share_one_exit_budget(monkeypatch):
     from zrb.config.config import CFG
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     monkeypatch.setattr(CFG, "HOOKS_EXIT_TIMEOUT", 300)
     manager = HookManager(search_dirs=[])
@@ -194,7 +194,7 @@ async def test_session_end_and_detached_hooks_share_one_exit_budget(monkeypatch)
 
     with (
         patch.object(manager, "shutdown", wraps=manager.shutdown) as shutdown,
-        patch("zrb.llm.hook.execution.executor.shutdown_hook_executor"),
+        patch("zrb.llm.capabilities.hook.execution.executor.shutdown_hook_executor"),
     ):
         await task.teardown_interactive_resources()
 
@@ -211,9 +211,9 @@ async def test_a_repeated_teardown_does_not_fire_session_end_twice():
     takes the path again. Firing SESSION_END on a run that has already ended
     would run the session's exit hooks twice.
     """
-    from zrb.llm.hook.contracts.interface import HookContext, HookResult
-    from zrb.llm.hook.contracts.types import HookEvent
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.manager import HookManager
 
     fired: list[str] = []
 

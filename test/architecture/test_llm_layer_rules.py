@@ -14,6 +14,7 @@ from llm_layers import (
     LLM,
     LAYER_OF_UNIT,
     _CONTRACT_PATHS,
+    _FLOOR_PREFIXES,
     _LAYERS,
     _UNIT_DESTINATIONS,
     _is_upward,
@@ -34,12 +35,16 @@ def test_a_moved_path_is_scored_by_its_directory():
 
 
 def test_an_unmoved_unit_still_reads_the_table():
-    """Half-moved is legal: a unit still in the old layout scores as it did before."""
-    assert _layer("approval/policy.py") == 1
-    assert _layer("tool/shell.py") == 1
+    """Half-moved is legal: a unit still in the old layout scores as it did before.
+
+    L1 has no line left. Every capability moved into `capabilities/`, so the
+    table's first layer is empty and the directory answers for all eleven — the
+    half-moved tree is what the rest of this file is about.
+    """
     assert _layer("agent/run.py") == 2
     assert _layer("task/base.py") == 3
     assert _layer("ui/default.py") == 4
+    assert LAYER_OF_UNIT.get("approval") is None
 
 
 def test_the_directory_wins_over_the_table():
@@ -104,7 +109,7 @@ def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
     assert _is_upward("capabilities/tool/x.py", "engine/agent/y.py")
-    assert _is_upward("approval/x.py", "agent/y.py")
+    assert _is_upward("agent/x.py", "subagent/y.py")
     assert _is_upward("contracts/config/x.py", "agent/y.py")
     assert not _is_upward("presentation/ui/y.py", "contracts/config/x.py")
     assert not _is_upward("contracts/config/x.py", "contracts/shared/y.py")
@@ -163,10 +168,15 @@ def test_a_move_does_not_change_a_units_layer():
     directory would quietly re-file a unit into another layer, and 250 rewritten
     module paths are exactly where a human stops noticing.
     """
+    floors = tuple(_FLOOR_PREFIXES)
     changed = {
         unit: (destination, _layer(_path_in(unit)), _layer(_path_in(destination)))
         for unit, destination in _UNIT_DESTINATIONS.items()
-        if _layer(_path_in(unit)) != _layer(_path_in(destination))
+        # A floor's layer is granted by `_FLOOR_PREFIXES`, not by its directory:
+        # it stays L0 where it lands, and the prefix is repointed in the same PR
+        # that moves it (board 0016 §7).
+        if not _path_in(unit).startswith(floors)
+        and _layer(_path_in(unit)) != _layer(_path_in(destination))
     }
     assert not changed, f"unit: (destination, from, to) — {changed}"
 

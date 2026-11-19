@@ -13,7 +13,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.prompt.live_context.context import render_carried_context
+from zrb.llm.capabilities.prompt.live_context.context import render_carried_context
 from zrb.llm.contracts.shared.agent_state import get_current_model, get_current_ui
 from zrb.llm.contracts.shared.message import (
     ensure_alternating_roles,
@@ -32,7 +32,7 @@ from zrb.llm.contracts.shared.usage_log import (
     UsageTotals,
     record_totals,
 )
-from zrb.llm.skill.reattach import build_reattach_message
+from zrb.llm.capabilities.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -1245,7 +1245,7 @@ def _assemble_summarized_history(
     appears further down, in `verbatim_tail_message` or `structured_tail`.
     Skill bodies that `to_summarize` carried do not survive as messages, and a
     summary that only names them is not the instructions, so the newest block
-    per skill is re-attached (see `zrb.llm.skill.reattach`). *limiter* is the
+    per skill is re-attached (see `zrb.llm.capabilities.skill.reattach`). *limiter* is the
     run's own, so the caps are measured with the tokenizer the caller budgeted
     against.
     `structured_tail` stays in native message form — a trailing deferred tool

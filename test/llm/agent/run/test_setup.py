@@ -3,7 +3,7 @@
 import pytest
 
 from zrb.llm.agent.run.setup import resolve_context_dependencies
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.contracts.shared.agent_state import current_hook_manager, current_yolo
 
 
@@ -49,7 +49,7 @@ async def test_terminal_approval_asks_the_multi_ui_primary_child():
     import asyncio
     from unittest.mock import AsyncMock, MagicMock
 
-    from zrb.llm.approval.any_approval_channel import ApprovalContext
+    from zrb.llm.capabilities.approval.any_approval_channel import ApprovalContext
     from zrb.llm.ui.multi import MultiUI
 
     first, primary = MagicMock(), MagicMock()

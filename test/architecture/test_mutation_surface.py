@@ -22,7 +22,7 @@ ORDERED_COLLECTIONS = {
         ("tool_factory", "tool_factories"),
         ("toolset_factory", "toolset_factories"),
     ],
-    "zrb.llm.prompt.registry:prompt_registry": [("prompt", "prompts")],
+    "zrb.llm.capabilities.prompt.registry:prompt_registry": [("prompt", "prompts")],
     "zrb.builtin.llm.chat:llm_chat": [
         ("tool", "tools"),
         ("tool_factory", "tool_factories"),
@@ -42,9 +42,9 @@ ORDERED_COLLECTIONS = {
 }
 
 KEYED_COLLECTIONS = {
-    "zrb.llm.skill.registry:skill_registry": [("skill", "skills")],
+    "zrb.llm.capabilities.skill.registry:skill_registry": [("skill", "skills")],
     "zrb.llm.subagent.registry:sub_agent_registry": [("agent", "agents")],
-    "zrb.llm.hook.registry:hook_registry": [("hook", "hooks")],
+    "zrb.llm.capabilities.hook.registry:hook_registry": [("hook", "hooks")],
 }
 
 # Every component a user may replace (R8) — a single-value slot
@@ -210,9 +210,9 @@ def test_managers_expose_the_same_roster_api():
     it here.
     """
     for path in (
-        "zrb.llm.skill.manager:skill_manager",
+        "zrb.llm.capabilities.skill.manager:skill_manager",
         "zrb.llm.subagent.manager.manager:sub_agent_manager",
-        "zrb.llm.hook.manager.manager:hook_manager",
+        "zrb.llm.capabilities.hook.manager.manager:hook_manager",
     ):
         manager = _load(path)
         missing = [n for n in MANAGER_ROSTER_API if not hasattr(manager, n)]

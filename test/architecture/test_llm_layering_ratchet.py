@@ -175,8 +175,8 @@ def _package_of(rel: str) -> list[str]:
     """The package a file under `llm/` is imported as, read from its path.
 
     The file's own name is dropped: a module's package is the directory it sits
-    in, and an `__init__.py` *is* that directory — `llm/tool/__init__.py`
-    anchors a relative name at `zrb.llm.tool`, exactly as Python does.
+    in, and an `__init__.py` *is* that directory — `llm/capabilities/tool/__init__.py`
+    anchors a relative name at `zrb.llm.capabilities.tool`, exactly as Python does.
     """
     return ["zrb", "llm"] + rel.removesuffix(".py").split("/")[:-1]
 
@@ -222,7 +222,7 @@ def test_a_relative_import_module_resolves_a_literal_package():
 
 
 def test_a_package_init_file_is_its_own_package():
-    """A relative name in `llm/tool/__init__.py` anchors at `zrb.llm.tool`."""
+    """A relative name in `llm/capabilities/tool/__init__.py` anchors at `zrb.llm.capabilities.tool`."""
     assert _package_of("tool/__init__.py") == ["zrb", "llm", "tool"]
     assert _package_of("tool/delegate/runner.py") == ["zrb", "llm", "tool", "delegate"]
     assert _package_of("common_tools.py") == ["zrb", "llm"]
@@ -328,7 +328,7 @@ def test_the_runner_guard_sees_every_spelling():
     assert _runner_reaches_in("importlib.import_module('zrb.runner.cli')") == [
         "zrb.runner.cli"
     ]
-    assert _runner_reaches_in("from zrb.llm.tool.shell import run_shell_command") == []
+    assert _runner_reaches_in("from zrb.llm.capabilities.tool.shell import run_shell_command") == []
     assert _runner_reaches_in("from typing import TYPE_CHECKING\n") == []
     assert (
         _runner_reaches_in("if TYPE_CHECKING:\n    from zrb.runner.cli import cli\n")
@@ -337,7 +337,7 @@ def test_the_runner_guard_sees_every_spelling():
 
 
 def test_the_runner_guard_resolves_a_relative_import():
-    """`from ...runner import cli`, in `llm/tool/`, reaches `zrb.runner` too.
+    """`from ...runner import cli`, in `llm/capabilities/tool/`, reaches `zrb.runner` too.
 
     The scan reads a file's text and its package from its path; without the
     package, this spelling resolves to nothing and the guard reports a clean
@@ -352,7 +352,7 @@ def test_the_runner_guard_resolves_a_relative_import():
     assert _runner_reaches_in(
         'importlib.import_module("...runner.cli", package=__package__)', tool_package
     ) == ["zrb.runner.cli"]
-    # One level too shallow: `from ..runner import cli` in `llm/tool/` is
+    # One level too shallow: `from ..runner import cli` in `llm/capabilities/tool/` is
     # `zrb.llm.runner`, which does not exist — and is not the CLI.
     assert _runner_reaches_in("from ..runner import cli", tool_package) == []
 

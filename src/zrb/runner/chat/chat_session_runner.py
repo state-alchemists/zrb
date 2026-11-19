@@ -27,8 +27,8 @@ from zrb.util.exception import exception_summary
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel

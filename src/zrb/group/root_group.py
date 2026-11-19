@@ -2,7 +2,7 @@
 
 The tree is built by the CLI — `runner/cli.py` creates the `cli` singleton and
 the built-in tasks hang off it — while one agent tool reads it to list what zrb
-can do (`llm/tool/zrb_task.py`). The engine must not import the runner to reach
+can do (`llm/capabilities/tool/zrb_task.py`). The engine must not import the runner to reach
 it: the tool registry is built on every agent run, in embedders too, and
 importing the CLI there drags the server stack (`web_auth_config`, `Session`,
 `session_state_logger`, `make_task`) into every process that builds an agent.

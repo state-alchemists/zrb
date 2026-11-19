@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.permission.state import (
+from zrb.llm.capabilities.permission.state import (
     AgentMode,
     get_current_agent_mode,
     set_current_agent_mode,

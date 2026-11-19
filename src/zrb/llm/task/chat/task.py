@@ -21,16 +21,16 @@ from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.model_resolver import require_model_hook
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.contracts.shared.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.chat.teardown import release_chat_resources, settle_background_hooks
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.shared_getters import set_default_retry_if
-from zrb.llm.tool_call import (
+from zrb.llm.capabilities.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
     ToolPolicy,
@@ -54,9 +54,9 @@ if TYPE_CHECKING:
         ToolFuncEither,
         UserContent,
     )
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.permission import PermissionPolicyInput
-    from zrb.llm.sandbox import SandboxInput
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.permission import PermissionPolicyInput
+    from zrb.llm.capabilities.sandbox import SandboxInput
     from zrb.llm.task.chat.running import (
         InteractiveSessionRunArgs,
         SessionRunArgs,
@@ -715,7 +715,7 @@ class LLMChatTask(BaseTask):
             raise TypeError(
                 f"{self.name}.history_manager must be an AnyHistoryManager or "
                 f"None, got {type(value).__name__}. Subclass "
-                f"zrb.llm.history_manager.any_history_manager.AnyHistoryManager."
+                f"zrb.llm.capabilities.history_manager.any_history_manager.AnyHistoryManager."
             )
         self._history_manager = value
 

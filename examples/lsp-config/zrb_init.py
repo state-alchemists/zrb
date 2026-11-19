@@ -17,8 +17,8 @@ Usage:
     > Show me all symbols in main.zig
 """
 
-from zrb.llm.lsp.configs import LSPServerConfig
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.lsp.configs import LSPServerConfig
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 
 # =============================================================================
 # Add a language the built-in catalogue doesn't cover: Zig (zls).
