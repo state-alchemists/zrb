@@ -10,18 +10,23 @@ import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
-UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui"
+LLM = REPO_ROOT / "src" / "zrb" / "llm"
 
 # The contract files, and the class each one declares. `any_ui.py` holds what
-# belongs to the whole rather than to a role.
+# belongs to the whole rather than to a role. A role belongs under `contracts/`
+# when a layer beneath `ui/` has to name it — `input` is named by `tool_call`,
+# `approval`, `dictation` and `custom_command`, and `picker` by `tool/ask.py` —
+# because a contract cannot sit above its consumers, and a role left in `ui/`
+# scores L4 with the object it is a part of. The other three are reached only
+# through an accessor, so they travel with the object.
 ROLE_FILES = {
-    "any_ui_display.py": "AnyUIDisplay",
-    "any_ui_input.py": "AnyUIInput",
-    "any_ui_picker.py": "AnyUIPicker",
-    "any_ui_session.py": "AnyUISession",
-    "any_ui_tools.py": "AnyUITools",
+    "ui/any_ui_display.py": "AnyUIDisplay",
+    "contracts/ui/any_ui_input.py": "AnyUIInput",
+    "contracts/ui/any_ui_picker.py": "AnyUIPicker",
+    "ui/any_ui_session.py": "AnyUISession",
+    "ui/any_ui_tools.py": "AnyUITools",
 }
-CORE_FILE = "any_ui.py"
+CORE_FILE = "ui/any_ui.py"
 CORE_CLASS = "AnyUI"
 
 # A role reached through an accessor instead of by inheritance: a UI hands out
@@ -89,10 +94,10 @@ def _members(path: pathlib.Path, class_name: str) -> set[str]:
 
 def _declared() -> dict[str, set[str]]:
     declared = {
-        class_name: _members(UI / file_name, class_name)
+        class_name: _members(LLM / file_name, class_name)
         for file_name, class_name in ROLE_FILES.items()
     }
-    declared[CORE_CLASS] = _members(UI / CORE_FILE, CORE_CLASS)
+    declared[CORE_CLASS] = _members(LLM / CORE_FILE, CORE_CLASS)
     return declared
 
 
@@ -211,8 +216,8 @@ def test_every_host_answers_every_member_of_the_role_it_hands_out():
     checked here once: every host, every accessor, every abstract member.
     """
     from zrb.llm.ui.any_ui_display import AnyUIDisplay
-    from zrb.llm.ui.any_ui_input import AnyUIInput
-    from zrb.llm.ui.any_ui_picker import AnyUIPicker
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+    from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
     from zrb.llm.ui.any_ui_session import AnyUISession
     from zrb.llm.ui.any_ui_tools import AnyUITools
 

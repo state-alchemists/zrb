@@ -8,7 +8,7 @@ and that each default in `UIStateDefaultsMixin` is what the absent hook meant.
 import pytest
 
 from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
-from zrb.llm.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
 from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.any_ui_tools import AnyUITools
 from zrb.llm.ui.fallback.defaults import (

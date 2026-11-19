@@ -8,7 +8,7 @@ from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
 def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)

@@ -18,7 +18,7 @@ from zrb.llm.contracts.shared.input_source import (
     KEYBOARD_INPUT,
     InputProvenance,
 )
-from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.base.message_queue import (
     QueuedMessage,
     raise_if_cancelling,

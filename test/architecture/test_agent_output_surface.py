@@ -4,7 +4,7 @@ Raising MAX_MEMBERS means a new kind of thing crosses the tool_call -> ui
 boundary. That is a design decision; make it on purpose, in review.
 """
 
-from zrb.llm.ui.any_agent_output import AnyAgentOutput
+from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 MAX_MEMBERS = 3
 

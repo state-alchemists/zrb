@@ -6,7 +6,7 @@ from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
 async def read_file_validation_policy(

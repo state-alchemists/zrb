@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol, TextIO, runtime_checkable
 
-from zrb.llm.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
 
 
 @runtime_checkable

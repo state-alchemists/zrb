@@ -18,7 +18,7 @@ from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
 # payload (e.g. a whole screen buffer) can never enter the conversation

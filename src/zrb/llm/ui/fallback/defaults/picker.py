@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.fallback.text_picker import TextPicker
 
 

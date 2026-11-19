@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.any_ui_input import AnyUIInput
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)

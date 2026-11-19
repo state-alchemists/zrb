@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from zrb.llm.contracts.config.ui_config import UIConfig  # noqa: F401
     from zrb.llm.ui.any_ui import AnyUI  # noqa: F401
     from zrb.llm.ui.any_ui_display import AnyUIDisplay  # noqa: F401
-    from zrb.llm.ui.any_ui_input import AnyUIInput  # noqa: F401
-    from zrb.llm.ui.any_ui_picker import (  # noqa: F401
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput  # noqa: F401
+    from zrb.llm.contracts.ui.any_ui_picker import (  # noqa: F401
         AnyUIPicker,
         ChoiceOption,
         ChoiceSpec,
@@ -53,12 +53,12 @@ _SOURCES = {
     # The contract and its five roles
     "AnyUI": "zrb.llm.ui.any_ui",
     "AnyUIDisplay": "zrb.llm.ui.any_ui_display",
-    "AnyUIInput": "zrb.llm.ui.any_ui_input",
-    "AnyUIPicker": "zrb.llm.ui.any_ui_picker",
+    "AnyUIInput": "zrb.llm.contracts.ui.any_ui_input",
+    "AnyUIPicker": "zrb.llm.contracts.ui.any_ui_picker",
     "AnyUISession": "zrb.llm.ui.any_ui_session",
     "AnyUITools": "zrb.llm.ui.any_ui_tools",
-    "ChoiceOption": "zrb.llm.ui.any_ui_picker",
-    "ChoiceSpec": "zrb.llm.ui.any_ui_picker",
+    "ChoiceOption": "zrb.llm.contracts.ui.any_ui_picker",
+    "ChoiceSpec": "zrb.llm.contracts.ui.any_ui_picker",
     # Advanced API
     "BaseUI": "zrb.llm.ui.base.ui",
     "BufferedOutputMixin": "zrb.llm.ui.buffered.output",

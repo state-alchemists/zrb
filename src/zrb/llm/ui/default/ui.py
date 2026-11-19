@@ -14,7 +14,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
-from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.app.follow import OutputFollow

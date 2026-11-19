@@ -17,7 +17,7 @@ from zrb.llm.tool_call.shell_call import (
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 # Fence language per shell, so pygments highlights the command as the shell
 # that will run it. `bash` stands in for the POSIX shells it reads the same
