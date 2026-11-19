@@ -49,6 +49,21 @@ def test_the_directory_wins_over_the_table():
     assert _layer("contracts/ui_fallback/defaults/display.py") == 0
 
 
+def test_a_contract_is_scored_where_it_lives():
+    """A file called `any_*.py` scores where it sits, not L0 by its name.
+
+    The glob that used to grant it L0 was a table by another name: a reader
+    could not tell from the path why a file at L4 was importable from L1. The
+    contracts a lower layer must name have moved under `contracts/` instead, so
+    these are the paths as the tree holds them.
+    """
+    assert _layer("ui/any_ui.py") == 4
+    assert _layer("agent/any_agent.py") == 2
+    assert _layer("subagent/any_sub_agent_manager.py") == 3
+    # The one exemption left: the framework's own types, handed around by name.
+    assert _layer("agent/types.py") == 0
+
+
 def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
