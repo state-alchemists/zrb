@@ -21,7 +21,7 @@ from zrb.llm.contracts.shared.message_text import message_content_text
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 else:
     ModelMessage = Any
 
@@ -221,6 +221,6 @@ def build_reattach_message(
     if not content.strip():
         return None
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+    from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 
     return ModelRequest(parts=[UserPromptPart(content=content)])

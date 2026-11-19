@@ -2,7 +2,7 @@
 Tests: split files over 500 lines by feature group).
 
 The rule was documented and unenforced, so 46 files had crossed it —
-`llm/agent/run/test_runner.py` at 2049 lines, four times over. All 46 are now
+`llm/engine/agent/run/test_runner.py` at 2049 lines, four times over. All 46 are now
 split by feature group, so this holds at zero offenders with no allowlist: the
 budget is the rule itself.
 

@@ -2,7 +2,7 @@
 
 ``fs_policy`` checks paths for in-process file tools; ``os_sandbox`` wraps
 shell subprocesses (Seatbelt on macOS, bubblewrap on Linux). Leaf package:
-no ``zrb.llm.agent`` imports.
+no ``zrb.llm.engine.agent`` imports.
 """
 
 from __future__ import annotations

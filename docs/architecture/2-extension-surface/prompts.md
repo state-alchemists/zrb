@@ -48,7 +48,7 @@ The prompt is read by the model on every request, so small mistakes here cost on
 | --- | --- | --- |
 | The default prompt carries all seven sections in the shipped order | The model silently loses part of its operating context | `test/llm/capabilities/prompt/test_section_composition.py::test_default_prompt_uses_the_shipped_sections_in_order` |
 | The system prompt contains no per-turn state | The prefix changes every turn and nothing is cached, not even history | `test/llm/capabilities/prompt/test_system_context.py::TestSystemContext::test_system_context_excludes_volatile_state` |
-| Live context is appended to the end of the user's turn | Volatile state ends up in the prefix, or loses its recency | `test/llm/agent/run/test_runner_history.py::test_run_agent_appends_live_context_to_user_turn` |
+| Live context is appended to the end of the user's turn | Volatile state ends up in the prefix, or loses its recency | `test/llm/engine/agent/run/test_runner_history.py::test_run_agent_appends_live_context_to_user_turn` |
 | The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/capabilities/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
 | An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/capabilities/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
 | Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/capabilities/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
@@ -80,7 +80,7 @@ flowchart TD
 | `render_live_context` | `src/zrb/llm/capabilities/prompt/live_context/context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
 | `render_memory_block`, `render_memory_delta` | `src/zrb/llm/capabilities/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
 | `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
-| `create_agent` | `src/zrb/llm/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
+| `create_agent` | `src/zrb/llm/engine/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
 
 `get_prompt` and the section files sit at L0, under `shared/`, while the composition stays at L1. Reading a section and filling its placeholders is pure lookup: it needs `CFG` and the filesystem, and knows nothing about how sections are ordered. A tool that builds its own small agent — a summarizer, an extractor — needs a system prompt, and `tool/` may not import `prompt/`; putting the lookup between them is what keeps the two packages from importing each other (ADR-0049).
 

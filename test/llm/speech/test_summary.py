@@ -96,7 +96,7 @@ def test_the_summarizer_agent_uses_the_small_model_and_the_speech_prompt(monkeyp
         lambda model: f"resolved:{model}",
     )
     monkeypatch.setattr(
-        "zrb.llm.agent.common.create_agent",
+        "zrb.llm.engine.agent.common.create_agent",
         lambda **kwargs: captured.update(kwargs) or "agent",
     )
 

@@ -17,7 +17,7 @@ from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.multi.state import MultiUIState
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
 
 
 class MultiUIFanout(MultiUIState):

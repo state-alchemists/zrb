@@ -28,7 +28,7 @@ from zrb.llm.contracts.shared.agent_state import get_current_model
 from zrb.llm.contracts.util.capabilities import model_capabilities
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 # Lookups whose calls are interchangeable: reading one more file or directory
 # needs nothing from the last one's output.
@@ -157,7 +157,7 @@ def _tool_calls(message: object) -> list[tuple[str, str]] | None:
     response check is the one thing needing the type, and it is imported here so
     importing this module stays free of pydantic-ai.
     """
-    from zrb.llm.agent.types import ModelResponse
+    from zrb.llm.engine.agent.types import ModelResponse
 
     if not isinstance(message, ModelResponse):
         return None
@@ -209,7 +209,7 @@ def _prompt_texts(message: object) -> list[str]:
 def _create_nudge(tool_names: list[str]) -> "ModelMessage":
     """The nudge, as the user turn that carries it."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+    from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 
     distinct = sorted(set(tool_names))
     call = f"one `{distinct[0]}` call" if len(distinct) == 1 else "a single lookup"

@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
 
 
 class AnyUISession(ABC):

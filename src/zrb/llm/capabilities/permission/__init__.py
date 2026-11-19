@@ -1,6 +1,6 @@
 """Permission model: capability tags, rulesets, and ambient mode/policy state.
 
-Leaf package (no ``zrb.llm.agent`` imports). With no policy set and mode
+Leaf package (no ``zrb.llm.engine.agent`` imports). With no policy set and mode
 ``BUILD``, nothing is constrained.
 """
 

@@ -166,7 +166,7 @@ apply_common_tools(llm_chat)
 def _tool_factory(tool, defer_loading: bool = True):
     """Wrap a tool and optionally defer loading its schema."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import Tool
+    from zrb.llm.engine.agent.types import Tool
 
     return Tool(tool, defer_loading=defer_loading)
 

@@ -9,7 +9,7 @@ from zrb.llm.contracts.util.tool_args import parse_tool_args
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
@@ -20,7 +20,7 @@ async def default_response_handler(
     next_handler: Callable[[AnyAgentOutput, ToolCallPart, str], Awaitable[Any]],
 ) -> ToolApproved | ToolDenied | None:
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolApproved, ToolDenied
+    from zrb.llm.engine.agent.types import ToolApproved, ToolDenied
 
     # lazy: tests patch zrb.llm.capabilities.tool_call.edit_util.edit_content_via_editor; hoisting bypasses the mock
     from zrb.llm.capabilities.tool_call.edit_util import edit_content_via_editor

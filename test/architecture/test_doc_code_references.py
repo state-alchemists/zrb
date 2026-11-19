@@ -164,7 +164,7 @@ def _known_paths() -> set[str]:
     """Every repo file, indexed by each of its path suffixes.
 
     A doc may cite `agent/run/runner.py` or the full
-    `src/zrb/llm/agent/run/runner.py`; both should resolve.
+    `src/zrb/llm/engine/agent/run/runner.py`; both should resolve.
     """
     known: set[str] = set()
     for path in _checkout_python_files():

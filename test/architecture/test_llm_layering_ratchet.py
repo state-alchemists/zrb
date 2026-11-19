@@ -213,11 +213,11 @@ def test_a_relative_import_module_resolves_a_literal_package():
     """`package=` anchors a relative name exactly as Python anchors it.
 
     Not `zrb.llm.ui`: the anchor is the dotted name given, so `..ui` from
-    `zrb.llm.agent.loader` is `zrb.llm.agent.ui`. Asked of `importlib` itself,
+    `zrb.llm.engine.agent.loader` is `zrb.llm.engine.agent.ui`. Asked of `importlib` itself,
     so this expectation cannot drift from the rule it describes.
     """
-    source = 'importlib.import_module("..ui", package="zrb.llm.agent.loader")'
-    resolved = importlib.util.resolve_name("..ui", "zrb.llm.agent.loader")
+    source = 'importlib.import_module("..ui", package="zrb.llm.engine.agent.loader")'
+    resolved = importlib.util.resolve_name("..ui", "zrb.llm.engine.agent.loader")
     assert resolved in _runtime_imports(ast.parse(source))
 
 

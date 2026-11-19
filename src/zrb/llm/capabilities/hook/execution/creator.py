@@ -357,7 +357,7 @@ async def run_llm_hook(
     """
     try:
         # lazy: heavy third-party — pydantic_ai's message types.
-        from zrb.llm.agent.types import ToolCallPart
+        from zrb.llm.engine.agent.types import ToolCallPart
 
         # A hook agent is a nested agent inside a run, so an unconfigured one
         # inherits that run's model (a `/model` switch, `--model`) before

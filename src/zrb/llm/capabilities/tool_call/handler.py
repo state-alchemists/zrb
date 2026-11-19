@@ -17,7 +17,7 @@ from zrb.util.truncate import truncate_chars, truncate_display
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
@@ -115,7 +115,7 @@ class ToolCallHandler:
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolApproved, ToolDenied
+        from zrb.llm.engine.agent.types import ToolApproved, ToolDenied
 
         async def answer_by_vocabulary(
             ui: AnyAgentOutput, call: ToolCallPart, response: str

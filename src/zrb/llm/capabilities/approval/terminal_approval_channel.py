@@ -20,7 +20,7 @@ from zrb.llm.capabilities.tool_call.handler import (
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
     from zrb.llm.ui.any_ui import AnyUI
 
@@ -44,7 +44,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
         )
 
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolCallPart
+        from zrb.llm.engine.agent.types import ToolCallPart
 
         call = ToolCallPart(
             tool_name=context.tool_name,
@@ -98,7 +98,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
     ) -> ApprovalResult | None:
         """Offer the edit to the handler's response handlers, as `handle` does."""
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolApproved, ToolDenied
+        from zrb.llm.engine.agent.types import ToolApproved, ToolDenied
 
         async def not_handled(
             ui: "AnyAgentOutput", call: "ToolCallPart", response: str

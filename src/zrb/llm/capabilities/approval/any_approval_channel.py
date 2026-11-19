@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolApproved, ToolDenied
+    from zrb.llm.engine.agent.types import ToolApproved, ToolDenied
 
 
 @dataclass
@@ -33,11 +33,11 @@ class ApprovalResult:
         """Convert to Pydantic AI result types."""
         if self.approved:
             # lazy: zrb internal (heavy via transitive)
-            from zrb.llm.agent.types import ToolApproved
+            from zrb.llm.engine.agent.types import ToolApproved
 
             return ToolApproved(override_args=self.override_args)
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolDenied
+        from zrb.llm.engine.agent.types import ToolDenied
 
         return ToolDenied(self.message)
 

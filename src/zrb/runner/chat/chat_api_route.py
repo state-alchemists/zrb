@@ -34,7 +34,7 @@ def _ensure_private_dir(path: str) -> None:
 
     The upload root has a fixed name under the shared temp dir, so another
     local user could pre-create it as a symlink. Mirrors
-    `llm/agent/spill.py::_ensure_root`.
+    `llm/engine/agent/spill.py::_ensure_root`.
     """
     os.makedirs(path, mode=0o700, exist_ok=True)
     info = os.lstat(path)

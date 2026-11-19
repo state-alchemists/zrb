@@ -30,10 +30,10 @@ class MultimodalDictationBackend(AnyDictationBackend):
 
     async def transcribe(self, audio: bytes) -> str:
         # lazy: zrb internal (heavy via transitive) — not a cycle, verified
-        # empirically (nothing zrb.llm.agent's package __init__ imports at
+        # empirically (nothing zrb.llm.engine.agent's package __init__ imports at
         # module level reaches zrb.llm.dictation).
-        from zrb.llm.agent import create_agent, run_agent
-        from zrb.llm.agent.types import BinaryContent
+        from zrb.llm.engine.agent import create_agent, run_agent
+        from zrb.llm.engine.agent.types import BinaryContent
         from zrb.llm.contracts.config.limiter import llm_limiter
         from zrb.llm.contracts.shared.prompt_text import get_prompt
 

@@ -10,7 +10,7 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 # Plain-substring check, so even quoted occurrences require approval. "&"
@@ -223,7 +223,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolApproved
+        from zrb.llm.engine.agent.types import ToolApproved
 
         args = shell_command_args(call)
         if args is None:

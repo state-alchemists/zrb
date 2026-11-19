@@ -458,7 +458,7 @@ def test_bracketed_paste_of_text_goes_to_the_input_field(mock_ui, setup_bindings
 def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
     mock_ui, setup_bindings, tmp_path
 ):
-    from zrb.llm.agent.run.prompt_content import get_prompt_content
+    from zrb.llm.engine.agent.run.prompt_content import get_prompt_content
 
     pdf = tmp_path / "report.pdf"
     pdf.write_bytes(b"%PDF-1.4")

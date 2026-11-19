@@ -27,7 +27,7 @@ def _create_fake_agent(output: str) -> mock.MagicMock:
 
 def _patch_create_agent(agent: mock.MagicMock):
     """`please` imports the factory inside its body, so patch it at the source."""
-    return mock.patch("zrb.llm.agent.create_agent", return_value=agent)
+    return mock.patch("zrb.llm.engine.agent.create_agent", return_value=agent)
 
 
 def test_strip_code_fences_plain_command():

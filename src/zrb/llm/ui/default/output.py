@@ -734,7 +734,7 @@ class UIOutput:
         viewing_name = None
         if viewing_agent_id:
             # lazy: transitively heavy via internal — live_session.py imports
-            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+            # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
             from zrb.llm.subagent.live_session import (
                 live_subagent_session_registry,
             )
@@ -776,7 +776,7 @@ class UIOutput:
         # sub-agent session, so the panel advertises it whenever one is
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
         from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         live = live_subagent_session_registry.active(

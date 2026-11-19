@@ -60,7 +60,7 @@ def create_interrupt_judge_agent(
     """The judge, with the system prompt a project may override
     (`get_prompt("barge_in")`, like every other internal agent prompt)."""
     # lazy: heavy third-party — building an agent pulls in pydantic_ai.
-    from zrb.llm.agent.common import create_agent
+    from zrb.llm.engine.agent.common import create_agent
 
     return create_agent(
         model=resolve_configured_small_model(model),

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 _EMPTY_ARGS_SENTINELS = ("", "null", "{}")
 

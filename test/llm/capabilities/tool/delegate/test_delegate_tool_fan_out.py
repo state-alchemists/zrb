@@ -209,7 +209,7 @@ async def test_delegate_recursion_error_surfaces_suggestion(mock_sub_agent_manag
 @pytest.mark.asyncio
 async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
     """A hook manager that raises must not break delegation (fire-and-forget)."""
-    from zrb.llm.agent.run.runner import current_hook_manager
+    from zrb.llm.engine.agent.run.runner import current_hook_manager
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     boom_manager = MagicMock()
@@ -237,7 +237,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 @pytest.mark.asyncio
 async def test_fire_subagent_hook_swallows_cancelled_error():
     """`fire_subagent_hook` must swallow `CancelledError` (a BaseException) too."""
-    from zrb.llm.agent.run.runner import current_hook_manager
+    from zrb.llm.engine.agent.run.runner import current_hook_manager
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.tool.delegate import fire_subagent_hook
 

@@ -12,7 +12,7 @@ from zrb.llm.capabilities.history_manager.conversation_edits import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 
 def _messages(count: int) -> list[ModelMessage]:

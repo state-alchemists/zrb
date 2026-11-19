@@ -114,7 +114,7 @@ sequenceDiagram
     T-->>B: final text, shown by append_markdown
 ```
 
-`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui` (`src/zrb/llm/ui/fallback/resolution.py`). Two or more UIs become the `MultiUI` that `ui/multi/` registers when the presentation package loads. The result is bound to `current_ui` on an `ExitStack` and reset when the run ends.
+`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/engine/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui` (`src/zrb/llm/ui/fallback/resolution.py`). Two or more UIs become the `MultiUI` that `ui/multi/` registers when the presentation package loads. The result is bound to `current_ui` on an `ExitStack` and reset when the run ends.
 
 **Asking the user.** An approval goes through `TerminalApprovalChannel`, which writes the prompt with `append_to_output` and waits on `ask_user`. In a `MultiUI` it asks the primary child. The turn is suspended at that `await`; the UI's own event loop keeps running and delivers the answer. In the terminal, `UIConfirmation` queues concurrent prompts and shows one at a time. See [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) for what happens to the answer.
 

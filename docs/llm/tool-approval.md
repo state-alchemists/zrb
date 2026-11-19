@@ -26,7 +26,7 @@ Three ordered lists on `LLMChatTask` control everything about that prompt — wh
 | 2. Argument formatter | `ArgumentFormatter` | How are the call's arguments displayed? | `append_argument_formatter` / `prepend_argument_formatter` / `set_argument_formatters` / `remove_argument_formatter` |
 | 3. Response handler | `ResponseHandler` | What does the typed answer mean? | `append_response_handler` / `prepend_response_handler` / `set_response_handlers` / `remove_response_handler` |
 
-All three also exist as constructor arguments (`tool_policies=`, `argument_formatters=`, `response_handlers=`). The types live in `zrb.llm.capabilities.tool_call`; `ToolApproved`, `ToolDenied` and `ToolCallPart` in `zrb.llm.agent.types`.
+All three also exist as constructor arguments (`tool_policies=`, `argument_formatters=`, `response_handlers=`). The types live in `zrb.llm.capabilities.tool_call`; `ToolApproved`, `ToolDenied` and `ToolCallPart` in `zrb.llm.engine.agent.types`.
 
 Where these sit relative to permission rules, YOLO and hooks is in [Permission Policy → The Precedence Chain](permission-policy.md#the-precedence-chain): tool policies run at priority 1, before the permission ruleset. To send the prompt somewhere other than the terminal (Telegram, HTTP), use an [approval channel](llm-custom-ui.md#approval-channels) instead.
 
@@ -88,8 +88,8 @@ from zrb.llm.capabilities.tool_call import auto_approve
 
 
 async def no_force_push(ui, call, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolDenied
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolDenied
     from zrb.llm.contracts.util.tool_args import parse_tool_args
 
     args = parse_tool_args(call) or {}
@@ -123,8 +123,8 @@ always_allowed: set[str] = set()
 
 
 async def allow_remembered(ui, call, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolApproved
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolApproved
 
     if call.tool_name in always_allowed:
         return ToolApproved()
@@ -132,8 +132,8 @@ async def allow_remembered(ui, call, next_handler):
 
 
 async def always_for_session(ui, call, response: str, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolApproved
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolApproved
 
     if response.strip().lower() != "a":
         return await next_handler(ui, call, response)

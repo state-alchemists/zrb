@@ -10,7 +10,7 @@ import logging
 
 import pytest
 
-from zrb.llm.agent.types import ModelRequest, UserPromptPart
+from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 from zrb.llm.contracts.config.limiter import llm_limiter
 from zrb.llm.capabilities.skill import reattach
 from zrb.llm.capabilities.skill.activation import build_activation_block
@@ -327,7 +327,7 @@ async def test_compaction_keeps_the_skill_body_in_the_history(tmp_path, monkeypa
     from unittest.mock import AsyncMock, MagicMock
 
     from zrb.config.config import CFG
-    from zrb.llm.summarizer import summarize_history
+    from zrb.llm.engine.summarizer import summarize_history
 
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
     agent = MagicMock()
@@ -361,7 +361,7 @@ async def test_an_opening_turn_that_survives_is_not_re_attached(tmp_path, monkey
     from unittest.mock import AsyncMock, MagicMock
 
     from zrb.config.config import CFG
-    from zrb.llm.summarizer import summarize_history
+    from zrb.llm.engine.summarizer import summarize_history
 
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
     agent = MagicMock()

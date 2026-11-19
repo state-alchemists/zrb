@@ -1,4 +1,4 @@
-"""Tests for the sandbox execution gate in ``zrb.llm.agent.common``."""
+"""Tests for the sandbox execution gate in ``zrb.llm.engine.agent.common``."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from zrb.llm.agent.gates import sandbox_gate
+from zrb.llm.engine.agent.gates import sandbox_gate
 from zrb.llm.capabilities.permission import Capability, tag
 from zrb.llm.capabilities.sandbox import SandboxPolicy, current_sandbox_policy
 from zrb.llm.capabilities.sandbox.state import (
@@ -64,7 +64,7 @@ def _enabled_policy(tmp_path, **kwargs):
 @pytest.mark.asyncio
 async def test_gate_inert_when_disabled(tmp_path):
     """Default-off invariant: no opt-in → tool runs exactly as before."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def mutate(path: str = ""):
         return "did it"
@@ -78,7 +78,7 @@ async def test_gate_inert_when_disabled(tmp_path):
 
 @pytest.mark.asyncio
 async def test_gate_blocks_edit_outside_writable_roots(tmp_path, outside_root):
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     calls = []
 
@@ -103,7 +103,7 @@ async def test_gate_blocks_edit_outside_writable_roots(tmp_path, outside_root):
 
 @pytest.mark.asyncio
 async def test_gate_allows_edit_inside_writable_roots(tmp_path):
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     (tmp_path / "proj").mkdir()
 
@@ -125,7 +125,7 @@ async def test_gate_allows_edit_inside_writable_roots(tmp_path):
 
 @pytest.mark.asyncio
 async def test_gate_blocks_read_of_deny_root(tmp_path):
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     secrets = tmp_path / "secrets"
     secrets.mkdir()
@@ -149,7 +149,7 @@ async def test_gate_blocks_read_of_deny_root(tmp_path):
 @pytest.mark.asyncio
 async def test_gate_does_not_path_check_execute_tools(tmp_path):
     """Shell is the OS sandbox layer's territory, not argument inspection."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def run(command: str = "", path: str = ""):
         return "ran"
@@ -170,7 +170,7 @@ async def test_gate_does_not_path_check_execute_tools(tmp_path):
 @pytest.mark.asyncio
 async def test_gate_write_checks_untagged_tools(tmp_path, outside_root):
     """UNKNOWN capability (e.g. MCP tools) is write-checked — safe by default."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def mystery(path: str = ""):
         return "did it"
@@ -188,7 +188,7 @@ async def test_gate_write_checks_untagged_tools(tmp_path, outside_root):
 
 @pytest.mark.asyncio
 async def test_gate_blocks_escape_when_disallowed(tmp_path):
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def run(command: str = "", dangerously_skip_sandbox: bool = False):
         return "ran"
@@ -210,7 +210,7 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
 @pytest.mark.asyncio
 async def test_gate_checks_exit_worktree_path(tmp_path, outside_root):
     """ExitWorktree's `worktree_path` arg is write-checked (ADR-0065)."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def exit_worktree(worktree_path: str = "", keep_branch: bool = False):
         return "removed"
@@ -238,7 +238,7 @@ async def test_gate_allows_a_resume_whose_repository_is_read_only(
     was refused although nothing was going to be written. Creating a worktree is
     judged by the tool itself, on the repository root git resolves from `cwd`.
     """
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def enter_worktree(cwd: str = "", worktree_path: str = "", branch_name: str = ""):
         return "resumed"
@@ -265,7 +265,7 @@ async def test_gate_allows_a_resume_whose_repository_is_read_only(
 @pytest.mark.asyncio
 async def test_gate_checks_enter_worktree_path(tmp_path, outside_root):
     """EnterWorktree's resume path is write-checked like ExitWorktree's path."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def enter_worktree(worktree_path: str = ""):
         return "resumed"
@@ -284,7 +284,7 @@ async def test_gate_checks_enter_worktree_path(tmp_path, outside_root):
 
 @pytest.mark.asyncio
 async def test_gate_move_checks_src_and_dst(tmp_path, outside_root):
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     (tmp_path / "proj").mkdir()
 

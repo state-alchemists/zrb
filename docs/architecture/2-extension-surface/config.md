@@ -99,7 +99,7 @@ sequenceDiagram
 
 Two details matter. An empty variable (`export ZRB_WEB_HTTP_PORT=`) counts as unset and falls back to the default instead of failing the cast. A cast error re-raises unless the field declares a `fallback`, which answers a bad value; the default of an unset setting is always its declared `DEFAULT_<NAME>`.
 
-Callers read `CFG` where the value is used, not at import. The tool-result cap is read by `SafeToolsetWrapper` in `src/zrb/llm/agent/common.py` each time a result comes back, so a `zrb_init.py` change made after import still applies.
+Callers read `CFG` where the value is used, not at import. The tool-result cap is read by `SafeToolsetWrapper` in `src/zrb/llm/engine/agent/common.py` each time a result comes back, so a `zrb_init.py` change made after import still applies.
 
 **Writing a value.** `CFG.NAME = value` serializes the value, casts it back to check it round-trips, and writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
 
@@ -116,7 +116,7 @@ Callers read `CFG` where the value is used, not at import. The tool-result cap i
 | An optional value | `EnvField(nullable=True)` | Unset or empty reads as `None`; assigning `None` removes the variable |
 | A secret | `EnvField(secret=True)` | Read and written as usual; `zrb config` shows only set or unset |
 | An optional chat feature | `resolve_from_cfg` | Fills the dataclass's `None` fields from `CFG.<PREFIX><FIELD>` at session start and copies lists |
-| A sub-agent run | `src/zrb/llm/agent/run/authority_snapshot.py` | Plain settings come from the same process-wide `CFG`; permission, YOLO and sandbox travel separately with the run — see [Sub-agents](sub-agents.md) |
+| A sub-agent run | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | Plain settings come from the same process-wide `CFG`; permission, YOLO and sandbox travel separately with the run — see [Sub-agents](sub-agents.md) |
 | A `.env` file | `EnvFile` in `src/zrb/env/env_file.py` | Loads into one task's context, never into `CFG` |
 
 ### Change it here

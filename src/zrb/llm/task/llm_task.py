@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Unpack, cast
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
+from zrb.llm.engine.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.contracts.config.model_resolver import apply_model_hooks, require_model_hook
@@ -32,7 +32,7 @@ from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.capabilities.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.contracts.shared.stream_observer import StreamObserver
 from zrb.llm.contracts.shared.usage_log import CompactionDetail
-from zrb.llm.summarizer import summarize_history, warn_forced_compaction
+from zrb.llm.engine.summarizer import summarize_history, warn_forced_compaction
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
@@ -45,9 +45,9 @@ from zrb.util.attr import get_attr, get_bool_attr
 if TYPE_CHECKING:
     from pydantic_ai import Agent
 
-    from zrb.llm.agent.common import HistoryProcessor
-    from zrb.llm.agent.run.partial_run import PartialRunAccumulator
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.common import HistoryProcessor
+    from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
+    from zrb.llm.engine.agent.types import (
         AbstractCapability,
         AbstractToolset,
         Model,
@@ -749,7 +749,7 @@ class LLMTask(BaseTask):
         # sees it; the summarizer says the reason for this one.
         warn_forced_compaction(user_message.strip(), len(message_history))
         # lazy: heavy third-party (via zrb.llm.ui)
-        from zrb.llm.agent.run.setup import session_model_scope
+        from zrb.llm.engine.agent.run.setup import session_model_scope
 
         # `/compress` runs before any agent publishes model bindings; without
         # this scope the summarizer resolves against `CFG` and ignores `/model`.

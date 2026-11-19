@@ -12,7 +12,7 @@ from zrb.llm.contracts.util.image_scale import scale_image_bytes
 from zrb.llm.contracts.util.pdf import extract_pdf_text
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
 
 
 def normalize_attachments(
@@ -21,7 +21,7 @@ def normalize_attachments(
 ) -> "list[UserContent]":
 
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import BinaryContent
+    from zrb.llm.engine.agent.types import BinaryContent
 
     final_attachments = []
     for item in attachments:

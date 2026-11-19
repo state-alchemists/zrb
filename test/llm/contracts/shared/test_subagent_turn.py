@@ -9,7 +9,7 @@ drift cannot come back unnoticed.
 
 import pytest
 
-from zrb.llm.agent.run.authority_snapshot import AuthoritySnapshot
+from zrb.llm.engine.agent.run.authority_snapshot import AuthoritySnapshot
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.agent_state import (
     current_approval_channel,

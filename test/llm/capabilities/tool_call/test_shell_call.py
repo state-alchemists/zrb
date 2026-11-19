@@ -8,7 +8,7 @@ answered in one place and pinned here.
 import re
 from pathlib import Path
 
-from zrb.llm.agent.types import ToolCallPart
+from zrb.llm.engine.agent.types import ToolCallPart
 from zrb.llm.capabilities.tool_call.shell_call import (
     is_sandbox_off,
     is_shell_call,
@@ -16,8 +16,16 @@ from zrb.llm.capabilities.tool_call.shell_call import (
     shell_command_args,
 )
 
-_REPO_ROOT = Path(__file__).parents[3]
-_SHELL_CALL = _REPO_ROOT / "src" / "zrb" / "llm" / "tool_call" / "shell_call.py"
+_REPO_ROOT = Path(__file__).parents[4]
+_SHELL_CALL = (
+    _REPO_ROOT
+    / "src"
+    / "zrb"
+    / "llm"
+    / "capabilities"
+    / "tool_call"
+    / "shell_call.py"
+)
 #: The argument name as a quoted token — a reader of the shape, not the
 #: identifier a signature declares or a sentence that mentions it.
 _QUOTED_NAME = re.compile(r"""["']dangerously_skip_sandbox["']""")

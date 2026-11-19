@@ -12,7 +12,7 @@ from zrb.llm.ui.event_driven.input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
     from zrb.llm.task.llm_task import LLMTask
 
 

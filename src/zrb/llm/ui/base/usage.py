@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
 
 
 class BaseUIUsage:

@@ -21,7 +21,7 @@ from zrb.util.exception import exception_summary
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
     from zrb.llm.ui.base.ui import BaseUI
 
 

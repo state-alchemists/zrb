@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 #: The runtime name of the shell tool (`tool/shell/command.py` registers it).
 SHELL_TOOL_NAME = "Shell"

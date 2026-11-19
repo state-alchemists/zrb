@@ -18,7 +18,7 @@ from zrb.util.cli.markdown import render_markdown
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.ui.base.message_queue import QueuedMessage
     from zrb.llm.ui.base.ui import BaseUI
 

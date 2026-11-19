@@ -45,7 +45,7 @@ async def test_suggest_slug_sanitises_the_model_answer():
     agent = MagicMock()
     agent.run = AsyncMock(return_value=MagicMock(output="Greetings!"))
     with (
-        patch("zrb.llm.agent.common.create_agent", return_value=agent),
+        patch("zrb.llm.engine.agent.common.create_agent", return_value=agent),
         patch(
             "zrb.llm.capabilities.history_manager.conversation_naming.resolve_configured_small_model",
             return_value="m",

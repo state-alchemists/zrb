@@ -129,7 +129,7 @@ async def test_a_delegated_turn_is_marked_as_a_sub_agents_own(mock_sub_agent_man
 async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
-    from zrb.llm.agent.run.runner import current_hook_manager
+    from zrb.llm.engine.agent.run.runner import current_hook_manager
     from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.manager import HookManager

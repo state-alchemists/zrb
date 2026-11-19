@@ -21,7 +21,7 @@ from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 

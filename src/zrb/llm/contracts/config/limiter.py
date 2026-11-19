@@ -27,7 +27,7 @@ def is_pinned(value: int | None, env_key: str) -> bool:
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, ToolReturnPart, UserPromptPart
+    from zrb.llm.engine.agent.types import ModelRequest, ToolReturnPart, UserPromptPart
 
     if not isinstance(msg, ModelRequest):
         return False

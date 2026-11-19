@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from zrb.llm.contracts.shared.input_source import InputProvenance
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
 
 
 class TriggerMessage(NamedTuple):

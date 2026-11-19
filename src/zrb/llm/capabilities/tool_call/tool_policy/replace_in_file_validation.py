@@ -6,7 +6,7 @@ from zrb.llm.contracts.util.tool_args import parse_tool_args
 from zrb.util.string.fuzzy_match import find_fuzzy_match
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
@@ -17,7 +17,7 @@ async def replace_in_file_validation_policy(
 ) -> Any:
     """Deny an `Edit` call that is a no-op, targets a missing file, or whose old_text is absent."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolDenied
+    from zrb.llm.engine.agent.types import ToolDenied
 
     if call.tool_name != "Edit":
         return await next_handler(ui, call)

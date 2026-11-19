@@ -168,9 +168,9 @@ class BaseUIExecCommands:
         # one tells the UI it no longer belongs to what is on screen.
         request = self._base_ui.begin_side_question(question)
         try:
-            # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent
-            from zrb.llm.agent import create_agent
-            from zrb.llm.agent.types import ModelRequest, SystemPromptPart
+            # lazy: heavy transitive (pydantic_ai) via zrb.llm.engine.agent
+            from zrb.llm.engine.agent import create_agent
+            from zrb.llm.engine.agent.types import ModelRequest, SystemPromptPart
 
             # Strip SystemPromptParts so the main agent's system prompt doesn't
             # conflict with the btw agent's own.

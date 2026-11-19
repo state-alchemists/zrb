@@ -66,7 +66,7 @@ def _defined_names() -> frozenset[str]:
 
     - a class or function defined under `src/`;
     - a name a module under `src/` imports by name, which is how third-party
-      types such as `Tool` exist in zrb (`src/zrb/llm/agent/types.py`);
+      types such as `Tool` exist in zrb (`src/zrb/llm/engine/agent/types.py`);
     - a name a tool is registered under (`"DelegateToAgent"`) — scoped to the
       tool package, so a stray quoted word elsewhere cannot bless a role-noun.
     """

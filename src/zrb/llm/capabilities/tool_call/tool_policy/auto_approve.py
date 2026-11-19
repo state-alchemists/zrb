@@ -7,7 +7,7 @@ from zrb.llm.capabilities.tool_call.shell_call import is_sandbox_off
 from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
@@ -29,7 +29,7 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
         next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ToolApproved
+        from zrb.llm.engine.agent.types import ToolApproved
 
         if call.tool_name != tool_name:
             return await next_handler(ui, call)

@@ -332,7 +332,7 @@ A turn boundary is preferred, but not at any price: if reaching one would keep l
 `LLMChatTask` always appends zrb's summarizer after your own `history_processors`, so a chat built in code compresses like `zrb llm chat`. A bare `LLMTask` has no summarizer unless you add one:
 
 ```python
-from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.engine.summarizer import create_summarizer_history_processor
 
 task.append_history_processor(
     create_summarizer_history_processor(
@@ -345,7 +345,7 @@ task.append_history_processor(
 
 Every argument is optional and defaults to its `ZRB_LLM_*` setting. `limiter` defaults to the shared `llm_limiter`; `message_agent` and `conversational_agent` replace the two summarizer agents (by default they are built fresh each call, so a `/model` switch applies at once). If a summarizer agent cannot be built — no credentials, say — history passes through unsummarized.
 
-The building blocks are in `zrb.llm.summarizer`, all `async` except `split_history`:
+The building blocks are in `zrb.llm.engine.summarizer`, all `async` except `split_history`:
 
 | Function | What it does |
 |---|---|

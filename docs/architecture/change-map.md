@@ -29,10 +29,10 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change the system prompt or a mandate | `src/zrb/llm/capabilities/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
 | Add a hook point, or change matching | `src/zrb/llm/capabilities/hook/manager/manager.py` | [Hooks](2-extension-surface/hooks.md) |
 | Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |
-| Change what a sub-agent inherits | `src/zrb/llm/agent/run/authority_snapshot.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
+| Change what a sub-agent inherits | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Add an HTTP route or a page | `src/zrb/runner/web_route/` | [Web Requests](3-peripheral-flow/web-requests.md) |
 | Change what the model may touch | `src/zrb/llm/capabilities/permission/`, `src/zrb/llm/capabilities/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
-| Change the agent loop itself | `src/zrb/llm/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
+| Change the agent loop itself | `src/zrb/llm/engine/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
 | Change history persistence or summarization | `src/zrb/llm/capabilities/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
 | Change how skills are found or activated, or add a slash command | `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | Change how a model name becomes a model, or the rate limits | `src/zrb/llm/contracts/config/model_resolver.py`, `src/zrb/llm/contracts/config/limiter.py` | [The LLM Turn](1-spine/llm-turn.md) |

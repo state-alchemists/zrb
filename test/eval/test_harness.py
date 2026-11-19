@@ -60,7 +60,7 @@ def test_the_large_log_fixture_stays_over_the_prune_budget():
     says so instead of certifying it.
     """
     pruner = pytest.importorskip(
-        "zrb.llm.summarizer.tool_result_pruner",
+        "zrb.llm.engine.summarizer.tool_result_pruner",
         reason="per-result pruning lands with #811; until then the log arrives whole",
     )
     log = TASKS_BY_NAME["find_in_large_log"].files["logs/build.log"]

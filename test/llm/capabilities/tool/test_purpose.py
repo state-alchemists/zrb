@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai import Tool
 
-from zrb.llm.agent.common import create_safe_wrapper, wrap_tool
+from zrb.llm.engine.agent.common import create_safe_wrapper, wrap_tool
 from zrb.llm.capabilities.skill.manager import SkillManager
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.capabilities.tool.delegate.background import create_get_delegation_result_tool

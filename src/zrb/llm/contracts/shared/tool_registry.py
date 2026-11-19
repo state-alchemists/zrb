@@ -251,5 +251,5 @@ class ToolRegistry:
         host.append_toolset_factory(*self.get_toolset_factories())
 
 
-#: The shared registry; its seed is wired in ``zrb.llm.agent.tool_seed``.
+#: The shared registry; its seed is wired in ``zrb.llm.engine.agent.tool_seed``.
 tool_registry = ToolRegistry()

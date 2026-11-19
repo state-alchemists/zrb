@@ -15,7 +15,7 @@ from zrb.llm.contracts.util.tool_args import (
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 _OUTCOME_ICONS = {"success": "✅", "retried": "🔄"}
 
@@ -209,12 +209,12 @@ def _render_user_content(content, full: bool = False) -> str:
 def format_multimodal_item(item) -> str:
     """Render one item of a multimodal ``UserPromptPart.content`` sequence.
 
-    Shared with ``llm/summarizer/message_converter.py``.
+    Shared with ``llm/engine/summarizer/message_converter.py``.
     """
     if isinstance(item, str):
         return item
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.types import (
         AudioUrl,
         BinaryContent,
         DocumentUrl,

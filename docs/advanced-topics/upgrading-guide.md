@@ -97,13 +97,13 @@ Fourteen modules at the top of `zrb.llm` were the vocabulary every feature speak
 |---|---|
 | `zrb.llm.agent_state`, `agent_activity`, `agent_tool_result`, `agent_runner`, `ambient_state`, `delegation_api`, `factory_resolver`, `input_source`, `message`, `message_text`, `shell_cut`, `stream_observer`, `tool_registry`, `usage_log` | the same name under `zrb.llm.contracts.shared.` |
 | `from zrb.llm.contracts.util.feature_config import ...` | `from zrb.llm.contracts.shared.feature_config import ...` |
-| `from zrb.llm.any_agent import AnyAgent, AnyAgentResult` | `from zrb.llm.agent.any_agent import AnyAgent, AnyAgentResult` |
-| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.agent.any_agent_runner import AnyAgentRunner` |
+| `from zrb.llm.any_agent import AnyAgent, AnyAgentResult` | `from zrb.llm.engine.agent.any_agent import AnyAgent, AnyAgentResult` |
+| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.engine.agent.any_agent_runner import AnyAgentRunner` |
 | `from zrb.llm.any_sub_agent_manager import ...` (and `any_sub_agent_definition`, `any_live_sub_agent_session`, `any_live_session_registry`) | the same name under `zrb.llm.subagent.` |
 
 `feature_config` moved further than planned: it reads ambient session state, so once its neighbours were inside `shared/` the two units imported each other, and `shared/` is what both of them are about.
 
-One trap worth naming: `zrb.llm.agent` re-exports `create_agent`, `run_agent`, `create_summarizer_agent` and `AnyToolConfirmation`, and it names `AnyAgent` only for the type checker, as `Agent`. Import the contract from `zrb.llm.agent.any_agent`, not from the package.
+One trap worth naming: `zrb.llm.engine.agent` re-exports `create_agent`, `run_agent`, `create_summarizer_agent` and `AnyToolConfirmation`, and it names `AnyAgent` only for the type checker, as `Agent`. Import the contract from `zrb.llm.engine.agent.any_agent`, not from the package.
 
 ### The multi-UI module is now a package
 
@@ -312,18 +312,18 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 
 | Old | New |
 |---|---|
-| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.capabilities.tool.multimodal_describe` |
+| `zrb.llm.engine.agent.run.multimodal_describe` | `zrb.llm.capabilities.tool.multimodal_describe` |
 
 ### Import path changes (lower layers)
 
 | Before | After |
 |---|---|
-| `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
+| `from zrb.llm.engine.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
 | `from zrb.llm.subagent.manager.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
 | `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
 | `from zrb.llm.capabilities.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.contracts.util.live_context_block import append_live_context, split_live_context` |
 
-`zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
+`zrb.llm.engine.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
 
 `split_live_context` is still importable from `zrb.llm.capabilities.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.contracts.util.live_context_block` now.
 
@@ -352,9 +352,9 @@ Top-level `zrb` exports are unchanged. A deep import of a module that moved to t
 | `zrb.util.init_path` | `zrb.config.init_path` |
 | `zrb.util.ascii_art.banner` | `zrb.llm.ui.default.ascii_art.banner` |
 | `zrb.util.git.snapshot_store` / `snapshot_listing` / `snapshot_command` | `zrb.llm.capabilities.snapshot.store` / `listing` / `command` |
-| `zrb.llm.agent.subagent.*` | `zrb.llm.subagent.*` |
-| `zrb.llm.agent.activity`, `zrb.llm.capabilities.tool.ambient_state`, `zrb.llm.capabilities.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.capabilities.tool`) |
-| `zrb.llm.contracts.util.conversation_naming`, `zrb.llm.contracts.util.multimodal_describe` | `zrb.llm.capabilities.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
+| `zrb.llm.engine.agent.subagent.*` | `zrb.llm.subagent.*` |
+| `zrb.llm.engine.agent.activity`, `zrb.llm.capabilities.tool.ambient_state`, `zrb.llm.capabilities.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.capabilities.tool`) |
+| `zrb.llm.contracts.util.conversation_naming`, `zrb.llm.contracts.util.multimodal_describe` | `zrb.llm.capabilities.history_manager.conversation_naming`, `zrb.llm.engine.agent.run.multimodal_describe` |
 | `zrb.llm.capabilities.tool_call.args` | now `zrb.llm.contracts.util.tool_args` |
 | `zrb.llm.capabilities.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
 | `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.contracts.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
@@ -791,13 +791,13 @@ Naming a contract or the fallback still does not load the terminal client: `zrb.
 
 ### LLM Agent and Sub-Agent Contract Module Paths
 
-The three agent contracts moved into `zrb.llm.agent`, and the four sub-agent contracts into `zrb.llm.subagent`, so each sits next to the code that implements it:
+The three agent contracts moved into `zrb.llm.engine.agent`, and the four sub-agent contracts into `zrb.llm.subagent`, so each sits next to the code that implements it:
 
 | before | after |
 |---|---|
-| `from zrb.llm.any_agent import AnyAgent` | `from zrb.llm.agent.any_agent import AnyAgent` |
-| `from zrb.llm.any_agent_result import AnyAgentResult` | `from zrb.llm.agent.any_agent_result import AnyAgentResult` |
-| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.agent.any_agent_runner import AnyAgentRunner` |
+| `from zrb.llm.any_agent import AnyAgent` | `from zrb.llm.engine.agent.any_agent import AnyAgent` |
+| `from zrb.llm.any_agent_result import AnyAgentResult` | `from zrb.llm.engine.agent.any_agent_result import AnyAgentResult` |
+| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.engine.agent.any_agent_runner import AnyAgentRunner` |
 | `from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition` | `from zrb.llm.subagent.any_sub_agent_definition import AnySubAgentDefinition` |
 | `from zrb.llm.any_sub_agent_manager import AnySubAgentManager` | `from zrb.llm.subagent.any_sub_agent_manager import AnySubAgentManager` |
 | `from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession` | `from zrb.llm.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession` |

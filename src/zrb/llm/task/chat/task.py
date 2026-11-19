@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Unpack
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
-from zrb.llm.agent import AnyToolConfirmation
+from zrb.llm.engine.agent import AnyToolConfirmation
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.model_resolver import require_model_hook
 from zrb.llm.contracts.config.ui_config import UIConfig
@@ -44,8 +44,8 @@ from zrb.task.base.params import BaseTaskParams
 if TYPE_CHECKING:
     from rich.theme import Theme
 
-    from zrb.llm.agent.common import HistoryProcessor
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.common import HistoryProcessor
+    from zrb.llm.engine.agent.types import (
         AbstractCapability,
         AbstractToolset,
         Model,
