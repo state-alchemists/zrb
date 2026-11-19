@@ -64,6 +64,20 @@ def test_a_contract_is_scored_where_it_lives():
     assert _layer("agent/types.py") == 0
 
 
+def test_a_floor_importing_its_own_package_contract_is_not_an_edge():
+    """`ui/fallback` reaching `ui/any_ui.py` is one unit talking to itself.
+
+    The floor scores L0 and the contract it builds with scores L4, so the two
+    layers say the pair is upward — and the ratchet never reports it, because
+    `_file_edges` drops a pair whose ends share a unit. Both halves are pinned
+    here so a reader who finds `_is_upward` returning True does not go "fix" a
+    rule that is working.
+    """
+    assert _unit("ui/fallback/echo_broadcast.py") == _unit("ui/any_ui.py") == "ui"
+    assert _layer("ui/fallback/echo_broadcast.py") == 0
+    assert _layer("ui/any_ui.py") == 4
+
+
 def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
