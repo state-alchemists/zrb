@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.shared import session_presentation
+from zrb.llm.contracts.shared import session_presentation
 from zrb.llm.task.chat.running import ChatRunning
 
 

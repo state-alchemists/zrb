@@ -20,7 +20,6 @@ LLM = SRC / "zrb" / "llm"
 # The table, for a unit that has not moved into the five-directory layout yet.
 # It is deleted when the last one has (the P7 step of the 4.0 move).
 _UNITS_BY_LAYER = {
-    0: "config memory shared util",
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "
         "snapshot tool tool_call"
@@ -128,20 +127,23 @@ def _present_units() -> set[str]:
     return units
 
 
-# Where everything lands when the tree is sorted into five directories: the plan
-# as data, read off the tree the 4.0 shape describes. A unit mapped to a path
-# ending in `.py` stays a loose module; everything else becomes a package.
+# Where the units still unmoved land when the tree is sorted into five
+# directories: the plan as data, read off the tree the 4.0 shape describes. A
+# unit mapped to a path ending in `.py` stays a loose module; everything else
+# becomes a package.
 #
 # This is written down here, rather than in the prose of the plan, because the
 # codemod that performs the move reads a map and the guards audit it: a
 # destination that disagrees with the table, or two units landing on one path, is
-# a typo a human would not catch in 250 rewritten module paths.
+# a typo a human would not catch in 250 rewritten module paths. A unit's line is
+# deleted in the same pull request that moves it, so what is left is the work
+# still to do, and `test_every_unit_has_a_destination` keeps that worklist equal
+# to the units the table still scores.
 _UNIT_DESTINATIONS = {
-    # contracts — what every layer builds with
-    "config": "contracts/config",
-    "memory": "contracts/memory",
-    "shared": "contracts/shared",
-    "util": "contracts/util",
+    # contracts — the two floors only. They stay inside `ui/` for now: they build
+    # with the `AnyUI*` protocols that live in `ui/`, so moving them before those
+    # protocols find their own home would put a `contracts/` -> `ui/` import in
+    # the tree and make the two packages a runtime cycle.
     "ui/fallback": "contracts/ui_fallback",
     "ui/buffered": "contracts/ui_buffered",
     # capabilities

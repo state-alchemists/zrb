@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
+from zrb.llm.contracts.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
 from zrb.llm.subagent.live_session import live_subagent_session_registry
 from zrb.llm.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
@@ -24,7 +24,7 @@ from zrb.llm.tool.delegate.background import (
     get_background_registry,
 )
 
-RUN_AGENT = "zrb.llm.shared.subagent_turn.run_agent"
+RUN_AGENT = "zrb.llm.contracts.shared.subagent_turn.run_agent"
 
 
 @pytest.fixture

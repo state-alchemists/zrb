@@ -7,8 +7,8 @@ from zrb.llm.agent.run.error_classifier import (
     get_retry_wait,
     is_retryable_error,
 )
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.shared.usage_log import UsageTotals
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.shared.usage_log import UsageTotals
 from zrb.util.cli.style import stylize_error
 
 

@@ -34,7 +34,7 @@ async def test_summarize_history_consecutive_user_messages():
     m4 = ModelResponse(parts=[TextPart(content="AI 2")])
     messages = [m1, m2, m3, m4]
 
-    from zrb.llm.config.limiter import is_turn_start
+    from zrb.llm.contracts.config.limiter import is_turn_start
 
     with patch(
         "zrb.llm.summarizer.history_splitter.is_turn_start", side_effect=is_turn_start

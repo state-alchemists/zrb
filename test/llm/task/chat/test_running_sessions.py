@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.ui.fallback.std_ui import StdUI
 from zrb.util.cli.markdown import render_markdown

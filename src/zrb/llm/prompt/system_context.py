@@ -134,7 +134,7 @@ def _format_parallel_tool_call_line(model: "Any") -> str | None:
     ``supports_parallel_tool_calls`` is a deny-list, so only ``False`` is acted on.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.util.capabilities import model_capabilities
+    from zrb.llm.contracts.util.capabilities import model_capabilities
 
     supports = model_capabilities.get(model).supports_parallel_tool_calls
     if supports is False:
@@ -155,7 +155,7 @@ def _format_model_line(model: "Any") -> str | None:
     resolved (e.g. ``MagicMock`` without a real ``model_name``).
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.util.capabilities import is_known_model
+    from zrb.llm.contracts.util.capabilities import is_known_model
 
     if model is None or not is_known_model(model):
         return None

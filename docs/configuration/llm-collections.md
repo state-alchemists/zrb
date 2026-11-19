@@ -114,7 +114,7 @@ prompt_registry.set_prompts(["Only these extra prompts run."])
 Layer onto the shipped surface:
 
 ```python
-from zrb.llm.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_registry import tool_registry
 
 def my_special_tool(ticket_id: str) -> dict:
     """...: the parameters are what the model fills in, so no `ctx`."""
@@ -246,7 +246,7 @@ Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` 
 
 Two lookalikes with one letter of difference, resolved differently:
 
-- `zrb.llm.shared.prompt_text.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed.
+- `zrb.llm.contracts.shared.prompt_text.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed.
 - `.get_prompts()` (plural) on `PromptRegistry` — the **registry accessor**: returns the ordered *extra middleware list* configured via `set_prompts`/`append_prompt`.
 
 `get_prompt` answers "what does the *persona* *section* read?"; `get_prompts` answers "what *extra* content is appended after the sections?". Plural spells the registry question.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.agent_state import get_current_ui
 
 
 def judge_override_of(ui: object) -> bool | None:

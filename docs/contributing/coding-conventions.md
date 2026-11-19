@@ -21,7 +21,7 @@ Before writing, read the module you are changing, the test that exercises it, an
 | **O**pen/closed | Add behavior through an existing seam — an ordered collection (`append_X`/`add_X`), a hook, a factory, a registered `Any*` implementation — rather than a new branch in a chain of `if`. A new family is a registry, a manager and a `CFG` allowlist together (ADR-0090). |
 | **L**iskov substitution | An implementation of `Any<Thing>` honors the contract's promises, including its error behavior. Callers program against the `Any*` type, never a concrete class ([Architecture, Philosophy & Conventions](architecture.md#interfaces-everywhere-the-any-pattern)). |
 | **I**nterface segregation | Many small role contracts beat one fat one. `AnyUI` is an aggregate of five accessors (`ui.display`, `ui.input`, `ui.picker`, `ui.session`, `ui.tools`), each with its own `any_ui_<role>.py`, so a backend implements only what it replaces. |
-| **D**ependency inversion | Depend on `Any*` contracts and the L0 facades (`zrb.llm.shared.agent_runner`), not on the engine or a concrete implementation. `zrb.llm` obeys the layering ladder in ADR-0120. |
+| **D**ependency inversion | Depend on `Any*` contracts and the L0 facades (`zrb.llm.contracts.shared.agent_runner`), not on the engine or a concrete implementation. `zrb.llm` obeys the layering ladder in ADR-0120. |
 
 ## Public API
 

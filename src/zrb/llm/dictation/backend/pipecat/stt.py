@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.microphone import SAMPLE_RATE
-from zrb.llm.util.teardown import cancel_and_wait, close_quietly
+from zrb.llm.contracts.util.teardown import cancel_and_wait, close_quietly
 from zrb.llm.voice.worker import create_worker_stopped_handler
 
 if TYPE_CHECKING:

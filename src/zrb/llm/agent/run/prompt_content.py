@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.llm.util.attachment import normalize_attachments
+from zrb.llm.contracts.util.attachment import normalize_attachments
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

@@ -15,15 +15,15 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.hook.contracts.interface import HookEvent
-from zrb.llm.shared.ambient_state import get_session_ownership_key
+from zrb.llm.contracts.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.base.queue_delivery import describe_delivery
 from zrb.llm.ui.default.app.keybinding import page_output
-from zrb.llm.util.attachment import (
+from zrb.llm.contracts.util.attachment import (
     get_media_type,
     get_pasted_attachment_paths,
     normalize_attachments,
 )
-from zrb.llm.util.image_scale import scale_image_bytes
+from zrb.llm.contracts.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
 if TYPE_CHECKING:

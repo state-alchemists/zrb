@@ -3,12 +3,12 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.shared.prompt_text import get_default_prompt
+from zrb.llm.contracts.shared.prompt_text import get_default_prompt
 
 
 @pytest.fixture
 def mock_cfg():
-    with patch("zrb.llm.shared.prompt_text.CFG") as mock:
+    with patch("zrb.llm.contracts.shared.prompt_text.CFG") as mock:
         mock.LLM_PROMPT_DIR = ".zrb/llm/prompt"
         mock.ENV_PREFIX = "ZRB"
         mock.LLM_SEARCH_PROJECT_ENABLED = True

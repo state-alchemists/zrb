@@ -256,7 +256,7 @@ Core agents are listed before optional ones in the `AVAILABLE AGENTS` roster and
 Zrb keeps a per-model capability registry (image/audio/video/document input, parallel tool calls, …). It decides, for example, whether to allow parallel tool calls, or whether an image sent to a text-only model goes through the multimodal fallback. It ships a name-pattern table (GPT-4o, Claude, Gemini, Llava, …); extend its singleton from `zrb_init.py`:
 
 ```python
-from zrb.llm.util.capabilities import model_capabilities
+from zrb.llm.contracts.util.capabilities import model_capabilities
 
 # Tell zrb about your private model
 model_capabilities.register(

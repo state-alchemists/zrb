@@ -326,7 +326,7 @@ async def test_ctrl_v_refuses_an_image_too_large_to_decode(
 
     buf = io.BytesIO()
     Image.new("RGB", (20, 20), "red").save(buf, format="PNG")
-    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100)
+    monkeypatch.setattr("zrb.llm.contracts.util.image_scale.MAX_DECODE_PIXELS", 100)
     with patch(
         "zrb.util.clipboard.get_clipboard_image", new_callable=AsyncMock
     ) as mock_get_img:
@@ -467,7 +467,7 @@ def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
     )
 
     _paste(setup_bindings, str(pdf))
-    with patch("zrb.llm.util.attachment.extract_pdf_text", return_value="report text"):
+    with patch("zrb.llm.contracts.util.attachment.extract_pdf_text", return_value="report text"):
         content = get_prompt_content("hi", mock_ui.pending_attachments, print)
 
     mock_ui.submit_attachment.assert_called_once_with(str(pdf))

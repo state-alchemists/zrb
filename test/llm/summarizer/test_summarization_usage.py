@@ -13,8 +13,8 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserProm
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import current_ui
-from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, read_records
+from zrb.llm.contracts.shared.agent_state import current_ui
+from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, read_records
 from zrb.llm.summarizer.history_summarizer import summarize_history
 from zrb.llm.ui.buffered.ui import BufferedUI
 

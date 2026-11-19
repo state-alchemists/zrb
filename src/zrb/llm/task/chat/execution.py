@@ -18,7 +18,7 @@ from zrb.llm.approval import resolve_approval_channel
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
-from zrb.llm.shared.factory_resolver import resolve_factory_items
+from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.persistence import (
     build_session_history_config,
@@ -40,7 +40,7 @@ from zrb.llm.task.shared_getters import (
 from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.fallback.resolution import resolve_ui
-from zrb.llm.util.attachment import get_attachments
+from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
 

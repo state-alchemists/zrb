@@ -20,8 +20,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.shared.usage_log import LIMIT_TOKEN, CompactionDetail
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.shared.usage_log import LIMIT_TOKEN, CompactionDetail
 from zrb.llm.summarizer import history_summarizer
 
 

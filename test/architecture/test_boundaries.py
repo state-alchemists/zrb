@@ -77,10 +77,10 @@ EXTENSION_POINT_EXCEPTIONS = {
     # as one live line" — the same kind of probe: no constructor takes a
     # "live shell UI" slot, and a UI that lacks the methods simply isn't one.
     "_LiveShellUI",
-    # llm/util/layered_registry.py's TypeVar bound — the shape an item needs
+    # llm/contracts/util/layered_registry.py's TypeVar bound — the shape an item needs
     # (`name`, `path`), not a slot anything takes.
     "RegistryItem",
-    # llm/util/roster.py's TypeVar bound — likewise a shape, not a slot.
+    # llm/contracts/util/roster.py's TypeVar bound — likewise a shape, not a slot.
     "RosterItem",
 }
 

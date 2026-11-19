@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI

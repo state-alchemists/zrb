@@ -33,7 +33,7 @@ def test_a_moved_path_is_scored_by_its_directory():
 
 def test_an_unmoved_unit_still_reads_the_table():
     """Half-moved is legal: a unit still in the old layout scores as it did before."""
-    assert _layer("config/ui_config.py") == 0
+    assert _layer("approval/policy.py") == 1
     assert _layer("tool/shell.py") == 1
     assert _layer("agent/run.py") == 2
     assert _layer("task/base.py") == 3
@@ -53,7 +53,7 @@ def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
     assert _is_upward("capabilities/tool/x.py", "engine/agent/y.py")
-    assert _is_upward("config/x.py", "agent/y.py")
+    assert _is_upward("approval/x.py", "agent/y.py")
     assert _is_upward("contracts/config/x.py", "agent/y.py")
     assert not _is_upward("presentation/ui/y.py", "contracts/config/x.py")
     assert not _is_upward("contracts/config/x.py", "contracts/shared/y.py")

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.handler import MAX_DENIAL_REASON_CHARS
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.contracts.util.tool_args import parse_tool_args
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:

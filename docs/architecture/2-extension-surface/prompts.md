@@ -70,8 +70,8 @@ flowchart TD
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
 | `PromptManager` | `src/zrb/llm/prompt/manager.py` | Resolves the section list, chains the sections as middleware, appends extra prompts, and renders the live-context block |
-| `get_prompt` | `src/zrb/llm/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders |
-| Section files | `src/zrb/llm/shared/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
+| `get_prompt` | `src/zrb/llm/contracts/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders |
+| Section files | `src/zrb/llm/contracts/shared/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
 | `active_profile` | `src/zrb/llm/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
 | `system_context` | `src/zrb/llm/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |
 | `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
@@ -128,11 +128,11 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the wording of a section | `src/zrb/llm/shared/markdown/` | `test/llm/prompt/test_prompt_mandates.py` |
-| Change a profile adjustment | `src/zrb/llm/shared/markdown/profile.capable.md` (and its two siblings) | `test/llm/prompt/test_profile.py` |
+| Change the wording of a section | `src/zrb/llm/contracts/shared/markdown/` | `test/llm/prompt/test_prompt_mandates.py` |
+| Change a profile adjustment | `src/zrb/llm/contracts/shared/markdown/profile.capable.md` (and its two siblings) | `test/llm/prompt/test_profile.py` |
 | Change how `auto` picks a profile | `src/zrb/llm/prompt/profile.py` | `test/llm/prompt/test_profile.py` |
 | Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
-| Change override lookup | `src/zrb/llm/shared/prompt_text.py` | `test/llm/prompt/test_default_prompt.py` |
+| Change override lookup | `src/zrb/llm/contracts/shared/prompt_text.py` | `test/llm/prompt/test_default_prompt.py` |
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
 | Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/live_context/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |

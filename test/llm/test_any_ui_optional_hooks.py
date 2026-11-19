@@ -19,7 +19,7 @@ from zrb.llm.ui.fallback.defaults import (
     UIToolsDefaults,
 )
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.util.delivery_report import DeliveryOutcome
+from zrb.llm.contracts.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
 
 PARTS = (
@@ -163,7 +163,7 @@ def test_an_answer_is_rendered_like_markdown_when_nothing_is_overridden():
 def test_a_resumed_history_is_written_as_plain_text():
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-    from zrb.llm.util.history_formatter import format_history_as_text
+    from zrb.llm.contracts.util.history_formatter import format_history_as_text
 
     history = [ModelRequest(parts=[UserPromptPart(content="hi there")])]
     ui = _BareUI()

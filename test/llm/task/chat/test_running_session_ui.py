@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.shared.feature_config import (
+from zrb.llm.contracts.shared.feature_config import (
     get_session_ui,
     reset_session_ui,
     set_session_ui,

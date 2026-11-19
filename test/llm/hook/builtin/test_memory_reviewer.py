@@ -24,8 +24,8 @@ from zrb.llm.hook.builtin.memory_reviewer import (
 )
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent, HookType
-from zrb.llm.memory import paths, store
-from zrb.llm.memory.model import Diary, digest_body
+from zrb.llm.contracts.memory import paths, store
+from zrb.llm.contracts.memory.model import Diary, digest_body
 
 
 @pytest.fixture
@@ -305,7 +305,7 @@ def test_the_interrupt_log_does_not_stretch_the_exit_drain():
 
 def test_the_reviewer_keeps_the_handover_current():
     """An exit-only handover is absent exactly when a killed session needed it."""
-    from zrb.llm.shared.prompt_text import get_prompt
+    from zrb.llm.contracts.shared.prompt_text import get_prompt
 
     text = get_prompt("memory_reviewer")
     assert "handover" in text.lower()

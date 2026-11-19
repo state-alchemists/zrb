@@ -18,7 +18,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.shared.agent_state import (
+from zrb.llm.contracts.shared.agent_state import (
     current_hook_manager,
     current_model,
     current_small_model,
@@ -136,9 +136,9 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
 
     effective_event_handler = event_handler
     if effective_event_handler is None:
-        # lazy: zrb.llm.util.stream_response transitively pulls pydantic_ai;
+        # lazy: zrb.llm.contracts.util.stream_response transitively pulls pydantic_ai;
         # keeping this lazy preserves cold-start latency.
-        from zrb.llm.util.stream_response import create_event_handler
+        from zrb.llm.contracts.util.stream_response import create_event_handler
 
         def _event_print_fn(text: str, kind: str) -> None:
             effective_ui.append_to_output(text, end="", kind=kind)

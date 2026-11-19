@@ -47,7 +47,7 @@ An argument formatter receives the UI, the tool call, and the arguments section 
 
 ```python
 from zrb.llm.tool_call import ArgumentFormatter
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 
 async def command_formatter(ui, call, args_section: str) -> str | None:
@@ -90,7 +90,7 @@ from zrb.llm.tool_call import auto_approve
 async def no_force_push(ui, call, next_handler):
     # lazy: zrb.llm.agent.types loads pydantic_ai
     from zrb.llm.agent.types import ToolDenied
-    from zrb.llm.util.tool_args import parse_tool_args
+    from zrb.llm.contracts.util.tool_args import parse_tool_args
 
     args = parse_tool_args(call) or {}
     if call.tool_name == "Shell" and "push --force" in args.get("command", ""):

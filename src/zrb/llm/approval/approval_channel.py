@@ -5,7 +5,7 @@ from zrb.llm.approval.any_approval_channel import (
     ApprovalContext,
     ApprovalResult,
 )
-from zrb.llm.shared.agent_state import current_approval_channel
+from zrb.llm.contracts.shared.agent_state import current_approval_channel
 
 __all__ = [
     "AnyApprovalChannel",

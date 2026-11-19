@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, Union, cast
 
 from zrb.config.config import CFG
-from zrb.llm.util.model_load import heavy_model_load
+from zrb.llm.contracts.util.model_load import heavy_model_load
 from zrb.llm.voice.registry import (
     SpeechServiceRegistry,
     STTServiceRegistry,

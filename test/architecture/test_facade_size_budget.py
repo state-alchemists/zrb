@@ -111,7 +111,7 @@ FACADE_BUDGETS = {
     # +3 (1298->1301): `stream_ai_response` renders the answer through
     # `shown_text`, so the `<spoken>` markers speech alone needs never reach the
     # screen: one import and the comment saying why; the parsing stays in
-    # `llm/util/spoken.py`. +2 (1301->1303): the same reason and the same
+    # `llm/contracts/util/spoken.py`. +2 (1301->1303): the same reason and the same
     # one-line call at `end_side_question` -- a `/btw` answer is a screen too,
     # and its history is never involved.
     # +10 (1303->1313): `append_answer` -- the hook a turn's answer goes through
@@ -127,7 +127,7 @@ FACADE_BUDGETS = {
     # display part, because a subclass override that calls `super()` has to land
     # on it rather than on the plain-text fallback next in MRO -- a delegator,
     # not new surface.
-    # +4 (1271->1275): the imports naming `zrb.llm.shared.*` are longer than
+    # +4 (1271->1275): the imports naming `zrb.llm.contracts.shared.*` are longer than
     # `zrb.llm.*` were, so black wrapped four `from ... import (...)` blocks that
     # used to fit one line. Same names, same surface.
     # +19 (1275->1294): `cancel_current_turn` grew the exit path it now carries —

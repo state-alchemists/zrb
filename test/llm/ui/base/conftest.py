@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.ui import BaseUI

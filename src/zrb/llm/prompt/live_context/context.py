@@ -21,7 +21,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
-from zrb.llm.shared.ambient_state import (
+from zrb.llm.contracts.shared.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
     get_input_provenance,
@@ -29,7 +29,7 @@ from zrb.llm.shared.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
-from zrb.llm.util.live_context_block import split_live_context
+from zrb.llm.contracts.util.live_context_block import split_live_context
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (
@@ -194,7 +194,7 @@ def _collect_git_info(
     git directory and the todo call itself failed.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.util.git import is_inside_git_dir
+    from zrb.llm.contracts.util.git import is_inside_git_dir
 
     if not is_inside_git_dir():
         return [], _safe_get_todos(todo_manager, session_name)

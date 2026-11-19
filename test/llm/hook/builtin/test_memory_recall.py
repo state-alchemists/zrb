@@ -21,9 +21,9 @@ from zrb.llm.hook.builtin.memory_recall import (
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager.manager import HookManager
-from zrb.llm.memory import paths, store
-from zrb.llm.memory.model import Fact
-from zrb.llm.memory.search import RESULT_CONTRACT
+from zrb.llm.contracts.memory import paths, store
+from zrb.llm.contracts.memory.model import Fact
+from zrb.llm.contracts.memory.search import RESULT_CONTRACT
 from zrb.llm.prompt.memory_context import render_memory_block, shown_claim_ids
 
 

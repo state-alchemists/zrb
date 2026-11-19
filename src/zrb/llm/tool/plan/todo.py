@@ -12,8 +12,8 @@ from pydantic import Field
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.permission import Capability, tag
-from zrb.llm.shared.agent_state import get_current_ui
-from zrb.llm.shared.ambient_state import get_current_tool_session
+from zrb.llm.contracts.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.ambient_state import get_current_tool_session
 from zrb.util.string.conversion import to_safe_filename
 
 

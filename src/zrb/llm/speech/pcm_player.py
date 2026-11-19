@@ -24,13 +24,13 @@ from zrb.llm.speech.any_output_stream import AnyOutputStream
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.remote_output_stream import RemoteOutputStream
-from zrb.llm.util.audio_devices import (
+from zrb.llm.contracts.util.audio_devices import (
     read_portaudio_default_output,
     read_system_default_output,
 )
-from zrb.llm.util.face_server import get_remote_headers, get_remote_url
-from zrb.llm.util.portaudio_exit import guard_portaudio_exit
-from zrb.llm.util.priority import raise_priority
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
+from zrb.llm.contracts.util.portaudio_exit import guard_portaudio_exit
+from zrb.llm.contracts.util.priority import raise_priority
 
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0

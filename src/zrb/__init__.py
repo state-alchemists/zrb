@@ -55,15 +55,15 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm.config.limiter import LLMLimiter, llm_limiter
-    from zrb.llm.config.model_resolver import ModelResolver, model_resolver
+    from zrb.llm.contracts.config.limiter import LLMLimiter, llm_limiter
+    from zrb.llm.contracts.config.model_resolver import ModelResolver, model_resolver
     from zrb.llm.hook import HookContext, HookEvent, HookResult
     from zrb.llm.hook.manager import HookManager, hook_manager
     from zrb.llm.hook.registry import HookRegistry, hook_registry
     from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
     from zrb.llm.prompt.manager import PromptManager
     from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
-    from zrb.llm.shared.tool_registry import ToolRegistry, tool_registry
+    from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_registry
     from zrb.llm.skill import Skill, SkillRegistry
     from zrb.llm.skill.manager import SkillManager, skill_manager
     from zrb.llm.skill.registry import skill_registry
@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     )
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
-    from zrb.llm.util.capabilities import model_capabilities
+    from zrb.llm.contracts.util.capabilities import model_capabilities
     from zrb.llm.voice.manager import (
         STTServiceManager,
         TTSServiceManager,
@@ -293,10 +293,10 @@ _LAZY_EXPORTS = {
     "Xcom": "zrb.xcom.xcom",
     "LLMTask": "zrb.llm.task.llm_task",
     "LLMChatTask": "zrb.llm.task.chat.task",
-    "LLMLimiter": "zrb.llm.config.limiter",
-    "llm_limiter": "zrb.llm.config.limiter",
-    "ModelResolver": "zrb.llm.config.model_resolver",
-    "model_resolver": "zrb.llm.config.model_resolver",
+    "LLMLimiter": "zrb.llm.contracts.config.limiter",
+    "llm_limiter": "zrb.llm.contracts.config.limiter",
+    "ModelResolver": "zrb.llm.contracts.config.model_resolver",
+    "model_resolver": "zrb.llm.contracts.config.model_resolver",
     "SubAgentManager": "zrb.llm.subagent.manager.manager",
     "sub_agent_manager": "zrb.llm.subagent.manager.manager",
     "SubAgentDefinition": "zrb.llm.subagent.manager.manager",
@@ -327,12 +327,12 @@ _LAZY_EXPORTS = {
     "TTSServiceSpec": "zrb.llm.voice.spec",
     "tts_manager": "zrb.llm.voice.manager",
     "tts_registry": "zrb.llm.voice.registry",
-    "ToolRegistry": "zrb.llm.shared.tool_registry",
-    "tool_registry": "zrb.llm.shared.tool_registry",
+    "ToolRegistry": "zrb.llm.contracts.shared.tool_registry",
+    "tool_registry": "zrb.llm.contracts.shared.tool_registry",
     "AnyUI": "zrb.llm.ui.any_ui",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",
-    "model_capabilities": "zrb.llm.util.capabilities",
+    "model_capabilities": "zrb.llm.contracts.util.capabilities",
     "register_theme": "zrb.config.theme",
     "register_always_auto_approve": "zrb.llm.tool_call.always_approve",
     "register_default_auto_approve": "zrb.llm.tool_call.always_approve",

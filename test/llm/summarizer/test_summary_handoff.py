@@ -21,7 +21,7 @@ from pydantic_ai.messages import (
 )
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.summarizer import summarize_history
 
 # The one test below is about the cut itself, which the public API only reaches

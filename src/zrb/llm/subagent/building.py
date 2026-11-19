@@ -12,14 +12,14 @@ from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
-from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.live_context.context import render_carried_context
 from zrb.llm.resumed_session import create_resumed_chat_task
-from zrb.llm.shared.ambient_state import get_current_tool_session
-from zrb.llm.shared.factory_resolver import resolve_factory_items
-from zrb.llm.shared.sub_agent_build import SubAgentBuild
-from zrb.llm.shared.tool_registry import tool_registry
-from zrb.llm.shared.tool_resolver import (
+from zrb.llm.contracts.shared.ambient_state import get_current_tool_session
+from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
+from zrb.llm.contracts.shared.sub_agent_build import SubAgentBuild
+from zrb.llm.contracts.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_resolver import (
     canonical_tool_name,
     resolve_tools_by_name,
     resolved_tool_name,

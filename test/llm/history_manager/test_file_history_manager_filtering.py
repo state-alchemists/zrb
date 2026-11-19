@@ -116,7 +116,7 @@ def test_filter_part_is_none_skipped(temp_history_dir):
 def test_delegated_history_saved_under_subagent_subdirectory(temp_history_dir):
     """A delegated conversation saves to LLM_HISTORY_DIR/subagent/<agent-type>/
     — never flat in the history root next to ordinary sessions."""
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     name = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     manager = FileHistoryManager(temp_history_dir)
@@ -145,7 +145,7 @@ def test_ordinary_session_stays_flat_in_history_root(temp_history_dir):
 
 def test_delegated_history_backup_lands_next_to_main_file(temp_history_dir):
     "A delegated conversation's timestamped backup goes into the same"
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     name = format_delegated_session_name("sess1", "code-reviewer", "e5f6a7b8")
     manager = FileHistoryManager(temp_history_dir)
@@ -165,7 +165,7 @@ def test_delegated_history_rotation_scoped_to_subdirectory(
     temp_history_dir, monkeypatch
 ):
     "Backup rotation for a delegated conversation only ever touches files"
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_BACKUP_RETAIN", "2")
     name = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
@@ -185,7 +185,7 @@ def test_delegated_history_rotation_scoped_to_subdirectory(
 def test_delegated_history_legacy_flat_file_still_loads(temp_history_dir):
     """Transcripts written before the subagent/<agent-type>/ layout (flat in
     the history root) must keep loading via fallback — no auto-migration."""
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     name = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     manager = FileHistoryManager(temp_history_dir)
@@ -211,7 +211,7 @@ def test_delegated_history_legacy_flat_file_still_loads(temp_history_dir):
 
 def test_delegated_history_search_scans_subagent_subdirectories(temp_history_dir):
     "search() finds delegated transcripts that live under subagent/<agent>/,"
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     researcher = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     reviewer = format_delegated_session_name("sess1", "code-reviewer", "e5f6a7b8")
@@ -232,7 +232,7 @@ def test_delegated_history_search_scans_subagent_subdirectories(temp_history_dir
 def test_search_without_delegated_keeps_root_sessions_that_look_delegated(
     temp_history_dir,
 ):
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     delegated = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     manager = FileHistoryManager(temp_history_dir)
@@ -247,7 +247,7 @@ def test_search_without_delegated_keeps_root_sessions_that_look_delegated(
 
 def test_search_skips_a_directory_it_cannot_list(temp_history_dir, monkeypatch):
     "One unreadable transcript directory must not take `/load` down with it."
-    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
 
     researcher = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
     manager = FileHistoryManager(temp_history_dir)

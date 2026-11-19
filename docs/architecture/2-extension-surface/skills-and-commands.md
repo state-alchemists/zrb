@@ -67,7 +67,7 @@ flowchart TD
 | `Skill` | `src/zrb/llm/skill/manager.py` | One skill: name, description, path, invocability, allowed tools, fork context |
 | `SkillManager` | `src/zrb/llm/skill/manager.py` | Computing the search directories and scanning them into the registry |
 | `SkillRegistry` | `src/zrb/llm/skill/registry.py` | The skill collection, with the `CFG.LLM_SKILLS` allowlist |
-| `LayeredRegistry` | `src/zrb/llm/util/layered_registry.py` | The two layers shared with sub-agents: manual (from code) over discovered (from disk) |
+| `LayeredRegistry` | `src/zrb/llm/contracts/util/layered_registry.py` | The two layers shared with sub-agents: manual (from code) over discovered (from disk) |
 | `create_activate_skill_tool`, `create_search_skill_tool` | `src/zrb/llm/tool/skill.py` | `ActivateSkill` and `SearchSkill`, the model's way in |
 | `build_skill_replacements` | `src/zrb/llm/prompt/claude.py` | The capped catalogue the prompt shows |
 | `apply_skill_frontmatter_hooks` | `src/zrb/llm/hook/skill_frontmatter.py` | Hooks declared in a skill's frontmatter — see [Hooks](hooks.md) |
@@ -99,7 +99,7 @@ flowchart TD
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change where skills are found | `src/zrb/llm/skill/manager.py` | `test/llm/skill/` |
-| Change registry layering or the allowlist | `src/zrb/llm/util/layered_registry.py`, `src/zrb/llm/skill/registry.py` | `test/llm/skill/test_registry.py` |
+| Change registry layering or the allowlist | `src/zrb/llm/contracts/util/layered_registry.py`, `src/zrb/llm/skill/registry.py` | `test/llm/skill/test_registry.py` |
 | Change what activation returns | `src/zrb/llm/tool/skill.py` | `test/llm/tool/test_skill.py` |
 | Change the prompt's catalogue | `src/zrb/llm/prompt/claude.py` | `test/llm/prompt/test_claude_skills.py` |
 | Add a kind of custom command | `src/zrb/llm/custom_command/` | `test/llm/custom_command/` |

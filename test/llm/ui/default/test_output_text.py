@@ -117,7 +117,7 @@ def test_output_text_property():
 def test_get_agent_activity_text_scopes_by_conversation_session_name():
     """The activity panel must read only this UI's own
     session's entries, not bleed in another session's running sub-agents."""
-    from zrb.llm.shared.agent_activity import AgentActivityRegistry
+    from zrb.llm.contracts.shared.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()
@@ -266,7 +266,7 @@ def test_get_info_bar_text_partial_yolo_lists_tools():
 
 def test_get_agent_activity_text_shows_picker_hint_when_agents_running():
     """The picker hint shows while at least one sub-agent is actively running."""
-    from zrb.llm.shared.agent_activity import AgentActivityRegistry
+    from zrb.llm.contracts.shared.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()
@@ -321,7 +321,7 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
 
 def test_get_agent_activity_text_unchanged_when_not_viewing():
     """Outside the live view the panel still lists running sub-agents."""
-    from zrb.llm.shared.agent_activity import AgentActivityRegistry
+    from zrb.llm.contracts.shared.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()

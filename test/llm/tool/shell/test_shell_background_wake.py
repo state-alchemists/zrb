@@ -10,8 +10,8 @@ import asyncio
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import current_ui
-from zrb.llm.shared.input_source import BACKGROUND_INPUT
+from zrb.llm.contracts.shared.agent_state import current_ui
+from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT
 from zrb.llm.tool.shell.background import get_shell_background_registry
 
 

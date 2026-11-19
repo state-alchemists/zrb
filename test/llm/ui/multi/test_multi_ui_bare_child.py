@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.shared.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
+from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.multi import MultiUI

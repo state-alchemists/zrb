@@ -43,7 +43,7 @@ def shell_command_args(call: "ToolCallPart") -> dict[str, object] | None:
     the same payload twice.
     """
     # lazy: heavy third-party
-    from zrb.llm.util.tool_args import parse_tool_args
+    from zrb.llm.contracts.util.tool_args import parse_tool_args
 
     if not is_shell_call(call):
         return None

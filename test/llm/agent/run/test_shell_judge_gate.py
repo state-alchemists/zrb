@@ -223,7 +223,7 @@ async def test_the_judge_is_the_last_stage_before_the_prompt(monkeypatch):
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
     ):
         verdict = await _resolve_approval(
             _call(), MagicMock(), None, channel, None, force_ask=False
@@ -261,7 +261,7 @@ async def test_the_hook_is_not_told_about_a_prompt_the_judge_skips(monkeypatch):
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
     ):
         verdict = await _resolve_approval(
             _call(), MagicMock(), None, None, hook_manager, force_ask=False
@@ -285,7 +285,7 @@ async def test_the_hook_hears_about_a_prompt_that_will_happen(monkeypatch):
         patch(
             "zrb.llm.agent.run.deferred_calls.get_interactive_mode", return_value=True
         ),
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
     ):
         await _resolve_approval(
             _call(), MagicMock(), None, channel, hook_manager, force_ask=False

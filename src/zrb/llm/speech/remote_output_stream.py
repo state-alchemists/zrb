@@ -20,7 +20,7 @@ import time
 import urllib.parse
 from collections.abc import Callable
 
-from zrb.llm.util.face_server import SAMPLE_RATE_HEADER, SPEAKER_PATH
+from zrb.llm.contracts.util.face_server import SAMPLE_RATE_HEADER, SPEAKER_PATH
 
 logger = logging.getLogger(__name__)
 

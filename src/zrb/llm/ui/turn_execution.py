@@ -30,7 +30,7 @@ from zrb.llm.permission.state import (
     set_current_agent_mode,
 )
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary

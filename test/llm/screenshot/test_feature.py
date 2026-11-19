@@ -13,7 +13,7 @@ from zrb.llm.screenshot.feature import (
     create_screenshot_commands,
     create_screenshot_tools,
 )
-from zrb.llm.shared.agent_state import current_model
+from zrb.llm.contracts.shared.agent_state import current_model
 
 
 def _image(fmt: str, size=(64, 48)) -> bytes:

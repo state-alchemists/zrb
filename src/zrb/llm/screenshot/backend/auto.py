@@ -31,7 +31,7 @@ from zrb.llm.screenshot.backend.tool import (
     ScreenshotTool,
     ScreenshotToolBackend,
 )
-from zrb.llm.util.deadline import create_deadline
+from zrb.llm.contracts.util.deadline import create_deadline
 from zrb.util.platform import is_termux, is_wsl
 
 ChainBackend = PillowScreenshotBackend | ScreenshotToolBackend

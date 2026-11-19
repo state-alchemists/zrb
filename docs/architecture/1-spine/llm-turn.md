@@ -87,8 +87,8 @@ flowchart TD
 | `handle_stream_error` | `src/zrb/llm/agent/run/retry_loop.py` | Classifies a failed round and decides the one-shot fix |
 | `process_deferred_requests` | `src/zrb/llm/agent/run/deferred_calls.py` | Asks for approval of the tool calls the model made, and returns their results |
 | `resolve_context_dependencies`, `setup_print_and_events` | `src/zrb/llm/agent/run/setup.py` | Resolve the UI, confirmation, yolo, approval channel and hook manager a run uses; build the print function and the handler that renders streamed events |
-| `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
-| `LLMLimiter` | `src/zrb/llm/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
+| `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/contracts/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
+| `LLMLimiter` | `src/zrb/llm/contracts/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
 
 ### How it runs
 
@@ -148,8 +148,8 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | Change the state carried between rounds | `src/zrb/llm/agent/run/turn_cursor.py` | `test/llm/agent/run/test_turn_cursor.py` |
 | Change how a failed round is retried | `src/zrb/llm/agent/run/retry_loop.py` | `test/llm/agent/run/test_retry_loop.py` |
 | Change how agents are constructed | `src/zrb/llm/agent/common.py` | `test/llm/agent/test_common_agent_creation.py` |
-| Change how a model name becomes a model | `src/zrb/llm/config/model_resolver.py` | `test/llm/config/` |
-| Change rate limiting or token counting | `src/zrb/llm/config/limiter.py` | `test/llm/config/` |
+| Change how a model name becomes a model | `src/zrb/llm/contracts/config/model_resolver.py` | `test/llm/contracts/config/` |
+| Change rate limiting or token counting | `src/zrb/llm/contracts/config/limiter.py` | `test/llm/contracts/config/` |
 
 ## See Also
 

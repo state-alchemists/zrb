@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.contracts.config.limiter import llm_limiter
 from zrb.llm.tool.code import analyze_code
 
 

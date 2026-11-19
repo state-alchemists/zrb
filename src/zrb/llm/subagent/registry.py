@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.util.layered_registry import LayeredRegistry
+from zrb.llm.contracts.util.layered_registry import LayeredRegistry
 
 if TYPE_CHECKING:
     from zrb.llm.subagent.definition import SubAgentDefinition

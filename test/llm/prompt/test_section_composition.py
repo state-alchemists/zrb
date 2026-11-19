@@ -6,7 +6,7 @@ from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import PROFILES
-from zrb.llm.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 
 SECTIONS = ("persona", "principle", "workflow", "example")
 

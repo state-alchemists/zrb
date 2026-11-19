@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from zrb.llm.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
+from zrb.llm.contracts.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell.background import get_shell_background_registry
 

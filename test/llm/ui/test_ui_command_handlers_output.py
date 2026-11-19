@@ -106,7 +106,7 @@ class TestBaseUIOutputCommands:
 
         with patch("zrb.util.clipboard.copy_text", return_value=True) as mock_copy:
             with patch(
-                "zrb.llm.util.history_formatter.format_history_as_text",
+                "zrb.llm.contracts.util.history_formatter.format_history_as_text",
                 return_value="transcript",
             ):
                 result = ui.handle_copy_command("/copy")
@@ -127,7 +127,7 @@ class TestBaseUIOutputCommands:
         ui.append_to_output = MagicMock()
 
         with patch(
-            "zrb.llm.util.history_formatter.format_history_as_text",
+            "zrb.llm.contracts.util.history_formatter.format_history_as_text",
             return_value="transcript content",
         ):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:

@@ -34,8 +34,8 @@ class MultimodalDictationBackend(AnyDictationBackend):
         # module level reaches zrb.llm.dictation).
         from zrb.llm.agent import create_agent, run_agent
         from zrb.llm.agent.types import BinaryContent
-        from zrb.llm.config.limiter import llm_limiter
-        from zrb.llm.shared.prompt_text import get_prompt
+        from zrb.llm.contracts.config.limiter import llm_limiter
+        from zrb.llm.contracts.shared.prompt_text import get_prompt
 
         agent = create_agent(
             model=self._get_model(),
@@ -58,8 +58,8 @@ class MultimodalDictationBackend(AnyDictationBackend):
         if self._checked_model is not None:
             return self._checked_model
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
-        from zrb.llm.util.capabilities import model_capabilities
+        from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
+        from zrb.llm.contracts.util.capabilities import model_capabilities
 
         model = resolve_configured_multimodal_model(self._model)
         prefix = CFG.ENV_PREFIX

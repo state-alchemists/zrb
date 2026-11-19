@@ -1,6 +1,6 @@
 """LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
 
-`run_agent()` binds the run's `ContextVar`s (defined in `zrb.llm.shared.agent_state`)
+`run_agent()` binds the run's `ContextVar`s (defined in `zrb.llm.contracts.shared.agent_state`)
 on entry and resets them on exit. History sanitization and the OpenAI patch
 are explained in docs/technical-specs/llm-history-sanitization.md.
 """
@@ -57,8 +57,8 @@ from zrb.llm.agent.run.setup import (
 from zrb.llm.agent.run.turn_cursor import TurnCursor
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.approval.approval_channel import current_approval_channel
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import (
@@ -71,7 +71,7 @@ from zrb.llm.permission.state import (
     exit_agent_mode_scope,
 )
 from zrb.llm.sandbox.state import current_sandbox_policy
-from zrb.llm.shared.agent_state import (
+from zrb.llm.contracts.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
@@ -85,22 +85,22 @@ from zrb.llm.shared.agent_state import (
     current_yolo,
     get_current_agent_run_scope,
 )
-from zrb.llm.shared.ambient_state import active_worktree
-from zrb.llm.shared.message import ensure_alternating_roles
-from zrb.llm.shared.shell_cut import (
+from zrb.llm.contracts.shared.ambient_state import active_worktree
+from zrb.llm.contracts.shared.message import ensure_alternating_roles
+from zrb.llm.contracts.shared.shell_cut import (
     current_shell_cut_signal,
     get_run_shell_cut_signal,
     signal_for_run,
 )
-from zrb.llm.shared.stream_observer import StreamObserver, create_observed_event_handler
-from zrb.llm.shared.usage_log import (
+from zrb.llm.contracts.shared.stream_observer import StreamObserver, create_observed_event_handler
+from zrb.llm.contracts.shared.usage_log import (
     ContextComposition,
     count_tool_calls,
     record_usage,
 )
 from zrb.llm.snapshot.command import run_in_worker
-from zrb.llm.util.live_context_block import append_live_context
-from zrb.llm.util.prompt import expand_prompt
+from zrb.llm.contracts.util.live_context_block import append_live_context
+from zrb.llm.contracts.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable

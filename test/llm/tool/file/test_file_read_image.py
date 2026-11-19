@@ -6,7 +6,7 @@ import os
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import current_model
+from zrb.llm.contracts.shared.agent_state import current_model
 from zrb.llm.tool.file import read_file
 
 
@@ -140,7 +140,7 @@ async def test_an_image_over_the_attachment_cap_is_refused(tmp_path, monkeypatch
 
 @pytest.mark.asyncio
 async def test_an_image_too_large_to_decode_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100)
+    monkeypatch.setattr("zrb.llm.contracts.util.image_scale.MAX_DECODE_PIXELS", 100)
     path = _save_image(tmp_path / "huge.png", size=(20, 20))
 
     result = await read_file(path)

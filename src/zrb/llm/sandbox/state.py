@@ -8,7 +8,7 @@ from contextvars import ContextVar
 from dataclasses import replace
 
 from zrb.llm.sandbox.policy import SandboxPolicy, resolve_sandbox_policy_from_config
-from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.util.contextvar_scope import scoped
 
 current_sandbox_policy: ContextVar[SandboxPolicy | None] = ContextVar(

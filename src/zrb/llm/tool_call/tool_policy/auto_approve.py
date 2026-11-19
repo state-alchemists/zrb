@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.handler import ToolPolicy
 from zrb.llm.tool_call.shell_call import is_sandbox_off
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart

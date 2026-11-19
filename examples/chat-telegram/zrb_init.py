@@ -38,7 +38,7 @@ from telegram.ext import (
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.shared.input_source import InputProvenance
+from zrb.llm.contracts.shared.input_source import InputProvenance
 from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
@@ -188,7 +188,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             if str(update.message.chat_id) != self.chat_id:
                 return
             # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
-            from zrb.llm.util.attachment import get_media_type
+            from zrb.llm.contracts.util.attachment import get_media_type
 
             document = update.message.document
             filename = document.file_name or "file"
@@ -226,7 +226,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         """
         # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
         from zrb.config.config import CFG
-        from zrb.llm.util.attachment import check_attachment_bytes
+        from zrb.llm.contracts.util.attachment import check_attachment_bytes
 
         limit = CFG.LLM_MAX_ATTACHMENT_BYTES
         declared_size = getattr(tg_file_source, "file_size", None)

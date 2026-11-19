@@ -23,8 +23,8 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.shared.agent_state import get_current_ui
-from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
+from zrb.llm.contracts.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell.capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi

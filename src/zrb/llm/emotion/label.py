@@ -9,7 +9,7 @@ this way; dictation hears it and the turn carries it (`InputProvenance.tone`).
 
 from __future__ import annotations
 
-from zrb.llm.util.spoken import OPEN_TAG
+from zrb.llm.contracts.util.spoken import OPEN_TAG
 
 # The emoji recognized for each emotion. The first is the one the prompt
 # asks for.

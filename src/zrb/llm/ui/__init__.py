@@ -23,7 +23,7 @@ dual-mode (CLI + external channel) wiring, and complete examples — with
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.config.ui_config import UIConfig  # noqa: F401
+    from zrb.llm.contracts.config.ui_config import UIConfig  # noqa: F401
     from zrb.llm.ui.any_ui import AnyUI  # noqa: F401
     from zrb.llm.ui.any_ui_display import AnyUIDisplay  # noqa: F401
     from zrb.llm.ui.any_ui_input import AnyUIInput  # noqa: F401
@@ -68,7 +68,7 @@ _SOURCES = {
     # Simple API (RECOMMENDED)
     "SimpleUI": "zrb.llm.ui.simple_ui_base",
     "EventDrivenUI": "zrb.llm.ui.event_driven.ui",
-    "UIConfig": "zrb.llm.config.ui_config",
+    "UIConfig": "zrb.llm.contracts.config.ui_config",
     "TriggerInput": "zrb.llm.ui.trigger",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",

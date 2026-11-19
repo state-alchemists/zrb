@@ -6,7 +6,7 @@ from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.ffmpeg import FfmpegCameraBackend
 from zrb.llm.camera.backend.remote import RemoteCameraBackend
 from zrb.llm.camera.backend.termux import TermuxCameraBackend
-from zrb.llm.util.deadline import create_deadline, get_remaining
+from zrb.llm.contracts.util.deadline import create_deadline, get_remaining
 from zrb.util.platform import is_termux
 
 

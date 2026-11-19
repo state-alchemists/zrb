@@ -10,7 +10,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import CommandHookConfig, PromptHookConfig
 from zrb.llm.hook.contracts.types import HookEvent
@@ -20,9 +20,9 @@ from zrb.llm.hook.execution.process_kill import (
     read_process_group,
     reap_killed_process,
 )
-from zrb.llm.shared.agent_runner import create_agent
-from zrb.llm.shared.agent_state import current_nested_run, get_current_model
-from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
+from zrb.llm.contracts.shared.agent_runner import create_agent
+from zrb.llm.contracts.shared.agent_state import current_nested_run, get_current_model
+from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model

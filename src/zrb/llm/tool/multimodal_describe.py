@@ -11,15 +11,15 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import get_run_llm_limiter
-from zrb.llm.config.model_resolver import (
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.model_resolver import (
     resolve_configured_model,
     resolve_configured_multimodal_model,
 )
-from zrb.llm.shared.agent_runner import create_agent, run_agent
-from zrb.llm.shared.agent_state import get_current_model
-from zrb.llm.shared.prompt_text import get_prompt
-from zrb.llm.util.capabilities import (
+from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
+from zrb.llm.contracts.shared.agent_state import get_current_model
+from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.util.capabilities import (
     is_known_model,
     media_type_modality,
     model_capabilities,

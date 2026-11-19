@@ -7,7 +7,7 @@ it: the tool registry is built on every agent run, in embedders too, and
 importing the CLI there drags the server stack (`web_auth_config`, `Session`,
 `session_state_logger`, `make_task`) into every process that builds an agent.
 So the runner registers its group here when it creates it, and the engine reads
-it back — the same seam `zrb.llm.shared.agent_state` uses for the current UI.
+it back — the same seam `zrb.llm.contracts.shared.agent_state` uses for the current UI.
 
 This is a handover, not an extension point. `run_zrb_task` executes the `zrb`
 command in a child process, so a tree registered here and nowhere else would be

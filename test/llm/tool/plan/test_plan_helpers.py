@@ -2,7 +2,7 @@
 
 import pytest
 
-from zrb.llm.shared.ambient_state import (
+from zrb.llm.contracts.shared.ambient_state import (
     get_current_context_session,
     set_current_session,
 )

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.pipecat.stt import STTPipeline
-from zrb.llm.util.teardown import close_quietly
+from zrb.llm.contracts.util.teardown import close_quietly
 from zrb.llm.voice.manager import stt_manager
 from zrb.util.async_thread import run_in_daemon
 

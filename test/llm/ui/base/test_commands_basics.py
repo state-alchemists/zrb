@@ -108,7 +108,7 @@ def test_handle_redirect_command_bare_falls_back_to_history(ui):
     ui.history_manager.load.return_value = [{"role": "assistant", "content": "x"}]
     with patch("zrb.util.clipboard.copy_text", return_value=True) as mock_copy:
         with patch(
-            "zrb.llm.util.history_formatter.extract_last_response_text",
+            "zrb.llm.contracts.util.history_formatter.extract_last_response_text",
             return_value="from history",
         ):
             result = ui.handle_redirect_command("/redirect")
@@ -124,7 +124,7 @@ def test_handle_redirect_command_bare_no_output_no_history(ui):
     ui.history_manager.load.return_value = []
     with patch("zrb.util.clipboard.copy_text") as mock_copy:
         with patch(
-            "zrb.llm.util.history_formatter.extract_last_response_text",
+            "zrb.llm.contracts.util.history_formatter.extract_last_response_text",
             return_value="",
         ):
             result = ui.handle_redirect_command("/redirect")
@@ -141,7 +141,7 @@ def test_handle_copy_command(ui):
 
     with patch("zrb.util.clipboard.copy_text", return_value=True) as mock_copy:
         with patch(
-            "zrb.llm.util.history_formatter.format_history_as_text",
+            "zrb.llm.contracts.util.history_formatter.format_history_as_text",
             return_value="copy text",
         ):
             result = ui.handle_copy_command("/copy")
@@ -157,7 +157,7 @@ def test_handle_copy_command_to_file(ui, tmp_path):
     out_file = tmp_path / "transcript.txt"
 
     with patch(
-        "zrb.llm.util.history_formatter.format_history_as_text",
+        "zrb.llm.contracts.util.history_formatter.format_history_as_text",
         return_value="file content",
     ):
         result = ui.handle_copy_command(f"/copy {out_file}")

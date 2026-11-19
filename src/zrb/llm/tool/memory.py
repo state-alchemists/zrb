@@ -22,8 +22,8 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, render, search, store
-from zrb.llm.memory.model import (
+from zrb.llm.contracts.memory import paths, render, search, store
+from zrb.llm.contracts.memory.model import (
     BODY_APPEND,
     BODY_MODES,
     BODY_REPLACE,

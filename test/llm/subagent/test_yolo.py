@@ -6,15 +6,15 @@ from zrb.llm.subagent.yolo import make_yolo_inheritance_checker
 
 
 def test_yolo_inheritance_current_yolo_true():
-    with patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=True):
+    with patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True):
         checker = make_yolo_inheritance_checker()
         assert checker() is True
 
 
 def test_yolo_inheritance_via_ui_yolo():
     with (
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
-        patch("zrb.llm.shared.agent_state.get_current_ui") as mock_get_ui,
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_ui") as mock_get_ui,
     ):
 
         mock_ui = MagicMock()
@@ -28,8 +28,8 @@ def test_yolo_inheritance_via_ui_yolo():
 
 def test_yolo_inheritance_via_ui_yolo_false():
     with (
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
-        patch("zrb.llm.shared.agent_state.get_current_ui") as mock_get_ui,
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_ui") as mock_get_ui,
     ):
 
         mock_ui = MagicMock()
@@ -43,8 +43,8 @@ def test_yolo_inheritance_via_ui_yolo_false():
 
 def test_yolo_inheritance_default_false():
     with (
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
-        patch("zrb.llm.shared.agent_state.get_current_ui", return_value=None),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_ui", return_value=None),
     ):
 
         checker = make_yolo_inheritance_checker()
@@ -53,9 +53,9 @@ def test_yolo_inheritance_default_false():
 
 def test_yolo_inheritance_ui_exception():
     with (
-        patch("zrb.llm.shared.agent_state.get_current_yolo", return_value=False),
+        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
         patch(
-            "zrb.llm.shared.agent_state.get_current_ui",
+            "zrb.llm.contracts.shared.agent_state.get_current_ui",
             side_effect=Exception("error"),
         ),
     ):
@@ -67,7 +67,7 @@ def test_yolo_inheritance_ui_exception():
 def test_yolo_inheritance_frozenset_matches_tool():
     """Selective YOLO: tool name in frozenset → auto-approved."""
     with patch(
-        "zrb.llm.shared.agent_state.get_current_yolo",
+        "zrb.llm.contracts.shared.agent_state.get_current_yolo",
         return_value=frozenset({"Read", "Write"}),
     ):
         checker = make_yolo_inheritance_checker()
@@ -78,7 +78,7 @@ def test_yolo_inheritance_frozenset_matches_tool():
 def test_yolo_inheritance_frozenset_no_match():
     """Selective YOLO: tool name NOT in frozenset → not auto-approved."""
     with patch(
-        "zrb.llm.shared.agent_state.get_current_yolo",
+        "zrb.llm.contracts.shared.agent_state.get_current_yolo",
         return_value=frozenset({"Read", "Write"}),
     ):
         checker = make_yolo_inheritance_checker()
@@ -89,7 +89,7 @@ def test_yolo_inheritance_frozenset_no_match():
 def test_yolo_inheritance_frozenset_no_tool_def():
     """Selective YOLO with no tool_def → False (can't determine tool name)."""
     with patch(
-        "zrb.llm.shared.agent_state.get_current_yolo",
+        "zrb.llm.contracts.shared.agent_state.get_current_yolo",
         return_value=frozenset({"Read"}),
     ):
         checker = make_yolo_inheritance_checker()
@@ -104,10 +104,10 @@ def test_yolo_inheritance_frozenset_is_definitive_over_ui():
     fallback for the frozenset case)."""
     with (
         patch(
-            "zrb.llm.shared.agent_state.get_current_yolo",
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo",
             return_value=frozenset({"Write"}),
         ),
-        patch("zrb.llm.shared.agent_state.get_current_ui") as mock_get_ui,
+        patch("zrb.llm.contracts.shared.agent_state.get_current_ui") as mock_get_ui,
     ):
         mock_ui = type("UI", (), {"yolo": True})()
         mock_get_ui.return_value = mock_ui

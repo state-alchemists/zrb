@@ -58,7 +58,7 @@ async def test_summarize_history_preserves_first_user_message():
     ]
 
     with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True),
         patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="old conversation summary",
@@ -94,7 +94,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
     ]
 
     with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True),
         patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="round 1 summary",
@@ -116,7 +116,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
     ]
 
     with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True),
         patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="round 2 summary",
@@ -215,7 +215,7 @@ async def test_summarize_history_error_handling():
         ModelRequest(parts=[UserPromptPart(content="b" * 100)]),
     ]
 
-    with patch("zrb.llm.config.limiter.is_turn_start", return_value=True):
+    with patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True):
         new_history = await summarize_history(
             messages,
             agent=agent,
@@ -278,7 +278,7 @@ async def test_summarize_long_text_consolidation_failure():
 
 def test_validate_tool_pair_integrity_problems():
     "Test validate_tool_pair_integrity with problematic history."
-    from zrb.llm.shared.message import validate_tool_pair_integrity
+    from zrb.llm.contracts.shared.message import validate_tool_pair_integrity
 
     messages = [
         ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])

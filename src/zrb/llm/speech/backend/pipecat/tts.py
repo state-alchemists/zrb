@@ -18,8 +18,8 @@ from zrb.llm.speech.backend.any_speech_backend import (
     SpeechServiceStopped,
 )
 from zrb.llm.speech.backend.audio import SpeechAudio
-from zrb.llm.util.priority import raise_priority
-from zrb.llm.util.teardown import cancel_and_wait, close_quietly
+from zrb.llm.contracts.util.priority import raise_priority
+from zrb.llm.contracts.util.teardown import cancel_and_wait, close_quietly
 from zrb.llm.voice.worker import create_worker_stopped_handler
 
 if TYPE_CHECKING:

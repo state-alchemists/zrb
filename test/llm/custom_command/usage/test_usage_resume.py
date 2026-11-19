@@ -19,7 +19,7 @@ from zrb.llm.custom_command.usage.resume import (
     read_resume,
 )
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, record_usage
+from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, record_usage
 
 # A history well over the default `LLM_UI_USAGE_RESUME_HISTORY_TOKENS`: both of
 # the limiter's counters (char/4, and tiktoken when it is on) put this above

@@ -22,8 +22,8 @@ from zrb.llm.hook.builtin.memory_week import (
 )
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager.manager import HookManager
-from zrb.llm.memory import paths, render, store
-from zrb.llm.memory.model import Diary, WeekNote, iso_week
+from zrb.llm.contracts.memory import paths, render, store
+from zrb.llm.contracts.memory.model import Diary, WeekNote, iso_week
 from zrb.llm.prompt.memory_context import render_memory_block
 
 # 2026-11-10 is a Tuesday in ISO week 46, so the week that just ended is W45:

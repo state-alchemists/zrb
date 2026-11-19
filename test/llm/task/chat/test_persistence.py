@@ -45,7 +45,7 @@ def test_replay_conversation_falls_back_to_text_dump():
     ui = _RecordingUI()
 
     with patch(
-        "zrb.llm.util.history_formatter.format_history_as_text",
+        "zrb.llm.contracts.util.history_formatter.format_history_as_text",
         return_value="FORMATTED",
     ):
         replay_conversation(ui, history_manager, "sess1")

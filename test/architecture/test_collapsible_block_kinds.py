@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 
 from pydantic_ai.messages import TextPart, ThinkingPart
 
-from zrb.llm.util.stream_response import StreamEventHandler
+from zrb.llm.contracts.util.stream_response import StreamEventHandler
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"

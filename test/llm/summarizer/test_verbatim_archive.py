@@ -19,7 +19,7 @@ from pydantic_ai.messages import (
 )
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.summarizer.verbatim_archive import (
     archive_verbatim_history,
     verbatim_archive_path,

@@ -25,14 +25,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.model_resolver import resolve_configured_small_model
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
-from zrb.llm.memory import store
-from zrb.llm.memory.model import KIND_DIARY, body_limit, digest_body, injection_reason
-from zrb.llm.shared.prompt_text import get_prompt
-from zrb.llm.util.spoken import split_spoken
+from zrb.llm.contracts.memory import store
+from zrb.llm.contracts.memory.model import KIND_DIARY, body_limit, digest_body, injection_reason
+from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.util.spoken import split_spoken
 
 if TYPE_CHECKING:
     from collections.abc import Callable
