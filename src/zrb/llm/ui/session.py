@@ -152,7 +152,9 @@ def _build_default_ui_kwargs(
         resolved_custom_model_names = []
 
     if resolved_custom_commands is None:
-        resolved_custom_commands = resolve_custom_commands(llm_chat_task.custom_commands)
+        resolved_custom_commands = resolve_custom_commands(
+            llm_chat_task.custom_commands
+        )
 
     # Layer this run's yolo state and session name over the task's ui_config.
     ui_config = replace(

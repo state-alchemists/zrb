@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.task.chat.running import ChatRunning
 
 
 class MockLLMChatTask:

@@ -40,8 +40,8 @@ from zrb.llm.memory.model import (
     iso_week,
     week_span,
 )
-from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.agent_runner import create_agent
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 
 if TYPE_CHECKING:

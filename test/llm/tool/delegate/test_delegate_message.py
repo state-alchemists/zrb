@@ -139,4 +139,6 @@ def test_the_buffered_ui_answers_the_whole_protocol():
     Without this, widening the protocol is free: a member could be dropped from
     `BufferedUI` and only the runtime path would notice.
     """
-    assert isinstance(BufferedUI(MagicMock(spec=AnyUI), session_id=SESSION), HasActivityTracking)
+    assert isinstance(
+        BufferedUI(MagicMock(spec=AnyUI), session_id=SESSION), HasActivityTracking
+    )

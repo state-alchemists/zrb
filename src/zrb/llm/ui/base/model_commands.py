@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.approval.judge_state import is_shell_judge_enabled_for
+from zrb.llm.config.ui_config import command_alias_field, model_visibility_field
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.llm.sandbox.state import is_sandbox_enabled_for
-from zrb.llm.config.ui_config import command_alias_field, model_visibility_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.base.ui import BaseUI
     from zrb.llm.config.ui_config import UIConfig
+    from zrb.llm.ui.base.ui import BaseUI
 
 # `/set` names that switch the UI's live model slots, exactly as `/model` does.
 _LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})

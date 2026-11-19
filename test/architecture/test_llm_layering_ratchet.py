@@ -174,7 +174,10 @@ def _runtime_imports(tree: ast.AST, package: list[str] | None = None) -> list[st
 
     def visit_one(child: ast.AST) -> None:
         found.extend(_imported_modules(child, package))
-        if isinstance(child, ast.Call) and _import_call_name(child.func) in _IMPORT_CALLS:
+        if (
+            isinstance(child, ast.Call)
+            and _import_call_name(child.func) in _IMPORT_CALLS
+        ):
             found.extend(_import_call_targets(child, package))
         visit(child)
 
@@ -206,9 +209,7 @@ def _call_package(call: ast.Call, package: list[str] | None) -> list[str] | None
     return package
 
 
-def _runtime_import_names(
-    source: str, package: list[str] | None = None
-) -> set[str]:
+def _runtime_import_names(source: str, package: list[str] | None = None) -> set[str]:
     """The module names *source* reaches at runtime, in every spelling."""
     return set(_runtime_imports(ast.parse(source), package))
 
@@ -425,13 +426,12 @@ def test_the_runner_guard_resolves_a_relative_import():
     tool_package = _package_of("tool/some_tool.py")
     # `zrb.runner` wins over `zrb.runner.cli`: the import reaches the package,
     # and the name after `import` is a symbol it may or may not be a module.
-    assert _runner_reaches_in("from ...runner import cli", tool_package) == ["zrb.runner"]
-    assert (
-        _runner_reaches_in(
-            'importlib.import_module("...runner.cli", package=__package__)', tool_package
-        )
-        == ["zrb.runner.cli"]
-    )
+    assert _runner_reaches_in("from ...runner import cli", tool_package) == [
+        "zrb.runner"
+    ]
+    assert _runner_reaches_in(
+        'importlib.import_module("...runner.cli", package=__package__)', tool_package
+    ) == ["zrb.runner.cli"]
     # One level too shallow: `from ..runner import cli` in `llm/tool/` is
     # `zrb.llm.runner`, which does not exist — and is not the CLI.
     assert _runner_reaches_in("from ..runner import cli", tool_package) == []

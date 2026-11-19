@@ -5,9 +5,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.config.ui_config import UIConfig
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.config.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask

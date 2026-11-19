@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, cast
 from zrb.context.any_context import AnyContext
 from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.shared.delegation_api import register_subagent_manager
+from zrb.llm.shared.tool_resolver import resolved_tool_name
 from zrb.llm.subagent.building import SubAgentBuilding
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager.loading import SubAgentManagerLoading
 from zrb.llm.subagent.manager.search import SubAgentManagerSearch
 from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
-from zrb.llm.shared.tool_resolver import resolved_tool_name
 from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:

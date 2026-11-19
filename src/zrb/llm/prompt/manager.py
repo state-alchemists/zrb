@@ -16,7 +16,6 @@ from zrb.llm.prompt.live_context.context import (
 )
 from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt
 from zrb.llm.prompt.profile import active_profile
-from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.prompt.registry import (
     PromptDelta,
     PromptList,
@@ -28,6 +27,7 @@ from zrb.llm.prompt.registry import (
     resolve_prompt_set,
 )
 from zrb.llm.prompt.system_context import system_context
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.util.attr import get_str_attr, get_str_list_attr

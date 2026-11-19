@@ -18,6 +18,7 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
+from zrb.llm.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
@@ -25,7 +26,6 @@ from zrb.llm.ui.default.app.keybinding import (
     bind_choice_navigation,
     create_output_keybindings,
 )
-from zrb.llm.config.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.app.follow import OutputFollow

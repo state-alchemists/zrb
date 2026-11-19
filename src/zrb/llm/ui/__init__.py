@@ -23,6 +23,7 @@ dual-mode (CLI + external channel) wiring, and complete examples — with
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from zrb.llm.config.ui_config import UIConfig  # noqa: F401
     from zrb.llm.ui.any_ui import AnyUI  # noqa: F401
     from zrb.llm.ui.any_ui_display import AnyUIDisplay  # noqa: F401
     from zrb.llm.ui.any_ui_input import AnyUIInput  # noqa: F401
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
         TriggerMessage,
         TriggerReply,
     )
-    from zrb.llm.config.ui_config import UIConfig  # noqa: F401
     from zrb.llm.ui.ui_factory import create_ui_factory  # noqa: F401
 
 #: Name -> module that defines it, resolved on first use.

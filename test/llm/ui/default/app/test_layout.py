@@ -13,6 +13,7 @@ from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.widgets import TextArea
 
+from zrb.llm.config.ui_config import UIConfig
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
 from zrb.llm.ui.default.app.layout import (
@@ -20,7 +21,6 @@ from zrb.llm.ui.default.app.layout import (
     create_layout,
     create_output_field,
 )
-from zrb.llm.config.ui_config import UIConfig
 
 
 def _config(**overrides) -> UIConfig:
