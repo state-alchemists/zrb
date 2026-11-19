@@ -207,7 +207,9 @@ class BaseUIExecCommands:
 
             result = await agent.run(question, message_history=btw_history)
             record_agent_usage(result, component=COMPONENT_OTHER)
-            record_standalone_requests(result, REASON_SIDE_QUESTION)
+            record_standalone_requests(
+                result, REASON_SIDE_QUESTION, history=btw_history
+            )
             answer = result.output if hasattr(result, "output") else str(result)
             self._base_ui.end_side_question(answer, request)
 

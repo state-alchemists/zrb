@@ -240,7 +240,9 @@ def record_round_requests(
     record_requests(rows)
 
 
-def record_standalone_requests(result: object, reason: str) -> list[RequestRecord]:
+def record_standalone_requests(
+    result: object, reason: str, *, history: History | None = None
+) -> list[RequestRecord]:
     """Write a row for every request a run outside the turn loop sent.
 
     The auxiliary call sites — the hooks, the shell judge, the namer, the
@@ -255,6 +257,13 @@ def record_standalone_requests(result: object, reason: str) -> list[RequestRecor
     request inside the same run is filed as a follow-up, the same way a round's
     are.
 
+    *history* is what the run was handed as `message_history`, when it was
+    handed one: a side question reads the conversation so far and sends it with
+    the question, so a row that folded an empty history would report a prompt of
+    one message for a prompt that carried the conversation. Only the run's own
+    requests get rows — the history is folded into the count and the digest
+    without being yielded, the way a turn's earlier rounds are.
+
     A result that cannot give its messages writes no rows rather than a guessed
     one, the same rule the turn's writer follows.
     """
@@ -263,7 +272,7 @@ def record_standalone_requests(result: object, reason: str) -> list[RequestRecor
         return []
     return record_requests(
         _rows_for(
-            history=[],
+            history=history if history is not None else [],
             new_messages=messages,
             turn=uuid.uuid4().hex,
             first_index=0,

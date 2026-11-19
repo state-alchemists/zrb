@@ -77,6 +77,34 @@ def test_a_standalone_call_writes_one_row_per_request(usage_dir):
     assert rows[0].prompt_messages == 1
 
 
+def test_a_standalone_call_folds_the_history_it_was_given(usage_dir):
+    """The row describes the prompt that was sent, not the run's own message.
+
+    A side question reads the conversation so far and hands it to the agent;
+    folding an empty history reported a prompt of one message for a prompt that
+    carried the conversation, and a digest that matched nothing that was sent.
+    The history is folded into the count and the digest without getting a row of
+    its own, the way a turn's earlier rounds are.
+    """
+    history = [
+        ModelRequest(parts=[UserPromptPart(content=f"earlier {n}")])
+        for n in range(3)
+    ]
+
+    with_history = record_standalone_requests(
+        FakeResult(_run()), REASON_HOOK, history=history
+    )
+    without = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+    again = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
+
+    assert [row.prompt_messages for row in with_history] == [4, 6]
+    assert without[0].prompt_messages == 1
+    # Both halves of the claim: the same prompt hashes alike, and a folded
+    # history makes it a different prompt.
+    assert again[0].prompt_hash == without[0].prompt_hash
+    assert with_history[0].prompt_hash != without[0].prompt_hash
+
+
 def test_a_standalone_call_owns_its_turn_id(usage_dir):
     """One call's rows join on a turn of their own, and on nobody else's."""
     first = record_standalone_requests(FakeResult(_run()), REASON_HOOK)
