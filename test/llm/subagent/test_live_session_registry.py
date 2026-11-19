@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
+from zrb.llm.ui.fallback.std_ui import StdUI
 
 
 @pytest.fixture
@@ -42,6 +43,38 @@ def test_register_and_get_round_trip(registry, buffered_ui, sub_agent_manager):
 
 def test_get_unknown_returns_none(registry):
     assert registry.get("sess1", "no-such-agent") is None
+
+
+def test_get_parent_ui_hands_back_a_ui_that_takes_a_message(
+    registry, buffered_ui, sub_agent_manager
+):
+    """A parent that declares an input side is the one the sub-agent messages."""
+    parent = StdUI()
+    buffered_ui.parent_ui = parent
+    registry.add_session(
+        "sess1", "agent-1", "researcher", sub_agent_manager, buffered_ui
+    )
+    assert registry.get_parent_ui("sess1", "agent-1") is parent
+
+
+def test_get_parent_ui_refuses_a_parent_with_no_input_side(
+    registry, buffered_ui, sub_agent_manager
+):
+    """A parent that cannot take a message is reported absent.
+
+    The sender then answers with the documented refusal instead of failing on a
+    missing attribute, which is why the check asks what the parent can do
+    rather than which class built it.
+    """
+    buffered_ui.parent_ui = object()
+    registry.add_session(
+        "sess1", "agent-1", "researcher", sub_agent_manager, buffered_ui
+    )
+    assert registry.get_parent_ui("sess1", "agent-1") is None
+
+
+def test_get_parent_ui_refuses_when_no_session_is_tracked(registry):
+    assert registry.get_parent_ui("sess1", "no-such-agent") is None
 
 
 def test_active_scopes_by_session_id(registry, buffered_ui, sub_agent_manager):
