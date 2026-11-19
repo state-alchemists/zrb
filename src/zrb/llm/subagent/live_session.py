@@ -25,7 +25,7 @@ from zrb.llm.contracts.shared.delegation_api import (
 )
 from zrb.llm.contracts.shared.live_delivery import steer_into_live_run
 from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.contracts.ui.any_ui_message_sink import AnyUIMessageSink
 
 if TYPE_CHECKING:
     from zrb.llm.agent.run.authority_snapshot import AuthoritySnapshot
@@ -213,16 +213,19 @@ class LiveSubAgentSessionRegistry:
             "reached for this delegation; finish the work or wait for the result."
         )
 
-    def get_parent_ui(self, session_id: str, agent_id: str) -> AnyUI | None:
+    def get_parent_ui(self, session_id: str, agent_id: str) -> AnyUIMessageSink | None:
         """The parent UI that can take a message from *agent_id*, if any.
 
-        Only an `AnyUI` declares `submit_message`; a parent that is not one is
-        reported as absent, so the sender answers with the documented refusal
-        instead of failing on a missing method.
+        Only a UI that declares an input side has somewhere to put a message; a
+        parent that does not is reported as absent, so the sender answers with
+        the documented refusal instead of failing on a missing attribute. The
+        check is structural — the question is what the parent can do, not which
+        class built it — and keeping it that way is what lets the sub-agent
+        package name the capability instead of the UI above it.
         """
         entry = self.get(session_id, agent_id)
         parent = entry.buffered_ui.parent_ui if entry else None
-        return parent if isinstance(parent, AnyUI) else None
+        return parent if isinstance(parent, AnyUIMessageSink) else None
 
     def cancel(self, session_id: str, agent_id: str) -> bool:
         """Cancel what the sub-agent is doing: drop its queued messages and
