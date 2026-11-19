@@ -126,3 +126,56 @@ def _present_units() -> set[str]:
         elif path.suffix == ".py":
             units.add(name.removesuffix(".py"))
     return units
+
+
+# Where everything lands when the tree is sorted into five directories: the plan
+# as data, read off the tree the 4.0 shape describes. A unit mapped to a path
+# ending in `.py` stays a loose module; everything else becomes a package.
+#
+# This is written down here, rather than in the prose of the plan, because the
+# codemod that performs the move reads a map and the guards audit it: a
+# destination that disagrees with the table, or two units landing on one path, is
+# a typo a human would not catch in 250 rewritten module paths.
+_UNIT_DESTINATIONS = {
+    # contracts — what every layer builds with
+    "config": "contracts/config",
+    "memory": "contracts/memory",
+    "shared": "contracts/shared",
+    "util": "contracts/util",
+    "ui/fallback": "contracts/ui_fallback",
+    "ui/buffered": "contracts/ui_buffered",
+    # capabilities
+    "approval": "capabilities/approval",
+    "history_manager": "capabilities/history_manager",
+    "hook": "capabilities/hook",
+    "lsp": "capabilities/lsp",
+    "permission": "capabilities/permission",
+    "prompt": "capabilities/prompt",
+    "sandbox": "capabilities/sandbox",
+    "skill": "capabilities/skill",
+    "snapshot": "capabilities/snapshot",
+    "tool": "capabilities/tool",
+    "tool_call": "capabilities/tool_call",
+    # engine
+    "agent": "engine/agent",
+    "summarizer": "engine/summarizer",
+    # orchestration
+    "common_tools": "orchestration/common_tools.py",
+    "custom_command": "orchestration/custom_command",
+    "resumed_session": "orchestration/resumed_session.py",
+    "subagent": "orchestration/subagent",
+    "task": "orchestration/task",
+    # presentation
+    "camera": "presentation/camera",
+    "dictation": "presentation/dictation",
+    "emotion": "presentation/emotion",
+    "screenshot": "presentation/screenshot",
+    "speech": "presentation/speech",
+    "ui": "presentation/ui",
+    "voice": "presentation/voice",
+}
+
+
+def _path_in(prefix: str) -> str:
+    """A representative path for a unit or destination, for asking its layer."""
+    return prefix if prefix.endswith(".py") else f"{prefix}/x.py"
