@@ -23,6 +23,7 @@ pattern). Only runtime imports count; ``if TYPE_CHECKING`` blocks do not.
 
 import ast
 import fnmatch
+import importlib.util
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
@@ -90,6 +91,8 @@ def _layer(path: str) -> int | None:
 
 def _resolve(module: str) -> str | None:
     """Map a ``zrb.llm...`` module name to its file path under ``llm/``."""
+    if not module.startswith("zrb.llm"):
+        return None
     parts = module.split(".")[2:]
     for size in range(len(parts), 0, -1):
         base = LLM.joinpath(*parts[:size])
@@ -106,23 +109,59 @@ def _is_type_checking(test: ast.expr) -> bool:
     )
 
 
-def _imported_modules(node: ast.AST, package: list[str]) -> list[str]:
+_IMPORT_CALLS = {"import_module", "__import__"}
+
+
+def _absolute_name(name: str, package: list[str] | None) -> str | None:
+    """Resolve a dotted name that may start with dots against *package*.
+
+    `from ..shared import x` in `zrb/llm/task/chat/` is `zrb.llm.task.shared`,
+    and so is `import_module("..shared", package="zrb.llm.task.chat")`: the two
+    spellings follow the same level rule. Without a package an absolute name
+    still reads; a relative one cannot.
+    """
+    level = len(name) - len(name.lstrip("."))
+    if not level:
+        return name
+    if package is None:
+        return None
+    keep = len(package) - (level - 1)
+    if keep < 1:
+        return None
+    remainder = name[level:]
+    return ".".join(package[:keep] + ([remainder] if remainder else []))
+
+
+def _imported_modules(node: ast.AST, package: list[str] | None) -> list[str]:
     if isinstance(node, ast.Import):
         return [alias.name for alias in node.names]
     if not isinstance(node, ast.ImportFrom):
         return []
-    if node.level:
-        keep = len(package) - (node.level - 1)
-        base = ".".join(package[:keep] + ([node.module] if node.module else []))
-    else:
-        base = node.module or ""
-    if not base.startswith("zrb.llm"):
+    base = _absolute_name("." * node.level + (node.module or ""), package)
+    if not base:
         return []
     # `from pkg import name` may name a submodule rather than a symbol.
     return [base] + [f"{base}.{alias.name}" for alias in node.names]
 
 
-def _runtime_imports(tree: ast.AST, package: list[str]) -> list[str]:
+def _import_call_name(func: ast.AST) -> str:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return ""
+
+
+def _runtime_imports(tree: ast.AST, package: list[str] | None = None) -> list[str]:
+    """Every module name a runtime import in *tree* can reach.
+
+    Covers the three spellings: `import a.b`, `from a.b import name` (which may
+    name a submodule), and `import_module("a.b")` — each in its absolute and its
+    dotted-relative form. A `TYPE_CHECKING` block is skipped: the ratchet's own
+    rule is about the import a run pays for. `package` is the importing file's
+    own package, which is what a relative name resolves against; without it
+    such a name is dropped.
+    """
     found: list[str] = []
 
     def visit(node: ast.AST) -> None:
@@ -135,19 +174,117 @@ def _runtime_imports(tree: ast.AST, package: list[str]) -> list[str]:
 
     def visit_one(child: ast.AST) -> None:
         found.extend(_imported_modules(child, package))
+        if isinstance(child, ast.Call) and _import_call_name(child.func) in _IMPORT_CALLS:
+            found.extend(_import_call_targets(child, package))
         visit(child)
 
     visit(tree)
     return found
 
 
+def _import_call_targets(call: ast.Call, package: list[str] | None) -> list[str]:
+    """The module an `import_module("a.b")` call names, if it names one."""
+    argument = call.args[0] if call.args else None
+    if not (isinstance(argument, ast.Constant) and isinstance(argument.value, str)):
+        return []
+    target = _absolute_name(argument.value, _call_package(call, package))
+    return [target] if target else []
+
+
+def _call_package(call: ast.Call, package: list[str] | None) -> list[str] | None:
+    """The package an `import_module` call resolves a relative name against.
+
+    Python takes the anchor from the `package=` keyword and nowhere else: a
+    literal string names it, `__package__` means the importing file's own
+    package, and a name the ratchet cannot follow falls back to that same
+    package — the anchor every caller in this tree passes.
+    """
+    keyword = next((word for word in call.keywords if word.arg == "package"), None)
+    value = keyword.value if keyword else None
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return value.value.split(".") if value.value else None
+    return package
+
+
+def _runtime_import_names(
+    source: str, package: list[str] | None = None
+) -> set[str]:
+    """The module names *source* reaches at runtime, in every spelling."""
+    return set(_runtime_imports(ast.parse(source), package))
+
+
+def _package_of(rel: str) -> list[str]:
+    """The package a file under `llm/` is imported as, read from its path.
+
+    The file's own name is dropped: a module's package is the directory it sits
+    in, and an `__init__.py` *is* that directory — `llm/tool/__init__.py`
+    anchors a relative name at `zrb.llm.tool`, exactly as Python does.
+    """
+    return ["zrb", "llm"] + rel.removesuffix(".py").split("/")[:-1]
+
+
+def test_an_import_spelled_as_a_call_is_an_edge():
+    """`import_module("a.b")` reaches the module `import a.b` reaches.
+
+    The edge set is built from this collector, so a spelling it cannot read is
+    an upward import the ratchet cannot see — and a deferred import upward is
+    an import upward however it is spelled.
+    """
+    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.ui.session")'))
+    assert "zrb.llm.ui.session" in names
+
+
+def test_a_relative_import_resolves_against_the_importing_package():
+    """`from ..shared import x` is an edge to `zrb.llm.task.shared`."""
+    names = _runtime_imports(
+        ast.parse("from ..shared import prompt_text"), ["zrb", "llm", "task", "chat"]
+    )
+    assert "zrb.llm.task.shared" in names
+
+
+def test_a_relative_import_module_resolves_its_own_package():
+    """`import_module("..ui", package=__package__)` is an edge to `zrb.llm.ui`."""
+    names = _runtime_imports(
+        ast.parse('importlib.import_module("..ui", package=__package__)'),
+        ["zrb", "llm", "agent"],
+    )
+    assert "zrb.llm.ui" in names
+
+
+def test_a_relative_import_module_resolves_a_literal_package():
+    """`package=` anchors a relative name exactly as Python anchors it.
+
+    Not `zrb.llm.ui`: the anchor is the dotted name given, so `..ui` from
+    `zrb.llm.agent.loader` is `zrb.llm.agent.ui`. Asked of `importlib` itself,
+    so this expectation cannot drift from the rule it describes.
+    """
+    source = 'importlib.import_module("..ui", package="zrb.llm.agent.loader")'
+    resolved = importlib.util.resolve_name("..ui", "zrb.llm.agent.loader")
+    assert resolved in _runtime_imports(ast.parse(source))
+
+
+def test_a_package_init_file_is_its_own_package():
+    """A relative name in `llm/tool/__init__.py` anchors at `zrb.llm.tool`."""
+    assert _package_of("tool/__init__.py") == ["zrb", "llm", "tool"]
+    assert _package_of("tool/delegate/runner.py") == ["zrb", "llm", "tool", "delegate"]
+    assert _package_of("common_tools.py") == ["zrb", "llm"]
+
+
+def test_a_type_checking_block_is_not_an_edge():
+    source = (
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n"
+        "    import zrb.llm.ui.session\n"
+    )
+    assert "zrb.llm.ui.session" not in _runtime_imports(ast.parse(source))
+
+
 def _file_edges() -> set[tuple[str, str]]:
     edges: set[tuple[str, str]] = set()
     for path in sorted(LLM.rglob("*.py")):
         rel = path.relative_to(LLM).as_posix()
-        package = ["zrb", "llm"] + rel.removesuffix(".py").split("/")[:-1]
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for module in _runtime_imports(tree, package):
+        for module in _runtime_imports(tree, _package_of(rel)):
             target = _resolve(module)
             if target and _unit(target) != _unit(rel):
                 edges.add((rel, target))
@@ -217,8 +354,6 @@ def test_no_layer_names_a_unit_that_moved_away():
 RUNNER = "zrb.runner"
 """The CLI package the engine must never import — see `test_llm_never_imports_it`."""
 
-_IMPORT_CALLS = {"import_module", "__import__"}
-
 
 def _lazy_export_targets() -> dict[str, str]:
     """The modules `zrb`'s own lazy export table hides behind a name.
@@ -234,58 +369,15 @@ def _lazy_export_targets() -> dict[str, str]:
     return {f"zrb.{name}": module for name, module in exports.items()}
 
 
-def _import_call_name(func: ast.AST) -> str:
-    if isinstance(func, ast.Name):
-        return func.id
-    if isinstance(func, ast.Attribute):
-        return func.attr
-    return ""
+def _runner_reaches_in(source: str, package: list[str] | None = None) -> list[str]:
+    """The runner modules *source* imports at runtime, however it spells them.
 
-
-def _runtime_import_names(source: str) -> set[str]:
-    """Every module name a runtime import in *source* can reach.
-
-    Covers the three spellings: `import a.b`, `from a.b import name` (which may
-    name a submodule), and `import_module("a.b")`. A `TYPE_CHECKING` block is
-    skipped — the ratchet's own rule is about the import a run pays for.
+    `package` is the importing file's own package, so `from ...runner import cli`
+    — which Python resolves to `zrb.runner` — is an edge here too, not only the
+    absolute spelling and the call.
     """
-    found: set[str] = set()
-
-    def visit(node: ast.AST) -> None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.If) and _is_type_checking(child.test):
-                for other in child.orelse:
-                    visit_one(other)
-                continue
-            visit_one(child)
-
-    def visit_one(child: ast.AST) -> None:
-        if isinstance(child, ast.Import):
-            found.update(alias.name for alias in child.names)
-        elif isinstance(child, ast.ImportFrom) and not child.level:
-            base = child.module or ""
-            if base:
-                found.add(base)
-            found.update(
-                f"{base}.{alias.name}" if base else alias.name for alias in child.names
-            )
-        elif isinstance(child, ast.Call):
-            if _import_call_name(child.func) in _IMPORT_CALLS:
-                argument = child.args[0] if child.args else None
-                if isinstance(argument, ast.Constant) and isinstance(
-                    argument.value, str
-                ):
-                    found.add(argument.value)
-        visit(child)
-
-    visit(ast.parse(source))
-    return found
-
-
-def _runner_reaches_in(source: str) -> list[str]:
-    """The runner modules *source* imports at runtime, however it spells them."""
     lazy = _lazy_export_targets()
-    reached = {lazy.get(name, name) for name in _runtime_import_names(source)}
+    reached = {lazy.get(name, name) for name in _runtime_import_names(source, package)}
     hits = {m for m in reached if m == RUNNER or m.startswith(f"{RUNNER}.")}
     # `from zrb.runner.cli import cli` also names `zrb.runner.cli.cli`: the
     # parent is the module the import reaches, the child only its symbol.
@@ -296,7 +388,8 @@ def _files_reaching_the_runner() -> list[str]:
     found: list[str] = []
     for path in sorted(LLM.rglob("*.py")):
         rel = path.relative_to(LLM).as_posix()
-        for module in _runner_reaches_in(path.read_text(encoding="utf-8")):
+        source = path.read_text(encoding="utf-8")
+        for module in _runner_reaches_in(source, _package_of(rel)):
             found.append(f"{rel} -> {module}")
     return found
 
@@ -320,6 +413,28 @@ def test_the_runner_guard_sees_every_spelling():
         _runner_reaches_in("if TYPE_CHECKING:\n    from zrb.runner.cli import cli\n")
         == []
     )
+
+
+def test_the_runner_guard_resolves_a_relative_import():
+    """`from ...runner import cli`, in `llm/tool/`, reaches `zrb.runner` too.
+
+    The scan reads a file's text and its package from its path; without the
+    package, this spelling resolves to nothing and the guard reports a clean
+    tree it never looked at.
+    """
+    tool_package = _package_of("tool/some_tool.py")
+    # `zrb.runner` wins over `zrb.runner.cli`: the import reaches the package,
+    # and the name after `import` is a symbol it may or may not be a module.
+    assert _runner_reaches_in("from ...runner import cli", tool_package) == ["zrb.runner"]
+    assert (
+        _runner_reaches_in(
+            'importlib.import_module("...runner.cli", package=__package__)', tool_package
+        )
+        == ["zrb.runner.cli"]
+    )
+    # One level too shallow: `from ..runner import cli` in `llm/tool/` is
+    # `zrb.llm.runner`, which does not exist — and is not the CLI.
+    assert _runner_reaches_in("from ..runner import cli", tool_package) == []
 
 
 def test_llm_never_imports_the_runner():
