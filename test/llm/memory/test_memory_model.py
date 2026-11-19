@@ -8,8 +8,10 @@ from zrb.llm.memory.model import (
     Diary,
     Fact,
     body_error,
+    body_limit,
     body_overflow,
     claim_error,
+    compact_at,
     date_error,
     handover_error,
     id_error,
@@ -137,6 +139,29 @@ def test_an_append_is_measured_as_the_whole_it_becomes(monkeypatch):
     assert overflow is not None
     assert "21" in overflow and "20" in overflow
     assert "LLM_MEMORY_DIARY_MAX_CHARS" in overflow
+
+
+def test_a_diary_is_compacted_before_its_cap(monkeypatch):
+    """The page has a point above which it must be shortened, not just a wall.
+
+    A day that is only rewritten to fit its cap lands on the ceiling with the
+    room it needed still missing, so the writer that arrives next is refused.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 1_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_COMPACT_AT", 600, raising=False)
+    assert compact_at("diary") == 600
+
+
+def test_a_compaction_point_above_the_cap_leaves_only_the_cap(monkeypatch):
+    """A threshold past the cap asks for a page the cap refuses; it is clamped."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 1_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_COMPACT_AT", 5_000, raising=False)
+    assert compact_at("diary") == 1_000
+
+
+def test_a_fact_is_compacted_at_its_cap(monkeypatch):
+    """A fact is evidence about one subject, replaced rather than carried on."""
+    assert compact_at("fact") == body_limit("fact")
 
 
 def test_a_fact_round_trips_through_markdown():

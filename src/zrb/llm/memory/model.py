@@ -422,6 +422,19 @@ def body_limit(kind: str) -> int:
     return MAX_FACT_BODY_CHARS
 
 
+def compact_at(kind: str) -> int:
+    """The length past which a body of *kind* is compacted, not grown.
+
+    Only a diary has a threshold below its cap: a fact's body is evidence about
+    one subject and is replaced rather than carried forward, so the two numbers
+    are the same one. Clamped, because a threshold above the cap would ask for a
+    page the cap refuses.
+    """
+    if kind != KIND_DIARY:
+        return body_limit(kind)
+    return min(CFG.LLM_MEMORY_DIARY_COMPACT_AT, CFG.LLM_MEMORY_DIARY_MAX_CHARS)
+
+
 def body_error(body: str | None, kind: str) -> str | None:
     """Why *body*, as the caller wrote it, cannot be stored, or ``None``."""
     if body is None:
@@ -453,6 +466,43 @@ def body_overflow(merged: str, kind: str = KIND_DIARY) -> str | None:
         f"The day's body would be {len(merged)} characters and the cap is "
         f"{limit}. Nothing was written. Shorten this paragraph, or replace the "
         "body as a whole; the cap is the setting `LLM_MEMORY_DIARY_MAX_CHARS`."
+    )
+
+
+def append_past_compaction(body: str, kind: str = KIND_DIARY) -> str | None:
+    """Why a paragraph may not be added to the day this would make, or ``None``.
+
+    Measured on the whole the append makes, like `body_overflow`: a paragraph of
+    three hundred characters is one too many on a page with two hundred left
+    below the threshold. The page has to be compacted before it grows, because a
+    day that only ever rewrites to its own ceiling leaves the next writer no room
+    — and the next writer is the one refused.
+    """
+    at = compact_at(kind)
+    if len(body) <= at:
+        return None
+    return (
+        f"The day's body would be {len(body)} characters, and a diary is "
+        f"compacted from {at}: the paragraph is not too long, the page it joins "
+        "is too full."
+    )
+
+
+def rewrite_not_compacted(before: str, after: str, kind: str = KIND_DIARY) -> str | None:
+    """Why a rewrite may not leave a full day where it was, or ``None``.
+
+    A rewrite is the one write that can shorten a page, so from a page past the
+    threshold it *is* a compaction and has to behave like one: a body that lands
+    at or over the threshold again has kept every paragraph and freed nothing,
+    and the day is exactly as stuck as it was before the write.
+    """
+    at = compact_at(kind)
+    if len(before) < at or len(after) < at:
+        return None
+    return (
+        f"The day it replaces is {len(before)} characters and this rewrite is "
+        f"{len(after)}: a diary is compacted from {at}, so a body that lands at "
+        "or over that has freed nothing and the page is as full as it was."
     )
 
 
