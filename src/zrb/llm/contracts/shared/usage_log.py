@@ -31,7 +31,11 @@ from zrb.util.string.name import get_conversation_key
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
 
-_Record = TypeVar("_Record", bound="UsageRecord")
+# The record a month file holds. Nothing here reads a record's fields: the
+# window and the conversation are the caller's `select`, which is what lets one
+# reader serve the summed log (`usage_log`) and the per-request one
+# (`request_log`) without either owning the other's shape.
+_Record = TypeVar("_Record")
 _MONTH_FORMAT = "%Y-%m"
 _FILE_PREFIX = "usage-"
 _FILE_SUFFIX = ".jsonl"
@@ -240,6 +244,10 @@ class UsageRecord:
     # Which model call spent these tokens. A line written before this field
     # existed reads back by its kind, which names it without a guess.
     component: str = COMPONENT_MAIN
+    # The turn this line belongs to: the same id on every round of one turn and
+    # on the per-request rows underneath it (`request_log`). Absent on every
+    # line written before this field existed.
+    turn: str = ""
     # Calls and failures per tool name. A line without them reads back as empty.
     tool_counts: dict[str, int] = field(default_factory=dict)
     tool_errors: dict[str, int] = field(default_factory=dict)
@@ -295,6 +303,7 @@ class UsageRecord:
             component=str(
                 raw.get("component") or _LEGACY_COMPONENT.get(kind, COMPONENT_MAIN)
             ),
+            turn=str(raw.get("turn") or ""),
             tool_counts=_as_name_counts(raw.get("tool_counts")),
             tool_errors=_as_name_counts(raw.get("tool_errors")),
             compaction=_as_compaction(raw.get("compaction")),
@@ -370,6 +379,7 @@ def record_usage(
     tool_errors: dict[str, int] | None = None,
     component: str | None = None,
     context: ContextComposition | None = None,
+    turn: str = "",
 ) -> UsageRecord | None:
     """Append one run to the log.
 
@@ -378,6 +388,8 @@ def record_usage(
     *session* left empty is the ambient conversation's — see `record_totals`.
     *context* is where this request's input went, written only for the round
     that opened a turn.
+    *turn* names the turn the line belongs to, so the per-request rows written
+    underneath it (`request_log`) can be read against this sum.
 
     Returns the record that was written, or ``None`` when the log could not be
     written — a full disk or a read-only home must not fail the turn that
@@ -395,6 +407,7 @@ def record_usage(
         tool_errors=tool_errors,
         component=component,
         context=context,
+        turn=turn,
     )
 
 
@@ -410,6 +423,7 @@ def record_totals(
     compaction: CompactionDetail | None = None,
     component: str | None = None,
     context: ContextComposition | None = None,
+    turn: str = "",
 ) -> UsageRecord | None:
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
@@ -430,6 +444,7 @@ def record_totals(
         duration_ms=duration_ms,
         cost=totals.cost,
         component=component if component is not None else current_component(),
+        turn=turn,
         tool_counts=dict(tool_counts or {}),
         tool_errors=dict(tool_errors or {}),
         compaction=compaction,
@@ -516,9 +531,8 @@ def read_records(
             read_month_file(
                 path,
                 _parse_line,
-                since,
-                until,
-                lambda record: session_key is None or record.session_key == session_key,
+                lambda record: is_within_window(record.timestamp, since, until)
+                and (session_key is None or record.session_key == session_key),
             )
         )
     records.sort(key=lambda record: record.timestamp)
@@ -580,15 +594,26 @@ def _files_in(base: str, prefix: str) -> list[str]:
     ]
 
 
+def is_within_window(
+    at: datetime, since: datetime | None, until: datetime | None
+) -> bool:
+    """Whether *at* falls inside the window; a missing bound is unbounded.
+
+    Both logs bound a read the same way, and both compare an aware record
+    against a bound a caller may have left naive — `as_datetime` normalises
+    that rather than letting the comparison raise.
+    """
+    if since is not None and at < as_datetime(since):
+        return False
+    return until is None or at <= as_datetime(until)
+
+
 def read_month_file(
     path: str,
     parse: Callable[[str], _Record | None],
-    since: datetime | None,
-    until: datetime | None,
-    in_session: Callable[[_Record], bool],
+    select: Callable[[_Record], bool],
 ) -> list[_Record]:
-    """The records of one month file that *parse* accepts, that fall inside the
-    window and that satisfy *in_session*.
+    """The records of one month file that *parse* accepts and *select* keeps.
 
     An unreadable file is empty and an unreadable line is skipped: a damaged log
     costs the records it cannot parse, never the whole read.
@@ -601,13 +626,7 @@ def read_month_file(
     records: list[_Record] = []
     for line in lines:
         record = parse(line)
-        if record is None:
-            continue
-        if since is not None and record.timestamp < as_datetime(since):
-            continue
-        if until is not None and record.timestamp > as_datetime(until):
-            continue
-        if not in_session(record):
+        if record is None or not select(record):
             continue
         records.append(record)
     return records

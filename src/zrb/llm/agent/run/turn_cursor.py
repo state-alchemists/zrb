@@ -43,6 +43,10 @@ class TurnCursor:
     # `turn_id`). Unique, unlike the run scope, which is the conversation's
     # name and may be shared by concurrent sessions.
     turn_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    # How many request rows this turn has written, so the next round numbers its
+    # own from where the last one stopped — a retried round included
+    # (`request_log.record_round_requests`).
+    requests: int = field(default=0, repr=False)
     # Where the turn's opening request's input went, until the first round
     # writes it down. Only that round carries it: the request it describes is
     # the one prepared before the loop started.
