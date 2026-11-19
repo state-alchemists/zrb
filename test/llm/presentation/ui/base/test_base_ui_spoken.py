@@ -1,7 +1,7 @@
 """The turn's answer reaches the screen without the `<spoken>` markers.
 
 The answer keeps them for speech — the stop hook reads the same string — so the
-screen copy is stripped where it is rendered. `test_base_ui.py` is at the
+screen copy is stripped where it is rendered. `test_base_ui.py` was at the
 test-file size limit; this is its own subject.
 """
 

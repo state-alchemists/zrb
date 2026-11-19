@@ -4,6 +4,10 @@ The routes are real ones — a `ThreadingHTTPServer` on a loopback port nobody
 else has — because the thing being tested is the conversation with that server:
 the URL it builds, the status it turns into a sentence, the headers that travel.
 A mocked `urlopen` would agree with whatever this side believed.
+
+The other fixture here is `clean_env`, which the ffmpeg-backend tests ask for: it
+strips `WSL_DISTRO_NAME` and `WSLENV`, because those two decide which camera path
+a backend takes, and the shell that started pytest may have either of them set.
 """
 
 from __future__ import annotations
@@ -137,3 +141,11 @@ def face_page():
         server.shutdown()
         server.server_close()
         thread.join(2)
+
+
+@pytest.fixture
+def clean_env(monkeypatch):
+    "Strip every camera-relevant env var before each test."
+    for var in ("WSL_DISTRO_NAME", "WSLENV"):
+        monkeypatch.delenv(var, raising=False)
+    return monkeypatch

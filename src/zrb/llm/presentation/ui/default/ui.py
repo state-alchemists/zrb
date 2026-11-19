@@ -99,8 +99,6 @@ class UI(BaseUI, AnyUIDisplay):
         self._pending_invalidate = False
         self._invalidate_task: asyncio.Task | None = None
         self._last_render_error: str | None = None
-        # [start, end, source, renderer] per width-dependent block appended
-        # through `append_rendered` — see that method and `rewrap_output`.
         self._rendered_blocks: list[list] = []
         self._rendered_width: int | None = None
         super().__init__(
@@ -130,7 +128,6 @@ class UI(BaseUI, AnyUIDisplay):
         self._keybindings = UIKeybindings(self)
 
         self._refresh_task: asyncio.Task | None = None
-        # Built on first access; see the `application` property.
         self._application: "Application | None" = None
 
         self._capture = GlobalStreamCapture()
@@ -158,9 +155,8 @@ class UI(BaseUI, AnyUIDisplay):
             choice=self._selection,
         )
 
-        # Whether the transcript keeps up with the newest line. The refresh loop
-        # cannot work this out for itself: by the time it repaints, the text has
-        # grown and "was following" looks exactly like "scrolled up".
+        # Whether the transcript keeps up with the newest line; see the
+        # `output_follow` property.
         self._output_field = create_output_field(
             "",
             output_lexer,
@@ -178,8 +174,6 @@ class UI(BaseUI, AnyUIDisplay):
         self.append_rendered(greeting_panel, render_help_panel)
         self.append_to_output("")
 
-        # AskUserQuestion selection widget, sub-agent picker and `/btw` panel
-        # (each hidden until something opens it).
         self._selection.init_selection_state()
         self._agent_picker.init_agent_picker_state()
         self._side_question.init_side_question_state()
@@ -517,24 +511,20 @@ class UI(BaseUI, AnyUIDisplay):
     def handle_delete_queued(self, event: "KeyPressEvent") -> None:
         return self._message_editing.handle_delete_queued(event)
 
+    # `BaseUI` declares these four as no-ops and calls them polymorphically, so
+    # each override forwards to the part holding the echo's span.
     def track_echo_span(self, entry: Any, echo: str) -> None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_echo_span(entry, echo)
 
     def track_rendered_echo(self, entry: "QueuedMessage", header: str) -> None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_rendered_echo(entry, header)
 
     def redraw_echo(self, entry: Any) -> str | None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op).
-
-        Renders the entry's current text — Markdown or plain, decided per
-        redraw — so an edit and a paste merge draw the same thing.
-        """
+        """Renders the entry's current text — Markdown or plain, decided per
+        redraw — so an edit and a paste merge draw the same thing."""
         return self._message_editing.redraw_echo(entry)
 
     def remove_echo(self, entry: "QueuedMessage") -> None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.remove_echo(entry)
 
     # UIOutput delegators
