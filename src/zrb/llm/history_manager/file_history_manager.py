@@ -22,7 +22,7 @@ from zrb.llm.history_manager.archive_layout import (
     tool_results_names_in,
 )
 from zrb.llm.history_manager.message_repair import sanitize_history
-from zrb.llm.util.subagent_session_naming import (
+from zrb.llm.contracts.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
     parse_delegated_session,
     subagent_history_directories,

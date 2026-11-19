@@ -18,7 +18,7 @@ from zrb.llm.agent.shell_judge import (
     uncommitted_files,
     verdict_from_output,
 )
-from zrb.llm.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
+from zrb.llm.contracts.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
 from zrb.llm.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,

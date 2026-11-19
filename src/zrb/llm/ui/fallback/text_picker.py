@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
-from zrb.llm.util.choice_spec_format import format_choice_spec
+from zrb.llm.contracts.util.choice_spec_format import format_choice_spec
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

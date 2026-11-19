@@ -23,9 +23,9 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import is_turn_start
-from zrb.llm.shared.agent_state import get_current_model
-from zrb.llm.util.capabilities import model_capabilities
+from zrb.llm.contracts.config.limiter import is_turn_start
+from zrb.llm.contracts.shared.agent_state import get_current_model
+from zrb.llm.contracts.util.capabilities import model_capabilities
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage

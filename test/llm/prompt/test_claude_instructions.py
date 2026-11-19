@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.prompt.claude import _read_instruction_bytes, create_project_context_prompt
-from zrb.llm.util.prompt import expand_prompt
+from zrb.llm.contracts.util.prompt import expand_prompt
 
 
 def _make_ctx():
@@ -186,7 +186,7 @@ def test_include_only_file_does_not_pay_for_its_target_twice(tmp_path):
     carrying the whole target. The project's rules rode in twice and the byte
     budget accounted for the eleven bytes of the pointer, not the file behind it.
     """
-    from zrb.llm.util.prompt import expand_prompt
+    from zrb.llm.contracts.util.prompt import expand_prompt
 
     (tmp_path / "AGENTS.md").write_text("PROJECT RULES")
     (tmp_path / "CLAUDE.md").write_text("@AGENTS.md")

@@ -17,7 +17,7 @@ from zrb.llm.custom_command.resolver import (
     resolve_custom_commands,
     run_custom_command,
 )
-from zrb.llm.shared.feature_config import bound_session_ui
+from zrb.llm.contracts.shared.feature_config import bound_session_ui
 from zrb.llm.ui.assembly import assemble_ui
 from zrb.util.attr import get_attr
 from zrb.util.cli.style import stylize_muted

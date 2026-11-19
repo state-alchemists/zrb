@@ -334,7 +334,7 @@ def test_gate_follows_a_switch_flipped_after_the_turn_started(
     typed mid-answer can contain the call that follows it.
     """
     from zrb.config.config import CFG
-    from zrb.llm.shared.agent_state import current_ui
+    from zrb.llm.contracts.shared.agent_state import current_ui
 
     monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
     session = _SessionUI()
@@ -361,7 +361,7 @@ def test_a_toggle_in_one_session_does_not_contain_another(outside_root, monkeypa
     switch is read from the session's own UI and the config is left alone.
     """
     from zrb.config.config import CFG
-    from zrb.llm.shared.agent_state import current_ui
+    from zrb.llm.contracts.shared.agent_state import current_ui
 
     monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
     toggled, untouched = _SessionUI(), _SessionUI()

@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
-    from zrb.llm.shared.input_source import InputProvenance
-    from zrb.llm.util.delivery_report import DeliveryReport
+    from zrb.llm.contracts.shared.input_source import InputProvenance
+    from zrb.llm.contracts.util.delivery_report import DeliveryReport
 
 
 class AnyUIInput(ABC):

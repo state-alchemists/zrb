@@ -31,8 +31,8 @@ from zrb.llm.dictation.microphone import (
 )
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
-from zrb.llm.util.audio_devices import DeviceWatcher
-from zrb.llm.util.face_server import is_remote_voice_selected
+from zrb.llm.contracts.util.audio_devices import DeviceWatcher
+from zrb.llm.contracts.util.face_server import is_remote_voice_selected
 
 if TYPE_CHECKING:
     # Annotation-only to avoid importing the backend barrel and its audio

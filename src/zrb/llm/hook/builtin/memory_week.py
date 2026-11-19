@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.model_resolver import resolve_configured_small_model
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import (
     AgentHookConfig,
@@ -31,8 +31,8 @@ from zrb.llm.hook.contracts.schema import (
     MatcherConfig,
 )
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
-from zrb.llm.memory import store
-from zrb.llm.memory.model import (
+from zrb.llm.contracts.memory import store
+from zrb.llm.contracts.memory.model import (
     MAX_CLAIM_CHARS,
     Diary,
     WeekNote,
@@ -40,9 +40,9 @@ from zrb.llm.memory.model import (
     iso_week,
     week_span,
 )
-from zrb.llm.shared.agent_runner import create_agent
-from zrb.llm.shared.prompt_text import get_prompt
-from zrb.llm.shared.usage_log import COMPONENT_HOOK, record_agent_usage
+from zrb.llm.contracts.shared.agent_runner import create_agent
+from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, record_agent_usage
 
 if TYPE_CHECKING:
     from zrb.llm.hook.contracts.interface import HookCallable, HookContext

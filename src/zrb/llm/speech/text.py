@@ -6,7 +6,7 @@ import json
 import re
 from fnmatch import fnmatchcase
 
-from zrb.llm.util.spoken import has_spoken_block
+from zrb.llm.contracts.util.spoken import has_spoken_block
 
 _FENCE_RE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 # A fence opening a line with no close runs to the end: a reply cut mid-code.

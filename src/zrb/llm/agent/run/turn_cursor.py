@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
     from zrb.llm.agent.run.typing_aliases import History, PromptMessage
-    from zrb.llm.shared.usage_log import ContextComposition
+    from zrb.llm.contracts.shared.usage_log import ContextComposition
 
 
 @dataclass

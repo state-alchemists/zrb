@@ -20,9 +20,9 @@ from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.config.model_resolver import apply_model_hooks, require_model_hook
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.contracts.config.model_resolver import apply_model_hooks, require_model_hook
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -30,14 +30,14 @@ from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.live_context.context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
-from zrb.llm.shared.stream_observer import StreamObserver
-from zrb.llm.shared.usage_log import CompactionDetail
+from zrb.llm.contracts.shared.stream_observer import StreamObserver
+from zrb.llm.contracts.shared.usage_log import CompactionDetail
 from zrb.llm.summarizer import summarize_history, warn_forced_compaction
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.shared_getters import get_policy_skip_decision, set_default_retry_if
-from zrb.llm.util.attachment import get_attachments
+from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_attr, get_bool_attr

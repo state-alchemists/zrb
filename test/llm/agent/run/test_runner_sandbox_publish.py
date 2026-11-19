@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.sandbox.policy import SandboxPolicy
 
 

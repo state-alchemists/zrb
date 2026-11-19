@@ -28,13 +28,13 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.shared.agent_state import get_current_ui
-from zrb.llm.shared.input_source import (
+from zrb.llm.contracts.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.input_source import (
     BACKGROUND_INPUT,
     KEYBOARD_INPUT,
     InputProvenance,
@@ -74,7 +74,7 @@ from zrb.llm.ui.fallback.resolution import create_combined_ui
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_execution import run_turn
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.util.spoken import shown_text
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.style import stylize_muted
 from zrb.util.string.name import get_random_name

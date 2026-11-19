@@ -5,8 +5,8 @@ from datetime import date, timedelta
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, render, store
-from zrb.llm.memory.model import Fact
+from zrb.llm.contracts.memory import paths, render, store
+from zrb.llm.contracts.memory.model import Fact
 from zrb.llm.prompt import live_context
 from zrb.llm.prompt.memory_context import (
     note_claims_shown,

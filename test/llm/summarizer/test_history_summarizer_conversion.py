@@ -122,7 +122,7 @@ async def test_last_user_intent_instruction_injection():
         ModelRequest(parts=[UserPromptPart(content="User message 2 - IMPORTANT")]),
     ]
 
-    with patch("zrb.llm.config.limiter.is_turn_start", return_value=False):
+    with patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=False):
         with patch(
             "zrb.llm.summarizer.history_summarizer.validate_tool_pair_integrity",
             return_value=(True, []),

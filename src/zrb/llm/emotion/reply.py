@@ -37,8 +37,8 @@ from zrb.llm.emotion.label import (
     leading_emoji_index,
     opening_tag_index,
 )
-from zrb.llm.shared.ambient_state import current_reply_emotion
-from zrb.llm.util.spoken import OPEN_TAG, partial_marker
+from zrb.llm.contracts.shared.ambient_state import current_reply_emotion
+from zrb.llm.contracts.util.spoken import OPEN_TAG, partial_marker
 
 
 class ReplyEmotion(AbstractCapability[None]):

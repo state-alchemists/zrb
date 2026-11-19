@@ -7,7 +7,7 @@ import pytest
 from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
 from zrb.llm.summarizer.chunk_processor import chunk_and_summarize
-from zrb.llm.util.capabilities import model_capabilities
+from zrb.llm.contracts.util.capabilities import model_capabilities
 
 
 class _Limiter:

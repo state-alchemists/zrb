@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.shared.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,

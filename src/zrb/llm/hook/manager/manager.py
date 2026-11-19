@@ -31,7 +31,7 @@ from zrb.llm.hook.hook_loader import get_search_directories as _get_search_direc
 from zrb.llm.hook.manager.loading import HookManagerLoading
 from zrb.llm.hook.registry import HookRegistry, hook_registry
 from zrb.llm.hook.skill_frontmatter import register_skill_frontmatter_hooks
-from zrb.llm.shared.agent_state import get_current_hook_manager, is_current_run_nested
+from zrb.llm.contracts.shared.agent_state import get_current_hook_manager, is_current_run_nested
 
 logger = logging.getLogger(__name__)
 

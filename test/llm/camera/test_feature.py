@@ -7,7 +7,7 @@ from zrb.config.config import CFG
 from zrb.llm.camera import AnyCameraBackend, CameraConfig, enable_camera
 from zrb.llm.camera.feature import create_camera_commands, create_camera_tools
 from zrb.llm.permission.capability import Capability, tool_capability
-from zrb.llm.shared.agent_state import current_model
+from zrb.llm.contracts.shared.agent_state import current_model
 
 
 class FakeCamera(AnyCameraBackend):

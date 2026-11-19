@@ -8,7 +8,7 @@ from zrb.llm.camera.backend.auto import AutoCameraBackend
 from zrb.llm.camera.backend.ffmpeg import FfmpegCameraBackend
 from zrb.llm.camera.backend.remote import RemoteCameraBackend
 from zrb.llm.camera.backend.termux import TermuxCameraBackend
-from zrb.llm.util.face_server import get_remote_headers, get_remote_url
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
 
 if TYPE_CHECKING:
     from zrb.llm.camera.config import CameraConfig

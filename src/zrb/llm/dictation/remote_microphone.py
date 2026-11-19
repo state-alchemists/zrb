@@ -21,7 +21,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.echo_cancel import AudioCallback, Rechunker
-from zrb.llm.util.face_server import (
+from zrb.llm.contracts.util.face_server import (
     AUDIO_SAMPLE_WIDTH,
     MICROPHONE_PATH,
     check_audio_format,

@@ -16,7 +16,7 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.sandbox.policy import SandboxPolicy
 from zrb.llm.sandbox.state import current_sandbox_policy
-from zrb.llm.shared.agent_state import current_hook_manager
+from zrb.llm.contracts.shared.agent_state import current_hook_manager
 from zrb.util.contextvar_scope import scoped
 
 

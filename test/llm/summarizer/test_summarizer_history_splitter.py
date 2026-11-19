@@ -13,7 +13,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RequestUsage
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+from zrb.llm.contracts.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.summarizer.history_splitter import (
     FALLBACK_BUDGET_RATIO,
     TAIL_BUDGET_RATIO,

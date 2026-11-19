@@ -31,8 +31,8 @@ from typing import Callable, TypeVar
 
 from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
-from zrb.llm.util.deadline import create_deadline, get_earlier, get_remaining
-from zrb.llm.util.face_server import CAMERA_DEVICES_PATH, CAMERA_PATH
+from zrb.llm.contracts.util.deadline import create_deadline, get_earlier, get_remaining
+from zrb.llm.contracts.util.face_server import CAMERA_DEVICES_PATH, CAMERA_PATH
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)

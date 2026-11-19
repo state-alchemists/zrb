@@ -21,7 +21,7 @@ from harness import (
 from tasks import BROKEN_FIXTURE, FAILING_TEST_IN_LOG, TASKS, TASKS_BY_NAME
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 
 
 def _task(**overrides) -> EvalTask:

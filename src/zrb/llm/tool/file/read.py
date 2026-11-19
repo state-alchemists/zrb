@@ -9,9 +9,9 @@ from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import record_observed, record_observed_binary
 from zrb.llm.tool.purpose import Purpose, requires_purpose
-from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
-from zrb.llm.util.image_scale import scale_image_bytes
-from zrb.llm.util.pdf import extract_pdf_text
+from zrb.llm.contracts.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
+from zrb.llm.contracts.util.image_scale import scale_image_bytes
+from zrb.llm.contracts.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:

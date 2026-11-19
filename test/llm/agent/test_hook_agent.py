@@ -21,8 +21,8 @@ from zrb.llm.agent.hook_agent import create_agent_hook, resolve_agent_hook_tools
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.schema import AgentHookConfig
 from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.shared.tool_registry import tool_registry
-from zrb.llm.shared.tool_resolver import resolved_tool_name
+from zrb.llm.contracts.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_resolver import resolved_tool_name
 
 
 def _agent_returning(output):
@@ -157,11 +157,11 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
     mock_config, mock_module = _patched_agent(agent_cls)
     with (
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tools",
             return_value=[],
         ),
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tool_factories",
             return_value=[],
         ),
         mock_config,
@@ -189,11 +189,11 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
 
     with (
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tools",
             return_value=[flaky_tool],
         ),
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tool_factories",
             return_value=[],
         ),
     ):
@@ -222,11 +222,11 @@ async def test_resolved_agent_hook_tools_are_undeferred():
 
     with (
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tools",
             return_value=[],
         ),
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tool_factories",
             return_value=[lambda ctx: [Tool(deferred_tool, defer_loading=True)]],
         ),
     ):
@@ -258,11 +258,11 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         # wrap_tool builds around the resolved tool, below.
         patch("pydantic_ai.Agent", agent_cls),
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tools",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tools",
             return_value=[fake_log_activity],
         ),
         patch(
-            "zrb.llm.shared.tool_registry.tool_registry.get_tool_factories",
+            "zrb.llm.contracts.shared.tool_registry.tool_registry.get_tool_factories",
             return_value=[],
         ),
     ):

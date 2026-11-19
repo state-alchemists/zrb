@@ -87,7 +87,7 @@ flowchart TD
 
 ### How it runs
 
-**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `run_interactive_session` (`src/zrb/llm/ui/session.py`), after history and the first message are known. The task reaches it through `src/zrb/llm/shared/session_presentation.py`, so `task/` never imports `ui/`. It collects the task's UIs and calls each registered factory. Then:
+**Choosing the UI.** An interactive `zrb llm chat` builds its UI in `run_interactive_session` (`src/zrb/llm/ui/session.py`), after history and the first message are known. The task reaches it through `src/zrb/llm/contracts/shared/session_presentation.py`, so `task/` never imports `ui/`. It collects the task's UIs and calls each registered factory. Then:
 
 - nothing configured → the built-in terminal `UI`;
 - configured UIs with the default UI turned off → that one UI, or a `MultiUI` of several;

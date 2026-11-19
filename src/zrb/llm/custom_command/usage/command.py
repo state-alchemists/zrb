@@ -1,6 +1,6 @@
 """`/usage`: what the local log has consumed, accumulated by default.
 
-Reads the local usage log (`zrb.llm.shared.usage_log`) rather than asking a provider,
+Reads the local usage log (`zrb.llm.contracts.shared.usage_log`) rather than asking a provider,
 the way Claude Code's own `/usage` is computed from local session history. The
 numbers are pydantic-ai's, recorded at the end of each run: tokens, prompt-cache
 reads, request and tool-call counts, and a cost when the model is priced. A
@@ -35,7 +35,7 @@ from zrb.llm.custom_command.usage.tools import (
     get_registered_tool_names,
     render_tools_section,
 )
-from zrb.llm.shared.usage_log import (
+from zrb.llm.contracts.shared.usage_log import (
     COMPACTION_FORCED,
     KIND_SUMMARIZATION,
     UsageRecord,

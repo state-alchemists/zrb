@@ -13,7 +13,7 @@ import pytest
 from zrb.builtin.llm.chat import llm_chat
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.shared.tool_registry import tool_name
+from zrb.llm.contracts.shared.tool_registry import tool_name
 from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
 from zrb.llm.tool.delegate.background import get_background_registry
 

@@ -5,7 +5,7 @@ import os
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, store
+from zrb.llm.contracts.memory import paths, store
 from zrb.llm.tool.memory import forget, remember, search_memory
 
 
@@ -308,7 +308,7 @@ def test_a_store_path_that_is_a_file_answers_instead_of_raising(tmp_path, monkey
 def test_an_unwritable_store_is_reported_not_raised(store_dir, monkeypatch):
     """A tool that raises takes the turn with it; memory being unavailable is not
     a reason to lose an answer that was already composed."""
-    from zrb.llm.memory import paths as memory_paths
+    from zrb.llm.contracts.memory import paths as memory_paths
 
     def explode():
         raise PermissionError("read-only store")
@@ -335,7 +335,7 @@ def test_search_with_a_zero_limit_returns_nothing(store_dir):
 
 
 def test_a_diary_write_on_an_unwritable_store_answers(store_dir, monkeypatch):
-    from zrb.llm.memory import paths as memory_paths
+    from zrb.llm.contracts.memory import paths as memory_paths
 
     def explode():
         raise PermissionError("read-only store")

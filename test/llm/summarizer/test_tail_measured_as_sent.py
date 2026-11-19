@@ -24,7 +24,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.summarizer import summarize_history
 from zrb.llm.summarizer.history_splitter import (
     TAIL_BUDGET_RATIO,

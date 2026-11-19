@@ -8,8 +8,8 @@ from pathlib import Path
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
-from zrb.llm.util.prompt import get_path_references
-from zrb.llm.util.roster import cap_items
+from zrb.llm.contracts.util.prompt import get_path_references
+from zrb.llm.contracts.util.roster import cap_items
 from zrb.util.dir_search import split_config_dir_patterns
 from zrb.util.markdown import make_markdown_section
 

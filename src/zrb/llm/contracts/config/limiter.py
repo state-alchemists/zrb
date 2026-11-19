@@ -1,0 +1,546 @@
+import asyncio
+import time
+from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
+from zrb.config.config import CFG
+from zrb.llm.contracts.shared.agent_state import get_current_llm_limiter
+from zrb.llm.contracts.util.capabilities import model_capabilities
+from zrb.util.cli.style import stylize_info
+
+# What one binary attachment (an image, after `scale_image_bytes`) is counted
+# as: roughly Anthropic's ~1.15-megapixel image. Its bytes are never counted
+# as text, which made a 333 KB screenshot ~240k tokens and emptied history.
+ATTACHMENT_TOKEN_ESTIMATE = 1600
+# One token under tiktoken and four characters under the char/4 fallback, so
+# both counters see ATTACHMENT_TOKEN_ESTIMATE tokens.
+_ATTACHMENT_STAND_IN = " the" * ATTACHMENT_TOKEN_ESTIMATE
+
+
+def is_pinned(value: int | None, env_key: str) -> bool:
+    """Whether a value was explicitly chosen: set directly, or pinned by its own env var."""
+    return value is not None or CFG.is_env_set(env_key)
+
+
+def is_turn_start(msg: Any) -> bool:
+    """Identify start of a new user interaction (User Prompt without Tool Return)."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ToolReturnPart, UserPromptPart
+
+    if not isinstance(msg, ModelRequest):
+        return False
+    has_user = any(isinstance(p, UserPromptPart) for p in msg.parts)
+    has_return = any(isinstance(p, ToolReturnPart) for p in msg.parts)
+    return has_user and not has_return
+
+
+@dataclass(frozen=True)
+class _HistoryTokenCosts:
+    """Per-message token costs of a history, plus its movable instruction window.
+
+    ``last_instruction[i]`` is the index of the instruction a request at ``i``
+    would carry, or -1 when none is left; the active instruction's cost moves
+    as old messages are pruned from the front.
+    """
+
+    body: list[int]
+    instruction: list[int]
+    last_instruction: list[int]
+
+    def body_total(self, start: int) -> int:
+        """Body cost of every message from *start* on."""
+        return sum(self.body[start:])
+
+    def instruction_cost_at(self, from_index: int) -> int:
+        """Cost of the instruction window that is active from *from_index* on."""
+        last = self.last_instruction[from_index]
+        return self.instruction[last] if last >= 0 else 0
+
+
+class LLMLimiter:
+    """Manage context-window and rate limits for LLM requests.
+
+    Pacing (`acquire`) is opt-in through `CFG.LLM_RATE_LIMIT_ENABLED`; context
+    trimming (`fit_context_window`) always applies, because exceeding the
+    provider's window is an error rather than a delay.
+    """
+
+    def __init__(self):
+        self.request_log: deque[float] = deque()
+        self.token_log: deque[tuple[float, int]] = deque()
+
+        self._enabled: bool | None = None
+        self._max_request_per_minute: int | None = None
+        self._max_token_per_minute: int | None = None
+        self._max_token_per_request: int | None = None
+        self._throttle_check_interval: float | None = None
+
+    @property
+    def pacing_enabled(self) -> bool:
+        """Whether `acquire` paces requests (`CFG.LLM_RATE_LIMIT_ENABLED` unless overridden)."""
+        if self._enabled is not None:
+            return self._enabled
+        return bool(getattr(CFG, "LLM_RATE_LIMIT_ENABLED", False))
+
+    @pacing_enabled.setter
+    def pacing_enabled(self, value: bool):
+        """Override pacing for this limiter, mostly so tests can drive `acquire`."""
+        self._enabled = value
+
+    @property
+    def max_request_per_minute(self) -> int:
+        """Requests allowed per minute (`CFG.LLM_MAX_REQUEST_PER_MINUTE` unless overridden); zero blocks all requests."""
+        if self._max_request_per_minute is not None:
+            return self._max_request_per_minute
+        cfg_value = getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None)
+        return cfg_value if cfg_value is not None else 60
+
+    @max_request_per_minute.setter
+    def max_request_per_minute(self, value: int):
+        """Override the per-minute request cap for this limiter."""
+        self._max_request_per_minute = value
+
+    @property
+    def max_token_per_minute(self) -> int:
+        """Tokens allowed per minute (`CFG.LLM_MAX_TOKEN_PER_MINUTE` unless overridden); zero blocks all requests."""
+        if self._max_token_per_minute is not None:
+            return self._max_token_per_minute
+        cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None)
+        return cfg_value if cfg_value is not None else 100_000
+
+    @max_token_per_minute.setter
+    def max_token_per_minute(self, value: int):
+        """Override the per-minute token cap for this limiter."""
+        self._max_token_per_minute = value
+
+    @property
+    def max_token_per_request(self) -> int:
+        """Tokens allowed per request (`CFG.LLM_MAX_TOKEN_PER_REQUEST` unless overridden); zero blocks all requests."""
+        if self._max_token_per_request is not None:
+            return self._max_token_per_request
+        cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None)
+        return cfg_value if cfg_value is not None else 128_000
+
+    @max_token_per_request.setter
+    def max_token_per_request(self, value: int):
+        """Override the per-request token cap for this limiter."""
+        self._max_token_per_request = value
+
+    def get_effective_context_window(self, model: Any = None) -> int:
+        """Return *model*'s known context window, or the configured cap.
+
+        `max_token_per_request` defaults to a free-tier-safe rate limit, not a
+        context-window estimate: for a model with a larger known window, that
+        default would otherwise silently throttle every conversation to it. It
+        still wins as a real ceiling once the caller (env var or
+        `max_token_per_request` setter) has actually chosen it, cost control
+        included.
+        """
+        model_window = model_capabilities.get(model).context_window
+        if model_window is None or model_window <= 0:
+            return self.max_token_per_request
+        if is_pinned(self._max_token_per_request, "LLM_MAX_TOKEN_PER_REQUEST"):
+            return min(self.max_token_per_request, model_window)
+        return model_window
+
+    @property
+    def throttle_check_interval(self) -> float:
+        """Seconds slept between capacity re-checks while throttled (`CFG.LLM_THROTTLE_SLEEP`, or 0.1 when that is 0)."""
+        if self._throttle_check_interval is not None:
+            return self._throttle_check_interval
+        return getattr(CFG, "LLM_THROTTLE_SLEEP", None) or 0.1
+
+    @throttle_check_interval.setter
+    def throttle_check_interval(self, value: float):
+        """Override the throttle poll interval for this limiter."""
+        self._throttle_check_interval = value
+
+    @property
+    def use_tiktoken(self) -> bool:
+        """Whether tokens are counted with tiktoken rather than estimated.
+
+        Accurate but slower, and requires the `tiktoken` package. Off by
+        default; enable with `TIKTOKEN_ENABLED`.
+        """
+        return CFG.TIKTOKEN_ENABLED
+
+    @property
+    def tiktoken_encoding(self) -> str:
+        """Encoding name used when `use_tiktoken` is on (default `cl100k_base`)."""
+        return CFG.TIKTOKEN_ENCODING_NAME
+
+    def fit_context_window(
+        self,
+        history: list[Any],
+        new_message: Any,
+        reserved_tokens: int = 0,
+        model: Any = None,
+    ) -> list[Any]:
+        """Trim complete oldest turns to fit the context limit."""
+        if not history:
+            return history
+
+        context_limit = int(self.get_effective_context_window(model) * 0.90)
+        # Always subtract reserved_tokens: it reflects the current system
+        # prompt, while a usage anchor reflects an earlier, possibly smaller one.
+        available = max(0, context_limit - reserved_tokens)
+
+        new_msg_tokens = self._count_tokens(new_message)
+        if new_msg_tokens > available:
+            return []
+
+        costs = self._history_token_costs(history)
+        start = self._first_fitting_turn(history, costs, new_msg_tokens, available)
+        return history[start:]
+
+    def _first_fitting_turn(
+        self,
+        history: list[object],
+        costs: _HistoryTokenCosts,
+        new_msg_tokens: int,
+        available: int,
+    ) -> int:
+        """Index of the oldest message to keep so history plus the new message fits.
+
+        Returns ``len(history)`` when no turn boundary can make it fit. Turns are
+        dropped whole from the front, so the running total is recomputed whenever
+        a drop crosses the usage anchor or moves the active instruction window.
+        """
+        n = len(history)
+
+        usage_anchor = self._usage_anchor(history)
+        if usage_anchor is not None:
+            anchor_index, anchor_tokens = usage_anchor
+            total_tokens = (
+                anchor_tokens
+                + costs.body_total(anchor_index + 1)
+                + costs.instruction_cost_at(anchor_index + 1)
+            )
+        else:
+            total_tokens = costs.body_total(0) + costs.instruction_cost_at(0)
+
+        if total_tokens + new_msg_tokens <= available:
+            return 0
+
+        start = 0
+        while start < n:
+            if total_tokens + new_msg_tokens <= available:
+                break
+
+            next_turn = -1
+            for i in range(start + 1, n):
+                if is_turn_start(history[i]):
+                    next_turn = i
+                    break
+
+            if next_turn == -1:
+                if usage_anchor is not None:
+                    # The anchor is in the final turn. It cannot shrink while
+                    # retained, so assess that turn locally before dropping it.
+                    usage_anchor = None
+                    total_tokens = costs.body_total(start) + costs.instruction_cost_at(
+                        start
+                    )
+                    if total_tokens + new_msg_tokens <= available:
+                        break
+                # No remaining safe turn boundary can make this fit.
+                return n
+
+            if usage_anchor is not None and next_turn > usage_anchor[0]:
+                # The anchor's provider-reported input covered the older slice.
+                # Once that response is dropped, resume local accounting for the
+                # remaining messages rather than treating stale usage as current.
+                usage_anchor = None
+                total_tokens = costs.body_total(next_turn) + costs.instruction_cost_at(
+                    next_turn
+                )
+            else:
+                # Dropped turns precede any usage anchor, so their per-message
+                # estimate is the only measure of the saving.
+                for i in range(start, next_turn):
+                    total_tokens -= costs.body[i]
+
+                # Adjust for the instruction-window shift: the "active last instruction"
+                # may change as old messages are pruned from the front.
+                total_tokens += costs.instruction_cost_at(
+                    next_turn
+                ) - costs.instruction_cost_at(start)
+
+            start = next_turn
+
+        return start
+
+    async def acquire(
+        self,
+        content: Any,
+        notifier: Callable[[str], Any] | None = None,
+        estimated_tokens: int | None = None,
+    ):
+        """Wait until the request fits the current rate limits, then record it.
+
+        *content* is counted here unless *estimated_tokens* already carries the
+        number: a turn that has just fitted its history knows its own size, and
+        counting it again would walk the whole history to be told what the fit
+        already said.
+
+        Returns immediately when pacing is off (`CFG.LLM_RATE_LIMIT_ENABLED`), and
+        records nothing: a later enable must not inherit a window nobody was
+        pacing against.
+        """
+        if not self.pacing_enabled:
+            return
+        if estimated_tokens is None:
+            estimated_tokens = self._count_tokens(content)
+        # A request over the whole per-minute budget can never fit: waiting
+        # for an empty window is all that helps, so it goes then, never hangs.
+        # A budget of 0 still blocks everything.
+        budget = self.max_token_per_minute
+        needed = min(estimated_tokens, budget) if budget > 0 else estimated_tokens
+
+        self.prune_logs()
+
+        notified = False
+        while not self.can_proceed(needed):
+            wait_time = self.calculate_wait_time(needed)
+            reason = self.get_limit_reason(needed)
+
+            if notifier:
+                msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
+                notifier(stylize_info(msg))
+                notified = True
+
+            await asyncio.sleep(self.throttle_check_interval)
+            self.prune_logs()
+
+        if notified and notifier:
+            notifier("\n")
+
+        now = time.time()
+        self.request_log.append(now)
+        self.token_log.append((now, estimated_tokens))
+
+    def count_tokens(self, content: Any) -> int:
+        """Public alias for internal counter."""
+        return self._count_tokens(content)
+
+    def count_content_tokens(self, content: object) -> int:
+        """Tokens in *content* itself, ignoring a usage anchor inside it.
+
+        `count_tokens` prefers a provider-reported usage count when the content
+        holds one, because that is what the request it describes cost.
+        That request covered every message up to the response carrying it, so
+        the number says nothing about a window cut out of that history: used on
+        a suffix it returns the unsplit history's size however much the suffix
+        dropped. This counts the content alone, which is the question to ask
+        when the answer is about the content rather than about a past request.
+        """
+        return self._count_text_tokens(self.to_str(content))
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        """Truncates a string to a maximum number of tokens."""
+        if self.use_tiktoken:
+            try:
+                # lazy: heavy third-party
+                import tiktoken
+
+                enc = tiktoken.get_encoding(self.tiktoken_encoding)
+                tokens = enc.encode(text)
+                if len(tokens) > max_tokens:
+                    truncated_tokens = tokens[:max_tokens]
+                    return enc.decode(truncated_tokens)
+                return text
+            except Exception as e:
+                # Fallback if tiktoken fails for any reason (missing package,
+                # unknown encoding name, corrupt/unfetchable BPE cache, …)
+                CFG.LOGGER.debug(f"tiktoken truncate fallback: {e}")
+        estimated_chars = max_tokens * 4
+        if len(text) > estimated_chars:
+            return text[:estimated_chars]
+        return text
+
+    def _history_token_costs(self, history: list[Any]) -> _HistoryTokenCosts:
+        """Precompute body and active-instruction costs for each history suffix."""
+        body_tokens = [
+            self._count_tokens(self.to_str(message, skip_instructions=True))
+            for message in history
+        ]
+        instruction_tokens = [self._instruction_tokens(message) for message in history]
+        last_instruction = [-1] * (len(history) + 1)
+        for index in range(len(history) - 1, -1, -1):
+            last_instruction[index] = (
+                index if instruction_tokens[index] > 0 else last_instruction[index + 1]
+            )
+        return _HistoryTokenCosts(body_tokens, instruction_tokens, last_instruction)
+
+    def _instruction_tokens(self, message: Any) -> int:
+        """Return *message*'s instruction cost, excluding it when absent."""
+        instructions = getattr(message, "instructions", None)
+        if not instructions:
+            return 0
+        return self._count_tokens(self.to_str(instructions, skip_instructions=True))
+
+    def _count_tokens(self, content: Any) -> int:
+        if isinstance(content, list):
+            anchor = self._usage_anchor(content)
+            if anchor is not None:
+                index, tokens = anchor
+                return tokens + self._count_text_tokens(
+                    self.to_str(content[index + 1 :])
+                )
+        return self._count_text_tokens(self.to_str(content))
+
+    def _count_text_tokens(self, text: str) -> int:
+        if self.use_tiktoken:
+            try:
+                # lazy: heavy third-party
+                import tiktoken
+
+                enc = tiktoken.get_encoding(self.tiktoken_encoding)
+                return len(enc.encode(text))
+            except Exception as e:
+                # Fall back to char/4: counting runs before every model call
+                # and must never crash.
+                CFG.LOGGER.debug(f"tiktoken count fallback: {e}")
+        return len(text) // 4
+
+    def _usage_anchor(self, messages: list[Any]) -> tuple[int, int] | None:
+        for index in range(len(messages) - 1, -1, -1):
+            usage = getattr(messages[index], "usage", None)
+            input_tokens = getattr(usage, "input_tokens", 0) if usage else 0
+            if isinstance(input_tokens, int) and input_tokens > 0:
+                output_tokens = getattr(usage, "output_tokens", 0) or 0
+                return index, input_tokens + output_tokens
+        return None
+
+    def to_str(self, content: Any, skip_instructions: bool = False) -> str:
+        """Flatten arbitrary message content into a string for token counting."""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, (int, float, bool)) or content is None:
+            return str(content)
+        # Collections are walked directly rather than via json.dumps/str(),
+        # which are slow on large message lists.
+        if isinstance(content, list):
+            return self._list_to_str(content, skip_instructions)
+        if isinstance(content, dict):
+            return self._dict_to_str(content, skip_instructions)
+        return self._object_to_str(content, skip_instructions)
+
+    def _list_to_str(self, content: list[Any], skip_instructions: bool) -> str:
+        """Flatten a list, appending only the newest `instructions` it carries.
+
+        Pydantic AI sends the current instructions and does not replay
+        historical ones, so counting every element's instructions would bill
+        the caller for text the model never sees.
+        """
+        res = "".join(self.to_str(item, skip_instructions=True) for item in content)
+        if skip_instructions:
+            return res
+        for item in reversed(content):
+            instructions = getattr(item, "instructions", None)
+            if instructions:
+                return res + self.to_str(instructions, skip_instructions=True)
+        return res
+
+    def _dict_to_str(self, content: dict[Any, Any], skip_instructions: bool) -> str:
+        """Flatten a mapping as space-separated `key: value` pairs."""
+        return " ".join(
+            f"{self.to_str(key, skip_instructions=skip_instructions)}: "
+            f"{self.to_str(value, skip_instructions=skip_instructions)}"
+            for key, value in content.items()
+        )
+
+    def _object_to_str(self, content: Any, skip_instructions: bool) -> str:
+        """Flatten a message object by the content-bearing fields it exposes.
+
+        Covers `ModelRequest`/`ModelResponse` (`parts`, `instructions`) and the
+        part types (`content` on `UserPromptPart`/`TextPart`/`ToolReturnPart`/
+        `SystemPromptPart`, `args` on `ToolCallPart`). `instructions` counts
+        only when this object is the latest context, and only when set;
+        the other three count whenever the attribute is present, so a field
+        explicitly set to `None` still contributes, as it always has.
+        """
+        if isinstance(getattr(content, "data", None), bytes):
+            return _ATTACHMENT_STAND_IN  # `BinaryContent`
+        fields = ["parts", "content", "args"]
+        if not skip_instructions and getattr(content, "instructions", None):
+            fields.insert(1, "instructions")
+        res = ""
+        for field in fields:
+            if not hasattr(content, field):
+                continue
+            res += self.to_str(
+                getattr(content, field),
+                # `instructions` is already the newest by the time it is here.
+                skip_instructions=(
+                    True if field == "instructions" else skip_instructions
+                ),
+            )
+        if res:
+            return res
+        try:
+            return str(content)
+        except Exception:
+            return ""
+
+    def prune_logs(self):
+        """Drop request/token log entries older than the 60s rate window."""
+        now = time.time()
+        window_start = now - 60
+
+        while self.request_log and self.request_log[0] < window_start:
+            self.request_log.popleft()
+
+        while self.token_log and self.token_log[0][0] < window_start:
+            self.token_log.popleft()
+
+    def can_proceed(self, tokens: int) -> bool:
+        """Whether a request needing `tokens` fits under the current rate limits."""
+        # A limit of 0 blocks everything: a request budget of 0 never admits
+        # any request, and a token budget of 0 rejects any positive token ask.
+        requests_ok = len(self.request_log) < self.max_request_per_minute
+
+        current_tokens = sum(t for _, t in self.token_log)
+        tokens_ok = (current_tokens + tokens) <= self.max_token_per_minute
+
+        return requests_ok and tokens_ok
+
+    def get_limit_reason(self, tokens: int) -> str:
+        """Which limit (requests or tokens) is currently blocking progress."""
+        if len(self.request_log) >= self.max_request_per_minute:
+            return f"Max Requests ({self.max_request_per_minute}/min)"
+        return f"Max Tokens ({self.max_token_per_minute}/min)"
+
+    def calculate_wait_time(self, tokens: int) -> float:
+        """Seconds to wait before a request needing `tokens` would be allowed."""
+        now = time.time()
+        wait = 1.0
+
+        # With a request budget of 0 the log can be empty while still over-limit,
+        # so the oldest entry is read only when one exists.
+        if len(self.request_log) >= self.max_request_per_minute:
+            if self.request_log:
+                oldest = self.request_log[0]
+                wait = max(0.1, 60 - (now - oldest))
+
+        current_tokens = sum(t for _, t in self.token_log)
+        if current_tokens + tokens > self.max_token_per_minute:
+            needed = (current_tokens + tokens) - self.max_token_per_minute
+            freed = 0
+            for ts, count in self.token_log:
+                freed += count
+                if freed >= needed:
+                    wait = max(wait, 60 - (now - ts))
+                    break
+
+        return wait
+
+
+llm_limiter = LLMLimiter()
+
+
+def get_run_llm_limiter() -> LLMLimiter:
+    """The current run's limiter, else the process-wide one."""
+    return get_current_llm_limiter() or llm_limiter

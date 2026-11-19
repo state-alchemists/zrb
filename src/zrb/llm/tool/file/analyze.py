@@ -4,15 +4,15 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import get_run_llm_limiter
-from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.permission import Capability, tag
-from zrb.llm.shared.agent_runner import create_agent, run_agent
-from zrb.llm.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.tool.file.read import read_file
 from zrb.llm.tool.file.search import search_files
 from zrb.llm.tool.purpose import Purpose, requires_purpose
-from zrb.llm.util.attachment import get_media_type
+from zrb.llm.contracts.util.attachment import get_media_type
 
 
 @requires_purpose

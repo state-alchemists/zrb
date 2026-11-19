@@ -13,7 +13,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.shared.input_source import (
+from zrb.llm.contracts.shared.input_source import (
     BACKGROUND_INPUT,
     KEYBOARD_INPUT,
     InputProvenance,

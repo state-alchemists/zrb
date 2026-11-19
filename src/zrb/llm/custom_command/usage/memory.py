@@ -16,9 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from zrb.config.config import CFG
-from zrb.llm.memory import render, store
-from zrb.llm.memory.model import KIND_FACT, KIND_LOOP
-from zrb.llm.shared.usage_log import UsageRecord
+from zrb.llm.contracts.memory import render, store
+from zrb.llm.contracts.memory.model import KIND_FACT, KIND_LOOP
+from zrb.llm.contracts.shared.usage_log import UsageRecord
 
 # The store's three tools. Nothing else writes it, so these calls are the whole
 # of a window's trace of it.

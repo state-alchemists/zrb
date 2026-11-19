@@ -19,7 +19,7 @@ from zrb.util.cli.style import stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
-    from zrb.llm.config.limiter import LLMLimiter
+    from zrb.llm.contracts.config.limiter import LLMLimiter
 else:
     ModelMessage = Any
 

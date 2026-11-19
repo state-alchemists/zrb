@@ -10,7 +10,7 @@ from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.util.choice_spec_format import get_option_label
+from zrb.llm.contracts.util.choice_spec_format import get_option_label
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:

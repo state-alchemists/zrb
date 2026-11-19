@@ -96,8 +96,8 @@ class UIDisplayDefaults:
 
     def replay_history(self, messages: "list[ModelMessage]") -> None:
         """Write the resumed conversation as plain text."""
-        # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
-        from zrb.llm.util.history_formatter import format_history_as_text
+        # lazy: zrb.llm.contracts.util.history_formatter transitively loads pydantic_ai.
+        from zrb.llm.contracts.util.history_formatter import format_history_as_text
 
         self.append_to_output(format_history_as_text(messages))
 

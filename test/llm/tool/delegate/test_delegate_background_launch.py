@@ -214,7 +214,7 @@ async def test_background_inherits_parent_permission_context(manager):
     mode, and auto-approves tool calls (yolo=True) so background agents never
     block. Deny rules in the permission policy still block at execution time."""
     from zrb.llm.approval.approval_channel import current_approval_channel
-    from zrb.llm.shared.ambient_state import get_interactive_mode, set_interactive_mode
+    from zrb.llm.contracts.shared.ambient_state import get_interactive_mode, set_interactive_mode
 
     sentinel_channel = MagicMock()
     captured = {}

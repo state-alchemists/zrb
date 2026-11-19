@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from zrb.llm.util.deadline import communicate_within, get_remaining
+from zrb.llm.contracts.util.deadline import communicate_within, get_remaining
 
 _NO_TIME_LEFT = "no time left for this capture"
 

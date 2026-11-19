@@ -6,7 +6,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 
-from zrb.llm.shared.ambient_state import get_current_speech_voice
+from zrb.llm.contracts.shared.ambient_state import get_current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import (
     AnySpeechBackend,
     SpeechMadeNoAudio,

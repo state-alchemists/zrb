@@ -47,8 +47,8 @@ async def please(ctx: AnyContext) -> str:
     # lazy: pydantic_ai is a heavy extra — `please` sits on `cli` for every run,
     # and a run that never calls it should not carry the agent stack.
     from zrb.llm.agent import create_agent
-    from zrb.llm.config.model_resolver import resolve_configured_small_model
-    from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
+    from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
     model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)

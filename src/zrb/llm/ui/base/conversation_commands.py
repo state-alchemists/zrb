@@ -27,9 +27,9 @@ from zrb.llm.history_manager.conversation_naming import (
     suggest_slug,
     with_slug,
 )
-from zrb.llm.shared.ambient_state import get_session_ownership_key
-from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.subagent_session_naming import (
+from zrb.llm.contracts.shared.ambient_state import get_session_ownership_key
+from zrb.llm.contracts.util.attachment import get_media_type, get_oversized_by
+from zrb.llm.contracts.util.subagent_session_naming import (
     parse_delegated_agent_id,
     parse_delegated_session,
 )
@@ -532,7 +532,7 @@ class BaseUIConversationCommands:
         except Exception:
             return ""
         # lazy: tests patch extract_last_response_text; hoisting bypasses the mock
-        from zrb.llm.util.history_formatter import extract_last_response_text
+        from zrb.llm.contracts.util.history_formatter import extract_last_response_text
 
         return extract_last_response_text(messages)
 
@@ -653,7 +653,7 @@ class BaseUIConversationCommands:
             )
             return None
         # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-        from zrb.llm.util.history_formatter import format_history_as_text
+        from zrb.llm.contracts.util.history_formatter import format_history_as_text
 
         return format_history_as_text(messages, full=True)
 

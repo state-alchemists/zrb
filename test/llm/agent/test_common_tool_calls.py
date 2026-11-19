@@ -259,7 +259,7 @@ async def test_call_tool_pretooluse_fires_on_the_run_hook_manager():
     from zrb.llm.agent.common import wrap_toolset
     from zrb.llm.hook.contracts.types import HookEvent
     from zrb.llm.hook.execution.executor import HookExecutionResult
-    from zrb.llm.shared.agent_state import current_hook_manager
+    from zrb.llm.contracts.shared.agent_state import current_hook_manager
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     deny = HookExecutionResult(

@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context.context import render_live_context
-from zrb.llm.shared.ambient_state import input_provenance
-from zrb.llm.shared.input_source import InputProvenance
+from zrb.llm.contracts.shared.ambient_state import input_provenance
+from zrb.llm.contracts.shared.input_source import InputProvenance
 
 
 def test_live_context_includes_input_provenance():
@@ -103,7 +103,7 @@ def test_live_context_includes_active_worktrees(tmp_path):
     with patch(
         "zrb.llm.prompt.live_context.context.os.getcwd", return_value=str(current)
     ):
-        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
+        with patch("zrb.llm.contracts.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
 
                 def run_git(args, **kwargs):

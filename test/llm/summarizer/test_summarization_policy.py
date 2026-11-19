@@ -16,7 +16,7 @@ from pydantic_ai.messages import (
 
 from zrb.config.config import CFG
 from zrb.config.helper import CONVERSATIONAL_TRIGGER_DEFAULT_CEILING
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.summarizer import history_summarizer
 from zrb.llm.summarizer.history_splitter import TAIL_BUDGET_RATIO, split_history
 

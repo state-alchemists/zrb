@@ -15,7 +15,7 @@ from pydantic_ai.models.test import TestModel
 
 from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.tool_call.handler import ToolCallHandler
 
 

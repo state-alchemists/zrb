@@ -24,9 +24,9 @@ from zrb.llm.agent.tool_seed import seed_default_tools  # noqa: F401
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig
-from zrb.llm.shared.delegation_api import registered_sub_agent_manager
-from zrb.llm.shared.tool_registry import tool_registry
-from zrb.llm.shared.tool_resolver import resolve_tools_by_name, resolved_tool_name
+from zrb.llm.contracts.shared.delegation_api import registered_sub_agent_manager
+from zrb.llm.contracts.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_resolver import resolve_tools_by_name, resolved_tool_name
 
 
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
@@ -162,7 +162,7 @@ def _event_text(context: HookContext) -> str:
         messages = payload.get("turn") or payload.get("history")
         if messages:
             # lazy: heavy third-party (transitively imports pydantic_ai)
-            from zrb.llm.util.history_formatter import format_history_as_text
+            from zrb.llm.contracts.util.history_formatter import format_history_as_text
 
             return format_history_as_text(messages, full=True)
     if payload:

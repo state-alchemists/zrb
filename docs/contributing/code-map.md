@@ -53,7 +53,7 @@ Inside `llm/`:
 
 ## An `__init__.py` is optional
 
-A package here does not need an `__init__.py`: many directories under `src/zrb` are implicit namespace packages, including packages a reader works in daily (`cmd/`, `util/`, `config/`, `group/`, `runner/`). The file earns its place two ways: it curates names with a re-export (`llm/ui/`, `llm/tool/`), or it carries a package-level note (`llm/shared/` explains its layer rule). `zrb/llm/` itself has none, so that a narrow `zrb.llm.sandbox` import does not pull the whole LLM stack (changelog 2.58.0). Add one when the package has something to curate or say — not to make it "real".
+A package here does not need an `__init__.py`: many directories under `src/zrb` are implicit namespace packages, including packages a reader works in daily (`cmd/`, `util/`, `config/`, `group/`, `runner/`). The file earns its place two ways: it curates names with a re-export (`llm/ui/`, `llm/tool/`), or it carries a package-level note (`llm/contracts/shared/` explains its layer rule). `zrb/llm/` itself has none, so that a narrow `zrb.llm.sandbox` import does not pull the whole LLM stack (changelog 2.58.0). Add one when the package has something to curate or say — not to make it "real".
 
 ## Test tree
 
@@ -64,11 +64,11 @@ A package here does not need an `__init__.py`: many directories under `src/zrb` 
 - **A new task under `builtin/`** must also be imported in `builtin/__init__.py` and added to its `__all__`, or it never appears in the CLI. Guarded by `test/builtin/test_registration_completeness.py`, including the scan for a module `__init__.py` never imports. A task that exists only as another task's `upstream=` dependency belongs in that file's `INTERNAL_TASKS` map, with its reason.
 - **A new tool under `llm/tool/`** must also be registered *and* `tag()`-ed with a `Capability` in `llm/agent/tool_seed.py` (`seed_default_tools`), or it resolves to `Capability.UNKNOWN` (denied in plan mode). Guarded by `test_every_registered_tool_carries_a_known_capability` in `test/llm/test_common_tools.py`. A *third-party* or MCP tool may stay untagged — `UNKNOWN` is deliberately safe-by-default there.
 
-`hook/manager/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`), because `zrb.llm.agent` itself depends on `hook.manager`. The real builder (`agent/hook_agent.py`) registers when any name re-exported by `zrb.llm.agent` is first resolved (ADR-0096); if it is missing, the hook fails with a logged warning instead of crashing. The engine also registers its `AgentRunner` adapter at import, so lower layers call `zrb.llm.shared.agent_runner.create_agent`/`run_agent`.
+`hook/manager/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`), because `zrb.llm.agent` itself depends on `hook.manager`. The real builder (`agent/hook_agent.py`) registers when any name re-exported by `zrb.llm.agent` is first resolved (ADR-0096); if it is missing, the hook fails with a logged warning instead of crashing. The engine also registers its `AgentRunner` adapter at import, so lower layers call `zrb.llm.contracts.shared.agent_runner.create_agent`/`run_agent`.
 
 ## LLM prompt system
 
-See `src/zrb/llm/prompt/manager.py` and [Prompts](../architecture/2-extension-surface/prompts.md) for the design, defaults and profile ladder. Section wording lives in `src/zrb/llm/shared/markdown/`, read by `src/zrb/llm/shared/prompt_text.py`. ADR-0049 records the invariants.
+See `src/zrb/llm/prompt/manager.py` and [Prompts](../architecture/2-extension-surface/prompts.md) for the design, defaults and profile ladder. Section wording lives in `src/zrb/llm/contracts/shared/markdown/`, read by `src/zrb/llm/contracts/shared/prompt_text.py`. ADR-0049 records the invariants.
 
 ---
 

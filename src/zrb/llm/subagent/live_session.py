@@ -13,23 +13,23 @@ from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.authority_snapshot import capture_current_authority
-from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
 from zrb.llm.history_manager.conversation_naming import (
     ConversationNamingError,
     suggest_slug,
 )
-from zrb.llm.shared.agent_activity import agent_activity_registry
-from zrb.llm.shared.delegation_api import (
+from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
+from zrb.llm.contracts.shared.delegation_api import (
     register_live_session_registry,
     register_start_titling,
 )
-from zrb.llm.shared.live_delivery import steer_into_live_run
-from zrb.llm.shared.subagent_turn import SubAgentTurn, run_subagent_turn
+from zrb.llm.contracts.shared.live_delivery import steer_into_live_run
+from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn
 from zrb.llm.ui.any_ui import AnyUI
 
 if TYPE_CHECKING:
     from zrb.llm.agent.run.authority_snapshot import AuthoritySnapshot
-    from zrb.llm.shared.delegation_api import LiveSessionRegistryAPI
+    from zrb.llm.contracts.shared.delegation_api import LiveSessionRegistryAPI
     from zrb.llm.subagent.manager.manager import SubAgentManager
     from zrb.llm.ui.buffered import BufferedUI
 
@@ -388,8 +388,8 @@ def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
     must not break the drain.
     """
     parent = entry.buffered_ui.parent_ui
-    # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
-    from zrb.llm.util.history_formatter import extract_last_response_text
+    # lazy: zrb.llm.contracts.util.history_formatter transitively loads pydantic_ai.
+    from zrb.llm.contracts.util.history_formatter import extract_last_response_text
 
     latest_response = extract_last_response_text(entry.history)
     if not latest_response:

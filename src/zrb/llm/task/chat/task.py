@@ -17,14 +17,14 @@ from typing import TYPE_CHECKING, Unpack
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.model_resolver import require_model_hook
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.model_resolver import require_model_hook
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.shared.stream_observer import StreamObserver
+from zrb.llm.contracts.shared.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.chat.teardown import release_chat_resources, settle_background_hooks

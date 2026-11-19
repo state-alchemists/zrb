@@ -11,7 +11,7 @@ import logging
 import pytest
 
 from zrb.llm.agent.types import ModelRequest, UserPromptPart
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.contracts.config.limiter import llm_limiter
 from zrb.llm.skill import reattach
 from zrb.llm.skill.activation import build_activation_block
 from zrb.llm.skill.manager import Skill, skill_manager

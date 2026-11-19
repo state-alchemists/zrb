@@ -16,7 +16,7 @@ import pytest
 
 from zrb.llm.dictation import emotion_model
 from zrb.llm.dictation.emotion_model import EmotionWorker
-from zrb.llm.util.model_load import heavy_model_load
+from zrb.llm.contracts.util.model_load import heavy_model_load
 
 LABELS = ["happy", "sad"]
 SCORES = [0.9, 0.1]

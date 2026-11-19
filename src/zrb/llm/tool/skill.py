@@ -9,7 +9,7 @@ from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.skill.preload import format_preload_problems, resolve_preload
 from zrb.llm.tool.purpose import Purpose
-from zrb.llm.util.roster import cap_items, search_roster
+from zrb.llm.contracts.util.roster import cap_items, search_roster
 
 
 def create_activate_skill_tool(skill_manager: SkillManager | None = None):

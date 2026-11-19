@@ -7,7 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context.context import render_live_context
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
-from zrb.llm.shared.ambient_state import get_current_context_session
+from zrb.llm.contracts.shared.ambient_state import get_current_context_session
 
 
 class TestSystemContext:
@@ -249,7 +249,7 @@ class TestRenderLiveContext:
         "render_live_context should include git info when inside a git repo."
         ctx = MagicMock(spec=AnyContext)
 
-        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
+        with patch("zrb.llm.contracts.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
 
                 def side_effect(args, **kwargs):
@@ -270,7 +270,7 @@ class TestRenderLiveContext:
         ctx = MagicMock(spec=AnyContext)
         monkeypatch.setenv("ZRB_LLM_GIT_CMD_TIMEOUT", "3000")
 
-        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
+        with patch("zrb.llm.contracts.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(stdout="")
                 render_live_context(ctx)
@@ -371,7 +371,7 @@ class TestRenderLiveContext:
 
     def test_render_live_context_sets_interactive_mode_contextvar(self):
         "The ContextVar must be updated so the tool can read it later."
-        from zrb.llm.shared.ambient_state import (
+        from zrb.llm.contracts.shared.ambient_state import (
             get_interactive_mode,
             set_interactive_mode,
         )

@@ -26,7 +26,7 @@ from zrb.llm.approval.judge_state import (
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import ASK
-from zrb.llm.shared.ambient_state import get_interactive_mode
+from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
 from zrb.llm.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
@@ -39,7 +39,7 @@ from zrb.llm.tool_call.shell_call import (
     shell_command,
     shell_command_args,
 )
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from pydantic_ai import (
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import ToolCallPart
 
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.shared.agent_state import AnyToolConfirmation
+    from zrb.llm.contracts.shared.agent_state import AnyToolConfirmation
     from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -408,8 +408,8 @@ def _approve_via_yolo(
     policy_decision: str | None, force_ask: bool
 ) -> "ToolApproved | None":
     """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK."""
-    # lazy: tests patch zrb.llm.shared.agent_state.get_current_yolo; hoisting bypasses the mock
-    from zrb.llm.shared.agent_state import get_current_yolo
+    # lazy: tests patch zrb.llm.contracts.shared.agent_state.get_current_yolo; hoisting bypasses the mock
+    from zrb.llm.contracts.shared.agent_state import get_current_yolo
 
     if get_current_yolo() is not True or policy_decision == ASK or force_ask:
         return None

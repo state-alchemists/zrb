@@ -6,14 +6,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.llm.ui.base.user_echo import echo_user_message
-from zrb.llm.util.history_formatter import (
+from zrb.llm.contracts.util.history_formatter import (
     format_args,
     format_timestamp,
     outcome_icon,
     truncate,
 )
-from zrb.llm.util.live_context_block import split_live_context
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.util.live_context_block import split_live_context
+from zrb.llm.contracts.util.spoken import shown_text
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI

@@ -5,10 +5,10 @@
 Use this page as the short orientation to the LLM subsystem. For deep details, follow the links. It is the LLM slice only: the whole tree is in the [Code Map](../contributing/code-map.md), and the design is in [Architecture](../architecture/README.md).
 
 - Layers: L0 (contracts/leafs), L1 (capabilities), L2 (engine), L3 (orchestration), L4 (presentation). Lower layers do not import higher ones, except the lazy edges named in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`). Shared behaviour is exposed via L0 facades and registries. See ADR-0120.
-- Build/run agents from lower layers: import `from zrb.llm.shared.agent_runner import create_agent, run_agent` (not `zrb.llm.agent`).
-- Delegation from tools: `from zrb.llm.shared.delegation_api import default_sub_agent_manager, get_live_session_registry, start_titling`.
+- Build/run agents from lower layers: import `from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent` (not `zrb.llm.agent`).
+- Delegation from tools: `from zrb.llm.contracts.shared.delegation_api import default_sub_agent_manager, get_live_session_registry, start_titling`.
 - Resume a delegated session as a chat task: `from zrb.llm.resumed_session import create_resumed_chat_task` (a third unit of the orchestration layer: it names `task/`, `subagent/` names it, and neither package names the other).
-- Run one sub-agent turn (the delegate tool and a live-session continuation both do): `from zrb.llm.shared.subagent_turn import SubAgentTurn, run_subagent_turn`.
+- Run one sub-agent turn (the delegate tool and a live-session continuation both do): `from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn`.
 - Multimodal helper: `from zrb.llm.tool.multimodal_describe import ...`.
 
 Key units (one-liners)
@@ -22,8 +22,8 @@ Key units (one-liners)
 
 Change map (do this → open this)
 
-- Build/run agent from a tool: `src/zrb/llm/shared/agent_runner.py`.
-- Delegate without importing subagent: `src/zrb/llm/shared/delegation_api.py`.
+- Build/run agent from a tool: `src/zrb/llm/contracts/shared/agent_runner.py`.
+- Delegate without importing subagent: `src/zrb/llm/contracts/shared/delegation_api.py`.
 - Resume a sub-agent session without importing the chat task: `src/zrb/llm/resumed_session.py`.
 - Add a tool: `src/zrb/llm/tool/<family>.py` and register via `agent/tool_seed.py`.
 - Change the agent loop: `src/zrb/llm/agent/run/runner.py`.

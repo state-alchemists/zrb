@@ -1,7 +1,7 @@
 """Runtime pydantic-ai type re-exports.
 
 Agent construction remains in ``agent/common.py``; model/provider resolution
-remains in ``llm/config/model_resolver.py``. Imports are intentionally eager
+remains in ``llm/contracts/config/model_resolver.py``. Imports are intentionally eager
 when this module is imported, so callers retain their existing lazy-import
 or ``TYPE_CHECKING`` guards.
 """

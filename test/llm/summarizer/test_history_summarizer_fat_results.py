@@ -218,7 +218,7 @@ async def test_create_summarizer_history_processor_flow():
     ]
 
     with patch(
-        "zrb.llm.config.limiter.is_turn_start",
+        "zrb.llm.contracts.config.limiter.is_turn_start",
         side_effect=[False, True, False],
     ):
         new_history = await processor(messages)
@@ -264,7 +264,7 @@ async def test_summarize_history_with_multiple_snapshots():
         ModelRequest(parts=[UserPromptPart(content="c" * 50)]),
     ]
 
-    with patch("zrb.llm.config.limiter.is_turn_start", return_value=True):
+    with patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True):
         with patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="<state_snapshot>1</state_snapshot> <state_snapshot>2</state_snapshot>",
@@ -297,7 +297,7 @@ async def test_summarize_history_bakes_journal_index_into_summary():
 
     journal_block = "<journal-index>\nMy Hub\n</journal-index>"
     with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True),
         patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="old conversation summary",
@@ -329,7 +329,7 @@ async def test_summarize_history_without_journal_index_is_unaffected():
     ]
 
     with (
-        patch("zrb.llm.config.limiter.is_turn_start", return_value=True),
+        patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=True),
         patch(
             "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
             return_value="old conversation summary",

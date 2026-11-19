@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
 
-from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.shared.prompt_text import get_prompt
-from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
+from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent

@@ -25,7 +25,7 @@ from zrb.llm.emotion import enable_emotion
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.screenshot import enable_screenshot
-from zrb.llm.shared.session_presentation import register_interactive_runner
+from zrb.llm.contracts.shared.session_presentation import register_interactive_runner
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.speech import enable_speech
 from zrb.llm.task.chat.task import LLMChatTask
@@ -153,7 +153,7 @@ llm_chat.before_session = apply_launch_flags
 
 # An interactive chat is the one run that presents itself through a UI, and this
 # command is the only one that offers it — so this is where the presentation
-# layer is handed to `ChatRunning` (`zrb/llm/shared/session_presentation.py`).
+# layer is handed to `ChatRunning` (`zrb/llm/contracts/shared/session_presentation.py`).
 # A chat run any other way is one-shot and never asks for it.
 register_interactive_runner(run_interactive_session)
 

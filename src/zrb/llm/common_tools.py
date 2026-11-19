@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 # Importing the seed is what gives `tool_registry` its built-in content, so a
 # host built here resolves the same set an agent hook does.
 from zrb.llm.agent import tool_seed  # noqa: F401
-from zrb.llm.shared.tool_registry import (  # noqa: F401 -- re-exported
+from zrb.llm.contracts.shared.tool_registry import (  # noqa: F401 -- re-exported
     tool_name,
     tool_registry,
 )

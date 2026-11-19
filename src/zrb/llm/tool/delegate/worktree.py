@@ -17,7 +17,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.shared.ambient_state import active_worktree
+from zrb.llm.contracts.shared.ambient_state import active_worktree
 from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell import start_process
 

@@ -194,13 +194,13 @@ class TestRegistration:
 
 class TestAssembly:
     def test_get_model_defaults_to_configured_model(self):
-        from zrb.llm.config.model_resolver import resolve_configured_model
+        from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 
         task = LLMTask(name="test-task")
         assert task.get_model(MagicMock()) == resolve_configured_model()
 
     def test_get_model_uses_explicit_model(self):
-        from zrb.llm.config.model_resolver import resolve_configured_model
+        from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 
         task = LLMTask(name="test-task", model="explicit-model")
         # An explicit name is resolved with the configured credentials, the
@@ -227,7 +227,7 @@ class TestAssembly:
     def test_get_model_applies_global_model_hooks(self, monkeypatch):
         """`model_resolver`'s process-wide hooks must reach an explicitly set
         model too, not just the CFG fallback."""
-        from zrb.llm.config.model_resolver import model_resolver
+        from zrb.llm.contracts.config.model_resolver import model_resolver
 
         monkeypatch.setattr(model_resolver, "model_getter", lambda m: "getter-model")
         monkeypatch.setattr(model_resolver, "model_renderer", lambda m: f"{m}-rendered")
@@ -236,7 +236,7 @@ class TestAssembly:
         assert task.get_model(MagicMock()) == "getter-model-rendered"
 
     def test_get_model_treats_blank_string_as_unset(self):
-        from zrb.llm.config.model_resolver import resolve_configured_model
+        from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 
         task = LLMTask(name="test-task", model="   ")
         # Blank explicit model falls back to the config default.

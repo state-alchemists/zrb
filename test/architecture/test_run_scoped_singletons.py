@@ -67,7 +67,7 @@ def test_no_agent_tool_imports_the_singleton_limiter():
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ImportFrom)
-                and node.module == "zrb.llm.config.limiter"
+                and node.module == "zrb.llm.contracts.config.limiter"
                 and any(alias.name == "llm_limiter" for alias in node.names)
             ):
                 offenders.append(f"{path.relative_to(SRC).as_posix()}:{node.lineno}")

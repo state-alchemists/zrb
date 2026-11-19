@@ -16,8 +16,8 @@ from html import unescape
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.shared.message_text import message_content_text
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.shared.message_text import message_content_text
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:

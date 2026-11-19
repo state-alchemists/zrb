@@ -13,7 +13,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.snapshot import RestoreOutcome
 from zrb.llm.snapshot.manager import Snapshot
 from zrb.llm.ui.base.ui import BaseUI
@@ -251,7 +251,7 @@ def test_last_ai_response_falls_back_to_history(conv_ui):
     conv_ui.last_result_data = None
     conv_ui.history_manager.load.return_value = ["m1"]
     with patch(
-        "zrb.llm.util.history_formatter.extract_last_response_text",
+        "zrb.llm.contracts.util.history_formatter.extract_last_response_text",
         return_value="from history",
     ):
         assert conv_ui.last_ai_response() == "from history"
@@ -327,7 +327,7 @@ def test_copy_command_copies_full_transcript(conv_ui):
     conv_ui.history_manager.load.return_value = ["m1"]
     with (
         patch(
-            "zrb.llm.util.history_formatter.format_history_as_text", return_value="text"
+            "zrb.llm.contracts.util.history_formatter.format_history_as_text", return_value="text"
         ),
         patch("zrb.util.clipboard.copy_text", return_value=True),
     ):
@@ -338,7 +338,7 @@ def test_copy_command_copies_full_transcript(conv_ui):
 def test_copy_command_reports_format_error(conv_ui):
     conv_ui.history_manager.load.return_value = ["m1"]
     with patch(
-        "zrb.llm.util.history_formatter.format_history_as_text",
+        "zrb.llm.contracts.util.history_formatter.format_history_as_text",
         side_effect=RuntimeError("boom"),
     ):
         assert conv_ui.handle_copy_command("copy") is True
@@ -349,7 +349,7 @@ def test_copy_command_writes_transcript_to_file(conv_ui, tmp_path):
     conv_ui.history_manager.load.return_value = ["m1"]
     target = tmp_path / "transcript.txt"
     with patch(
-        "zrb.llm.util.history_formatter.format_history_as_text", return_value="text"
+        "zrb.llm.contracts.util.history_formatter.format_history_as_text", return_value="text"
     ):
         assert conv_ui.handle_copy_command(f"copy {target}") is True
     assert target.read_text() == "text"

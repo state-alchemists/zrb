@@ -17,9 +17,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.shared.ambient_state import get_interactive_mode
-from zrb.llm.shared.tool_registry import ToolLike, ToolSeed, tool_registry
-from zrb.llm.util.git import is_inside_git_dir
+from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
+from zrb.llm.contracts.shared.tool_registry import ToolLike, ToolSeed, tool_registry
+from zrb.llm.contracts.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
 if TYPE_CHECKING:

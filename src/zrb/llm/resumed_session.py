@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.attr.tpl import Tpl
-from zrb.llm.shared.sub_agent_build import SubAgentBuild
+from zrb.llm.contracts.shared.sub_agent_build import SubAgentBuild
 
 if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask

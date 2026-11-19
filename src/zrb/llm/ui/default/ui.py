@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.shared.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
@@ -35,7 +35,7 @@ from zrb.llm.ui.default.picker import UIPicker
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
 from zrb.llm.ui.default.side_question import UISideQuestion
-from zrb.llm.util.history_formatter import extract_user_message_texts
+from zrb.llm.contracts.util.history_formatter import extract_user_message_texts
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 

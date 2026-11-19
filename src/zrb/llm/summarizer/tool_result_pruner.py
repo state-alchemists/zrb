@@ -31,7 +31,7 @@ from zrb.util.owner_only import write_text_owner_only
 from zrb.util.string.name import safe_segment
 
 if TYPE_CHECKING:
-    from zrb.llm.config.limiter import LLMLimiter
+    from zrb.llm.contracts.config.limiter import LLMLimiter
 
 PRUNED_PREFIX = "PRUNED TOOL RESULT (zrb):"
 """First line of every pruned result, tagged so a tool's own output cannot

@@ -81,7 +81,7 @@ async def test_continue_live_session_swallows_run_agent_exception(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=RuntimeError("boom"),
         ),
     ):
@@ -110,7 +110,7 @@ async def test_continue_live_session_marks_done_after_drain(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -142,7 +142,7 @@ async def test_continue_live_session_skips_done_when_human_cancelled(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=blocking_run_agent,
         ),
     ):
@@ -183,7 +183,7 @@ async def test_cancelled_then_continued_session_reports_back_to_main_agent(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=fake_run_agent,
         ),
     ):
@@ -219,7 +219,7 @@ async def test_never_cancelled_session_does_not_report_back(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=fake_run_agent,
         ),
     ):
@@ -255,7 +255,7 @@ async def test_second_cancel_suppresses_report_back(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=blocking_run_agent,
         ),
     ):
@@ -292,7 +292,7 @@ async def test_report_back_skipped_when_history_has_no_reply(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=fake_run_agent,
         ),
     ):
@@ -324,7 +324,7 @@ async def test_report_back_skipped_when_parent_cannot_deliver(
             return_value=False,
         ),
         patch(
-            "zrb.llm.shared.subagent_turn.run_agent",
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=fake_run_agent,
         ),
     ):
@@ -354,7 +354,7 @@ async def test_a_continuation_runs_as_a_nested_sub_agent_turn(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -370,7 +370,7 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
     scope exited, so the hook manager travels with the rest of the captured
     authority — otherwise the turn fires on the program-wide singleton."""
     from zrb.llm.hook.manager import HookManager
-    from zrb.llm.shared.agent_state import current_hook_manager
+    from zrb.llm.contracts.shared.agent_state import current_hook_manager
     from zrb.util.contextvar_scope import scoped
 
     parent_manager = HookManager(search_dirs=[])
@@ -389,7 +389,7 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -404,7 +404,7 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
     """A continuation runs outside the parent's run, so the tool policies and
     approval channel its first turn inherited must travel with the captured
     authority — otherwise its tool calls skip the parent's policies."""
-    from zrb.llm.shared.agent_state import (
+    from zrb.llm.contracts.shared.agent_state import (
         current_approval_channel,
         current_tool_confirmation,
     )
@@ -431,7 +431,7 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -446,7 +446,7 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
 ):
     """A delegation captured with no approval handler keeps none: `run_agent`
     reads a `None` argument as "inherit", so the captured value is bound."""
-    from zrb.llm.shared.agent_state import (
+    from zrb.llm.contracts.shared.agent_state import (
         current_approval_channel,
         current_tool_confirmation,
     )
@@ -469,7 +469,7 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
             "zrb.llm.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task

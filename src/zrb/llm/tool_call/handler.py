@@ -11,7 +11,7 @@ from zrb.llm.tool_call.middleware import (
     ResponseHandler,
     ToolPolicy,
 )
-from zrb.llm.util.tool_args import parse_tool_args_value, read_purpose, without_purpose
+from zrb.llm.contracts.util.tool_args import parse_tool_args_value, read_purpose, without_purpose
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.truncate import truncate_chars, truncate_display
 from zrb.util.yaml import yaml_dump

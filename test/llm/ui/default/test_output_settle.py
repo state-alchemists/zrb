@@ -16,7 +16,7 @@ from zrb.llm.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.output import UIOutput
-from zrb.llm.util.stream_response import (
+from zrb.llm.contracts.util.stream_response import (
     CONTINUATION_PAD,
     DEFAULT_STREAM_INDENTATION,
     EVENT_INDENT,
@@ -129,7 +129,7 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     # painted form is the open one.
     assert len(ui.rendered_blocks) == 1
     start, end, source, _renderer = ui.rendered_blocks[0]
-    from zrb.llm.shared.output_chunk import CollapsibleBlockSource
+    from zrb.llm.contracts.shared.output_chunk import CollapsibleBlockSource
 
     assert isinstance(source, CollapsibleBlockSource)
     assert source.expanded is True

@@ -11,9 +11,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
-from zrb.llm.shared.agent_activity import agent_activity_registry
-from zrb.llm.shared.output_chunk import CollapsibleBlockSource, merge_into_block
-from zrb.llm.shared.tracked_spans import TrackedSpans
+from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
+from zrb.llm.contracts.shared.output_chunk import CollapsibleBlockSource, merge_into_block
+from zrb.llm.contracts.shared.tracked_spans import TrackedSpans
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker

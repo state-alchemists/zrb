@@ -11,18 +11,18 @@ from zrb.config.helper import (
 )
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
-from zrb.llm.config.limiter import LLMLimiter, is_pinned
-from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.contracts.config.limiter import LLMLimiter, is_pinned
+from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.prompt.live_context.context import render_carried_context
-from zrb.llm.shared.agent_state import get_current_model, get_current_ui
-from zrb.llm.shared.message import (
+from zrb.llm.contracts.shared.agent_state import get_current_model, get_current_ui
+from zrb.llm.contracts.shared.message import (
     ensure_alternating_roles,
     pending_tail_start,
     strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
-from zrb.llm.shared.message_text import render_verbatim_messages
-from zrb.llm.shared.usage_log import (
+from zrb.llm.contracts.shared.message_text import render_verbatim_messages
+from zrb.llm.contracts.shared.usage_log import (
     COMPONENT_SUMMARIZER,
     KIND_SUMMARIZATION,
     LIMIT_BOTH,

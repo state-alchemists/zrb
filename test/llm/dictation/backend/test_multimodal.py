@@ -9,8 +9,8 @@ from zrb.llm.dictation.backend.multimodal import (
 )
 from zrb.llm.dictation.backend.wav import pcm16_to_wav_bytes
 
-RESOLVE = "zrb.llm.config.model_resolver.resolve_configured_multimodal_model"
-CAPABILITIES = "zrb.llm.util.capabilities.model_capabilities"
+RESOLVE = "zrb.llm.contracts.config.model_resolver.resolve_configured_multimodal_model"
+CAPABILITIES = "zrb.llm.contracts.util.capabilities.model_capabilities"
 
 
 def _resolves_to(model):

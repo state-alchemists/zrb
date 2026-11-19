@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.resolver import resolve_custom_commands
-from zrb.llm.shared.feature_config import bound_session_ui
-from zrb.llm.shared.session_presentation import get_interactive_runner
+from zrb.llm.contracts.shared.feature_config import bound_session_ui
+from zrb.llm.contracts.shared.session_presentation import get_interactive_runner
 from zrb.llm.task.chat.message_expansion import expand_message
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.util.spoken import shown_text
 from zrb.session.session import Session
 
 if TYPE_CHECKING:

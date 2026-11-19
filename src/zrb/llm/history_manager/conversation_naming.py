@@ -6,11 +6,11 @@ import re
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.shared.agent_runner import create_agent
-from zrb.llm.shared.prompt_text import get_prompt
-from zrb.llm.shared.usage_log import COMPONENT_AUTO_NAMER, record_agent_usage
-from zrb.llm.util.subagent_session_naming import parse_delegated_session
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
+from zrb.llm.contracts.shared.agent_runner import create_agent
+from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.usage_log import COMPONENT_AUTO_NAMER, record_agent_usage
+from zrb.llm.contracts.util.subagent_session_naming import parse_delegated_session
 from zrb.util.string.name import is_random_name
 
 if TYPE_CHECKING:

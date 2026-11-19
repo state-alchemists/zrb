@@ -20,7 +20,7 @@ import sys
 import time
 
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
-from zrb.llm.util.deadline import (
+from zrb.llm.contracts.util.deadline import (
     communicate_within,
     create_deadline,
     get_earlier,

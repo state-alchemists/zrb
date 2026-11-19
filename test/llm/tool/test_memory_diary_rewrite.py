@@ -7,8 +7,8 @@ live there, the diary rewrite's digest lives here.
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import store
-from zrb.llm.memory.model import digest_body
+from zrb.llm.contracts.memory import store
+from zrb.llm.contracts.memory.model import digest_body
 from zrb.llm.tool.memory import remember
 
 

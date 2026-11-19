@@ -28,9 +28,9 @@ from zrb.llm.dictation.echo_cancel import (
     get_unavailable_reason,
 )
 from zrb.llm.dictation.remote_microphone import RemoteMicrophone
-from zrb.llm.util.face_server import get_remote_headers, get_remote_url
-from zrb.llm.util.portaudio_exit import guard_portaudio_exit
-from zrb.llm.util.teardown import close_quietly
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
+from zrb.llm.contracts.util.portaudio_exit import guard_portaudio_exit
+from zrb.llm.contracts.util.teardown import close_quietly
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)

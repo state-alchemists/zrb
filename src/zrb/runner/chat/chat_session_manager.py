@@ -11,14 +11,14 @@ from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
-from zrb.llm.shared.agent_activity import agent_activity_registry
-from zrb.llm.shared.feature_config import close_feature_sessions
-from zrb.llm.shared.input_source import WEB_INPUT, InputProvenance
-from zrb.llm.util.live_context_block import split_live_context
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
+from zrb.llm.contracts.shared.feature_config import close_feature_sessions
+from zrb.llm.contracts.shared.input_source import WEB_INPUT, InputProvenance
+from zrb.llm.contracts.util.live_context_block import split_live_context
+from zrb.llm.contracts.util.spoken import shown_text
 
 # Re-exported for chat_api_route.py and tests.
-from zrb.llm.util.subagent_session_naming import (
+from zrb.llm.contracts.util.subagent_session_naming import (
     parse_delegated_session,
     subagent_history_directories,
 )

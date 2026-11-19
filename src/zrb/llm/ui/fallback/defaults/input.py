@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
+from zrb.llm.contracts.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
-    from zrb.llm.shared.input_source import InputProvenance
+    from zrb.llm.contracts.shared.input_source import InputProvenance
     from zrb.llm.ui.any_ui_input import AnyUIInput
 
 
