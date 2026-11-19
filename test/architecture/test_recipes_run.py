@@ -68,7 +68,7 @@ def test_persona(tmp_path):
         tmp_path / ".zrb" / "llm" / "prompt" / "persona.md", _get_snippets()["persona"]
     )
     _run(
-        "from zrb.llm.prompt.prompt import get_prompt\n"
+        "from zrb.llm.shared.prompt_text import get_prompt\n"
         'assert "Ops Buddy" in get_prompt("persona")\n',
         tmp_path,
     )

@@ -1,3 +1,12 @@
+"""Prompt text by name: the override chain, the placeholders, the bundled files.
+
+This is the half of prompting that is pure lookup — it reads a section and
+fills its placeholders, and knows nothing about how sections are composed. It
+lives at L0 because a tool that builds its own small agent needs a system
+prompt, and `tool/` may not import `prompt/`: the two would then import each
+other (ADR-0049). The bundled section files are beside it, in `markdown/`.
+"""
+
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -49,7 +58,7 @@ def get_default_prompt(name: str) -> str:
     1. a ``{LLM_PROMPT_DIR}/{name}.md`` override in the project or home search path;
     2. the ``{ENV_PREFIX}_LLM_PROMPT_{NAME}`` environment variable;
     3. ``{LLM_BASE_PROMPT_DIR}/{name}.md``;
-    4. the file bundled in ``prompt/markdown/``.
+    4. the file bundled beside this module, in ``markdown/``.
     """
     cwd = os.getcwd()
     prompt_dir = CFG.LLM_PROMPT_DIR

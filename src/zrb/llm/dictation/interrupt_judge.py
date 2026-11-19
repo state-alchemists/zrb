@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel
 
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
 if TYPE_CHECKING:

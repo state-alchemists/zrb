@@ -16,7 +16,7 @@ from zrb.llm.prompt.live_context.context import (
 )
 from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt
 from zrb.llm.prompt.profile import active_profile
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.prompt.registry import (
     PromptDelta,
     PromptList,

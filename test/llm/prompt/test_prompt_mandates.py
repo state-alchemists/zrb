@@ -3,7 +3,7 @@
 import pytest
 
 from zrb.llm.prompt.profile import PROFILES
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 
 
 def test_persona_renders_the_assistant_name():

@@ -37,7 +37,7 @@ from pydantic import BaseModel
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.agent_runner import create_agent
 from zrb.llm.shared.usage_log import COMPONENT_SHELL_JUDGE, record_agent_usage
 from zrb.llm.tool_call.judge_note import (

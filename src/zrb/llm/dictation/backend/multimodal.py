@@ -35,7 +35,7 @@ class MultimodalDictationBackend(AnyDictationBackend):
         from zrb.llm.agent import create_agent, run_agent
         from zrb.llm.agent.types import BinaryContent
         from zrb.llm.config.limiter import llm_limiter
-        from zrb.llm.prompt.prompt import get_prompt
+        from zrb.llm.shared.prompt_text import get_prompt
 
         agent = create_agent(
             model=self._get_model(),

@@ -24,7 +24,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 from zrb.llm.speech.text import clean_for_speech
 

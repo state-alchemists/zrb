@@ -20,7 +20,7 @@ from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.snapshot.command import SnapshotError, run_in_worker
 from zrb.llm.snapshot.listing import get_fork_point
 from zrb.llm.snapshot.store import Snapshot, SnapshotStore

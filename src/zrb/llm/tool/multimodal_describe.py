@@ -16,7 +16,7 @@ from zrb.llm.config.model_resolver import (
     resolve_configured_model,
     resolve_configured_multimodal_model,
 )
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 from zrb.llm.shared.agent_runner import create_agent, run_agent
 from zrb.llm.shared.agent_state import get_current_model
 from zrb.llm.util.capabilities import (

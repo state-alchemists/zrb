@@ -5,7 +5,9 @@ of its own, and units on both sides of a layer boundary need it. The ambient
 state a run publishes (`ambient_state`, `agent_state`, `agent_activity`,
 `agent_tool_result`), the seams a higher package registers itself into
 (`agent_runner`, `delegation_api`), the tool registry, the message shapes, and
-the small helpers for cutting and observing a run.
+the small helpers for cutting and observing a run, and the prompt text a tool
+reads by name when it builds its own agent (`prompt_text`, with the bundled
+sections in `markdown/`).
 
 Keeping them at the top of `llm/` made the package a shelf: `llm/` mixed
 features — `agent/`, `tool/`, `ui/` — with these shared leaves, and a reader had

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.common import create_agent
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.prompt_text import get_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
