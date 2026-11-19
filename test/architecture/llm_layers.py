@@ -1,7 +1,7 @@
 """Where a `zrb.llm` module sits in the ladder, as the guards see it.
 
-Two files use this: `test_llm_layer_rules.py` holds the rules about a path — every
-unit has a layer, a moved path is read from its directory — and
+Two files use this: `test_llm_layer_rules.py` holds the rules about a path —
+every unit is scored by the directory it sits in — and
 `test_llm_layering_ratchet.py` applies them to every import in the tree. They must
 agree on what a unit is and what a layer is, and two copies of that would
 eventually disagree, so the reading lives here once.
@@ -16,20 +16,10 @@ REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src"
 LLM = SRC / "zrb" / "llm"
 
-# The table, for a unit that has not moved into the five-directory layout yet.
-# It is empty now: `llm/` holds the five directories and nothing else, so every
-# module scores from its own path and there is no unit left for a table to
-# place. The mechanism is deleted in the P7 step, with the rest of the move's
-# bookkeeping; until then the empty dict is what the guards read to say so.
-_UNITS_BY_LAYER: dict[int, str] = {}
-LAYER_OF_UNIT = {
-    unit: layer for layer, units in _UNITS_BY_LAYER.items() for unit in units.split()
-}
-
 # The 4.0 layout: the directory under `llm/` *is* the layer, so a reader — or an
-# agent — stops needing a table to know where an import may point. A unit that
-# has not moved yet still scores from `_UNITS_BY_LAYER`, which is what lets the
-# move happen one directory per pull request instead of in one commit.
+# agent — stops needing a table to know where an import may point. It took one
+# directory per pull request, and the table that scored a unit which had not
+# moved yet was emptied by the last of them and deleted here (board 0016).
 _LAYERS = {
     "contracts": 0,
     "capabilities": 1,
@@ -38,16 +28,9 @@ _LAYERS = {
     "presentation": 4,
 }
 
-# The one file that is depended on without being scored where it sits, named in
-# both layouts: `agent/types.py` re-exports the pydantic-ai types the run loop
-# hands around by the names the framework gave them, so it is a facade rather
-# than a module of its own. The second path is where `_UNIT_DESTINATIONS` sends
-# the agent unit, and it is written down now rather than remembered later: an
-# exemption that stopped applying on the day the move landed would surface as a
-# `contracts/` module importing L2, a real upward edge wearing the move's
-# clothes, and the fix would look like a layering mistake rather than a stale
-# literal. `test_a_contract_exemption_names_a_path_the_tree_has_or_will` holds
-# the pair to that, so the old path is deleted in the same diff that moves it.
+# The one file that is depended on without being scored where it sits: `agent/types.py`
+# re-exports the pydantic-ai types the run loop hands around by the names the
+# framework gave them, so it is a facade rather than a module of its own.
 # Everything else is scored by its directory — and that includes `any_*.py`,
 # which used to score L0 by its filename. The glob granted a rank by name, which
 # is a table by another name: a reader could not tell from the path why a file
@@ -92,16 +75,17 @@ def _unit(path: str) -> str:
 
 
 def _layer(path: str) -> int | None:
-    """The layer a path scores: its floor, its name, its directory, or the table."""
+    """The layer a path scores: its floor, its exemption, or its directory.
+
+    A path outside the five directories scores nothing, which is what makes a
+    stale spelling of a moved module visible rather than silently L4.
+    """
     for prefix, layer in _FLOOR_PREFIXES.items():
         if path.startswith(prefix):
             return layer
     if _is_contract(path):
         return 0
-    directory = _LAYERS.get(path.split("/")[0])
-    if directory is not None:
-        return directory
-    return LAYER_OF_UNIT.get(_unit(path))
+    return _LAYERS.get(path.split("/")[0])
 
 
 def _is_upward(source: str, target: str) -> bool:
@@ -114,15 +98,15 @@ def _is_upward(source: str, target: str) -> bool:
     )
 
 
-def _present_units() -> set[str]:
-    """The units `_UNITS_BY_LAYER` must describe: real modules, not artefacts.
+def _units_outside_the_ladder() -> set[str]:
+    """Directories under `llm/` that are not one of the five, and loose modules.
 
-    A directory counts only when it holds at least one `.py` file. Without that
-    test, a `__pycache__` left behind by a moved module reads as a unit that
-    exists but has no layer, and sends the reader hunting for code already gone.
-
-    A ladder directory is skipped: it is scored by its path, and the table's job
-    is the units that have not moved yet.
+    There are none, and this is how the guards say so: a directory that appears
+    at the top of `llm/` is a unit that would score no layer at all, so its
+    imports would be judged against nothing. A directory counts only when it
+    holds at least one `.py` file — without that test a `__pycache__` left behind
+    by a moved module reads as a unit and sends the reader hunting for code
+    already gone.
     """
     units: set[str] = set()
     for path in LLM.iterdir():
@@ -135,24 +119,3 @@ def _present_units() -> set[str]:
         elif path.suffix == ".py":
             units.add(name.removesuffix(".py"))
     return units
-
-
-# Where the units still unmoved land when the tree is sorted into five
-# directories: the plan as data, read off the tree the 4.0 shape describes. A
-# unit mapped to a path ending in `.py` stays a loose module; everything else
-# becomes a package.
-#
-# This was written down here, rather than in the prose of the plan, because the
-# codemod that performed each move read a map and the guards audited it: a
-# destination that disagreed with the table, or two units landing on one path,
-# is a typo a human would not catch in hundreds of rewritten module paths. A
-# unit's line was deleted in the same pull request that moved it, so what was
-# left was the work still to do — and there is no work left, which is why this
-# is empty and why `test_every_unit_has_a_destination` now asserts that the map
-# and the table are both empty rather than equal.
-_UNIT_DESTINATIONS: dict[str, str] = {}
-
-
-def _path_in(prefix: str) -> str:
-    """A representative path for a unit or destination, for asking its layer."""
-    return prefix if prefix.endswith(".py") else f"{prefix}/x.py"

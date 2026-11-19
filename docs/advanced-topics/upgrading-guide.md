@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 4.0.0](#upgrading-to-400)
 - [Upgrading to 3.38.0](#upgrading-to-3380)
 - [Upgrading to 3.37.0](#upgrading-to-3370)
 - [Upgrading to 3.35.0](#upgrading-to-3350)
@@ -25,6 +26,46 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 4.0.0
+
+One change, and it is an import change: `zrb.llm` is sorted into five directories, one per layer, and every unit that used to sit at the top of the package has moved into one of them. Nothing behaves differently; the modules are the same modules at new paths.
+
+**The five directories**, in layer order: `contracts/` (L0), `capabilities/` (L1), `engine/` (L2), `orchestration/` (L3), `presentation/` (L4). A module's layer is now its first path segment, so there is no table to consult and no filename convention that grants a rank.
+
+**There is no shim.** A compatibility package answering to `zrb.llm.ui` would have to import the package above it, which is the upward edge the move exists to remove, so the old paths are deleted rather than aliased. An import that names one of them raises `ModuleNotFoundError` — immediately, at load, which is the clearest failure available.
+
+### Paths
+
+| Before | After |
+|---|---|
+| `zrb.llm.config`, `zrb.llm.memory`, `zrb.llm.shared`, `zrb.llm.util` | `zrb.llm.contracts.<same>` |
+| `zrb.llm.tool`, `.tool_call`, `.prompt`, `.hook`, `.permission`, `.approval`, `.sandbox`, `.history_manager`, `.skill`, `.lsp`, `.snapshot` | `zrb.llm.capabilities.<same>` |
+| `zrb.llm.agent`, `zrb.llm.summarizer` | `zrb.llm.engine.<same>` |
+| `zrb.llm.task`, `.subagent`, `.custom_command` | `zrb.llm.orchestration.<same>` |
+| `zrb.llm.common_tools`, `zrb.llm.resumed_session` | `zrb.llm.orchestration.common_tools`, `zrb.llm.orchestration.resumed_session` |
+| `zrb.llm.ui` | `zrb.llm.presentation.ui` |
+| `zrb.llm.camera`, `.dictation`, `.emotion`, `.screenshot`, `.speech`, `.voice` | `zrb.llm.presentation.<same>` |
+
+Two of those are worth spelling out because they are what a custom UI or a plugin most often imported:
+
+- **`from zrb.llm.ui import UIConfig` is `from zrb.llm.presentation.ui import UIConfig`.** The object itself moved to `zrb.llm.contracts.config.ui_config` in 3.41.4; the re-export that most code used travels with the UI package.
+- **`zrb.llm.ui.any_ui` is `zrb.llm.presentation.ui.any_ui`.** The `AnyUI*` protocols stayed beside the implementations that answer them, rather than moving to `contracts/`, because sent down they would import `presentation/` back at it.
+
+`zrb`'s own public surface is unchanged: `from zrb import ...` names the same objects, and the lazy export map inside `src/zrb/__init__.py` was repointed in the same change.
+
+### The tables below
+
+Each section after this one records the layout **at the release it describes** — an "After" column from 3.12 says where a path went at 3.12, and rewriting it would claim that release shipped a path that did not exist until 4.0. They are history and are left as they were written. This table is the one to follow when upgrading now.
+
+### For a plugin or a `zrb_init.py`
+
+Search for `zrb.llm.` and check every hit against the table above. The two shapes that are easy to miss:
+
+- A path built from parts — `"zrb", "llm", "task"` in a list, or `"llm" / "ui"` in a `pathlib` expression — never appears as a dotted name, so no search for `zrb.llm.task` will find it.
+- A file that walks the source tree, e.g. `Path(__file__).parents[2] / "llm" / "ui"`. Test files of zrb's own needed one more level for each directory the move added.
 
 ---
 
