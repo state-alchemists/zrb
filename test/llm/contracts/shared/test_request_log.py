@@ -22,7 +22,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RequestUsage, RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.request_log import (
+from zrb.llm.contracts.shared.request_log import (
     REASON_FOLLOW_UP,
     REASON_OPENING,
     REASON_RETRY,
