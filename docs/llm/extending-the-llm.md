@@ -220,7 +220,7 @@ If you build your own `LLMTask` / `LLMChatTask` and want it to have zrb's standa
 
 ```python
 from zrb import LLMTask
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.orchestration.common_tools import apply_common_tools
 
 my_task = LLMTask(name="my-agent", ...)
 apply_common_tools(my_task)   # register shipped tools + guidance, lazily

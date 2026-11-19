@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.emotion.reply import ReplyEmotion
     from zrb.llm.capabilities.hook.manager import HookManager
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
 
 
 def enable_emotion(task: "LLMChatTask", config: EmotionConfig | None = None) -> None:

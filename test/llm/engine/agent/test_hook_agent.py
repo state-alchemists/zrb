@@ -395,13 +395,13 @@ async def test_agent_hook_exception_returns_failure():
 
 _SRC = Path(__file__).resolve().parents[4] / "src"
 
-# Imports the hook and nothing else — never `zrb.llm.common_tools` — so the
+# Imports the hook and nothing else — never `zrb.llm.orchestration.common_tools` — so the
 # built-in tools have to come from the engine.
 _NO_HOST_PROBE = """
 import sys
 from zrb.llm.engine.agent.hook_agent import resolve_agent_hook_tools
 
-print(len(resolve_agent_hook_tools(["Read"])), "zrb.llm.common_tools" in sys.modules)
+print(len(resolve_agent_hook_tools(["Read"])), "zrb.llm.orchestration.common_tools" in sys.modules)
 """
 
 
@@ -409,7 +409,7 @@ def test_a_hook_resolves_a_built_in_tool_with_no_host_imported():
     """A hook fires outside any task run, so its lookup cannot go through a host.
 
     The sub-agent manager was the only thing that answered "what is `Read`?",
-    and the registry behind it was seeded by `zrb.llm.common_tools` — an
+    and the registry behind it was seeded by `zrb.llm.orchestration.common_tools` — an
     orchestration module a hook could reach only by importing the layer above
     it. A fresh interpreter that never imports it is the proof that the built-in
     set is the engine's: the hook reads `tool_registry`, which
@@ -436,7 +436,7 @@ def test_a_hook_resolves_a_tool_a_host_registered_on_the_manager():
     `shared/delegation_api.py`, which the subagent package registers into, so
     the agent package never imports the layer above it.
     """
-    from zrb.llm.subagent.manager.manager import sub_agent_manager
+    from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 
     def HostTool(ctx):
         return "host"
@@ -461,7 +461,7 @@ def test_a_host_tool_beats_a_shipped_tool_of_the_same_name():
     def Read(ctx):
         return "host's read"
 
-    from zrb.llm.subagent.manager.manager import sub_agent_manager
+    from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 
     sub_agent_manager.append_tool(Read)
     try:

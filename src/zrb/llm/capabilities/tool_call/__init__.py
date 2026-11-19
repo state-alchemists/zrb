@@ -25,7 +25,7 @@ from zrb.llm.capabilities.tool_call.tool_policy.read_file_validation import (
 )
 
 # `replace_in_file_validation_policy` is not re-exported: it imports
-# `zrb.llm.capabilities.tool`, whose init reaches `zrb.llm.common_tools`, which imports this
+# `zrb.llm.capabilities.tool`, whose init reaches `zrb.llm.orchestration.common_tools`, which imports this
 # package — a cycle. Import it from `tool_policy.replace_in_file_validation`.
 
 __all__ = [

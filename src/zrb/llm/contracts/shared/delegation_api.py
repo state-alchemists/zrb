@@ -1,6 +1,6 @@
 """Delegation API — sub-agent manager and live-session registry, at L0.
 
-Tools call into this module instead of importing ``zrb.llm.subagent.*``.
+Tools call into this module instead of importing ``zrb.llm.orchestration.subagent.*``.
 The subagent package registers its concrete implementations here at import
 time. This keeps layer-1 tools from importing layer-3 orchestration.
 
@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from zrb.llm.subagent.any_live_session_registry import AnyLiveSessionRegistry
-    from zrb.llm.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
-    from zrb.llm.subagent.any_sub_agent_manager import AnySubAgentManager
+    from zrb.llm.orchestration.subagent.any_live_session_registry import AnyLiveSessionRegistry
+    from zrb.llm.orchestration.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
+    from zrb.llm.orchestration.subagent.any_sub_agent_manager import AnySubAgentManager
 
     SubAgentManagerAPI: TypeAlias = AnySubAgentManager
     LiveSessionRegistryAPI: TypeAlias = AnyLiveSessionRegistry
@@ -42,7 +42,7 @@ def default_sub_agent_manager() -> SubAgentManagerAPI:
     if _manager is None:
         raise RuntimeError(
             "[SYSTEM SUGGESTION] Sub-agent manager is not registered; import "
-            "`zrb.llm.subagent.manager.manager` before calling a delegation tool."
+            "`zrb.llm.orchestration.subagent.manager.manager` before calling a delegation tool."
         )
     return _manager
 
@@ -66,7 +66,7 @@ def get_live_session_registry() -> LiveSessionRegistryAPI:
     if _live_registry is None:
         raise RuntimeError(
             "[SYSTEM SUGGESTION] Live sub-agent session registry is not registered; "
-            "import `zrb.llm.subagent.live_session`."
+            "import `zrb.llm.orchestration.subagent.live_session`."
         )
     return _live_registry
 

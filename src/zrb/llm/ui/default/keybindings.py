@@ -482,7 +482,7 @@ class UIKeybindings:
                 # lazy: transitively heavy via internal — live_session.py
                 # imports run_agent (zrb.llm.engine.agent.run.runner), which pulls
                 # in pydantic_ai.
-                from zrb.llm.subagent.live_session import (
+                from zrb.llm.orchestration.subagent.live_session import (
                     live_subagent_session_registry,
                 )
 

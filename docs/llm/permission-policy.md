@@ -46,7 +46,7 @@ graph TD
 
 ### Capabilities
 
-The `Capability` enum lives in `src/zrb/llm/capabilities/permission/capability.py`; the built-in tools are tagged in `src/zrb/llm/common_tools.py`:
+The `Capability` enum lives in `src/zrb/llm/capabilities/permission/capability.py`; the built-in tools are tagged in `src/zrb/llm/orchestration/common_tools.py`:
 
 | Capability | Description | Example Tools |
 |------------|-------------|---------------|

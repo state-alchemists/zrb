@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
 
-from zrb.llm.custom_command.action_command import ActionCommand
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.capabilities.permission.capability import Capability, tag
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
 from zrb.llm.screenshot.backend.builtin import get_screenshot_backend
@@ -26,8 +26,8 @@ from zrb.util.cli.style import stylize_error, stylize_muted
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.engine.agent.types import BinaryContent, ToolFuncEither
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.ui.base.ui import BaseUI
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"

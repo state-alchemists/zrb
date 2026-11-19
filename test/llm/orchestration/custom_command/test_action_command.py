@@ -1,0 +1,146 @@
+import asyncio
+
+import pytest
+
+from zrb.llm.orchestration.custom_command import ActionCommand
+
+
+class FakeUI:
+    display = input = tools = property(lambda self: self)
+
+    def __init__(self):
+        self.background_tasks: set = set()
+        self.outputs: list[str] = []
+
+    def append_to_output(self, text: str) -> None:
+        self.outputs.append(text)
+
+
+class PanelUI(FakeUI):
+    """A UI that can hold a panel, as the default one does."""
+
+    def __init__(self):
+        super().__init__()
+        self.panels: list[tuple[str, str]] = []
+
+    def show_panel(self, title: str, body: str) -> None:
+        self.panels.append((title, body))
+
+
+def test_sync_action_reply_is_returned():
+    cmd = ActionCommand("/hi", lambda kwargs, ui: "hello")
+    assert cmd.handle({}, None) == "hello"
+
+
+def test_a_panel_reply_is_shown_by_the_ui_and_not_returned():
+    """Returning it as well would print the same table twice."""
+    cmd = ActionCommand("/usage", lambda kwargs, ui: "the table", panel_title="Usage")
+    ui = PanelUI()
+
+    assert cmd.handle({}, ui) == ""
+    assert ui.panels == [("Usage", "the table")]
+    assert ui.outputs == []
+
+
+def test_a_panel_reply_without_a_ui_comes_back_as_text():
+    """Headless: there is no panel to fill, so the text is all there is."""
+    cmd = ActionCommand("/usage", lambda kwargs, ui: "the table", panel_title="Usage")
+
+    assert cmd.handle({}, None) == "the table"
+
+
+def test_sync_action_returning_none_shows_nothing():
+    cmd = ActionCommand("/quiet", lambda kwargs, ui: None)
+    assert cmd.handle({}, None) == ""
+
+
+@pytest.mark.asyncio
+async def test_async_action_runs_in_the_background_and_shows_its_reply():
+    async def action(kwargs, ui):
+        await asyncio.sleep(0)
+        return "done"
+
+    ui = FakeUI()
+    assert ActionCommand("/slow", action).handle({}, ui) == ""
+    assert len(ui.background_tasks) == 1
+
+    await asyncio.gather(*ui.background_tasks)
+    await asyncio.sleep(0)
+
+    assert ui.background_tasks == set()
+    assert any("done" in output for output in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_an_async_panel_reply_reaches_the_panel_when_it_finishes():
+    async def action(kwargs, ui):
+        await asyncio.sleep(0)
+        return "the table"
+
+    ui = PanelUI()
+    assert ActionCommand("/usage", action, panel_title="Usage").handle({}, ui) == ""
+
+    await asyncio.gather(*ui.background_tasks)
+    await asyncio.sleep(0)
+
+    assert ui.panels == [("Usage", "the table")]
+    assert ui.outputs == []
+
+
+@pytest.mark.asyncio
+async def test_async_action_failure_is_shown():
+    async def action(kwargs, ui):
+        raise RuntimeError("camera on fire")
+
+    ui = FakeUI()
+    ActionCommand("/boom", action).handle({}, ui)
+    await asyncio.gather(*ui.background_tasks, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert any("camera on fire" in output for output in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_async_action_shows_nothing():
+    async def action(kwargs, ui):
+        await asyncio.sleep(10)
+
+    ui = FakeUI()
+    ActionCommand("/wait", action).handle({}, ui)
+    for task in ui.background_tasks:
+        task.cancel()
+    await asyncio.gather(*ui.background_tasks, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert ui.outputs == []
+
+
+def test_async_action_without_a_ui_is_refused_and_never_runs():
+    ran = []
+
+    async def action(kwargs, ui):
+        ran.append(1)
+
+    reply = ActionCommand("/photo", action).handle({}, None)
+
+    assert "interactive" in reply
+    assert ran == []
+
+
+def test_can_run_while_thinking_defaults_to_false():
+    assert ActionCommand("/x", lambda kwargs, ui: None).can_run_while_thinking is False
+    cmd = ActionCommand("/x", lambda kwargs, ui: None, can_run_while_thinking=True)
+    assert cmd.can_run_while_thinking is True
+
+
+def test_arg_completions_come_from_complete_arg():
+    cmd = ActionCommand(
+        "/pick",
+        lambda kwargs, ui: None,
+        args=["item"],
+        complete_arg=lambda prefix: [
+            v for v in ("apple", "avocado") if v.startswith(prefix)
+        ],
+    )
+    assert cmd.get_arg_completions("av") == ["avocado"]
+    assert ActionCommand("/x", lambda kwargs, ui: None).get_arg_completions("") == []

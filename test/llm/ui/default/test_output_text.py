@@ -274,7 +274,7 @@ def test_get_agent_activity_text_shows_picker_hint_when_agents_running():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
-            "zrb.llm.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
@@ -290,7 +290,7 @@ def test_get_agent_activity_text_omits_picker_hint_without_live_sessions():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
         with patch(
-            "zrb.llm.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             no_activity,
         ):
             frags = ui.get_agent_activity_text()
@@ -309,7 +309,7 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", running):
         with patch(
-            "zrb.llm.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             live,
         ):
             frags = ui.get_agent_activity_text()
@@ -329,7 +329,7 @@ def test_get_agent_activity_text_unchanged_when_not_viewing():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
-            "zrb.llm.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
@@ -347,7 +347,7 @@ def test_get_info_bar_text_shows_viewing_sub_agent():
     session = SimpleNamespace(agent_name="researcher")
 
     with patch(
-        "zrb.llm.subagent.live_session.live_subagent_session_registry"
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry"
     ) as mock_reg:
         mock_reg.get.return_value = session
         fragments = to_formatted_text(ui.get_info_bar_text())

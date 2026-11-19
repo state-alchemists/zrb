@@ -111,7 +111,7 @@ The main agent delegates to it through `DelegateToAgent`.
 <!-- recipe: own-chat -->
 ```python
 from zrb import LLMChatTask, StrInput, cli
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.orchestration.common_tools import apply_common_tools
 
 ops_chat = LLMChatTask(
     name="ops-chat",

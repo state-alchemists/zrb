@@ -63,7 +63,7 @@ class TestChatSessionManagerCleanup:
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_live_subagent_session_bucket(self):
         """Removing a session drops its live sub-agent session bucket."""
-        from zrb.llm.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()

@@ -79,7 +79,7 @@ Anything an env var can't express — a callable tool, a discovered-skill collis
 ```python
 # zrb_init.py — ran once at CLI startup, before any task runs.
 from zrb import hook_registry, prompt_registry, skill_registry, sub_agent_registry
-from zrb.llm.subagent.definition import SubAgentDefinition
+from zrb.llm.orchestration.subagent.definition import SubAgentDefinition
 from zrb.llm.capabilities.hook.contracts.interface import HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.skill.manager import Skill

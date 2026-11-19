@@ -225,7 +225,7 @@ class UIConfirmation:
         """Echo an answer into `agent_id`'s own buffered live view."""
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
 
         session_id = get_session_ownership_key(
             getattr(self._ui, "conversation_session_name", "")

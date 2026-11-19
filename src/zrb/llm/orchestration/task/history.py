@@ -1,0 +1,195 @@
+"""Conversation/history resolution and error & cancellation recovery for `LLMTask`."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
+from zrb.llm.engine.agent.run.error_classifier import is_prompt_too_long_error
+from zrb.llm.engine.agent.run.history_utils import close_dangling_tool_calls
+from zrb.llm.capabilities.history_manager.file_history_manager import default_history_manager
+from zrb.llm.orchestration.task.shared_getters import resolve_conversation_name
+from zrb.util.cli.style import remove_style
+
+if TYPE_CHECKING:
+    from zrb.context.any_context import AnyContext
+    from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
+    from zrb.llm.engine.agent.types import ModelMessage, UserContent, UserPromptPart
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.orchestration.task.llm_task import LLMTask
+
+
+class LLMTaskHistory:
+    """Conversation/history resolution and error/cancellation recovery.
+
+    Methods are public: the host calls them by name and subclasses override them.
+    """
+
+    def __init__(self, llm_task: "LLMTask") -> None:
+        self._llm_task = llm_task
+
+    def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
+        """The configured history manager, or a default file-backed one."""
+        if self._llm_task.history_manager is not None:
+            return self._llm_task.history_manager
+        return default_history_manager()
+
+    def get_conversation_name(self, ctx: AnyContext) -> str:
+        """The configured conversation name, or a fresh random one when blank."""
+        return resolve_conversation_name(ctx, self._llm_task.conversation_name_attr)
+
+    def get_effective_prompt(
+        self,
+        ctx: AnyContext,
+        user_message: str,
+        user_attachments: list[UserContent] | None,
+        message_history: list[ModelMessage],
+    ) -> tuple[str, list[UserContent] | None]:
+        """The message to send this attempt, plus the attachments to send with it.
+
+        On a retry whose message is already the last user turn in history,
+        re-sending it would duplicate the turn, so a retry notice goes instead.
+        """
+        if ctx.attempt <= 1 or not message_history:
+            return user_message, user_attachments
+        if not _is_last_user_turn(str(user_message), message_history):
+            return user_message, user_attachments
+        ctx.log_info("Initial message found in history, sending retry notice.")
+        # Attachments are kept: the retry may still need them.
+        return (
+            f"[SYSTEM] This is retry attempt {ctx.attempt}. "
+            "The previous attempt failed. Please review the history and continue.",
+            user_attachments,
+        )
+
+    def is_context_length_error(self, error: Exception) -> bool:
+        """Return True when the error is a model context-length / prompt-too-long rejection."""
+        return is_prompt_too_long_error(error)
+
+    def handle_run_error(
+        self,
+        ctx: AnyContext,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        error: Exception,
+        partial_run: PartialRunAccumulator | None = None,
+    ) -> None:
+        """Persist what a failed run leaves behind, so the next retry sees it.
+
+        No-op unless the error carries a ``zrb_history``. A context-length
+        failure saves the history unchanged — appending to it would make the
+        next attempt longer and guarantee the same failure.
+        """
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
+
+        new_history = getattr(error, "zrb_history", None)
+        if new_history is None:
+            return
+        if self._llm_task.is_context_length_error(error):
+            ctx.log_warning(
+                "Context-length error detected; not growing history for retry."
+            )
+            history_manager.update(conversation_name, new_history)
+            history_manager.save(conversation_name)
+            return
+        new_history = close_dangling_tool_calls(new_history, reason=f"Error: {error}")
+
+        error_msg = f"[SYSTEM] Error occurred: {str(error)}"
+        new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
+        if partial_run is not None and partial_run.completed_tools:
+            summary = partial_run.build_summary()
+            new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))
+        history_manager.update(conversation_name, new_history)
+        history_manager.save(conversation_name)
+
+    def save_cancelled_history(
+        self,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        message_history: list[ModelMessage],
+        user_message: str,
+        partial_run: PartialRunAccumulator | None = None,
+    ) -> None:
+        """Save partial history plus a cancellation marker when the user cancels a run.
+
+        Best-effort: a failure is logged, never raised into the interrupt path.
+        """
+        try:
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.engine.agent.types import (
+                ModelRequest,
+                ModelResponse,
+                TextPart,
+                UserPromptPart,
+            )
+
+            latest_history = getattr(partial_run, "latest_history", None)
+            if latest_history is not None:
+                # The live run's messages: the user turn plus completed tools.
+                partial_history = list(latest_history)
+            else:
+                # Cancelled before the run reached the model.
+                partial_history = list(message_history)
+                partial_history.append(
+                    ModelRequest(parts=[UserPromptPart(content=str(user_message))])
+                )
+            partial_history = close_dangling_tool_calls(
+                partial_history,
+                reason="[SYSTEM] Cancelled by user before this tool call's "
+                "result was recorded.",
+            )
+            partial_history.append(
+                ModelResponse(
+                    parts=[
+                        TextPart(content="[SYSTEM: Response was interrupted by user]")
+                    ]
+                )
+            )
+            if partial_run is not None and partial_run.completed_tools:
+                summary = partial_run.build_summary()
+                partial_history.append(
+                    ModelRequest(parts=[UserPromptPart(content=summary)])
+                )
+            history_manager.update(conversation_name, partial_history)
+            history_manager.save(conversation_name)
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
+
+    def post_process_output(self, output: object) -> object:
+        """Strip terminal styling from a string result; pass anything else through."""
+        if isinstance(output, str):
+            return remove_style(output)
+        return output
+
+
+def _is_last_user_turn(user_message: str, message_history: list[ModelMessage]) -> bool:
+    """Whether *user_message* is the latest non-"[SYSTEM]" user turn in history."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
+
+    for msg in reversed(message_history):
+        if not isinstance(msg, ModelRequest):
+            continue
+        part_texts = [
+            _user_part_text(part)
+            for part in msg.parts
+            if isinstance(part, UserPromptPart)
+        ]
+        if not part_texts:
+            continue  # tool-return-only request
+        if all(text.startswith("[SYSTEM]") for text in part_texts):
+            continue
+        return user_message in part_texts
+    return False
+
+
+def _user_part_text(part: UserPromptPart) -> str:
+    """Extract the text of a UserPromptPart (text-only or multimodal content)."""
+    if isinstance(part.content, str):
+        return part.content
+    if isinstance(part.content, list):
+        for item in part.content:
+            if isinstance(item, str):
+                return item
+    return ""

@@ -17,9 +17,9 @@ from zrb.group.task_diagnostics import mark_builtin_task
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.camera import enable_camera
-from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.custom_command import get_skill_custom_command
-from zrb.llm.custom_command.usage.command import create_usage_commands
+from zrb.llm.orchestration.common_tools import apply_common_tools
+from zrb.llm.orchestration.custom_command import get_skill_custom_command
+from zrb.llm.orchestration.custom_command.usage.command import create_usage_commands
 from zrb.llm.dictation import enable_dictation
 from zrb.llm.emotion import enable_emotion
 from zrb.llm.capabilities.prompt.manager import PromptManager
@@ -28,7 +28,7 @@ from zrb.llm.screenshot import enable_screenshot
 from zrb.llm.contracts.shared.session_presentation import register_interactive_runner
 from zrb.llm.capabilities.skill.manager import skill_manager
 from zrb.llm.speech import enable_speech
-from zrb.llm.task.chat.task import LLMChatTask
+from zrb.llm.orchestration.task.chat.task import LLMChatTask
 from zrb.llm.capabilities.tool.delegate import (
     create_delegate_to_agent_tool,
     create_search_agent_tool,

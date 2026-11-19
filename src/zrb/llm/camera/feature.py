@@ -14,7 +14,7 @@ from pydantic import Field
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.builtin import get_camera_backend
 from zrb.llm.camera.config import CameraConfig
-from zrb.llm.custom_command.action_command import ActionCommand
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.capabilities.permission.capability import Capability, tag
 from zrb.llm.contracts.shared.feature_config import replace_registration
 from zrb.llm.contracts.util.image_scale import scale_image_bytes
@@ -23,8 +23,8 @@ from zrb.util.cli.style import stylize_error, stylize_muted
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.engine.agent.types import BinaryContent, ToolFuncEither
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.ui.base.ui import BaseUI
 
 

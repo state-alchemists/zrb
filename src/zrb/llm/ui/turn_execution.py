@@ -37,7 +37,7 @@ from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
     from zrb.llm.engine.agent.types import UserContent
-    from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.ui.base.ui import BaseUI
     from zrb.llm.ui.multi.multi_ui import MultiUI
     from zrb.session.any_session import AnySession

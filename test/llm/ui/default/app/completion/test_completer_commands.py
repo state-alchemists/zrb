@@ -9,7 +9,7 @@ from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
 
@@ -72,7 +72,7 @@ def test_custom_command_offers_its_argument_values(
     mock_history_manager, complete_event
 ):
     """A command with an argument completer offers its values after a space."""
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     photo = ActionCommand(
         "/photo",

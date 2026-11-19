@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.contracts.shared.agent_activity import HasActivityTracking
-from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
-from zrb.llm.subagent.parent_message import send_message_to_parent
+from zrb.llm.orchestration.subagent.live_session import LiveSubAgentSessionRegistry
+from zrb.llm.orchestration.subagent.parent_message import send_message_to_parent
 from zrb.llm.capabilities.tool.delegate.message import create_send_message_to_subagent_tool
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.buffered.ui import BufferedUI
@@ -20,7 +20,7 @@ def registry():
             "zrb.llm.capabilities.tool.delegate.message.get_live_session_registry",
             return_value=reg,
         ),
-        patch("zrb.llm.subagent.parent_message.live_subagent_session_registry", reg),
+        patch("zrb.llm.orchestration.subagent.parent_message.live_subagent_session_registry", reg),
     ):
         yield reg
 
@@ -36,7 +36,7 @@ def _add(registry, parent):
 async def test_sub_agent_message_reaches_parent_with_sender(registry):
     parent = MagicMock(spec=AnyUI)
     ui = _add(registry, parent)
-    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
+    with patch("zrb.llm.orchestration.subagent.parent_message.get_current_ui", return_value=ui):
         result = await send_message_to_parent("need the repo path")
     assert "sent" in result
     sent = parent.input.submit_message.call_args.args[0]
@@ -78,7 +78,7 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_AGENT_MESSAGE_LIMIT", "1")
     parent = MagicMock(spec=AnyUI)
     ui = _add(registry, parent)
-    with (patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui),):
+    with (patch("zrb.llm.orchestration.subagent.parent_message.get_current_ui", return_value=ui),):
         first = await send_message_to_parent("a")
         second = await send_message_to_parent("b")
     assert "sent" in first
@@ -91,7 +91,7 @@ async def test_a_parent_that_is_not_a_ui_cannot_receive_a_message(registry):
     """Only an `AnyUI` declares `submit_message`; any other parent is reported as
     unable to take one, not left to fail on the missing method."""
     ui = _add(registry, object())
-    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
+    with patch("zrb.llm.orchestration.subagent.parent_message.get_current_ui", return_value=ui):
         result = await send_message_to_parent("need the repo path")
     assert "cannot receive messages" in result
     assert registry.get(SESSION, "abcd1234").agent_messages_sent == 0
@@ -99,7 +99,7 @@ async def test_a_parent_that_is_not_a_ui_cannot_receive_a_message(registry):
 
 @pytest.mark.asyncio
 async def test_outside_a_sub_agent_there_is_no_parent(registry):
-    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=None):
+    with patch("zrb.llm.orchestration.subagent.parent_message.get_current_ui", return_value=None):
         assert "not a delegated sub-agent" in await send_message_to_parent("x")
 
 
@@ -127,7 +127,7 @@ async def test_a_ui_that_only_answers_the_protocol_can_message_its_parent(regist
     parent = MagicMock(spec=AnyUI)
     _add(registry, parent)
     stub = _StubTrackedUI()
-    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=stub):
+    with patch("zrb.llm.orchestration.subagent.parent_message.get_current_ui", return_value=stub):
         result = await send_message_to_parent("need the repo path")
     assert "sent" in result
     assert parent.input.submit_message.call_args.args[0].endswith("need the repo path")

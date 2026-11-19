@@ -226,8 +226,8 @@ async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
 @pytest.mark.asyncio
 async def test_per_run_hook_managers_are_isolated_from_the_developers_real_hooks():
     "Guard for the `_disable_real_filesystem_hooks` fixture in test/conftest.py."
-    import zrb.llm.task.building as llm_task_building
-    import zrb.llm.task.chat.execution as chat_execution
+    import zrb.llm.orchestration.task.building as llm_task_building
+    import zrb.llm.orchestration.task.chat.execution as chat_execution
 
     for module in (chat_execution, llm_task_building):
         manager = module.HookManager()

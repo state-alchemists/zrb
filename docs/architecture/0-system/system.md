@@ -76,7 +76,7 @@ flowchart TD
 | `create_web_app` | `src/zrb/runner/web_app.py` | The web runner: pages, the task-run API and the chat API |
 | `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [The Task Model](../1-spine/task-model.md) and [Task Execution](../1-spine/task-execution.md) |
 | `SharedContext`, `Session`, `Context` | `src/zrb/context/`, `src/zrb/session/` | The three tiers of state for one run |
-| `LLMTask`, `LLMChatTask` | `src/zrb/llm/task/` | Tasks that build and drive an agent |
+| `LLMTask`, `LLMChatTask` | `src/zrb/llm/orchestration/task/` | Tasks that build and drive an agent |
 | `run_agent` | `src/zrb/llm/engine/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](../1-spine/llm-turn.md) |
 | `create_agent` | `src/zrb/llm/engine/agent/common.py` | Where zrb builds every `pydantic_ai.Agent`, wrapping every tool call in the safety checks |
 | `CFG` | `src/zrb/config/` | Every setting, read from the environment when used |
@@ -108,7 +108,7 @@ flowchart TD
 | A task called from Python | `BaseTask.run` / `BaseTask.async_run` | No runner at all; a new `Session` is created when none is passed |
 | A task started from the web | `serve_task_session_api` | Scheduled in the background; the request returns a session name at once |
 | A one-shot LLM call inside a pipeline | `LLMTask` | Same agent loop with no interactive UI |
-| A sub-agent | `src/zrb/llm/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
+| A sub-agent | `src/zrb/llm/orchestration/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | Built-in tasks switched off | `CFG.BUILTIN_TASKS_ENABLED` | Only your own tasks appear under `zrb` |
 
 ### Change it here
@@ -122,7 +122,7 @@ Most changes land on one of the Tier 2 pages:
 | Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/capabilities/prompt/` | `test/llm/capabilities/prompt/` |
 | Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/capabilities/hook/` | `test/llm/capabilities/hook/` |
 | Add a setting — [Config](../2-extension-surface/config.md) | `src/zrb/config/mixins/` | `test/config/` |
-| Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/subagent/` | `test/llm/subagent/` |
+| Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/orchestration/subagent/` | `test/llm/orchestration/subagent/` |
 
 For anything else — the engine, the web, history, the sandbox — or when you start from a symptom, use the [Change Map](../change-map.md).
 

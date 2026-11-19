@@ -257,8 +257,8 @@ def _disable_real_filesystem_hooks():
     """
     from unittest.mock import patch
 
-    import zrb.llm.task.building as llm_task_building
-    import zrb.llm.task.chat.execution as chat_execution
+    import zrb.llm.orchestration.task.building as llm_task_building
+    import zrb.llm.orchestration.task.chat.execution as chat_execution
     from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
 
     class _InertHookManager(HookManager):

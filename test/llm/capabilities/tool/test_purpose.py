@@ -23,7 +23,7 @@ from pydantic_ai import Tool
 
 from zrb.llm.engine.agent.common import create_safe_wrapper, wrap_tool
 from zrb.llm.capabilities.skill.manager import SkillManager
-from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
+from zrb.llm.orchestration.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.capabilities.tool.delegate.background import create_get_delegation_result_tool
 from zrb.llm.capabilities.tool.delegate.message import create_send_message_to_subagent_tool
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose

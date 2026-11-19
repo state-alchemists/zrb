@@ -95,7 +95,7 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
         # `auto_searched` events and the two `/usage` lines they feed — and
         # every module it names was deleted with the journal in 3.33.0.
         "src/zrb/llm/journal_usage_log.py",
-        "src/zrb/llm/custom_command/usage_command_journal.py",
+        "src/zrb/llm/orchestration/custom_command/usage_command_journal.py",
     },
     "docs/adr/adr-0136.md": {
         # The ranked cap was extracted into this module, and its adversarial

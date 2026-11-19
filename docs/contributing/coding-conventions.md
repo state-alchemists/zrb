@@ -99,7 +99,7 @@ Default to a module-level import. An in-function import must justify itself with
 4. **Test patch seam** — tests patch at the source path and rely on the patch taking effect inside a consumer; hoisting binds the name at consumer-load time and bypasses the mock. Tag: `# lazy: tests patch <path>; hoisting bypasses the mock`.
 5. **Platform-only module** — the module does not exist on every supported platform (`msvcrt`, `fcntl`, `termios`). Tag the platform and what the others would pay.
 
-Two more rules that keep startup cheap: an annotation-only name goes behind `if TYPE_CHECKING:` (`test/architecture/test_typing_only_names_are_not_evaluated.py`), and a rarely used tool sets `defer_loading=True` in `zrb/llm/common_tools.py` so the model sees its name without paying for its schema. Measure before deciding a module should be lazy: `python -X importtime -c "import zrb" 2>importtime.log`, and read the **self** column, not the cumulative one.
+Two more rules that keep startup cheap: an annotation-only name goes behind `if TYPE_CHECKING:` (`test/architecture/test_typing_only_names_are_not_evaluated.py`), and a rarely used tool sets `defer_loading=True` in `zrb/llm/orchestration/common_tools.py` so the model sees its name without paying for its schema. Measure before deciding a module should be lazy: `python -X importtime -c "import zrb" 2>importtime.log`, and read the **self** column, not the cumulative one.
 
 `flake8 src/zrb --select=F` fails on an unused or duplicate import. `# noqa: F401` belongs only on an import that exists as a test-patch attribute on the module itself; verify the patch targets working code before keeping it.
 

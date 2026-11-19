@@ -11,7 +11,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from zrb.llm.custom_command.resolver import get_custom_command_match
+from zrb.llm.orchestration.custom_command.resolver import get_custom_command_match
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 from zrb.llm.ui.base.exec_commands import BaseUIExecCommands

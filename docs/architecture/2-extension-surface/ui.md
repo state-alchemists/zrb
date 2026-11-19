@@ -137,7 +137,7 @@ sequenceDiagram
 | Change the UI contract | `src/zrb/llm/ui/any_ui.py` | `test/llm/ui/test_extension_levels.py` |
 | Change the queue, turn or command handling | `src/zrb/llm/ui/base/` | `test/llm/ui/base/` |
 | Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
-| Change which UI a chat picks | `src/zrb/llm/ui/session.py` | `test/llm/task/chat/test_running_sessions.py` |
+| Change which UI a chat picks | `src/zrb/llm/ui/session.py` | `test/llm/orchestration/task/chat/test_running_sessions.py` |
 | Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/multi/test_multi_ui_confirmation.py`, `test/llm/ui/multi/test_multi_ui_fanout.py` |
 | Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/buffered/test_buffered_ui.py` |
 | Change the web output or input | `src/zrb/runner/chat/http_ui.py` | `test/runner/chat/test_http_ui.py` |

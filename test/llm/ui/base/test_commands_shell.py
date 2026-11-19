@@ -195,7 +195,7 @@ def test_handle_custom_command(ui):
 
 
 def test_handle_action_command_shows_reply_without_prompting(ui):
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     calls = []
     ui.custom_commands = [
@@ -210,7 +210,7 @@ def test_handle_action_command_shows_reply_without_prompting(ui):
 
 
 def test_classify_input_routes_action_command_without_running_it(ui):
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     calls = []
     ui.custom_commands = [ActionCommand("/toggle", lambda kwargs, ui: calls.append(1))]
@@ -243,7 +243,7 @@ def test_classify_input_recognizes_custom_command(ui):
 
 
 def test_command_that_can_run_while_thinking_runs_mid_turn(ui):
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     calls = []
     ui.custom_commands = [
@@ -259,7 +259,7 @@ def test_command_that_can_run_while_thinking_runs_mid_turn(ui):
 
 
 def test_action_command_receives_the_ui(ui):
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     seen = []
     ui.custom_commands = [ActionCommand("/who", lambda kwargs, got: seen.append(got))]

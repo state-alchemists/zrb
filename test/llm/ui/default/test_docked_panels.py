@@ -161,7 +161,7 @@ def test_the_agent_picker_takes_the_input_frames_place(mock_ui_deps):
     assert not picker_slot.filter()
 
     with patch(
-        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
         MagicMock(active=lambda *args, **kwargs: [_session("a")]),
     ):
         assert ui.open_agent_picker() is True
@@ -340,7 +340,7 @@ def test_shrinking_the_screen_out_from_under_the_picker_closes_it(mock_ui_deps):
     """
     ui, app = _ui_and_app(mock_ui_deps, rows=24)
     with patch(
-        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
         MagicMock(active=lambda *args, **kwargs: [_session("a")]),
     ):
         assert ui.open_agent_picker() is True
@@ -355,7 +355,7 @@ def test_a_screen_that_still_has_room_leaves_the_picker_open(mock_ui_deps):
     """The fallback acts on the transition to zero rows, not on every render."""
     ui, app = _ui_and_app(mock_ui_deps, rows=40)
     with patch(
-        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
         MagicMock(active=lambda *args, **kwargs: [_session("a")]),
     ):
         assert ui.open_agent_picker() is True
@@ -462,7 +462,7 @@ def test_the_picker_notice_is_printed_even_while_a_confirmation_is_pending(
     ui.confirmation.current = "FUTURE"  # an approval is waiting for its answer
     ui.is_thinking = True  # a turn is streaming, so output is held back
     with patch(
-        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
         MagicMock(active=lambda *args, **kwargs: [_session("a")]),
     ):
         assert ui.open_agent_picker() is False

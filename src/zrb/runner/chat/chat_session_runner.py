@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
