@@ -178,8 +178,12 @@ async def test_a_stale_listing_refreshes_behind_the_call(face_page, monkeypatch)
     # The list answered is the one from before; the refresh that brings the new
     # one is already running, and the next call reads it.
     assert backend.list_devices() == ["phone-back", "phone-front"]
+    # Wait on the list, not on the request that starts it: the page is heard
+    # before its answer is written to the cache, so counting requests and then
+    # asserting straight away won the race on a fast runner and lost it on
+    # Windows, one event-loop turn short of the write.
     for _ in range(50):
-        if len(face_page.requests) >= 2:
+        if backend.list_devices() == ["phone-back"]:
             break
         await asyncio.sleep(0.02)
     assert backend.list_devices() == ["phone-back"]
