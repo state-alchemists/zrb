@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.llm.custom_command.action_command import ActionCommand
-from zrb.llm.permission.capability import Capability, tag
+from zrb.llm.capabilities.permission.capability import Capability, tag
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
 from zrb.llm.screenshot.backend.builtin import get_screenshot_backend
 from zrb.llm.screenshot.config import ScreenshotConfig
@@ -142,7 +142,7 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
         may show private things; the user approves each capture.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.tool.multimodal_describe import create_image_tool_return
+        from zrb.llm.capabilities.tool.multimodal_describe import create_image_tool_return
 
         # TakeScreenshot is opt-in and every call is approved by the user
         # (Capability.EXECUTE), so an explicitly approved remote capture is

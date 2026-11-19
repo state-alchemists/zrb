@@ -102,20 +102,20 @@ def test_count_matches_the_number_of_applicable_indexes():
 
 def test_sampling_is_reproducible_for_a_package():
     """A rate is only comparable between commits if the sample is the same one."""
-    first = mutation_ratchet.select_mutations("llm/skill", 10)
-    second = mutation_ratchet.select_mutations("llm/skill", 10)
+    first = mutation_ratchet.select_mutations("llm/capabilities/skill", 10)
+    second = mutation_ratchet.select_mutations("llm/capabilities/skill", 10)
     assert [(m.path, m.index) for m in first] == [(m.path, m.index) for m in second]
 
 
 def test_sampling_differs_between_packages():
     """A shared seed across packages would score the same offsets everywhere."""
-    skill = mutation_ratchet.select_mutations("llm/skill", 10)
-    prompt = mutation_ratchet.select_mutations("llm/prompt", 10)
+    skill = mutation_ratchet.select_mutations("llm/capabilities/skill", 10)
+    prompt = mutation_ratchet.select_mutations("llm/capabilities/prompt", 10)
     assert [m.index for m in skill] != [m.index for m in prompt]
 
 
 def test_sample_size_is_capped_by_the_pool():
-    sample = mutation_ratchet.select_mutations("llm/skill", 10**6)
+    sample = mutation_ratchet.select_mutations("llm/capabilities/skill", 10**6)
     assert 0 < len(sample) < 10**6
 
 
@@ -154,12 +154,12 @@ def test_a_package_is_scored_at_its_own_sample_size(monkeypatch):
 
     monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
     monkeypatch.setattr(mutation_ratchet, "score_package", record)
-    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "cmd", "llm/skill"])
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "cmd", "llm/capabilities/skill"])
 
     assert mutation_ratchet.main() == 0
     assert scored == [
         ("cmd", mutation_ratchet.SAMPLE_SIZES["cmd"]),
-        ("llm/skill", mutation_ratchet.DEFAULT_MUTANTS_PER_PACKAGE),
+        ("llm/capabilities/skill", mutation_ratchet.DEFAULT_MUTANTS_PER_PACKAGE),
     ]
 
 
@@ -245,7 +245,7 @@ def test_a_red_baseline_stops_the_package_before_anything_is_mutated(monkeypatch
     )
 
     with pytest.raises(mutation_ratchet.RatchetError):
-        mutation_ratchet.score_package("llm/skill", 1, verbose=False)
+        mutation_ratchet.score_package("llm/capabilities/skill", 1, verbose=False)
     assert written == []
 
 
@@ -253,17 +253,19 @@ def test_uncommitted_mirrored_tests_count_as_dirty(tmp_path, monkeypatch):
     """The tests are what the score is measured against, so an uncommitted
     assertion raises the rate for work that is not in the tree yet."""
     repo = tmp_path / "repo"
-    probe = repo / "test" / "llm" / "skill" / "ratchet_dirty_probe.txt"
+    probe = (
+        repo / "test" / "llm" / "capabilities" / "skill" / "ratchet_dirty_probe.txt"
+    )
     probe.parent.mkdir(parents=True)
     probe.write_text("")
-    (repo / "src" / "zrb" / "llm" / "skill").mkdir(parents=True)
+    (repo / "src" / "zrb" / "llm" / "capabilities" / "skill").mkdir(parents=True)
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)  # list files singly
     monkeypatch.setattr(mutation_ratchet, "REPO_ROOT", repo)
     monkeypatch.setattr(mutation_ratchet, "SRC", repo / "src" / "zrb")
     monkeypatch.setattr(mutation_ratchet, "TESTS", repo / "test")
 
-    dirty = mutation_ratchet.dirty_paths(["llm/skill"])
+    dirty = mutation_ratchet.dirty_paths(["llm/capabilities/skill"])
 
     assert any("ratchet_dirty_probe" in p for p in dirty)
 
@@ -277,7 +279,7 @@ def test_a_baseline_that_hangs_is_reported_not_raised(monkeypatch):
 
     monkeypatch.setattr(mutation_ratchet, "run_tests", hang)
     with pytest.raises(mutation_ratchet.RatchetError):
-        mutation_ratchet.score_package("llm/skill", 1, verbose=False)
+        mutation_ratchet.score_package("llm/capabilities/skill", 1, verbose=False)
 
 
 # --- floors ------------------------------------------------------------------
@@ -346,7 +348,7 @@ def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
     finding sites, the ratchet must not report a pass."""
     monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
     monkeypatch.setattr(mutation_ratchet, "score_package", lambda *a, **k: (0, 0))
-    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/skill"])
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/capabilities/skill"])
 
     assert mutation_ratchet.main() == 1
     assert "no mutants scored" in capsys.readouterr().out
@@ -400,14 +402,14 @@ def test_a_source_file_that_does_not_parse_stops_the_run(monkeypatch):
 
     monkeypatch.setattr(mutation_ratchet, "count_mutations", unparsable)
     with pytest.raises(mutation_ratchet.RatchetError):
-        mutation_ratchet.select_mutations("llm/skill", 10)
+        mutation_ratchet.select_mutations("llm/capabilities/skill", 10)
 
 
 def test_the_ratchet_refuses_to_run_without_process_groups(monkeypatch, capsys):
     """Without them a timed-out run can leave pytest alive against source the
     next mutant rewrites, so the number it produces means nothing."""
     monkeypatch.delattr(os, "killpg", raising=False)
-    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/skill"])
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/capabilities/skill"])
 
     assert mutation_ratchet.main() == 1
     assert "WSL" in capsys.readouterr().err

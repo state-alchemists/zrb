@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.agent.run.error_classifier import is_prompt_too_long_error
 from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
-from zrb.llm.history_manager.file_history_manager import default_history_manager
+from zrb.llm.capabilities.history_manager.file_history_manager import default_history_manager
 from zrb.llm.task.shared_getters import resolve_conversation_name
 from zrb.util.cli.style import remove_style
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.run.partial_run import PartialRunAccumulator
     from zrb.llm.agent.types import ModelMessage, UserContent, UserPromptPart
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
 
 

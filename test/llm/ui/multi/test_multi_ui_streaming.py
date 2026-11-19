@@ -263,7 +263,7 @@ async def test_multi_ui_stream_takes_snapshot_before_run(multi_ui, child_ui_1):
 
 @pytest.mark.asyncio
 async def test_multi_ui_stream_syncs_plan_mode(multi_ui, child_ui_1):
-    from zrb.llm.permission.state import (
+    from zrb.llm.capabilities.permission.state import (
         AgentMode,
         get_current_agent_mode,
         set_current_agent_mode,

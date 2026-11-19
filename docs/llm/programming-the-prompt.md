@@ -214,7 +214,7 @@ Dropping a section is an intentional deployment trade-off: shipped prompt files 
 
 ```python
 from zrb import cli, LLMChatTask
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 
 pm = PromptManager(
     prompts=["Prefer standard-library solutions over new dependencies."],
@@ -299,7 +299,7 @@ A profile changes **only** the `profile` section and the `minimal` delegate rest
 - A count outranks a label: `some-mini-32b` stays `capable`.
 - A label **alone** never selects `minimal` — `nano`/`tiny` also name hosted models (`gpt-5-nano`) far stronger than a local 3B. It does with a **local provider prefix** (`ollama:`, `lmstudio:`, `llamacpp:`, `localai:`), e.g. `ollama:phi4-mini` (3.8B on a laptop). Ollama's hosted `:cloud` suffix is excluded, so `ollama:kimi-k2.6:cloud` stays `standard`.
 
-See [Prompts](../architecture/2-extension-surface/prompts.md) for the design, and `src/zrb/llm/prompt/manager.py` for the implementation.
+See [Prompts](../architecture/2-extension-surface/prompts.md) for the design, and `src/zrb/llm/capabilities/prompt/manager.py` for the implementation.
 
 ---
 

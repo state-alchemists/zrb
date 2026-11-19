@@ -8,7 +8,7 @@ The sandbox is **opt-in and off by default** (the same default-off invariant as 
 
 ## The Two Layers
 
-One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
+One `SandboxPolicy` (`zrb/llm/capabilities/sandbox/`) drives two enforcement layers:
 
 1. **Python-level filesystem gate** (all platforms). `sandbox_gate` (`agent/gates.py`) runs right after the permission gate for every tool call. It realpaths path-like arguments (`path`, `file_path`, `src`, `dst`, …) and blocks:
    - **writes** outside the writable roots for `EDIT` and `UNKNOWN`-capability tools (`Write`, `Edit`, `RM`, `MV`, unvetted MCP tools) — including `worktree_path` for `EnterWorktree` resume / `ExitWorktree` removal. `EnterWorktree` additionally judges, before it creates anything, the repository root git resolves from its `cwd`; a resume writes nothing, so `cwd` is not judged when `worktree_path` is given,

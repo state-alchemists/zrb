@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.file_history_manager import (
+from zrb.llm.capabilities.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
@@ -308,7 +308,7 @@ class ChatSessionManager:
             # Background shells outlive a message; this is their only cleanup.
             # Keyed by session_id: session_name is not unique.
             # lazy: transitively heavy via internal — shell_background.py stays off load path
-            from zrb.llm.tool.shell.background import get_shell_background_registry
+            from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 
             await get_shell_background_registry().cancel_for_session(session_id)
             return True

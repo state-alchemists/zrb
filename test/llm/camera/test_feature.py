@@ -6,7 +6,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.camera import AnyCameraBackend, CameraConfig, enable_camera
 from zrb.llm.camera.feature import create_camera_commands, create_camera_tools
-from zrb.llm.permission.capability import Capability, tool_capability
+from zrb.llm.capabilities.permission.capability import Capability, tool_capability
 from zrb.llm.contracts.shared.agent_state import current_model
 
 
@@ -183,7 +183,7 @@ async def test_a_text_only_model_gets_the_photo_described(text_only_model, monke
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
     monkeypatch.setattr(
-        "zrb.llm.tool.multimodal_describe.describe_binary_attachment", describe
+        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment", describe
     )
 
     result = await _take_photo(FakeCamera(b"\xff\xd8\xff-fake-jpeg"))()

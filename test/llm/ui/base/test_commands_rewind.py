@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.snapshot import RestoreOutcome
+from zrb.llm.capabilities.snapshot import RestoreOutcome
 
 
 @pytest.mark.asyncio

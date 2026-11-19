@@ -2,7 +2,7 @@
 
 # LLM Memory (Technical Specification)
 
-**Status: accepted and implemented.** The code lives in `src/zrb/llm/contracts/memory/` with its tools in `src/zrb/llm/tool/memory.py`; §11 records the six places where building it changed this document. It replaced the journal system, whose code was deleted in 3.33.0. What outlives it is the notes directory: an existing `~/.zrb/llm-notes` is read into the store once, and [the notes layout](./llm-context.md) is documented for that reason.
+**Status: accepted and implemented.** The code lives in `src/zrb/llm/contracts/memory/` with its tools in `src/zrb/llm/capabilities/tool/memory.py`; §11 records the six places where building it changed this document. It replaced the journal system, whose code was deleted in 3.33.0. What outlives it is the notes directory: an existing `~/.zrb/llm-notes` is read into the store once, and [the notes layout](./llm-context.md) is documented for that reason.
 
 A persistent memory for the agent: what it knows about the user, about the work, and about itself, carried from one session to the next. The design is built on one rule:
 

@@ -20,21 +20,21 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change how a scaffolded project's files are rewritten | `src/zrb/content_transformer/` | [The Task Model](1-spine/task-model.md) |
 | Change how a command line finds a task | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | [The Task Model](1-spine/task-model.md) |
 | Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
-| Add or rename a tool | `src/zrb/llm/tool/` | [Tools](2-extension-surface/tools.md) |
+| Add or rename a tool | `src/zrb/llm/capabilities/tool/` | [Tools](2-extension-surface/tools.md) |
 | Change what the terminal shows | `src/zrb/llm/ui/default/` | [UI](2-extension-surface/ui.md) |
 | Build/run an agent from a tool or hook | `src/zrb/llm/contracts/shared/agent_runner.py` | [Tools](2-extension-surface/tools.md) |
 | Use delegation from a tool without importing subagent | `src/zrb/llm/contracts/shared/delegation_api.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Resume a delegated session as a chat task | `src/zrb/llm/resumed_session.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
-| Describe image/audio for a text-only model | `src/zrb/llm/tool/multimodal_describe.py` | [Tools](2-extension-surface/tools.md) |
-| Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
-| Add a hook point, or change matching | `src/zrb/llm/hook/manager/manager.py` | [Hooks](2-extension-surface/hooks.md) |
+| Describe image/audio for a text-only model | `src/zrb/llm/capabilities/tool/multimodal_describe.py` | [Tools](2-extension-surface/tools.md) |
+| Change the system prompt or a mandate | `src/zrb/llm/capabilities/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
+| Add a hook point, or change matching | `src/zrb/llm/capabilities/hook/manager/manager.py` | [Hooks](2-extension-surface/hooks.md) |
 | Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |
 | Change what a sub-agent inherits | `src/zrb/llm/agent/run/authority_snapshot.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Add an HTTP route or a page | `src/zrb/runner/web_route/` | [Web Requests](3-peripheral-flow/web-requests.md) |
-| Change what the model may touch | `src/zrb/llm/permission/`, `src/zrb/llm/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
+| Change what the model may touch | `src/zrb/llm/capabilities/permission/`, `src/zrb/llm/capabilities/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
 | Change the agent loop itself | `src/zrb/llm/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
-| Change history persistence or summarization | `src/zrb/llm/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
-| Change how skills are found or activated, or add a slash command | `src/zrb/llm/skill/`, `src/zrb/llm/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
+| Change history persistence or summarization | `src/zrb/llm/capabilities/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
+| Change how skills are found or activated, or add a slash command | `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | Change how a model name becomes a model, or the rate limits | `src/zrb/llm/contracts/config/model_resolver.py`, `src/zrb/llm/contracts/config/limiter.py` | [The LLM Turn](1-spine/llm-turn.md) |
 | Add a speech or dictation backend | `src/zrb/llm/voice/`, `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 
@@ -69,11 +69,11 @@ Search patterns that pay off in this codebase, in rough order of usefulness.
 | --- | --- |
 | Who calls a class | `rg -n 'ClassName' src/zrb --glob '*.py'` |
 | Where a config knob is read | `rg -n 'NAME_OF_KNOB' src/zrb` |
-| A tool's implementation | `rg -n '__name__ = "ToolName"' src/zrb/llm/tool` |
+| A tool's implementation | `rg -n '__name__ = "ToolName"' src/zrb/llm/capabilities/tool` |
 | Which ADR owns a decision | `rg -ln 'the concept' docs/adr/` |
 | The test that pins a behaviour | `rg -n 'the behaviour' test/` |
 | Where a task type is declared | `rg -n 'class .*BaseTask' src/zrb` |
-| Which page documents a module | `rg -ln 'src/zrb/llm/hook' docs/architecture/` |
+| Which page documents a module | `rg -ln 'src/zrb/llm/capabilities/hook' docs/architecture/` |
 
 `AGENTS.md` is the entry point for a change: it names the rules and points at the page that owns each one. The package layout is in [Code Map](../contributing/code-map.md), and the rules are in [Coding Conventions](../contributing/coding-conventions.md) and [Framework Conventions](../contributing/framework-conventions.md). When this page and those pages disagree, the owning page wins, and the disagreement is a bug worth fixing here.
 

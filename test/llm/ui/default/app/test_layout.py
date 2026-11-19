@@ -14,7 +14,7 @@ from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.widgets import TextArea
 
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
 from zrb.llm.ui.default.app.layout import (
     create_input_field,

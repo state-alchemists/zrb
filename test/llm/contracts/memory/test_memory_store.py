@@ -11,12 +11,12 @@ from datetime import date, timedelta
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.hook.builtin.memory_reviewer import _append_event_line
-from zrb.llm.hook.contracts.interface import HookContext
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.builtin.memory_reviewer import _append_event_line
+from zrb.llm.capabilities.hook.contracts.interface import HookContext
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.memory import paths, render, search, store
 from zrb.llm.contracts.memory.model import Diary, Fact, WeekNote
-from zrb.llm.tool.memory import forget, remember
+from zrb.llm.capabilities.tool.memory import forget, remember
 from zrb.util.file_lock import FileLockTimeout
 from zrb.util.owner_only import DIR_MODE, FILE_MODE
 

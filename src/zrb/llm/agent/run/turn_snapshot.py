@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import logging
 
-from zrb.llm.snapshot.command import SnapshotError, SnapshotTimeoutError
-from zrb.llm.snapshot.listing import SnapshotBudgetError
-from zrb.llm.snapshot.store import SnapshotStore
+from zrb.llm.capabilities.snapshot.command import SnapshotError, SnapshotTimeoutError
+from zrb.llm.capabilities.snapshot.listing import SnapshotBudgetError
+from zrb.llm.capabilities.snapshot.store import SnapshotStore
 
 logger = logging.getLogger(__name__)
 

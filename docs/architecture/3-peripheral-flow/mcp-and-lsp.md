@@ -2,7 +2,7 @@
 
 # MCP & LSP Servers
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/tool/mcp.py`, `src/zrb/llm/lsp/` · Read first: [Tools](../2-extension-surface/tools.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/capabilities/tool/mcp.py`, `src/zrb/llm/capabilities/lsp/` · Read first: [Tools](../2-extension-surface/tools.md)
 
 Both protocols let the agent use an outside program as a tool. MCP brings in third-party tools: a GitHub server, a database server, anything in the MCP ecosystem. LSP brings in code intelligence from the language servers already on the machine: go to definition, find references, rename a symbol. The one idea to take away: MCP tools are someone else's code and are trusted least, while LSP tools are zrb's own thin wrappers and carry real capability tags.
 
@@ -43,12 +43,12 @@ Both protocols let the agent use an outside program as a tool. MCP brings in thi
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| An untagged tool resolves to `UNKNOWN` | An MCP tool gets trusted like a built-in read tool | `test/llm/permission/test_capability.py::test_untagged_is_unknown` |
-| An MCP result is capped in aggregate, not per item | Many parts each under the cap add up to an overflow | `test/llm/tool/test_mcp.py::test_cap_mcp_result_bounds_a_list_in_aggregate` |
-| An MCP text result carries the untrusted-data note | Injected instructions in a result read like orders | `test/llm/tool/test_mcp.py::test_frame_mcp_result_notes_a_string_result` |
+| An untagged tool resolves to `UNKNOWN` | An MCP tool gets trusted like a built-in read tool | `test/llm/capabilities/permission/test_capability.py::test_untagged_is_unknown` |
+| An MCP result is capped in aggregate, not per item | Many parts each under the cap add up to an overflow | `test/llm/capabilities/tool/test_mcp.py::test_cap_mcp_result_bounds_a_list_in_aggregate` |
+| An MCP text result carries the untrusted-data note | Injected instructions in a result read like orders | `test/llm/capabilities/tool/test_mcp.py::test_frame_mcp_result_notes_a_string_result` |
 | Toolset factories run once per run, and the entered toolsets are the ones the agent gets | MCP servers spawn twice per turn, and the agent holds toolsets that were never started | `test/llm/task/test_llm_task.py::TestLLMTaskExecution::test_llm_task_resolves_toolset_factories_once` |
-| At most one live LSP server per language and project root; a dead one is replaced | Duplicate language-server processes, or queries sent to a dead one | `test/llm/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_get_server_lifecycle` |
-| The exit backstop kills surviving LSP processes | Language servers outlive zrb | `test/llm/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_force_kill_all_sigkills_running_server` |
+| At most one live LSP server per language and project root; a dead one is replaced | Duplicate language-server processes, or queries sent to a dead one | `test/llm/capabilities/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_get_server_lifecycle` |
+| The exit backstop kills surviving LSP processes | Language servers outlive zrb | `test/llm/capabilities/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_force_kill_all_sigkills_running_server` |
 | `LspRenameSymbol` is tagged `EDIT` | Plan mode lets the agent rename across files | **unpinned** |
 
 ## Realization
@@ -68,17 +68,17 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `load_mcp_config` | `src/zrb/llm/tool/mcp.py` | Finds `mcp-config.json` files, merges their `mcpServers`, expands `${VAR}`, builds one `MCPToolset` per server, wraps it in `add_purpose_to_mcp_tools`; an entry with `prefix` gets `<prefix>_` on each tool name and drops tools whose prefixed name exceeds 64 characters |
-| `add_purpose_to_mcp_tools` | `src/zrb/llm/tool/mcp.py` | Adds a required `purpose` to each tool schema the server did not declare one on, then drops the argument before forwarding — a server owns its schema, so `create_safe_wrapper` cannot reach it. A server that declares `purpose` itself keeps it |
-| `cap_mcp_result`, `frame_mcp_result` | `src/zrb/llm/tool/mcp.py` | Bound a result against `LLM_MAX_OUTPUT_CHARS`, then attach the untrusted-data note |
+| `load_mcp_config` | `src/zrb/llm/capabilities/tool/mcp.py` | Finds `mcp-config.json` files, merges their `mcpServers`, expands `${VAR}`, builds one `MCPToolset` per server, wraps it in `add_purpose_to_mcp_tools`; an entry with `prefix` gets `<prefix>_` on each tool name and drops tools whose prefixed name exceeds 64 characters |
+| `add_purpose_to_mcp_tools` | `src/zrb/llm/capabilities/tool/mcp.py` | Adds a required `purpose` to each tool schema the server did not declare one on, then drops the argument before forwarding — a server owns its schema, so `create_safe_wrapper` cannot reach it. A server that declares `purpose` itself keeps it |
+| `cap_mcp_result`, `frame_mcp_result` | `src/zrb/llm/capabilities/tool/mcp.py` | Bound a result against `LLM_MAX_OUTPUT_CHARS`, then attach the untrusted-data note |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Registers the per-run MCP toolset factory and, when a server is detected, the LSP tools |
 | `LLMTask` | `src/zrb/llm/task/llm_task.py` | Resolves toolsets once per run, enters them, runs the turn, exits them |
-| `LSPServerConfigRegistry` | `src/zrb/llm/lsp/configs.py` | Built-in and user-registered language-server configs; `detect_available_lsp_servers` caches the `PATH` scan |
-| `create_lsp_tools` | `src/zrb/llm/lsp/tools.py` | The `Lsp*` wrapper functions, each a thin call into `lsp_manager` |
-| `LSPManager`, `lsp_manager` | `src/zrb/llm/lsp/manager/manager.py` | Process-wide singleton; the query surface the wrappers call; registers the `atexit` kill |
-| `LSPManagerLifecycle` | `src/zrb/llm/lsp/manager/lifecycle.py` | Finds the project root, starts or reuses a server per language and root, shuts them all down |
-| `LSPManagerQuery`, `LSPServerOperations` | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | Turn a symbol-based question into LSP requests and shape the answer |
-| `LSPServer` | `src/zrb/llm/lsp/server/server.py` | One language-server subprocess: JSON-RPC over stdio, the `initialize` handshake, stop |
+| `LSPServerConfigRegistry` | `src/zrb/llm/capabilities/lsp/configs.py` | Built-in and user-registered language-server configs; `detect_available_lsp_servers` caches the `PATH` scan |
+| `create_lsp_tools` | `src/zrb/llm/capabilities/lsp/tools.py` | The `Lsp*` wrapper functions, each a thin call into `lsp_manager` |
+| `LSPManager`, `lsp_manager` | `src/zrb/llm/capabilities/lsp/manager/manager.py` | Process-wide singleton; the query surface the wrappers call; registers the `atexit` kill |
+| `LSPManagerLifecycle` | `src/zrb/llm/capabilities/lsp/manager/lifecycle.py` | Finds the project root, starts or reuses a server per language and root, shuts them all down |
+| `LSPManagerQuery`, `LSPServerOperations` | `src/zrb/llm/capabilities/lsp/manager/query.py`, `src/zrb/llm/capabilities/lsp/server/operations.py` | Turn a symbol-based question into LSP requests and shape the answer |
+| `LSPServer` | `src/zrb/llm/capabilities/lsp/server/server.py` | One language-server subprocess: JSON-RPC over stdio, the `initialize` handshake, stop |
 
 ### How it runs
 
@@ -131,13 +131,13 @@ The chat task calls `lsp_manager.shutdown_all` when its session ends. The `atexi
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change MCP config discovery or transports | `src/zrb/llm/tool/mcp.py` | `test/llm/tool/test_mcp.py` |
-| Change MCP result capping or framing | `src/zrb/llm/tool/mcp.py` | `test/llm/tool/test_mcp.py` |
+| Change MCP config discovery or transports | `src/zrb/llm/capabilities/tool/mcp.py` | `test/llm/capabilities/tool/test_mcp.py` |
+| Change MCP result capping or framing | `src/zrb/llm/capabilities/tool/mcp.py` | `test/llm/capabilities/tool/test_mcp.py` |
 | Change how toolsets are entered and exited | `src/zrb/llm/task/llm_task.py` | `test/llm/task/test_llm_task.py` |
 | Change when LSP tools register or how they are tagged | `src/zrb/llm/common_tools.py` | `test/llm/test_common_tools.py` |
-| Change server detection or file matching | `src/zrb/llm/lsp/configs.py` | `test/llm/lsp/test_configs_detection.py` |
-| Change server start, reuse or shutdown | `src/zrb/llm/lsp/manager/lifecycle.py`, `src/zrb/llm/lsp/server/server.py` | `test/llm/lsp/manager/test_manager_singleton.py`, `test/llm/lsp/server/test_server_lifecycle.py` |
-| Change a query or its answer shape | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | `test/llm/lsp/manager/test_manager_query.py` |
+| Change server detection or file matching | `src/zrb/llm/capabilities/lsp/configs.py` | `test/llm/capabilities/lsp/test_configs_detection.py` |
+| Change server start, reuse or shutdown | `src/zrb/llm/capabilities/lsp/manager/lifecycle.py`, `src/zrb/llm/capabilities/lsp/server/server.py` | `test/llm/capabilities/lsp/manager/test_manager_singleton.py`, `test/llm/capabilities/lsp/server/test_server_lifecycle.py` |
+| Change a query or its answer shape | `src/zrb/llm/capabilities/lsp/manager/query.py`, `src/zrb/llm/capabilities/lsp/server/operations.py` | `test/llm/capabilities/lsp/manager/test_manager_query.py` |
 
 ## See Also
 

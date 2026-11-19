@@ -29,16 +29,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.permission import (
+from zrb.llm.capabilities.permission import (
     DENY,
     Capability,
     get_current_agent_mode,
     get_effective_policy,
 )
-from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
-from zrb.llm.sandbox.policy import SandboxPolicy
+from zrb.llm.capabilities.sandbox import check_read, check_write, get_effective_sandbox_policy
+from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
 from zrb.llm.contracts.shared.agent_tool_result import tool_return
-from zrb.llm.tool_call.shell_call import is_sandbox_off
+from zrb.llm.capabilities.tool_call.shell_call import is_sandbox_off
 
 if TYPE_CHECKING:
     from pydantic_ai import RunContext, ToolReturn

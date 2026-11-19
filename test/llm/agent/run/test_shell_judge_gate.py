@@ -8,8 +8,8 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import _apply_shell_judge, _resolve_approval
 from zrb.llm.agent.shell_judge import ShellVerdict
-from zrb.llm.permission import ALLOW, ASK
-from zrb.llm.tool_call.judge_note import (
+from zrb.llm.capabilities.permission import ALLOW, ASK
+from zrb.llm.capabilities.tool_call.judge_note import (
     JUDGE_CAUTION,
     JUDGE_DANGEROUS,
     JUDGE_SAFE,
@@ -183,7 +183,7 @@ async def test_a_cancelled_approval_does_not_leave_the_line_behind(monkeypatch):
     from pydantic_ai import DeferredToolRequests
 
     from zrb.llm.agent.run import deferred_calls
-    from zrb.llm.tool_call.judge_note import record_judge_note
+    from zrb.llm.capabilities.tool_call.judge_note import record_judge_note
 
     async def _cancel(*args, **kwargs):
         record_judge_note(_CALL_ID, JUDGE_CAUTION, "why it would matter")
@@ -251,7 +251,7 @@ async def test_the_hook_is_not_told_about_a_prompt_the_judge_skips(monkeypatch):
     hear a question nobody is waiting to have answered. The event's own
     contract is "now that the call will prompt".
     """
-    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
     _knobs(monkeypatch, judge=True, auto_approve=True)
     hook_manager = _hook_manager()
@@ -273,7 +273,7 @@ async def test_the_hook_is_not_told_about_a_prompt_the_judge_skips(monkeypatch):
 @pytest.mark.asyncio
 async def test_the_hook_hears_about_a_prompt_that_will_happen(monkeypatch):
     """The other half of the same rule: a prompt that does happen is announced."""
-    from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
     _knobs(monkeypatch, judge=True, auto_approve=False)
     hook_manager = _hook_manager()

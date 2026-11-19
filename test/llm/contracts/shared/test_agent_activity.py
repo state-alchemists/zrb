@@ -75,7 +75,7 @@ def test_clear_removes_all():
 
 
 def test_buffered_ui_feeds_registry():
-    from zrb.llm.tool.delegate import BufferedUI
+    from zrb.llm.capabilities.tool.delegate import BufferedUI
 
     class _Sink:
         display = input = tools = property(lambda self: self)

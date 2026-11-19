@@ -5,8 +5,8 @@ own them:
 
 * `zrb.context.any_context`       - the per-task execution Context (`current_ctx`)
 * `zrb.llm.contracts.shared.agent_state`    - agent-run ambient state (UI, YOLO, approval, ...)
-* `zrb.llm.permission.state`      - permission policy + agent mode (plan/default)
-* `zrb.llm.sandbox.state`         - sandbox policy (filesystem containment)
+* `zrb.llm.capabilities.permission.state`      - permission policy + agent mode (plan/default)
+* `zrb.llm.capabilities.sandbox.state`         - sandbox policy (filesystem containment)
 * `zrb.llm.contracts.shared.ambient_state`  - tool-scoped ambient state (worktree, session)
 
 Nothing here owns state. When you add, remove, or rename a `ContextVar`, also
@@ -19,7 +19,7 @@ from __future__ import annotations
 from zrb.context.any_context import current_ctx, get_current_ctx, zrb_print
 
 # --- Permission state (policy + agent mode) ---
-from zrb.llm.permission.state import (
+from zrb.llm.capabilities.permission.state import (
     current_agent_mode,
     current_permission_policy,
     get_current_agent_mode,
@@ -29,7 +29,7 @@ from zrb.llm.permission.state import (
 )
 
 # --- Sandbox state (filesystem containment policy) ---
-from zrb.llm.sandbox.state import (
+from zrb.llm.capabilities.sandbox.state import (
     current_sandbox_policy,
     get_current_sandbox_policy,
     sandbox_policy,

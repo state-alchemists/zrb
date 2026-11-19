@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.base.ui import BaseUI
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.middleware import (
+    from zrb.llm.capabilities.tool_call.middleware import (
         ArgumentFormatter,
         ResponseHandler,
         ToolPolicy,

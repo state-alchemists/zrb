@@ -88,7 +88,7 @@ class TestBaseUIInputCommands:
     ):
         """The session's word is the last one: `off` wins over the config."""
         from zrb.config.config import CFG
-        from zrb.llm.sandbox.state import get_effective_sandbox_policy
+        from zrb.llm.capabilities.sandbox.state import get_effective_sandbox_policy
         from zrb.llm.contracts.shared.agent_state import current_ui
 
         ui = simple_ui_instance

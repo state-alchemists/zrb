@@ -1,7 +1,7 @@
 """The sub-agent's side of ADR-0108: a tool to message the main agent.
 
 Lives in the sub-agent package, beside the registry it reads, so
-`building.py` can attach it without a cycle through `zrb.llm.tool`. The main
+`building.py` can attach it without a cycle through `zrb.llm.capabilities.tool`. The main
 agent's side is `tool/delegate_message.py`.
 """
 
@@ -11,7 +11,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.llm.permission import Capability, tag
+from zrb.llm.capabilities.permission import Capability, tag
 from zrb.llm.contracts.shared.agent_activity import HasActivityTracking
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.llm.subagent.live_session import live_subagent_session_registry

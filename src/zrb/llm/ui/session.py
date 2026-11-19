@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI

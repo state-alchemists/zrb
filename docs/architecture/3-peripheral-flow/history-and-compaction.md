@@ -2,7 +2,7 @@
 
 # History & Compaction
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/history_manager/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/capabilities/history_manager/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 History is what lets a conversation continue: the next turn, a resumed session, or a retry after a crash all start from the saved message list. This page covers how that list is loaded, shrunk when it outgrows the model's window, repaired before it is sent, and saved. The one idea to take away: the summary is not a side channel; it is a message inside the list, and that list is exactly what gets saved.
 
@@ -49,7 +49,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 | A history that is mostly tool output is summarized as one conversation, not as byte-sized pieces | The chunks are merged newest-wins, so the newest chunk overrules the user's earlier request and the summary reads as if the conversation began at the last turn | `test/llm/summarizer/test_chunk_processor.py::test_clipping_keeps_a_tool_heavy_conversation_in_one_chunk` |
 | A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/summarizer/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
 | Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
-| A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
+| A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/capabilities/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
 | An unsaved in-memory update wins over a newer file on load | An external write between update and save discards the turn | **unpinned** |
 | A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
 
@@ -71,8 +71,8 @@ flowchart TD
 | --- | --- | --- |
 | `LLMTaskHistory` | `src/zrb/llm/task/history.py` | Picks the manager and the conversation name; saves what a failed or cancelled turn did |
 | `resolve_conversation_name` | `src/zrb/llm/task/shared_getters.py` | The configured name, or a fresh random one when it is blank |
-| `FileHistoryManager` | `src/zrb/llm/history_manager/file_history_manager.py` | The default store: a small LRU cache, load-time cleanup, validated atomic JSON writes, backups and retention |
-| `AnyHistoryManager` | `src/zrb/llm/history_manager/any_history_manager.py` | The protocol a custom store implements: `load`, `update`, `save`, `search` |
+| `FileHistoryManager` | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | The default store: a small LRU cache, load-time cleanup, validated atomic JSON writes, backups and retention |
+| `AnyHistoryManager` | `src/zrb/llm/capabilities/history_manager/any_history_manager.py` | The protocol a custom store implements: `load`, `update`, `save`, `search` |
 | `create_summarizer_history_processor` | `src/zrb/llm/summarizer/history_summarizer.py` | Builds the processor that runs both tiers: first per-message, then the whole conversation |
 | `process_message_for_summarization` | `src/zrb/llm/summarizer/message_processor.py` | Tier one: shrinks one oversized tool result, or truncates it if summarizing fails |
 | `summarize_history` | `src/zrb/llm/summarizer/history_summarizer.py` | Tier two: splits the list, summarizes the old part, rebuilds the list |
@@ -140,7 +140,7 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change naming or what a failed turn saves | `src/zrb/llm/task/history.py` | `test/llm/task/test_history.py` |
-| Change caching, file layout, backups or retention | `src/zrb/llm/history_manager/file_history_manager.py` | `test/llm/history_manager/` |
+| Change caching, file layout, backups or retention | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | `test/llm/capabilities/history_manager/` |
 | Change when or how history is summarized | `src/zrb/llm/summarizer/history_summarizer.py` | `test/llm/summarizer/` |
 | Change where the list may be cut | `src/zrb/llm/summarizer/history_splitter.py` | `test/llm/summarizer/` |
 | Change the provider-boundary repair | `src/zrb/llm/agent/run/history_utils.py` | `test/llm/agent/run/` |

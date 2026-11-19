@@ -405,8 +405,8 @@ async def test_continue_live_session_uses_captured_authority_not_ambient(
     still-bound scope" invariant does not hold here — see
     `authority_snapshot.py`)."""
     from zrb.llm.agent.run.runner import current_yolo
-    from zrb.llm.permission.policy import PermissionPolicy, Rule
-    from zrb.llm.permission.state import permission_policy
+    from zrb.llm.capabilities.permission.policy import PermissionPolicy, Rule
+    from zrb.llm.capabilities.permission.state import permission_policy
     from zrb.util.contextvar_scope import scoped
 
     narrow_policy = PermissionPolicy(rules=(Rule("*", "deny"),))

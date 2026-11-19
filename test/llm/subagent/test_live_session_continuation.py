@@ -369,7 +369,7 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
     """The continuation is started from a key handler, long after the parent's
     scope exited, so the hook manager travels with the rest of the captured
     authority — otherwise the turn fires on the program-wide singleton."""
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.contracts.shared.agent_state import current_hook_manager
     from zrb.util.contextvar_scope import scoped
 
@@ -408,7 +408,7 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
         current_approval_channel,
         current_tool_confirmation,
     )
-    from zrb.llm.tool_call import ToolCallHandler
+    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 
     handler = ToolCallHandler()
@@ -450,7 +450,7 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
         current_approval_channel,
         current_tool_confirmation,
     )
-    from zrb.llm.tool_call import ToolCallHandler
+    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 
     entry = registry.add_session(

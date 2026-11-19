@@ -16,17 +16,17 @@ import time
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.execution import executor as hook_executor
-from zrb.llm.hook.manager import hook_manager
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.execution import executor as hook_executor
+from zrb.llm.capabilities.hook.manager import hook_manager
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 from zrb.llm.contracts.shared.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
 from zrb.llm.contracts.shared.feature_config import close_feature_sessions
-from zrb.llm.tool.delegate.background import get_background_registry
-from zrb.llm.tool.shell.background import get_shell_background_registry
+from zrb.llm.capabilities.tool.delegate.background import get_background_registry
+from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:

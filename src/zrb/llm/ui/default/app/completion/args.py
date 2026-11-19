@@ -13,7 +13,7 @@ from datetime import datetime
 from prompt_toolkit.completion import Completion
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 
 # `/set` names that switch the UI's live model slots rather than a CFG field.
 _LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})

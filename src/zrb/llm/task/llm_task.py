@@ -23,13 +23,13 @@ from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.contracts.config.model_resolver import apply_model_hooks, require_model_hook
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.permission import PermissionPolicyInput, resolve_policy
-from zrb.llm.prompt.live_context.context import previous_git_baseline
-from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.sandbox import SandboxInput, coerce_sandbox
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.capabilities.permission import PermissionPolicyInput, resolve_policy
+from zrb.llm.capabilities.prompt.live_context.context import previous_git_baseline
+from zrb.llm.capabilities.prompt.manager import PromptManager
+from zrb.llm.capabilities.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.contracts.shared.stream_observer import StreamObserver
 from zrb.llm.contracts.shared.usage_log import CompactionDetail
 from zrb.llm.summarizer import summarize_history, warn_forced_compaction
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
         ToolFuncEither,
         UserContent,
     )
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.task.shared_getters import ModelAttr, ToolFactory
     from zrb.llm.ui.any_ui import AnyUI
 

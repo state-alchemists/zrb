@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.multi import MultiUI
 
@@ -134,7 +134,7 @@ async def test_confirm_tool_uses_approval_channel():
     mock_channel = MagicMock()
     multi_ui.set_approval_channel(mock_channel)
 
-    from zrb.llm.approval import ApprovalResult
+    from zrb.llm.capabilities.approval import ApprovalResult
 
     mock_channel.request_approval = AsyncMock(
         return_value=ApprovalResult(approved=True, message="Approved")

@@ -59,7 +59,7 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
     "docs/adr/adr-0124.md": {
         # The record says this module was deleted; naming where it lived is the
         # subject of the ADR, and there is no post-removal path to point at.
-        "src/zrb/llm/tool/rag.py",
+        "src/zrb/llm/capabilities/tool/rag.py",
     },
     "docs/adr/adr-0088.md": {
         # The Context and Decision paragraphs name both modules at their
@@ -73,22 +73,22 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
         # "Tests" paragraph name the modules that implemented it. All of them
         # were deleted with the journal in 3.33.0 (ADR-0138), so there is no
         # surviving module that embodies the same mechanism to point at.
-        "src/zrb/llm/tool/journal.py",
-        "src/zrb/llm/tool/journal_write.py",
-        "src/zrb/llm/hook/journal_compliance.py",
-        "test/llm/tool/test_journal_notes.py",
-        "test/llm/tool/test_journal_backlinks.py",
-        "test/llm/tool/test_journal_git.py",
-        "test/llm/hook/test_journal_compliance.py",
+        "src/zrb/llm/capabilities/tool/journal.py",
+        "src/zrb/llm/capabilities/tool/journal_write.py",
+        "src/zrb/llm/capabilities/hook/journal_compliance.py",
+        "test/llm/capabilities/tool/test_journal_notes.py",
+        "test/llm/capabilities/tool/test_journal_backlinks.py",
+        "test/llm/capabilities/tool/test_journal_git.py",
+        "test/llm/capabilities/hook/test_journal_compliance.py",
     },
     "docs/adr/adr-0127.md": {
         # The record added the `/usage` Journal section and the event log behind
         # it; both went with the journal in 3.33.0. The usage half it also
         # describes is live, and `src/zrb/llm/contracts/shared/usage_log.py` is checked normally.
         "src/zrb/llm/journal_usage_log.py",
-        "src/zrb/llm/tool/journal.py",
+        "src/zrb/llm/capabilities/tool/journal.py",
         "test/llm/test_journal_usage_log.py",
-        "test/llm/tool/test_journal_usage_events.py",
+        "test/llm/capabilities/tool/test_journal_usage_events.py",
     },
     "docs/adr/adr-0134.md": {
         # This record measures journal retrieval — the `prompted` and
@@ -101,8 +101,8 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
         # The ranked cap was extracted into this module, and its adversarial
         # test walk lived in that test file. Both are gone with the journal in
         # 3.33.0; the decision has no implementation left to point at.
-        "src/zrb/llm/prompt/journal_core.py",
-        "test/llm/prompt/test_journal_core.py",
+        "src/zrb/llm/capabilities/prompt/journal_core.py",
+        "test/llm/capabilities/prompt/test_journal_core.py",
     },
 }
 

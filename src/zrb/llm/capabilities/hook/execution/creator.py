@@ -1,0 +1,421 @@
+"""Factories for command, prompt, and agent hooks."""
+
+import asyncio
+import json
+import logging
+import os
+import signal
+import subprocess
+import threading
+from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
+from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.schema import CommandHookConfig, PromptHookConfig
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.execution.process_io import read_hook_output, run_detached
+from zrb.llm.capabilities.hook.execution.process_kill import (
+    kill_process_tree,
+    read_process_group,
+    reap_killed_process,
+)
+from zrb.llm.contracts.shared.agent_runner import create_agent
+from zrb.llm.contracts.shared.agent_state import current_nested_run, get_current_model
+from zrb.llm.contracts.shared.request_log import (
+    REASON_HOOK,
+    record_standalone_requests,
+)
+from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, record_agent_usage
+
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
+
+logger = logging.getLogger(__name__)
+
+# Events for which Claude Code injects a command hook's plain stdout into the
+# model context. For these, when a hook emits unstructured text (not the JSON
+# control protocol), we treat that text as additionalContext so a simple
+# `echo "..."` hook behaves the same as in Claude Code.
+_STDOUT_CONTEXT_EVENTS = frozenset(
+    {HookEvent.SESSION_START, HookEvent.USER_PROMPT_SUBMIT}
+)
+
+# Per-value cap for injected CLAUDE_* env vars. The OS rejects an exec whose
+# combined args+environment exceed ARG_MAX (and a single var over MAX_ARG_STRLEN,
+# ~128 KiB). event_data can carry the whole message history, so we cap well
+# under that. stdin does not carry event_data, so a command hook can only rely
+# on the HookContext fields.
+_MAX_HOOK_ENV_BYTES = 16384
+
+# Context fields exported as CLAUDE_<FIELD>, for hooks that read the environment
+# rather than the stdin payload.
+_ENV_CONTEXT_FIELDS = (
+    "tool_name",
+    "tool_input",
+    "prompt",
+    "command_name",
+    "command_args",
+    "command_handled",
+    "message",
+    "title",
+    "notification_type",
+    "last_assistant_message",
+    "agent_id",
+    "teammate_name",
+    "task_id",
+    "emotion",
+    "emotion_source",
+)
+
+
+def create_command_hook(
+    config: CommandHookConfig, timeout: float | None = None
+) -> HookCallable:
+    async def command_hook(context: HookContext) -> HookResult:
+        env = _build_hook_env(context, plugin_root=config.plugin_root)
+        stdin_payload = _encode_stdin_payload(context)
+        hook_cwd = _resolve_hook_cwd(config, context)
+        try:
+            # A plain Popen in a thread, not asyncio.create_subprocess_shell:
+            # cancelling the asyncio version mid-init can leave `_pipes`
+            # entries None, and `_wait()` then hangs forever (CPython bug).
+            process = await run_detached(
+                lambda: subprocess.Popen(
+                    config.command,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=hook_cwd,
+                    env=env,
+                    # Own session/process group so the whole tree can be killed
+                    # on timeout — see process_kill.kill_process_tree. POSIX-only;
+                    # silently ignored on Windows, where psutil handles children.
+                    start_new_session=True,
+                ),
+                name="zrb-hook-spawn",
+            )
+            # Derived from process.pid, not queried — see
+            # process_kill.read_process_group for why sampling it via
+            # getpgid() here would race the child's own setsid().
+            hook_pgid = read_process_group(process)
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    run_detached(
+                        lambda: read_hook_output(process, stdin_payload),
+                        name="zrb-hook-io",
+                    ),
+                    timeout=timeout,
+                )
+            except asyncio.TimeoutError:
+                kill_process_tree(process, hook_pgid)
+                await run_detached(
+                    lambda: reap_killed_process(process, hook_pgid),
+                    name="zrb-hook-reap",
+                )
+                logger.warning(
+                    f"Command hook timed out after {timeout}s and was killed: "
+                    f"{config.command[:60]}"
+                )
+                return HookResult(
+                    success=False,
+                    output=f"Command hook timed out after {timeout}s",
+                )
+            except asyncio.CancelledError:
+                kill_process_tree(process, hook_pgid)
+                # The reap waits for the child to exit; this task is being
+                # cancelled, so it waits on a thread of its own.
+                threading.Thread(
+                    target=reap_killed_process,
+                    args=(process, hook_pgid),
+                    name="zrb-hook-reap",
+                    daemon=True,
+                ).start()
+                raise
+            # The output is read once the child exits, and left for this to
+            # reap, so `returncode` is set without waiting.
+            process.wait()
+
+            return _interpret_exit(
+                exit_code=process.returncode,
+                output=stdout.decode().strip(),
+                stderr_output=stderr.decode().strip(),
+                context=context,
+                command=config.command,
+            )
+
+        except Exception as e:
+            logger.error(f"Error executing command hook: {e}")
+            return HookResult(success=False, output=str(e))
+
+    return command_hook
+
+
+def _build_hook_env(
+    context: HookContext, plugin_root: str | None = None
+) -> dict[str, str]:
+    """Build the size-bounded ``CLAUDE_*`` environment for a hook child."""
+    env = os.environ.copy()
+    env["CLAUDE_HOOK_EVENT"] = str(context.event.value)
+    env["CLAUDE_HOOK_EVENT_NAME"] = context.hook_event_name or str(context.event.value)
+    env["CLAUDE_CWD"] = context.cwd or ""
+    env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
+    env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
+    env["CLAUDE_PROJECT_DIR"] = context.cwd or os.getcwd()
+    env["CLAUDE_PLUGIN_ROOT"] = plugin_root or ""
+    env["CLAUDE_CODE_REMOTE"] = "true" if context.metadata.get("remote") else "false"
+    try:
+        if context.event_data is not None:
+            _set_bounded_env(env, "CLAUDE_EVENT_DATA", json.dumps(context.event_data))
+        else:
+            env["CLAUDE_EVENT_DATA"] = "null"
+    except (TypeError, ValueError):
+        _set_bounded_env(env, "CLAUDE_EVENT_DATA", str(context.event_data))
+    for field in _ENV_CONTEXT_FIELDS:
+        value = getattr(context, field, None)
+        if value is None:
+            continue
+        encoded = json.dumps(value) if isinstance(value, dict) else str(value)
+        _set_bounded_env(env, f"CLAUDE_{field.upper()}", encoded)
+    return env
+
+
+def _set_bounded_env(env: dict[str, str], key: str, value: str) -> None:
+    """Set *key* unless it would blow the exec arg+env limit — see _build_hook_env."""
+    if len(value) <= _MAX_HOOK_ENV_BYTES:
+        env[key] = value
+
+
+def _encode_stdin_payload(context: HookContext) -> bytes:
+    """Encode the Claude-shaped JSON payload sent to hook stdin."""
+    claude_payload = context.to_claude_json()
+    try:
+        return json.dumps(claude_payload).encode()
+    except (TypeError, ValueError):
+        # Tool args/results may carry non-serializable objects. Fall back to a
+        # minimal payload so stdin-driven hooks can still route on event.
+        return json.dumps(
+            {"hook_event_name": claude_payload.get("hook_event_name")}
+        ).encode()
+
+
+def _resolve_hook_cwd(config: CommandHookConfig, context: HookContext) -> str | None:
+    """The directory to run the hook in, or None to inherit our own.
+
+    A "~" is expanded (the OS does not, unlike a shell) and a missing
+    directory falls back to inheriting, so a display-formatted or stale cwd
+    never fails the hook with ``[Errno 2]``.
+    """
+    raw_cwd = config.working_dir or context.cwd
+    if not raw_cwd:
+        return None
+    expanded = os.path.expanduser(raw_cwd)
+    return expanded if os.path.isdir(expanded) else None
+
+
+def _interpret_exit(
+    exit_code: int | None,
+    output: str,
+    stderr_output: str,
+    context: HookContext,
+    command: str,
+) -> HookResult:
+    """Convert a hook's exit code and streams into a `HookResult`."""
+    if exit_code == 2:
+        return _blocked_result(output, stderr_output)
+    if exit_code == 0:
+        return _success_result(output, context)
+    if exit_code is not None and exit_code < 0:
+        return _signal_result(exit_code, command)
+    return _failure_result(exit_code, output, stderr_output)
+
+
+def _json_object(output: str) -> dict | None:
+    """*output* parsed as a JSON object, or None when it is anything else."""
+    try:
+        data = json.loads(output)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _blocked_result(output: str, stderr_output: str) -> HookResult:
+    """Build the result for exit code 2, preserving the block reason."""
+    # Claude Code format: {"decision": "block", "reason": "...", ...}
+    control = _json_object(output)
+    modifications = control or {}
+
+    # Only treat stdout as the reason when it was NOT a JSON control object (a
+    # JSON object without a reason key keeps the default).
+    plain_stdout = None if control is not None else (output or None)
+    reason = (
+        modifications.get("reason")
+        or stderr_output
+        or plain_stdout
+        or "Blocked by hook"
+    )
+
+    blocking_modifications = {
+        "decision": "block",
+        "reason": reason,
+        "exit_code": 2,
+    }
+    blocking_modifications.update(modifications)
+    return HookResult(
+        success=False,
+        output=output,
+        should_stop=True,
+        modifications=blocking_modifications,
+    )
+
+
+def _success_result(output: str, context: HookContext) -> HookResult:
+    """Build a success result, parsing JSON control output when present."""
+    modifications: dict[str, object] = dict(_json_object(output) or {})
+
+    if output and not modifications and context.event in _STDOUT_CONTEXT_EVENTS:
+        modifications["additionalContext"] = output
+
+    return HookResult(success=True, output=output, modifications=modifications)
+
+
+def _signal_result(exit_code: int, command: str) -> HookResult:
+    """A negative return code — the child was killed by a signal.
+
+    POSIX reports -N for signal N. This is almost always the terminal delivering
+    SIGINT (-2, Ctrl+C) or SIGTERM (-15) to the whole process group during
+    interrupt/teardown — not a hook bug. Treat it as a quiet non-failure so a
+    normal Ctrl+C does not emit a scary "Command hook failed" error.
+    """
+    sig_num = -exit_code
+    try:
+        sig_name = signal.Signals(sig_num).name
+    except ValueError:
+        sig_name = f"signal {sig_num}"
+    logger.debug(f"Command hook interrupted by {sig_name}: {command[:60]}")
+    return HookResult(
+        success=False,
+        output=f"Command hook interrupted by {sig_name}",
+    )
+
+
+def _failure_result(
+    exit_code: int | None, output: str, stderr_output: str
+) -> HookResult:
+    """Any other non-zero exit — a genuine hook failure."""
+    error_msg = f"Command failed with exit code {exit_code}"
+    if stderr_output:
+        error_msg += f": {stderr_output}"
+    elif output:
+        error_msg += f": {output}"
+    logger.error(f"Command hook failed: {error_msg}")
+    return HookResult(success=False, output=error_msg)
+
+
+def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
+    async def prompt_hook(context: HookContext) -> HookResult:
+        """Run an LLM with the configured prompt template and return its output."""
+        return await run_llm_hook(
+            kind="prompt",
+            model=config.model,
+            system_prompt=config.system_prompt or "",
+            user_prompt=_render_prompt_template(config.user_prompt_template, context),
+        )
+
+    return prompt_hook
+
+
+def _render_prompt_template(template: str, context: HookContext) -> str:
+    """Substitute ``{{field}}`` placeholders from *context*'s scalar fields."""
+    for field_name in dir(context):
+        if field_name.startswith("_"):
+            continue
+        field_value = getattr(context, field_name)
+        if isinstance(field_value, (str, int, float, bool)):
+            placeholder = f"{{{{{field_name}}}}}"
+            if placeholder in template:
+                template = template.replace(placeholder, str(field_value))
+    return template
+
+
+async def run_llm_hook(
+    kind: str,
+    model: "str | Model | None",
+    system_prompt: str,
+    user_prompt: str,
+    tools: list | None = None,
+    auto_approve: bool = False,
+) -> HookResult:
+    """Shared body of the prompt and agent hooks.
+
+    They differ only in where their two prompts (and, for agent hooks, tools)
+    come from; *kind* names the one in play for log messages.
+
+    *auto_approve* runs the agent with yolo. A hook has no approval channel, so
+    without it a tool call comes back as a deferred request and never executes.
+    """
+    try:
+        # lazy: heavy third-party — pydantic_ai's message types.
+        from zrb.llm.agent.types import ToolCallPart
+
+        # A hook agent is a nested agent inside a run, so an unconfigured one
+        # inherits that run's model (a `/model` switch, `--model`) before
+        # falling back to the static default — same reason the summarizer does.
+        model_name = model or get_current_model() or CFG.LLM_MODEL
+        if not model_name:
+            logger.error(f"No LLM model configured for {kind} hook")
+            return HookResult(success=False, output="No LLM model configured")
+
+        agent = create_agent(
+            model=resolve_configured_model(model_name),
+            system_prompt=system_prompt,
+            tools=tools or [],
+            resolve_model=False,  # already resolved above
+            yolo=auto_approve,
+        )
+        # A hook's agent is a nested run by definition: no user is waiting on it, and
+        # the events it fires — its own prompt, its tool calls — are not the turn's.
+        # Something has to say so, or a listener that paints the user's state from
+        # those events (the avatar says "thinking") keeps painting it after the turn
+        # ended, because nothing sends that run's own idle. The runner binds this
+        # ContextVar for a sub-agent's run; a hook does not go through the runner, so
+        # it binds the same one here.
+        token = current_nested_run.set(True)
+        try:
+            result = await agent.run(user_prompt)
+        finally:
+            current_nested_run.reset(token)
+
+        output_text = str(result.output)
+        # No `model=`: this is the configured name, and `create_agent` resolved
+        # it above. The result's own response names the model that served the
+        # request, which is what `/usage` groups by.
+        record_agent_usage(result, component=COMPONENT_HOOK)
+        record_standalone_requests(result, REASON_HOOK, component=COMPONENT_HOOK)
+        return HookResult(
+            success=True,
+            output=output_text,
+            modifications=_parse_json_object(output_text),
+            tool_calls=sum(
+                1
+                for message in result.new_messages()
+                for part in getattr(message, "parts", [])
+                if isinstance(part, ToolCallPart)
+            ),
+        )
+    except Exception as e:
+        logger.error(f"Error executing {kind} hook: {e}", exc_info=True)
+        return HookResult(success=False, output=str(e))
+
+
+def _parse_json_object(text: str) -> dict:
+    """*text* as a dict when it is a JSON object, else an empty dict."""
+    stripped = text.strip()
+    if not (stripped.startswith("{") and stripped.endswith("}")):
+        return {}
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}

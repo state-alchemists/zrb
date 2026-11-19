@@ -13,11 +13,11 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.llm.approval.judge_state import (
+from zrb.llm.capabilities.approval.judge_state import (
     is_shell_judge_auto_approve_enabled_for,
     is_shell_judge_enabled_for,
 )
-from zrb.llm.sandbox.state import is_sandbox_enabled_for
+from zrb.llm.capabilities.sandbox.state import is_sandbox_enabled_for
 from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
 from zrb.llm.contracts.shared.ambient_state import get_session_ownership_key
 from zrb.llm.contracts.shared.output_chunk import (

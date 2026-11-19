@@ -18,7 +18,7 @@ measurements and for why ``mutmut``/``cosmic-ray`` do not fit this layout.
 Usage::
 
     python scripts/mutation_ratchet.py                 # every package in FLOORS
-    python scripts/mutation_ratchet.py llm/skill       # just one
+    python scripts/mutation_ratchet.py llm/capabilities/skill       # just one
     python scripts/mutation_ratchet.py --mutants 40    # wider sample
 
 Exit code is non-zero if any package falls below its floor.
@@ -50,8 +50,8 @@ TESTS = REPO_ROOT / "test"
 # prompt assembly, skill discovery. A package belongs here once it has a
 # measured rate; a speculative floor of 0 asserts nothing.
 #
-# Baseline at 25 mutants each: task/base 56%, cmd 48%, llm/skill 60%,
-# llm/prompt 56%. Each floor sits a few points under its baseline, unlike the
+# Baseline at 25 mutants each: task/base 56%, cmd 48%, llm/capabilities/skill 60%,
+# llm/capabilities/prompt 56%. Each floor sits a few points under its baseline, unlike the
 # line-count budgets which are pinned exact -- an edit to a package shifts which
 # mutation sites get drawn, so the rate moves a little with no test changing.
 # The margin absorbs that drift; it is not slack for new untested code.
@@ -62,8 +62,8 @@ TESTS = REPO_ROOT / "test"
 FLOORS: dict[str, int] = {
     "task/base": 50,
     "cmd": 64,
-    "llm/skill": 55,
-    "llm/prompt": 50,
+    "llm/capabilities/skill": 55,
+    "llm/capabilities/prompt": 50,
 }
 
 # An exhaustive pass over four packages is hours, so this samples. The seed is

@@ -26,7 +26,7 @@ zrb-llm-evaluator run --models <model-list> --test-cases <challenge-dirs> \
 | Report | `experiment/report.md` |
 | Results | `experiment/results.json` |
 | Prompts to optimize | `src/zrb/llm/contracts/shared/markdown/` |
-| Tools to optimize | `src/zrb/llm/tool/` |
+| Tools to optimize | `src/zrb/llm/capabilities/tool/` |
 
 ### One-on-One LLM Session
 

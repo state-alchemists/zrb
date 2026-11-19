@@ -20,8 +20,8 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.llm.tool import read_file as read_file_tool
-from zrb.llm.tool import run_shell_command as run_shell_command_tool
+from zrb.llm.capabilities.tool import read_file as read_file_tool
+from zrb.llm.capabilities.tool import run_shell_command as run_shell_command_tool
 from zrb.util.file import read_file
 
 _DIR = os.path.dirname(__file__)

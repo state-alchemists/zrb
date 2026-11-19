@@ -84,8 +84,8 @@ class TestChatSessionManagerCleanup:
     ):
         """A background shell process does not outlive session removal."""
         from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
-        from zrb.llm.tool.shell import run_shell_command
-        from zrb.llm.tool.shell.background import get_shell_background_registry
+        from zrb.llm.capabilities.tool.shell import run_shell_command
+        from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
         from zrb.util.contextvar_scope import scoped
 
@@ -109,8 +109,8 @@ class TestChatSessionManagerCleanup:
     ):
         """Cleanup keys off session_id, since `session_name` is not unique."""
         from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
-        from zrb.llm.tool.shell import run_shell_command
-        from zrb.llm.tool.shell.background import get_shell_background_registry
+        from zrb.llm.capabilities.tool.shell import run_shell_command
+        from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
         from zrb.util.contextvar_scope import scoped
 

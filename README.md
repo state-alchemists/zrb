@@ -125,8 +125,8 @@ Add the following to your existing `zrb_init.py` file (or create a new one if yo
 ```python
 # zrb_init.py (continued)
 from zrb import cli, LLMTask, CmdTask, StrInput, Group, Tpl
-from zrb.llm.tool.code import analyze_code
-from zrb.llm.tool.file import write_file
+from zrb.llm.capabilities.tool.code import analyze_code
+from zrb.llm.capabilities.tool.file import write_file
 
 # Create a group for Mermaid-related tasks
 mermaid_group = cli.add_group(
@@ -230,7 +230,7 @@ Every part of the agent is a value you can supply or a callable you can register
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.permission import Capability, tag
+from zrb.llm.capabilities.permission import Capability, tag
 
 # A normal Python function becomes a tool — typed args + docstring are the spec.
 async def get_open_incidents(team: str) -> str:

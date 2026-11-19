@@ -1,0 +1,377 @@
+"""Tests for zrb.llm.capabilities.tool.ask — interactive user-question tool."""
+
+from __future__ import annotations
+
+import inspect
+from typing import get_args, get_type_hints
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from zrb.llm.contracts.shared.ambient_state import get_interactive_mode, set_interactive_mode
+from zrb.llm.capabilities.tool.ask import ask_user_question, build_choice_spec
+from zrb.llm.contracts.util.choice_spec_format import format_choice_spec
+
+
+@pytest.fixture(autouse=True)
+def _restore_interactive_mode():
+    """Each test runs against a known interactive=True baseline."""
+    set_interactive_mode(True)
+    try:
+        yield
+    finally:
+        set_interactive_mode(True)
+
+
+def test_tool_name_matches_llm_visible_name():
+    """The LLM sees this tool as 'AskUserQuestion', matching the guidance entry."""
+    assert ask_user_question.__name__ == "AskUserQuestion"
+
+
+def test_ask_user_question_registers_itself_as_always_auto_approve():
+    """Importing the tool self-registers it as intrinsically auto-approved (ADR-0062)."""
+    from zrb.llm.capabilities.tool_call.always_approve import is_always_auto_approve
+
+    assert is_always_auto_approve("AskUserQuestion") is True
+
+
+def test_build_choice_spec_carries_counter_and_header():
+    spec = build_choice_spec(
+        2, 3, {"question": "Pick a DB?", "options": [{"label": "PG"}]}
+    )
+    assert spec["index"] == 2
+    assert spec["total"] == 3
+    assert spec["multi_select"] is False
+    # Header is derived from the question when not given (trailing '?' stripped).
+    assert spec["header"] == "Pick a DB"
+
+
+def test_build_choice_spec_carries_context_and_recommended_flags():
+    spec = build_choice_spec(
+        1,
+        1,
+        {
+            "question": "Which DB?",
+            "context": "Read-heavy traffic, 2GB of data, no ops team.",
+            "options": [
+                {"label": "Postgres", "recommended": True},
+                {"label": "SQLite"},
+            ],
+        },
+    )
+    assert spec["context"] == "Read-heavy traffic, 2GB of data, no ops team."
+    assert spec["options"][0]["recommended"] is True
+    assert "recommended" not in spec["options"][1]
+
+
+def test_build_choice_spec_does_not_strip_unknown_option_keys():
+    """A UI may render per-option keys this module knows nothing about."""
+    options = [{"label": "Postgres", "recommended": True, "cost": "high"}]
+    spec = build_choice_spec(1, 1, {"question": "Which DB?", "options": options})
+    assert spec["options"][0]["cost"] == "high"
+
+
+def test_build_choice_spec_context_defaults_to_empty():
+    spec = build_choice_spec(1, 1, {"question": "Pick", "options": [{"label": "A"}]})
+    assert spec["context"] == ""
+
+
+def test_question_schema_documents_context_and_recommendation():
+    """The model learns the two new keys from the parameter description alone."""
+    raw = inspect.unwrap(ask_user_question)
+    hints = get_type_hints(raw, include_extras=True)
+    description = get_args(hints["questions"])[1].description
+    assert "context" in description
+    assert "recommended" in description
+
+
+@pytest.mark.asyncio
+async def test_context_and_recommendation_reach_the_ui():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "Postgres"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Which DB?",
+                    "context": "The service is read-heavy.",
+                    "options": [
+                        {"label": "Postgres", "recommended": True},
+                        {"label": "SQLite"},
+                    ],
+                }
+            ]
+        )
+    spec = fake_ui.picker.ask_user_choice.await_args.args[0]
+    assert spec["context"] == "The service is read-heavy."
+    assert spec["options"][0]["recommended"] is True
+    # The recommendation never reaches the answer the model is told about.
+    assert result == "Q1 (Which DB): Postgres"
+
+
+def test_format_choice_spec_renders_numbered_text():
+    spec = build_choice_spec(
+        1,
+        1,
+        {
+            "question": "Which one?",
+            "options": [{"label": "A", "description": "first"}, {"label": "B"}],
+        },
+    )
+    text = format_choice_spec(spec)
+    assert "[Q1] Which one?" in text
+    assert "1. A — first" in text
+    assert "2. B" in text
+    assert "number or free-form text" in text
+
+
+def test_format_choice_spec_multi_select_hint_and_counter():
+    spec = build_choice_spec(
+        2, 4, {"question": "Pick", "options": [{"label": "A"}], "multi_select": True}
+    )
+    text = format_choice_spec(spec)
+    assert "[Q2/4]" in text
+    assert "comma-separated numbers" in text
+
+
+@pytest.mark.asyncio
+async def test_short_circuits_in_non_interactive_mode():
+    set_interactive_mode(False)
+    result = await ask_user_question(
+        [{"question": "pick", "options": [{"label": "A"}, {"label": "B"}]}]
+    )
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "non-interactive" in result.lower()
+    # Both exits offered, and the re-ask loop closed.
+    assert "best judgement" in result.lower()
+    assert "stop and report" in result.lower()
+    assert "do not call it again" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_returns_error_when_questions_empty():
+    result = await ask_user_question([])
+    assert "no questions" in result.lower()
+    assert "[SYSTEM SUGGESTION]" in result
+
+
+@pytest.mark.asyncio
+async def test_returns_error_when_ui_unavailable():
+    """In interactive mode but with no current UI, fall back to guidance."""
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=None):
+        result = await ask_user_question(
+            [{"question": "x", "options": [{"label": "A"}]}]
+        )
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "No UI is available" in result
+    assert "stop and report" in result.lower()
+    assert "do not call it again" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_missing_required_keys_surfaces_schema_error():
+    fake_ui = AsyncMock()
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question([{"options": [{"label": "A"}]}])
+    assert "missing required keys" in result
+    assert "question" in result
+    # UI must not be called when the schema is invalid.
+    fake_ui.picker.ask_user_choice.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_empty_options_surfaces_error():
+    fake_ui = AsyncMock()
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question([{"question": "x", "options": []}])
+    assert "options is empty" in result
+    fake_ui.picker.ask_user_choice.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_resolves_numeric_pick_to_label():
+    """A UI that returns a number (text-fallback path) still maps to the label."""
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "2"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Which framework?",
+                    "header": "Framework",
+                    "options": [
+                        {"label": "FastAPI"},
+                        {"label": "Flask"},
+                    ],
+                }
+            ]
+        )
+    assert "Q1 (Framework): Flask" in result
+    fake_ui.picker.ask_user_choice.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_widget_label_answer_is_returned_verbatim():
+    """A widget UI returns the chosen label directly; it survives resolution."""
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "Flask"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Which framework?",
+                    "options": [{"label": "FastAPI"}, {"label": "Flask"}],
+                }
+            ]
+        )
+    assert "Flask" in result
+
+
+@pytest.mark.asyncio
+async def test_returns_free_form_text_when_not_a_number():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "actually use Django"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Which framework?",
+                    "options": [{"label": "FastAPI"}, {"label": "Flask"}],
+                }
+            ]
+        )
+    assert "actually use Django" in result
+
+
+@pytest.mark.asyncio
+async def test_out_of_range_index_falls_through_to_raw_text():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "99"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [{"question": "x", "options": [{"label": "A"}]}]
+        )
+    # "99" doesn't resolve to a real option — preserved as raw input.
+    assert "Q1" in result and "99" in result
+
+
+@pytest.mark.asyncio
+async def test_multi_select_resolves_comma_separated_indexes():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "1,3"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Pick all that apply",
+                    "options": [
+                        {"label": "Tests"},
+                        {"label": "Docs"},
+                        {"label": "Lint"},
+                    ],
+                    "multi_select": True,
+                }
+            ]
+        )
+    assert "Tests, Lint" in result
+
+
+@pytest.mark.asyncio
+async def test_multi_select_falls_back_to_raw_when_any_token_unresolved():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = "1, banana"
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Pick",
+                    "options": [{"label": "Tests"}, {"label": "Docs"}],
+                    "multi_select": True,
+                }
+            ]
+        )
+    # Mixed/unresolved input is preserved verbatim, not partially decoded.
+    assert "1, banana" in result
+
+
+@pytest.mark.asyncio
+async def test_empty_answer_renders_no_answer_marker():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = ""
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [{"question": "x?", "options": [{"label": "A"}]}]
+        )
+    assert "(no answer)" in result
+
+
+@pytest.mark.asyncio
+async def test_keyboard_interrupt_returns_cancellation_suggestion():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.side_effect = KeyboardInterrupt()
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [{"question": "x?", "options": [{"label": "A"}]}]
+        )
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "cancelled" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_multiple_questions_all_get_rendered():
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.side_effect = ["1", "free text"]
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "First?",
+                    "header": "First",
+                    "options": [{"label": "Yes"}, {"label": "No"}],
+                },
+                {
+                    "question": "Second?",
+                    "header": "Second",
+                    "options": [{"label": "X"}],
+                },
+            ]
+        )
+    assert "Q1 (First): Yes" in result
+    assert "Q2 (Second): free text" in result
+    assert fake_ui.picker.ask_user_choice.await_count == 2
+
+
+def test_get_set_interactive_mode_round_trip():
+    set_interactive_mode(False)
+    assert get_interactive_mode() is False
+    set_interactive_mode(True)
+    assert get_interactive_mode() is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "multi, raw, expected",
+    [
+        (False, "1", "1"),
+        (False, "2", "5"),
+        (True, "1, 10", "1, 10"),
+        (True, "2, 3", "5, 1"),
+    ],
+)
+async def test_an_answer_that_is_a_numeric_label_is_not_reindexed(multi, raw, expected):
+    """The UI returns the label it resolved; the label "1" must stay "1", not
+    become the first option "10"."""
+    fake_ui = AsyncMock()
+    fake_ui.picker.ask_user_choice.return_value = raw
+    with patch("zrb.llm.capabilities.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "How many?",
+                    "header": "Count",
+                    "options": [{"label": "10"}, {"label": "5"}, {"label": "1"}],
+                    "multi_select": multi,
+                }
+            ]
+        )
+    assert f"Q1 (Count): {expected}" in result

@@ -2,7 +2,7 @@
 
 # Prompts
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/prompt/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/capabilities/prompt/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 The system prompt tells the model who it is, how to work, and what machine and project it is working in. This page covers how zrb builds that prompt from a few markdown files and two pieces of code. The one idea to take away: the system prompt stays the same from turn to turn, and anything that changes each turn goes into the user's message instead.
 
@@ -46,12 +46,12 @@ The prompt is read by the model on every request, so small mistakes here cost on
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| The default prompt carries all seven sections in the shipped order | The model silently loses part of its operating context | `test/llm/prompt/test_section_composition.py::test_default_prompt_uses_the_shipped_sections_in_order` |
-| The system prompt contains no per-turn state | The prefix changes every turn and nothing is cached, not even history | `test/llm/prompt/test_system_context.py::TestSystemContext::test_system_context_excludes_volatile_state` |
+| The default prompt carries all seven sections in the shipped order | The model silently loses part of its operating context | `test/llm/capabilities/prompt/test_section_composition.py::test_default_prompt_uses_the_shipped_sections_in_order` |
+| The system prompt contains no per-turn state | The prefix changes every turn and nothing is cached, not even history | `test/llm/capabilities/prompt/test_system_context.py::TestSystemContext::test_system_context_excludes_volatile_state` |
 | Live context is appended to the end of the user's turn | Volatile state ends up in the prefix, or loses its recency | `test/llm/agent/run/test_runner_history.py::test_run_agent_appends_live_context_to_user_turn` |
-| The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
-| An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
-| Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
+| The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/capabilities/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
+| An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/capabilities/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
+| Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/capabilities/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
 | A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/subagent/manager/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
 
 ## Realization
@@ -69,16 +69,16 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `PromptManager` | `src/zrb/llm/prompt/manager.py` | Resolves the section list, chains the sections as middleware, appends extra prompts, and renders the live-context block |
+| `PromptManager` | `src/zrb/llm/capabilities/prompt/manager.py` | Resolves the section list, chains the sections as middleware, appends extra prompts, and renders the live-context block |
 | `get_prompt` | `src/zrb/llm/contracts/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders |
 | Section files | `src/zrb/llm/contracts/shared/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
-| `active_profile` | `src/zrb/llm/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
-| `system_context` | `src/zrb/llm/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |
-| `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
-| `build_skill_replacements` | `src/zrb/llm/prompt/claude.py` | Fills the skill catalogue placeholders inside `workflow` |
-| `PromptRegistry`, `prompt_registry` | `src/zrb/llm/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
-| `render_live_context` | `src/zrb/llm/prompt/live_context/context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
-| `render_memory_block`, `render_memory_delta` | `src/zrb/llm/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
+| `active_profile` | `src/zrb/llm/capabilities/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
+| `system_context` | `src/zrb/llm/capabilities/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |
+| `create_project_context_prompt` | `src/zrb/llm/capabilities/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
+| `build_skill_replacements` | `src/zrb/llm/capabilities/prompt/claude.py` | Fills the skill catalogue placeholders inside `workflow` |
+| `PromptRegistry`, `prompt_registry` | `src/zrb/llm/capabilities/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
+| `render_live_context` | `src/zrb/llm/capabilities/prompt/live_context/context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
+| `render_memory_block`, `render_memory_delta` | `src/zrb/llm/capabilities/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
 | `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
 | `create_agent` | `src/zrb/llm/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
 
@@ -117,7 +117,7 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | A deployment pins its own section list | `PromptManager(include_sections=...)` or `ZRB_LLM_INCLUDE_SECTIONS` | That list and order replace the default; omissions are the deployment's choice |
-| `LLM_PROFILE=auto` | `resolve_profile` in `src/zrb/llm/prompt/profile.py` | The model id picks the profile by declared size; an id that declares nothing gets `standard` |
+| `LLM_PROFILE=auto` | `resolve_profile` in `src/zrb/llm/capabilities/prompt/profile.py` | The model id picks the profile by declared size; an id that declares nothing gets `standard` |
 | The `minimal` profile | `active_profile`, read again at tool registration | Also drops the delegate tools — see [Tools](tools.md) |
 | First turn, or after compaction | `LLMTask` and `summarize_history` | The memory block is added to live context, or re-emitted so the summary carries it |
 | A sub-agent with `inherit_sections` | `src/zrb/llm/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the memory block) into its system prompt |
@@ -128,14 +128,14 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the wording of a section | `src/zrb/llm/contracts/shared/markdown/` | `test/llm/prompt/test_prompt_mandates.py` |
-| Change a profile adjustment | `src/zrb/llm/contracts/shared/markdown/profile.capable.md` (and its two siblings) | `test/llm/prompt/test_profile.py` |
-| Change how `auto` picks a profile | `src/zrb/llm/prompt/profile.py` | `test/llm/prompt/test_profile.py` |
-| Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
-| Change override lookup | `src/zrb/llm/contracts/shared/prompt_text.py` | `test/llm/prompt/test_default_prompt.py` |
-| Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
-| Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/live_context/test_live_context_delta.py` |
-| Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |
+| Change the wording of a section | `src/zrb/llm/contracts/shared/markdown/` | `test/llm/capabilities/prompt/test_prompt_mandates.py` |
+| Change a profile adjustment | `src/zrb/llm/contracts/shared/markdown/profile.capable.md` (and its two siblings) | `test/llm/capabilities/prompt/test_profile.py` |
+| Change how `auto` picks a profile | `src/zrb/llm/capabilities/prompt/profile.py` | `test/llm/capabilities/prompt/test_profile.py` |
+| Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/capabilities/prompt/test_config_defaults.py` |
+| Change override lookup | `src/zrb/llm/contracts/shared/prompt_text.py` | `test/llm/capabilities/prompt/test_default_prompt.py` |
+| Change session facts | `src/zrb/llm/capabilities/prompt/system_context.py` | `test/llm/capabilities/prompt/test_system_context.py` |
+| Change per-turn live context | `src/zrb/llm/capabilities/prompt/live_context/context.py` | `test/llm/capabilities/prompt/live_context/test_live_context_delta.py` |
+| Change extra-prompt layering | `src/zrb/llm/capabilities/prompt/registry.py` | `test/llm/capabilities/prompt/test_registry.py` |
 | Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
 
 ## See Also

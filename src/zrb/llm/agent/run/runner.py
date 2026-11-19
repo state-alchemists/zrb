@@ -63,21 +63,21 @@ from zrb.llm.agent.run.setup import (
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
-from zrb.llm.approval.approval_channel import current_approval_channel
+from zrb.llm.capabilities.approval.approval_channel import current_approval_channel
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.turn_evidence import (
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.hook.turn_evidence import (
     turn_changed_paths,
     turn_wrote_files,
 )
-from zrb.llm.permission.state import (
+from zrb.llm.capabilities.permission.state import (
     current_permission_policy,
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
-from zrb.llm.sandbox.state import current_sandbox_policy
+from zrb.llm.capabilities.sandbox.state import current_sandbox_policy
 from zrb.llm.contracts.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -105,7 +105,7 @@ from zrb.llm.contracts.shared.usage_log import (
     count_tool_calls,
     record_usage,
 )
-from zrb.llm.snapshot.command import run_in_worker
+from zrb.llm.capabilities.snapshot.command import run_in_worker
 from zrb.llm.contracts.util.live_context_block import append_live_context
 from zrb.llm.contracts.util.prompt import expand_prompt
 
@@ -125,9 +125,9 @@ if TYPE_CHECKING:
         UIEvent,
     )
     from zrb.llm.agent.types import RunUsage
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.permission.policy import PermissionPolicy
-    from zrb.llm.sandbox.policy import SandboxPolicy
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.permission.policy import PermissionPolicy
+    from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
     from zrb.llm.ui.any_ui import AnyUI
 
     # What a run hands back: the model's output (typed by the agent's own
@@ -1341,7 +1341,7 @@ async def _apply_multimodal_fallback(
     attachments are dropped with a warning.
     """
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai, pdfplumber, prompt_toolkit
-    from zrb.llm.tool.multimodal_describe import replace_unsupported_attachments
+    from zrb.llm.capabilities.tool.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(

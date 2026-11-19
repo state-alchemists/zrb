@@ -30,17 +30,17 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.llm.contracts.shared.input_source import (
     BACKGROUND_INPUT,
     KEYBOARD_INPUT,
     InputProvenance,
 )
-from zrb.llm.snapshot.manager import SnapshotManager
-from zrb.llm.tool_call import (
+from zrb.llm.capabilities.snapshot.manager import SnapshotManager
+from zrb.llm.capabilities.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
     ToolCallHandler,

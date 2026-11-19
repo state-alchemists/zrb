@@ -19,9 +19,9 @@ import weakref
 from typing import TYPE_CHECKING
 
 from zrb.llm.emotion.config import EmotionConfig
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import get_run_hook_manager
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import get_run_hook_manager
 from zrb.llm.contracts.shared.ambient_state import current_reply_emotion, get_input_provenance
 from zrb.llm.contracts.shared.feature_config import replace_feature_sessions, replace_registration
 from zrb.llm.contracts.shared.prompt_text import get_prompt
@@ -29,7 +29,7 @@ from zrb.llm.contracts.shared.prompt_text import get_prompt
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.emotion.reply import ReplyEmotion
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.task.chat.task import LLMChatTask
 
 

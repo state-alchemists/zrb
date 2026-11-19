@@ -17,11 +17,11 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.conversation_edits import (
+from zrb.llm.capabilities.history_manager.conversation_edits import (
     copy_conversation,
     truncate_conversation,
 )
-from zrb.llm.history_manager.conversation_naming import (
+from zrb.llm.capabilities.history_manager.conversation_naming import (
     ConversationNamingError,
     should_auto_name,
     suggest_slug,
@@ -37,7 +37,7 @@ from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 from zrb.util.string.name import get_conversation_key, safe_segment
 
 if TYPE_CHECKING:
-    from zrb.llm.snapshot.manager import SnapshotManager
+    from zrb.llm.capabilities.snapshot.manager import SnapshotManager
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class BaseUIConversationCommands:
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
         from zrb.llm.subagent.live_session import live_subagent_session_registry
         from zrb.llm.subagent.manager.manager import sub_agent_manager
-        from zrb.llm.tool.delegate import persist_subagent_history
+        from zrb.llm.capabilities.tool.delegate import persist_subagent_history
         from zrb.llm.ui.buffered.ui import BufferedUI
 
         ui = self._base_ui
@@ -291,7 +291,7 @@ class BaseUIConversationCommands:
 
     def _swap_to_subagent_persona(self, agent_name: str) -> None:
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.prompt.manager import PromptManager
+        from zrb.llm.capabilities.prompt.manager import PromptManager
         from zrb.llm.subagent.manager.manager import sub_agent_manager
 
         definition = sub_agent_manager.get_agent_definition(agent_name)

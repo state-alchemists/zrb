@@ -19,10 +19,6 @@ LLM = SRC / "zrb" / "llm"
 # The table, for a unit that has not moved into the five-directory layout yet.
 # It is deleted when the last one has (the P7 step of the 4.0 move).
 _UNITS_BY_LAYER = {
-    1: (
-        "approval history_manager hook lsp permission prompt sandbox skill "
-        "snapshot tool tool_call"
-    ),
     2: "agent summarizer",
     3: "common_tools custom_command resumed_session subagent task",
     4: "camera dictation emotion screenshot speech ui voice",
@@ -151,24 +147,13 @@ def _present_units() -> set[str]:
 # still to do, and `test_every_unit_has_a_destination` keeps that worklist equal
 # to the units the table still scores.
 _UNIT_DESTINATIONS = {
-    # contracts — the two floors only. They stay inside `ui/` for now: they build
-    # with the `AnyUI*` protocols that live in `ui/`, so moving them before those
-    # protocols find their own home would put a `contracts/` -> `ui/` import in
-    # the tree and make the two packages a runtime cycle.
-    "ui/fallback": "contracts/ui_fallback",
-    "ui/buffered": "contracts/ui_buffered",
-    # capabilities
-    "approval": "capabilities/approval",
-    "history_manager": "capabilities/history_manager",
-    "hook": "capabilities/hook",
-    "lsp": "capabilities/lsp",
-    "permission": "capabilities/permission",
-    "prompt": "capabilities/prompt",
-    "sandbox": "capabilities/sandbox",
-    "skill": "capabilities/skill",
-    "snapshot": "capabilities/snapshot",
-    "tool": "capabilities/tool",
-    "tool_call": "capabilities/tool_call",
+    # presentation — the two floors travel inside `ui/`, so their destination is
+    # the one `ui` gets. Go settled this on 2026-11-19: the `AnyUI*` protocols
+    # live in `presentation/ui`, beside the implementers that answer them, so a
+    # floor cannot move down to `contracts/` without importing `presentation/`
+    # back at it.
+    "ui/fallback": "presentation/ui/fallback",
+    "ui/buffered": "presentation/ui/buffered",
     # engine
     "agent": "engine/agent",
     "summarizer": "engine/summarizer",

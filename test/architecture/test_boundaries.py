@@ -73,7 +73,7 @@ EXTENSION_POINT_EXCEPTIONS = {
     # panel", and the sub-agent messaging tool's "is this a sub-agent with a
     # parent" — capability probes, not slots any task/UI constructor takes.
     "HasActivityTracking",
-    # llm/tool/shell/command.py's narrowing of "can this UI render a command's output
+    # llm/capabilities/tool/shell/command.py's narrowing of "can this UI render a command's output
     # as one live line" — the same kind of probe: no constructor takes a
     # "live shell UI" slot, and a UI that lacks the methods simply isn't one.
     "_LiveShellUI",

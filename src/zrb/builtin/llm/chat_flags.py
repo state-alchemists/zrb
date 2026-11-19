@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.profile import PROFILES
+from zrb.llm.capabilities.prompt.profile import PROFILES
 
 #: input name → the setting it overrides, in the order `--help` lists them.
 LAUNCH_SETTINGS: tuple[tuple[str, str], ...] = (

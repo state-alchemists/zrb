@@ -1,10 +1,10 @@
 """Agent hook — the one hook type implemented as a real sub-agent turn, so it
-lives in `zrb.llm.agent.hook_agent` rather than `zrb.llm.hook.execution.creator` (which
+lives in `zrb.llm.agent.hook_agent` rather than `zrb.llm.capabilities.hook.execution.creator` (which
 builds command/prompt hooks, neither of which needs the agent-building
 subsystem). It still shares `run_llm_hook`'s model-resolution and JSON-output
-handling with the prompt hook — see `test/llm/hook/test_creator_llm.py` for
+handling with the prompt hook — see `test/llm/capabilities/hook/test_creator_llm.py` for
 that shared body's own tests, which is why some patches below still target
-`zrb.llm.hook.execution.creator` (where `run_llm_hook`, `CFG`, and `resolve_configured_model` live).
+`zrb.llm.capabilities.hook.execution.creator` (where `run_llm_hook`, `CFG`, and `resolve_configured_model` live).
 """
 
 import os
@@ -18,9 +18,9 @@ import pytest
 from pydantic_ai import RunContext
 
 from zrb.llm.agent.hook_agent import create_agent_hook, resolve_agent_hook_tools
-from zrb.llm.hook.contracts.interface import HookContext
-from zrb.llm.hook.contracts.schema import AgentHookConfig
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookContext
+from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.shared.tool_registry import tool_registry
 from zrb.llm.contracts.shared.tool_resolver import resolved_tool_name
 
@@ -36,7 +36,7 @@ def _agent_returning(output):
 def _patched_agent(agent_cls):
     """Patch in *agent_cls* as pydantic_ai.Agent with a stub model resolver."""
     return (
-        patch("zrb.llm.hook.execution.creator.resolve_configured_model"),
+        patch("zrb.llm.capabilities.hook.execution.creator.resolve_configured_model"),
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     )
 
@@ -47,7 +47,7 @@ async def test_agent_hook_no_model_configured():
     hook = create_agent_hook(config)
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
-    with patch("zrb.llm.hook.execution.creator.CFG") as mock_cfg:
+    with patch("zrb.llm.capabilities.hook.execution.creator.CFG") as mock_cfg:
         mock_cfg.LLM_MODEL = ""
         result = await hook(context)
 
@@ -251,7 +251,7 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
     agent_cls = _agent_returning("logged")
     with (
         patch(
-            "zrb.llm.hook.execution.creator.resolve_configured_model"
+            "zrb.llm.capabilities.hook.execution.creator.resolve_configured_model"
         ) as mock_resolve_model,
         # Only Agent is swapped (unlike _patched_agent, which replaces the
         # whole pydantic_ai module) — this test inspects the real Tool that
@@ -305,11 +305,11 @@ async def test_an_auto_approving_config_reaches_the_agent():
 
     with (
         patch(
-            "zrb.llm.hook.execution.creator.resolve_configured_model",
+            "zrb.llm.capabilities.hook.execution.creator.resolve_configured_model",
             return_value="resolved",
         ),
         patch(
-            "zrb.llm.hook.execution.creator.create_agent", return_value=agent
+            "zrb.llm.capabilities.hook.execution.creator.create_agent", return_value=agent
         ) as create,
         patch(
             "zrb.llm.agent.hook_agent.resolve_agent_hook_tools",

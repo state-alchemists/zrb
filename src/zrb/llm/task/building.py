@@ -9,9 +9,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.task.shared_getters import (
     resolve_all_tools,
     resolve_all_toolsets,
@@ -32,10 +32,10 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.permission import PermissionPolicyInput
-    from zrb.llm.sandbox import SandboxInput
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.permission import PermissionPolicyInput
+    from zrb.llm.capabilities.sandbox import SandboxInput
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
 

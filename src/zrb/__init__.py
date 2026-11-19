@@ -57,16 +57,16 @@ if TYPE_CHECKING:
     from zrb.input.text_input import TextInput
     from zrb.llm.contracts.config.limiter import LLMLimiter, llm_limiter
     from zrb.llm.contracts.config.model_resolver import ModelResolver, model_resolver
-    from zrb.llm.hook import HookContext, HookEvent, HookResult
-    from zrb.llm.hook.manager import HookManager, hook_manager
-    from zrb.llm.hook.registry import HookRegistry, hook_registry
-    from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
-    from zrb.llm.prompt.manager import PromptManager
-    from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
+    from zrb.llm.capabilities.hook import HookContext, HookEvent, HookResult
+    from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
+    from zrb.llm.capabilities.hook.registry import HookRegistry, hook_registry
+    from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
+    from zrb.llm.capabilities.prompt.manager import PromptManager
+    from zrb.llm.capabilities.prompt.registry import PromptRegistry, prompt_registry
     from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_registry
-    from zrb.llm.skill import Skill, SkillRegistry
-    from zrb.llm.skill.manager import SkillManager, skill_manager
-    from zrb.llm.skill.registry import skill_registry
+    from zrb.llm.capabilities.skill import Skill, SkillRegistry
+    from zrb.llm.capabilities.skill.manager import SkillManager, skill_manager
+    from zrb.llm.capabilities.skill.registry import skill_registry
     from zrb.llm.subagent.manager.manager import (
         SubAgentDefinition,
         SubAgentManager,
@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.always_approve import (
+    from zrb.llm.capabilities.tool_call.always_approve import (
         register_always_auto_approve,
         register_default_auto_approve,
         register_default_auto_approve_if,
@@ -302,21 +302,21 @@ _LAZY_EXPORTS = {
     "SubAgentDefinition": "zrb.llm.subagent.manager.manager",
     "SubAgentRegistry": "zrb.llm.subagent.registry",
     "sub_agent_registry": "zrb.llm.subagent.registry",
-    "HookManager": "zrb.llm.hook.manager",
-    "hook_manager": "zrb.llm.hook.manager",
-    "HookEvent": "zrb.llm.hook",
-    "HookContext": "zrb.llm.hook",
-    "HookResult": "zrb.llm.hook",
-    "HookRegistry": "zrb.llm.hook.registry",
-    "hook_registry": "zrb.llm.hook.registry",
-    "SkillManager": "zrb.llm.skill.manager",
-    "skill_manager": "zrb.llm.skill.manager",
-    "Skill": "zrb.llm.skill",
-    "SkillRegistry": "zrb.llm.skill",
-    "skill_registry": "zrb.llm.skill.registry",
-    "PromptManager": "zrb.llm.prompt.manager",
-    "PromptRegistry": "zrb.llm.prompt.registry",
-    "prompt_registry": "zrb.llm.prompt.registry",
+    "HookManager": "zrb.llm.capabilities.hook.manager",
+    "hook_manager": "zrb.llm.capabilities.hook.manager",
+    "HookEvent": "zrb.llm.capabilities.hook",
+    "HookContext": "zrb.llm.capabilities.hook",
+    "HookResult": "zrb.llm.capabilities.hook",
+    "HookRegistry": "zrb.llm.capabilities.hook.registry",
+    "hook_registry": "zrb.llm.capabilities.hook.registry",
+    "SkillManager": "zrb.llm.capabilities.skill.manager",
+    "skill_manager": "zrb.llm.capabilities.skill.manager",
+    "Skill": "zrb.llm.capabilities.skill",
+    "SkillRegistry": "zrb.llm.capabilities.skill",
+    "skill_registry": "zrb.llm.capabilities.skill.registry",
+    "PromptManager": "zrb.llm.capabilities.prompt.manager",
+    "PromptRegistry": "zrb.llm.capabilities.prompt.registry",
+    "prompt_registry": "zrb.llm.capabilities.prompt.registry",
     "STTServiceManager": "zrb.llm.voice.manager",
     "STTServiceRegistry": "zrb.llm.voice.registry",
     "STTServiceSpec": "zrb.llm.voice.spec",
@@ -334,14 +334,14 @@ _LAZY_EXPORTS = {
     "TriggerReply": "zrb.llm.ui.trigger",
     "model_capabilities": "zrb.llm.contracts.util.capabilities",
     "register_theme": "zrb.config.theme",
-    "register_always_auto_approve": "zrb.llm.tool_call.always_approve",
-    "register_default_auto_approve": "zrb.llm.tool_call.always_approve",
-    "register_default_auto_approve_if": "zrb.llm.tool_call.always_approve",
-    "PermissionPolicy": "zrb.llm.permission",
-    "Rule": "zrb.llm.permission",
-    "ALLOW": "zrb.llm.permission",
-    "DENY": "zrb.llm.permission",
-    "ASK": "zrb.llm.permission",
+    "register_always_auto_approve": "zrb.llm.capabilities.tool_call.always_approve",
+    "register_default_auto_approve": "zrb.llm.capabilities.tool_call.always_approve",
+    "register_default_auto_approve_if": "zrb.llm.capabilities.tool_call.always_approve",
+    "PermissionPolicy": "zrb.llm.capabilities.permission",
+    "Rule": "zrb.llm.capabilities.permission",
+    "ALLOW": "zrb.llm.capabilities.permission",
+    "DENY": "zrb.llm.capabilities.permission",
+    "ASK": "zrb.llm.capabilities.permission",
 }
 
 _NO_LLM_CONFIG = (

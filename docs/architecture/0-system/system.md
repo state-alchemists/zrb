@@ -117,10 +117,10 @@ Most changes land on one of the Tier 2 pages:
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/tool/`, `src/zrb/llm/agent/tool_seed.py` | `test/llm/tool/` |
+| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/capabilities/tool/`, `src/zrb/llm/agent/tool_seed.py` | `test/llm/capabilities/tool/` |
 | Change what the terminal shows — [UI](../2-extension-surface/ui.md) | `src/zrb/llm/ui/` | `test/llm/ui/` |
-| Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/prompt/` | `test/llm/prompt/` |
-| Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/hook/` | `test/llm/hook/` |
+| Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/capabilities/prompt/` | `test/llm/capabilities/prompt/` |
+| Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/capabilities/hook/` | `test/llm/capabilities/hook/` |
 | Add a setting — [Config](../2-extension-surface/config.md) | `src/zrb/config/mixins/` | `test/config/` |
 | Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/subagent/` | `test/llm/subagent/` |
 

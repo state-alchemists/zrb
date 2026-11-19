@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.attr.tpl import Tpl
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.task.chat.persistence import (
     build_session_history_config,
     replay_conversation,

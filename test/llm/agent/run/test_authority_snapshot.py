@@ -6,16 +6,16 @@ from unittest.mock import patch
 
 from zrb.llm.agent.run.authority_snapshot import capture_current_authority
 from zrb.llm.agent.run.runner import current_yolo
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.permission.policy import PLAN_MODE_POLICY, PermissionPolicy, Rule
-from zrb.llm.permission.state import (
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.permission.policy import PLAN_MODE_POLICY, PermissionPolicy, Rule
+from zrb.llm.capabilities.permission.state import (
     AgentMode,
     AgentModeState,
     current_agent_mode,
     current_permission_policy,
 )
-from zrb.llm.sandbox.policy import SandboxPolicy
-from zrb.llm.sandbox.state import current_sandbox_policy
+from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
+from zrb.llm.capabilities.sandbox.state import current_sandbox_policy
 from zrb.llm.contracts.shared.agent_state import current_hook_manager
 from zrb.util.contextvar_scope import scoped
 
@@ -54,7 +54,7 @@ def test_capture_resolves_configured_sandbox_policy():
     sandbox = SandboxPolicy(enabled=True)
     with scoped(current_sandbox_policy, None):
         with patch(
-            "zrb.llm.sandbox.state.resolve_sandbox_policy_from_config",
+            "zrb.llm.capabilities.sandbox.state.resolve_sandbox_policy_from_config",
             return_value=sandbox,
         ):
             snapshot = capture_current_authority()

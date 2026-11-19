@@ -39,7 +39,7 @@ class TestChatSessionManagerListing:
 
     def test_get_sessions_with_history(self, tmp_path):
         """Test get_sessions returns sessions from history files."""
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
@@ -73,7 +73,7 @@ class TestChatSessionManagerListing:
     def test_get_sessions_marks_ordinary_session_as_not_delegated(self, tmp_path):
         """A plain session name must carry `parent_session_id`/`agent_name`
         as None — it's not a delegated sub-agent transcript."""
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
@@ -104,7 +104,7 @@ class TestChatSessionManagerListing:
 
     def test_get_sessions_parses_delegated_subagent_session_name(self, tmp_path):
         """Persisted sub-agent transcripts expose parent and agent metadata."""
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
@@ -143,7 +143,7 @@ class TestChatSessionManagerListing:
     def test_get_sessions_lists_legacy_flat_delegated_transcripts(self, tmp_path):
         """Delegated transcripts written before the `subagent/{agent_type}/`
         layout (flat in the history root) still appear in the listing."""
-        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()

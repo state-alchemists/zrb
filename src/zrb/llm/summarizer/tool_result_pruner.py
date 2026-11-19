@@ -22,7 +22,7 @@ import re
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.archive_layout import (
+from zrb.llm.capabilities.history_manager.archive_layout import (
     TOOL_RESULTS_DIR_SUFFIX,
     tool_results_dir,
     verbatim_archive_path,

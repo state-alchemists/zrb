@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from zrb.llm.hook.manager import HookManager, hook_manager
+from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
 
 
 def get_turn_hook_manager(llm_task: Any) -> HookManager:

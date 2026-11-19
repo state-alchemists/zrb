@@ -9,9 +9,9 @@ from pydantic_ai.messages import SystemPromptPart
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
+from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
 
 CONTEXT = "ctx"
 

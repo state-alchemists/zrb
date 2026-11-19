@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.multi import MultiUI
 
@@ -61,7 +61,7 @@ def _multi_ui(
 ) -> "MultiUI":
     """Combine *uis* into one `MultiUI`, wired to the first approval channel."""
     # lazy: `multi` loads prompt_toolkit and `approval` loads pydantic_ai.
-    from zrb.llm.approval import resolve_approval_channel
+    from zrb.llm.capabilities.approval import resolve_approval_channel
     from zrb.llm.ui.multi import MultiUI
 
     ui = MultiUI(list(uis))

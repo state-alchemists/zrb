@@ -1,6 +1,6 @@
 """The narrow UI contract that non-UI code is allowed to depend on.
 
-`zrb.llm.tool_call` types its UI parameters as this instead of `AnyUI`, so
+`zrb.llm.capabilities.tool_call` types its UI parameters as this instead of `AnyUI`, so
 pyright rejects reaching past the writer and the input role. Size capped by
 `test/architecture/test_agent_output_surface.py`.
 

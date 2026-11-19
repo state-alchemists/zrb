@@ -350,7 +350,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
 
     with (
         patch("zrb.llm.ui.multi.multi_ui.MultiUI", return_value=mock_multi),
-        patch("zrb.llm.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
+        patch("zrb.llm.capabilities.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
     ):
         res = await runner.run_interactive_session(
             ctx=ctx,

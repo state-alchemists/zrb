@@ -1,0 +1,79 @@
+import errno
+import os
+import shutil
+from typing import Annotated
+
+from pydantic import Field
+
+from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.tool.file.observation import check_listed
+from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
+
+
+@requires_purpose
+def remove_file(
+    path: Annotated[str, Field(description="Path to remove.")],
+    recursive: Annotated[
+        bool, Field(description="True also removes a non-empty directory.")
+    ] = False,
+    purpose: Purpose = "",
+) -> str:
+    """
+    Removes a file or directory. Irreversible — there is no trash; the bytes are gone.
+
+    Refused unless this session has Read the file, or List/Glob'd its parent
+    directory (or, for `recursive=True`, List/Glob'd the directory itself) —
+    see the `[SYSTEM SUGGESTION]` on refusal for the exact fix. That check only
+    confirms the path was *named* somewhere this session, not that it is the
+    *right* one among similarly-named candidates (e.g. a listing showing both
+    `config.json` and `config.old.json`) — verify it is the one you mean
+    before removing.
+    """
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        return (
+            f"Error: Path not found: {path}. "
+            "[SYSTEM SUGGESTION]: Check the path; use List to see what exists "
+            "in the directory."
+        )
+    blocked = check_listed(abs_path, recursive=recursive)
+    if blocked is not None:
+        return blocked
+    if os.path.isdir(abs_path):
+        if recursive:
+            try:
+                shutil.rmtree(abs_path)
+                return f"Removed directory recursively: {path}"
+            except Exception as e:
+                return (
+                    f"Error removing directory {path}: {e}. "
+                    "[SYSTEM SUGGESTION]: Verify your permissions and that no process "
+                    "is using the directory, then retry."
+                )
+        try:
+            os.rmdir(abs_path)
+            return f"Removed empty directory: {path}"
+        except OSError as e:
+            if e.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+                return (
+                    f"Error removing directory {path}: {e}. "
+                    "[SYSTEM SUGGESTION]: Verify your permissions and that no process "
+                    "is using the directory, then retry."
+                )
+            return (
+                f"Error: {path} is a non-empty directory. "
+                "[SYSTEM SUGGESTION]: Pass recursive=True to remove it and all its "
+                "contents (irreversible)."
+            )
+    try:
+        os.remove(abs_path)
+        return f"Removed: {path}"
+    except Exception as e:
+        return (
+            f"Error removing {path}: {e}. "
+            "[SYSTEM SUGGESTION]: Verify your permissions and that the file is not "
+            "in use, then retry."
+        )
+
+
+tag(remove_file, Capability.EDIT)

@@ -72,7 +72,11 @@ def _defined_names() -> frozenset[str]:
     """
     names: set[str] = set()
     for path in (REPO_ROOT / "src").rglob("*.py"):
-        is_tool = "llm/tool" in path.as_posix()
+        # The tool-name allowance is scoped to the tool package, so this is the
+        # path of the unit, not a word in the tree. It is a literal on purpose:
+        # if `tool/` moves again, `DelegateToAgent` stops resolving and this
+        # guard says so, rather than quietly blessing every quoted word.
+        is_tool = "llm/capabilities/tool/" in path.as_posix()
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
                 names.add(node.name)

@@ -3,9 +3,9 @@ from collections.abc import Callable
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
-from zrb.llm.skill.activation import build_activation_block
-from zrb.llm.skill.manager import Skill, SkillManager
-from zrb.llm.skill.preload import format_preload_problems, resolve_preload
+from zrb.llm.capabilities.skill.activation import build_activation_block
+from zrb.llm.capabilities.skill.manager import Skill, SkillManager
+from zrb.llm.capabilities.skill.preload import format_preload_problems, resolve_preload
 
 
 def get_skill_custom_command(

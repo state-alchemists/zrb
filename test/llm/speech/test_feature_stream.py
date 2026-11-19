@@ -5,10 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from zrb.llm.hook.contracts.interface import HookContext
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.hook.contracts.interface import HookContext
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.contracts.shared.ambient_state import current_reply_emotion
 from zrb.llm.contracts.shared.feature_config import close_feature_sessions
 from zrb.llm.speech import SpeechConfig, enable_speech

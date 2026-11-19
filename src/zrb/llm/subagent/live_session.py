@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, cast
 from zrb.config.config import CFG
 from zrb.llm.agent.run.authority_snapshot import capture_current_authority
 from zrb.llm.contracts.config.limiter import get_run_llm_limiter
-from zrb.llm.history_manager.conversation_naming import (
+from zrb.llm.capabilities.history_manager.conversation_naming import (
     ConversationNamingError,
     suggest_slug,
 )

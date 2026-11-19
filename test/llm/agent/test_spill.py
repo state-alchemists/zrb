@@ -186,7 +186,7 @@ def test_maybe_spill_multimodal_unchanged(monkeypatch, spill_store):
 
 
 def test_maybe_spill_respects_sandbox_deny_read(monkeypatch, spill_store, tmp_path):
-    from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
+    from zrb.llm.capabilities.sandbox import SandboxPolicy, sandbox_policy
 
     _enable_spill(monkeypatch)
     with sandbox_policy(SandboxPolicy(enabled=True, deny_read_paths=(str(tmp_path),))):
@@ -222,7 +222,7 @@ def test_read_tool_result_bad_args_and_handle(monkeypatch, spill_store):
 def test_read_tool_result_respects_sandbox_deny_read(
     monkeypatch, spill_store, tmp_path
 ):
-    from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
+    from zrb.llm.capabilities.sandbox import SandboxPolicy, sandbox_policy
 
     _enable_spill(monkeypatch)
     handle = spill_store.write("blocked", b"secret")

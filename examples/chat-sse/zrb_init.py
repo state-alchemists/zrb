@@ -65,7 +65,7 @@ from typing import Any
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.contracts.shared.input_source import InputProvenance
 from zrb.llm.ui import EventDrivenUI
 from zrb.llm.contracts.util.history_formatter import format_history_as_text

@@ -9,10 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.permission.policy import PermissionPolicy
-from zrb.llm.permission.state import get_effective_policy
-from zrb.llm.sandbox.policy import SandboxPolicy
-from zrb.llm.sandbox.state import get_effective_sandbox_policy
+from zrb.llm.capabilities.permission.policy import PermissionPolicy
+from zrb.llm.capabilities.permission.state import get_effective_policy
+from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
+from zrb.llm.capabilities.sandbox.state import get_effective_sandbox_policy
 from zrb.llm.contracts.shared.agent_state import (
     AnyToolConfirmation,
     get_current_approval_channel,
@@ -22,8 +22,8 @@ from zrb.llm.contracts.shared.agent_state import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.hook.manager import HookManager
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.hook.manager import HookManager
 
 
 @dataclass(frozen=True)

@@ -14,8 +14,8 @@ from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.snapshot import RestoreOutcome
-from zrb.llm.snapshot.manager import Snapshot
+from zrb.llm.capabilities.snapshot import RestoreOutcome
+from zrb.llm.capabilities.snapshot.manager import Snapshot
 from zrb.llm.ui.base.ui import BaseUI
 
 _COMMANDS = dict(
