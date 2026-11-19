@@ -264,11 +264,11 @@ An action may also:
 - **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command waits for the model to finish.
 - **Complete its first argument**, with `complete_arg=lambda prefix: [...]`.
 
-A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
+A `/photo` command, simplified from the built-in one (`zrb.llm.presentation.camera.feature`):
 
 ```python
 from zrb.llm.engine.agent.types import BinaryContent
-from zrb.llm.camera import AutoCameraBackend
+from zrb.llm.presentation.camera import AutoCameraBackend
 from zrb.llm.orchestration.custom_command import ActionCommand
 
 camera = AutoCameraBackend()

@@ -117,8 +117,8 @@ def test_own_chat(tmp_path):
 
 def test_emotion(tmp_path):
     check = textwrap.dedent("""
-        from zrb.llm.dictation.config import DictationConfig
-        from zrb.llm.speech.config import SpeechConfig
+        from zrb.llm.presentation.dictation.config import DictationConfig
+        from zrb.llm.presentation.speech.config import SpeechConfig
         dictation, speech = DictationConfig().resolve(), SpeechConfig().resolve()
         assert CFG.LLM_EMOTION_ENABLED
         assert dictation.detect_emotion_enabled and dictation.mode == "hands_free"

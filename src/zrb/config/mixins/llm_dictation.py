@@ -139,7 +139,7 @@ class LLMDictationMixin:
             "- 'multimodal': uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL "
             "(slower / more expensive).\n"
             "A project may register its own under a name of its choosing "
-            "(zrb.llm.voice); {ENV_PREFIX}_LLM_DICTATION_STT_MODEL picks the "
+            "(zrb.llm.presentation.voice); {ENV_PREFIX}_LLM_DICTATION_STT_MODEL picks the "
             "model of whichever local one is named here."
         ),
     )

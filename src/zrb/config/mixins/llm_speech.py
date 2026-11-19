@@ -135,7 +135,7 @@ class LLMSpeechMixin:
             "Pipecat, and the service's own package beside it; naming one "
             "without it says which package to install.\n"
             "A project may register its own under a name of its choosing "
-            "(zrb.llm.voice).\n"
+            "(zrb.llm.presentation.voice).\n"
             "If a cloud backend fails, the local engine speaks instead. A local "
             "voice that runs in process is not swapped for another voice: where "
             "the CLI can play its audio, a failure is reported instead, and only "

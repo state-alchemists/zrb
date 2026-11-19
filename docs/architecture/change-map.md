@@ -36,7 +36,7 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change history persistence or summarization | `src/zrb/llm/capabilities/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
 | Change how skills are found or activated, or add a slash command | `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/orchestration/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | Change how a model name becomes a model, or the rate limits | `src/zrb/llm/contracts/config/model_resolver.py`, `src/zrb/llm/contracts/config/limiter.py` | [The LLM Turn](1-spine/llm-turn.md) |
-| Add a speech or dictation backend | `src/zrb/llm/voice/`, `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
+| Add a speech or dictation backend | `src/zrb/llm/presentation/voice/`, `src/zrb/llm/presentation/dictation/backend/`, `src/zrb/llm/presentation/speech/backend/` | [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 
 ## By symptom
 

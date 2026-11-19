@@ -39,7 +39,7 @@ def hushed(monkeypatch):
     """The calls made to quiet the voice."""
     calls = []
     monkeypatch.setattr(
-        "zrb.llm.speech.feature.interrupt_speech", lambda: calls.append(1)
+        "zrb.llm.presentation.speech.feature.interrupt_speech", lambda: calls.append(1)
     )
     return calls
 

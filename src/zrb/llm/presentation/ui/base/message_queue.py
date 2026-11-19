@@ -389,7 +389,7 @@ def _hush_speech() -> None:
     session has nothing speaking, so a UI with speech off pays only the import.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.speech.feature import interrupt_speech
+    from zrb.llm.presentation.speech.feature import interrupt_speech
 
     interrupt_speech()
 

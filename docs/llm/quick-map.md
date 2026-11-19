@@ -18,7 +18,7 @@ Key units (one-liners)
 - L1: `capabilities/` — the eleven units a run uses but does not decide: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager, skill, lsp, snapshot.
 - L2: `engine/` — agent (the run loop and the built-in tool seed) and summarizer.
 - L3: `orchestration/` — task (LLMChatTask), subagent (personas/live sessions), common_tools (host glue), custom_command, resumed_session.
-- L4: ui (terminal/web), speech/dictation/camera/screenshot/voice/emotion, app.
+- L4: `presentation/ui` (terminal/web), and the media units beside it — `presentation/speech`, `presentation/dictation`, `presentation/camera`, `presentation/screenshot`, `presentation/voice`, `presentation/emotion`.
 
 Change map (do this → open this)
 

@@ -1,0 +1,171 @@
+"""Saying what zrb is doing while a tool runs, so a long turn is not silent.
+
+`ProgressNarrator` watches the run's stream (through a stream observer) and,
+when a tool call starts after a stretch in which nothing was said, speaks a
+short line: the call's own ``purpose`` argument when it carries one ("Getting
+the biggest file in the directory"), else a template from a tool-name phrase
+map ("Running a command."). A template, not a model call, as for approvals:
+the moment has passed by the time a model answers.
+
+A line still queued when its tool finishes is dropped before it starts, and one
+already being said is finished rather than cut in the middle; nothing is said
+while the model's own words are being spoken, so the narration only fills
+silence.
+"""
+
+from __future__ import annotations
+
+import threading
+import time
+from collections.abc import Callable
+from typing import Any
+
+from zrb.config.config import CFG
+from zrb.llm.presentation.speech.player import IsStale
+from zrb.llm.presentation.speech.text import match_tool_phrase
+from zrb.llm.contracts.util.tool_args import read_purpose
+
+
+def describe_purpose(args: object) -> str | None:
+    """The ``purpose`` a tool call's *args* carry, as written; ``None`` when
+    they carry none, or an empty one, which leaves the tool's phrase to say it.
+
+    Read by `zrb.llm.contracts.util.tool_args.read_purpose`, which the approval prompt
+    uses too: what a listener hears and what a reader is asked to approve
+    answer the same call the same way.
+    """
+    return read_purpose(args)
+
+
+def describe_tool_purpose(part: object) -> str | None:
+    """The ``purpose`` *part*'s call carries, as written; ``None`` when it
+    carries none — see `describe_purpose`, which reads the arguments."""
+    return describe_purpose(getattr(part, "args", None))
+
+
+def describe_tool_progress(
+    tool: str | None, phrases: dict[str, str] | None = None, args: object = None
+) -> str | None:
+    """A spoken line saying what a tool call is doing, from *phrases*
+    (default: `CFG.LLM_SPEECH_PROGRESS_PHRASES`); ``None`` for a tool no
+    pattern matches, which is not announced.
+
+    *args* supplies whatever the phrase interpolates beyond ``{tool}`` — a
+    pattern written ``"Editing {path}."`` names the file being edited.
+    """
+    if phrases is None:
+        phrases = CFG.LLM_SPEECH_PROGRESS_PHRASES
+    return match_tool_phrase(tool, phrases, args)
+
+
+class ProgressNarrator:
+    """Speaks a tool call's progress line when nothing was said for
+    *interval* seconds (``0``: never), except for *silent_tools*: the call's
+    own ``purpose`` when it gives one, else the words of *phrases*
+    (defaults: `CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS`,
+    `CFG.LLM_SPEECH_PROGRESS_PHRASES`).
+
+    *say* queues a line with a staleness check; *seconds_since_said* is how
+    long since anything was last queued, by this or anything else speaking
+    for the session.
+    """
+
+    def __init__(
+        self,
+        say: Callable[[str, IsStale], None],
+        seconds_since_said: Callable[[], float],
+        interval: float,
+        silent_tools: list[str] | None = None,
+        phrases: dict[str, str] | None = None,
+    ) -> None:
+        self._phrases = phrases
+        if silent_tools is None:
+            silent_tools = CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS
+        self._silent_tools = set(silent_tools)
+        self._say = say
+        self._seconds_since_said = seconds_since_said
+        self._interval = max(interval, 0.0)
+        self._lock = threading.Lock()
+        # The current turn's calls that have not finished yet, by call id.
+        #
+        # A result is matched on the id alone, and that is enough: a run streams
+        # its events through the observers inline and in order, and the Stop hook
+        # that ends the turn is awaited inside that same run (`run_agent` awaits
+        # `execute_hooks(HookEvent.STOP, ...)`), so a result belongs to the turn it
+        # arrives in and can only name a call of that turn. There is no turn token
+        # to match on in any case: `pydantic_ai`'s tool events carry a part, a kind
+        # and nothing about the run they came from.
+        self._running: set[str] = set()
+        # Bumped by `reset`. Every queued line carries the generation it was
+        # queued in, so a line from an earlier turn stays stale even after the
+        # same tool-call id is used again, and one still being decided on when
+        # the turn stops is never queued at all.
+        self._generation = 0
+
+    def handle_event(self, event: Any) -> None:
+        kind = getattr(event, "event_kind", None)
+        if kind == "function_tool_call":
+            # Read before deciding: the whole decision below belongs to this
+            # turn, so a stop landing part-way through must invalidate it.
+            with self._lock:
+                generation = self._generation
+            self._start(getattr(event, "part", None), generation)
+        elif kind == "function_tool_result":
+            self._finish(_result_call_id(event))
+
+    def _finish(self, call_id: str) -> None:
+        """Book a tool result: the call it names has ended."""
+        with self._lock:
+            self._running.discard(call_id)
+
+    def _start(self, part: Any, generation: int) -> None:
+        tool = getattr(part, "tool_name", None)
+        call_id = str(getattr(part, "tool_call_id", "") or "")
+        if not self._interval or tool in self._silent_tools:
+            return
+        if self._seconds_since_said() < self._interval:
+            return
+        line = describe_tool_purpose(part) or describe_tool_progress(
+            tool, self._phrases, getattr(part, "args", None)
+        )
+        if not line:
+            return
+        with self._lock:
+            if generation != self._generation:
+                # The turn stopped while this line was being decided on: it
+                # would be spoken after the turn, so it is not queued.
+                return
+            self._running.add(call_id)
+        self._say(line, lambda: self._is_finished(call_id, generation))
+
+    def _is_finished(self, call_id: str, generation: int) -> bool:
+        """Whether the line queued for *call_id* in *generation* is stale: its
+        tool call has ended, or its turn has."""
+        with self._lock:
+            return generation != self._generation or call_id not in self._running
+
+    def reset(self) -> None:
+        """Drop progress lines still queued when the turn ends."""
+        with self._lock:
+            self._generation += 1
+            self._running.clear()
+
+
+def _result_call_id(event: Any) -> str:
+    call_id = getattr(event, "tool_call_id", None)
+    if call_id is None:
+        call_id = getattr(getattr(event, "result", None), "tool_call_id", "")
+    return str(call_id or "")
+
+
+class SpeechClock:
+    """When a session last queued something to say."""
+
+    def __init__(self) -> None:
+        self._said_at = float("-inf")
+
+    def mark(self) -> None:
+        self._said_at = time.monotonic()
+
+    def seconds_since_said(self) -> float:
+        return time.monotonic() - self._said_at
