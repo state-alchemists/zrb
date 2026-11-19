@@ -56,7 +56,7 @@ def test_every_marked_recipe_is_checked():
 
 def test_add_tool(tmp_path):
     check = """
-from zrb.llm.permission import Capability, tool_capability
+from zrb.llm.capabilities.permission import Capability, tool_capability
 tool = next(t for t in llm_chat.tools if getattr(t, "__name__", "") == "lookup_ticket")
 assert tool_capability(tool) == Capability.READ
 """
@@ -68,7 +68,7 @@ def test_persona(tmp_path):
         tmp_path / ".zrb" / "llm" / "prompt" / "persona.md", _get_snippets()["persona"]
     )
     _run(
-        "from zrb.llm.shared.prompt_text import get_prompt\n"
+        "from zrb.llm.contracts.shared.prompt_text import get_prompt\n"
         'assert "Ops Buddy" in get_prompt("persona")\n',
         tmp_path,
     )
@@ -85,7 +85,7 @@ def test_skill(tmp_path):
         _get_snippets()["skill"],
     )
     _run(
-        "from zrb.llm.skill.manager import skill_manager\n"
+        "from zrb.llm.capabilities.skill.manager import skill_manager\n"
         'skill = skill_manager.get_skill("release-notes")\n'
         "assert skill is not None\n"
         'assert "git log" in skill_manager.get_skill_content("release-notes")\n',
@@ -99,7 +99,7 @@ def test_agent(tmp_path):
         _get_snippets()["agent"],
     )
     _run(
-        "from zrb.llm.subagent.manager.manager import sub_agent_manager\n"
+        "from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager\n"
         'assert sub_agent_manager.get_agent_definition("sql-reviewer") is not None\n',
         tmp_path,
     )
@@ -117,8 +117,8 @@ def test_own_chat(tmp_path):
 
 def test_emotion(tmp_path):
     check = textwrap.dedent("""
-        from zrb.llm.dictation.config import DictationConfig
-        from zrb.llm.speech.config import SpeechConfig
+        from zrb.llm.presentation.dictation.config import DictationConfig
+        from zrb.llm.presentation.speech.config import SpeechConfig
         dictation, speech = DictationConfig().resolve(), SpeechConfig().resolve()
         assert CFG.LLM_EMOTION_ENABLED
         assert dictation.detect_emotion_enabled and dictation.mode == "hands_free"

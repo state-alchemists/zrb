@@ -2,7 +2,7 @@
 
 # Tool Call & Approval
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/agent/run/deferred_calls.py` · Read first: [Tools](../2-extension-surface/tools.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/engine/agent/run/deferred_calls.py` · Read first: [Tools](../2-extension-surface/tools.md)
 
 Before the model's tool call runs, zrb decides whether it may run: allow it quietly, ask a person, or refuse. This page covers how that decision is made and who gets asked. The one idea to take away: approval only lets a call *reach* the execution checkpoint. It is never the last check.
 
@@ -42,14 +42,14 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| Rules are checked in order; the first match decides | Reordering rules changes decisions with no error | `test/llm/permission/test_policy.py::test_first_match_wins` |
-| A denied call never runs, even if an earlier level approved it | A tool runs against the user's policy | `test/llm/permission/test_state_and_gate.py::test_gate_blocks_denied_tool` |
-| A shipped default approval never overrides a rule's `ask` | A user's rule is bypassed by a default zrb ships | `test/llm/agent/run/test_deferred_calls_default_approve.py::test_a_permission_rule_that_asks_still_wins` |
-| A call denied during approval reaches history as a denial, and does not run | The model believes a refused call happened, or it runs anyway | `test/llm/agent/run/test_runner_deferred_approval.py::test_run_agent_denied_tool_call_reaches_history_without_running` |
-| An `ask` rule with an argument pattern still forces approval under yolo | Yolo runs the exact call the rule was written to stop | `test/llm/task/test_shared_getters.py::test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough` |
-| With no human, a hard ask is refused instead of waiting | Unattended runs hang on stdin until timeout | `test/llm/agent/run/test_deferred_calls_denials.py::test_noninteractive_other_ask_tool_is_denied` |
-| A broken approval channel cannot answer for the user | A failing remote bot denies before the human at the terminal can reply | `test/llm/approval/test_approval_channel_multiplex.py::TestMultiplexApprovalChannel::test_multiplex_failing_channel_does_not_win_race` |
-| An edited call's note reaches the model exactly once, even on error | The model reasons from arguments that never ran | `test/llm/agent/test_common_tool_overrides.py::test_call_tool_override_note_is_one_shot_and_reaches_error_results` |
+| Rules are checked in order; the first match decides | Reordering rules changes decisions with no error | `test/llm/capabilities/permission/test_policy.py::test_first_match_wins` |
+| A denied call never runs, even if an earlier level approved it | A tool runs against the user's policy | `test/llm/capabilities/permission/test_state_and_gate.py::test_gate_blocks_denied_tool` |
+| A shipped default approval never overrides a rule's `ask` | A user's rule is bypassed by a default zrb ships | `test/llm/engine/agent/run/test_deferred_calls_default_approve.py::test_a_permission_rule_that_asks_still_wins` |
+| A call denied during approval reaches history as a denial, and does not run | The model believes a refused call happened, or it runs anyway | `test/llm/engine/agent/run/test_runner_deferred_approval.py::test_run_agent_denied_tool_call_reaches_history_without_running` |
+| An `ask` rule with an argument pattern still forces approval under yolo | Yolo runs the exact call the rule was written to stop | `test/llm/orchestration/task/test_shared_getters.py::test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough` |
+| With no human, a hard ask is refused instead of waiting | Unattended runs hang on stdin until timeout | `test/llm/engine/agent/run/test_deferred_calls_denials.py::test_noninteractive_other_ask_tool_is_denied` |
+| A broken approval channel cannot answer for the user | A failing remote bot denies before the human at the terminal can reply | `test/llm/capabilities/approval/test_approval_channel_multiplex.py::TestMultiplexApprovalChannel::test_multiplex_failing_channel_does_not_win_race` |
+| An edited call's note reaches the model exactly once, even on error | The model reasons from arguments that never ran | `test/llm/engine/agent/test_common_tool_overrides.py::test_call_tool_override_note_is_one_shot_and_reaches_error_results` |
 
 ## Realization
 
@@ -65,17 +65,17 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `get_policy_skip_decision` | `src/zrb/llm/task/shared_getters.py` | Decides, per call, whether it needs approval at all. `allow` and `deny` skip it; `ask` requires it; no rule leaves it to yolo |
-| `process_deferred_requests` | `src/zrb/llm/agent/run/deferred_calls.py` | Runs the cascade for each call that needs approval and builds the results |
-| `rebuild_for_denials` | `src/zrb/llm/agent/run/deferred_calls.py` | Makes sure pydantic-ai does not execute anything from a batch that holds a denial |
-| `is_always_auto_approve` | `src/zrb/llm/tool_call/always_approve.py` | Tools that *are* the user interaction, like `AskUserQuestion`, approve on every route |
-| `ToolCallHandler` | `src/zrb/llm/tool_call/handler.py` | Runs the tool policies, and draws the CLI prompt when nothing else answers |
-| Tool policies | `src/zrb/llm/tool_call/tool_policy/` | Argument-level checks: `auto_approve`, `bash_safe_command_policy`, the file validators |
-| `PermissionPolicy`, `get_effective_policy` | `src/zrb/llm/permission/` | The rule list, and the one in force for this run (plan mode swaps in `PLAN_MODE_POLICY`) |
-| `AnyApprovalChannel`, `ApprovalResult` | `src/zrb/llm/approval/` | Carries a question to a person and their answer back, including edited arguments |
-| `resolve_context_dependencies` | `src/zrb/llm/agent/run/setup.py` | Picks the run's channel, and races the terminal alongside any channel you configure |
-| `record_override`, `pop_override_note` | `src/zrb/llm/tool_call/override_registry.py` | Remembers an edit at approval time and attaches the note at execution time |
-| `permission_gate` | `src/zrb/llm/agent/gates.py` | Blocks a denied call at the checkpoint, covered in [Tools](../2-extension-surface/tools.md) |
+| `get_policy_skip_decision` | `src/zrb/llm/orchestration/task/shared_getters.py` | Decides, per call, whether it needs approval at all. `allow` and `deny` skip it; `ask` requires it; no rule leaves it to yolo |
+| `process_deferred_requests` | `src/zrb/llm/engine/agent/run/deferred_calls.py` | Runs the cascade for each call that needs approval and builds the results |
+| `rebuild_for_denials` | `src/zrb/llm/engine/agent/run/deferred_calls.py` | Makes sure pydantic-ai does not execute anything from a batch that holds a denial |
+| `is_always_auto_approve` | `src/zrb/llm/capabilities/tool_call/always_approve.py` | Tools that *are* the user interaction, like `AskUserQuestion`, approve on every route |
+| `ToolCallHandler` | `src/zrb/llm/capabilities/tool_call/handler.py` | Runs the tool policies, and draws the CLI prompt when nothing else answers |
+| Tool policies | `src/zrb/llm/capabilities/tool_call/tool_policy/` | Argument-level checks: `auto_approve`, `bash_safe_command_policy`, the file validators |
+| `PermissionPolicy`, `get_effective_policy` | `src/zrb/llm/capabilities/permission/` | The rule list, and the one in force for this run (plan mode swaps in `PLAN_MODE_POLICY`) |
+| `AnyApprovalChannel`, `ApprovalResult` | `src/zrb/llm/capabilities/approval/` | Carries a question to a person and their answer back, including edited arguments |
+| `resolve_context_dependencies` | `src/zrb/llm/engine/agent/run/setup.py` | Picks the run's channel, and races the terminal alongside any channel you configure |
+| `record_override`, `pop_override_note` | `src/zrb/llm/capabilities/tool_call/override_registry.py` | Remembers an edit at approval time and attaches the note at execution time |
+| `permission_gate` | `src/zrb/llm/engine/agent/gates.py` | Blocks a denied call at the checkpoint, covered in [Tools](../2-extension-surface/tools.md) |
 
 ### How it runs
 
@@ -117,7 +117,7 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
-| Yolo is exactly `True` | `create_agent` in `src/zrb/llm/agent/common.py` | No call is held, so the cascade never runs. `permission_gate` still blocks a deny |
+| Yolo is exactly `True` | `create_agent` in `src/zrb/llm/engine/agent/common.py` | No call is held, so the cascade never runs. `permission_gate` still blocks a deny |
 | Plan mode | `get_effective_policy` | `PLAN_MODE_POLICY` replaces the configured rules; `ExitPlanMode` is a hard ask so the user sees the plan ([ADR-0063](../../adr/adr-0063.md)) |
 | Non-interactive run | step 5 of the cascade | A hard ask is denied with a hint to re-run interactively |
 | A remote channel is configured | `resolve_context_dependencies` | Wrapped with a `TerminalApprovalChannel` in a `MultiplexApprovalChannel`. The first real answer wins and the others are cancelled |
@@ -129,13 +129,13 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change how rules match | `src/zrb/llm/permission/policy.py` | `test/llm/permission/test_policy.py` |
-| Change which calls need approval | `src/zrb/llm/task/shared_getters.py` | `test/llm/task/test_shared_getters.py` |
-| Change the cascade order or a step | `src/zrb/llm/agent/run/deferred_calls.py` | `test/llm/agent/run/` |
-| Add or change a tool policy | `src/zrb/llm/tool_call/tool_policy/` | `test/llm/tool_call/` |
-| Add an approval channel | `src/zrb/llm/approval/` | `test/llm/approval/` |
-| Change the note for edited calls | `src/zrb/llm/tool_call/override_registry.py` | `test/llm/tool_call/test_override_registry.py` |
-| Change the execution-time deny | `src/zrb/llm/agent/gates.py` | `test/llm/permission/test_state_and_gate.py` |
+| Change how rules match | `src/zrb/llm/capabilities/permission/policy.py` | `test/llm/capabilities/permission/test_policy.py` |
+| Change which calls need approval | `src/zrb/llm/orchestration/task/shared_getters.py` | `test/llm/orchestration/task/test_shared_getters.py` |
+| Change the cascade order or a step | `src/zrb/llm/engine/agent/run/deferred_calls.py` | `test/llm/engine/agent/run/` |
+| Add or change a tool policy | `src/zrb/llm/capabilities/tool_call/tool_policy/` | `test/llm/capabilities/tool_call/` |
+| Add an approval channel | `src/zrb/llm/capabilities/approval/` | `test/llm/capabilities/approval/` |
+| Change the note for edited calls | `src/zrb/llm/capabilities/tool_call/override_registry.py` | `test/llm/capabilities/tool_call/test_override_registry.py` |
+| Change the execution-time deny | `src/zrb/llm/engine/agent/gates.py` | `test/llm/capabilities/permission/test_state_and_gate.py` |
 
 ## See Also
 

@@ -2,6 +2,7 @@
 
 # Changelog
 
+- [4.0.0](v4/4.0.0.md) — unreleased
 - [3.41.4](v3/3.41.4.md) — November 19, 2026
 - [3.41.3](v3/3.41.3.md) — November 18, 2026
 - [3.41.2](v3/3.41.2.md) — November 18, 2026

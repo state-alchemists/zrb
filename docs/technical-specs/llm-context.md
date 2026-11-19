@@ -78,9 +78,9 @@ A day's log is merged, never rewritten: the reviewer writes into the same `log/<
 
 ## 4. Reading These Notes Into Memory
 
-Two paths read the directory, and both use `src/zrb/llm/memory/migrate.py`:
+Two paths read the directory, and both use `src/zrb/llm/contracts/memory/migrate.py`:
 
-- **First use.** When the store has not been converted and still lives inside the notes directory (the default layout), the first memory operation converts: `paths.prepare()` reads the notes, writes the store, and only then writes `.version` at the notes root (`src/zrb/llm/memory/paths.py`, `src/zrb/llm/memory/migrate.py`). An upgrade that silently started an empty memory would look exactly like a memory that was lost.
+- **First use.** When the store has not been converted and still lives inside the notes directory (the default layout), the first memory operation converts: `paths.prepare()` reads the notes, writes the store, and only then writes `.version` at the notes root (`src/zrb/llm/contracts/memory/paths.py`, `src/zrb/llm/contracts/memory/migrate.py`). An upgrade that silently started an empty memory would look exactly like a memory that was lost.
 - **The command.** `zrb memory migrate` does the same pass on demand, reading `CFG.LLM_NOTES_DIR`; `--dry_run=true` counts what it would write. It is the way to fill a store that was pointed somewhere else, and the way to see the counts before they exist.
 
 Both are additive: no note is edited or deleted, a run interrupted by a crash continues on the next start rather than duplicating, and a second run changes nothing. What a migrated store contains, and the fact-by-fact mapping, is [LLM Memory → From the journal notes](./llm-memory.md#91-from-the-journal-notes).

@@ -65,10 +65,10 @@ from typing import Any
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.shared.input_source import InputProvenance
-from zrb.llm.ui import EventDrivenUI
-from zrb.llm.util.history_formatter import format_history_as_text
+from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.contracts.shared.input_source import InputProvenance
+from zrb.llm.presentation.ui import EventDrivenUI
+from zrb.llm.contracts.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
 
 SSE_HOST = os.environ.get("SSE_HOST", "localhost")
@@ -631,7 +631,7 @@ server.set_approval_channel(sse_approval)
 
 # create_ui_factory wires the 8 standard factory kwargs to the UI for us —
 # no hand-rolled factory boilerplate.
-from zrb.llm.ui import create_ui_factory
+from zrb.llm.presentation.ui import create_ui_factory
 
 # Add SSE UI alongside default terminal UI (dual mode)
 llm_chat.append_ui_factory(create_ui_factory(SSEUI, server=server))

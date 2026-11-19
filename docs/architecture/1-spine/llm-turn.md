@@ -2,7 +2,7 @@
 
 # The LLM Turn
 
-> **Tier 1 · Spine** · Code: `src/zrb/llm/agent/run/` · Read first: [Task Execution](task-execution.md)
+> **Tier 1 · Spine** · Code: `src/zrb/llm/engine/agent/run/` · Read first: [Task Execution](task-execution.md)
 
 A turn is what happens between the user pressing Enter and the reply landing: load the conversation, ask the model, run the tools it asks for, and save the result. The one idea to take away: zrb lets pydantic-ai talk to the model, but zrb owns everything around that call, including the history, the retries, the approvals and the stopping point.
 
@@ -49,12 +49,12 @@ Each one fails silently if broken: the turn still finishes, but history or side 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| History processors run once per turn, never between tool-approval rounds | Summarization drops the approved call and the loop fails or repeats it | `test/llm/agent/run/test_runner_deferred.py::test_run_agent_deferred_never_reapplies_processors` |
-| A retry after an approved tool ran does not run that tool again | A deploy, write or delete happens twice | `test/llm/agent/run/test_runner_deferred_approval.py::test_retry_after_approved_tool_ran_does_not_run_it_again` |
-| Every round of a multi-round turn reaches the Stop payload | A hook that reviews written files misses a write the user approved | `test/llm/agent/run/test_runner_deferred.py::test_stop_event_wrote_files_true_after_deferred_tool_approval` |
-| Run-scoped context is reset when the run returns | The next run, or a sibling sub-agent, sees this run's scope and policies | `test/llm/agent/run/test_runner_lifecycle.py::test_run_agent_resets_run_scope_after_returning` |
-| Mid-turn checkpoint saves finish before the run returns | A late checkpoint overwrites the final save with older history | `test/llm/agent/run/test_runner_limits.py::test_run_agent_checkpoint_awaited_before_run_agent_returns` |
-| `SessionEnd` fires once at teardown, not every turn | Hook consumers get a false "session over" signal after each reply | `test/llm/task/chat/test_llm_chat_task_teardown.py::test_interactive_teardown_fires_terminal_session_end` |
+| History processors run once per turn, never between tool-approval rounds | Summarization drops the approved call and the loop fails or repeats it | `test/llm/engine/agent/run/test_runner_deferred.py::test_run_agent_deferred_never_reapplies_processors` |
+| A retry after an approved tool ran does not run that tool again | A deploy, write or delete happens twice | `test/llm/engine/agent/run/test_runner_deferred_approval.py::test_retry_after_approved_tool_ran_does_not_run_it_again` |
+| Every round of a multi-round turn reaches the Stop payload | A hook that reviews written files misses a write the user approved | `test/llm/engine/agent/run/test_runner_deferred.py::test_stop_event_wrote_files_true_after_deferred_tool_approval` |
+| Run-scoped context is reset when the run returns | The next run, or a sibling sub-agent, sees this run's scope and policies | `test/llm/engine/agent/run/test_runner_lifecycle.py::test_run_agent_resets_run_scope_after_returning` |
+| Mid-turn checkpoint saves finish before the run returns | A late checkpoint overwrites the final save with older history | `test/llm/engine/agent/run/test_runner_limits.py::test_run_agent_checkpoint_awaited_before_run_agent_returns` |
+| `SessionEnd` fires once at teardown, not every turn | Hook consumers get a false "session over" signal after each reply | `test/llm/orchestration/task/chat/test_llm_chat_task_teardown.py::test_interactive_teardown_fires_terminal_session_end` |
 
 ## Realization
 
@@ -73,22 +73,22 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `LLMChatTask` | `src/zrb/llm/task/chat/task.py` | The chat session's configuration: tools, UIs, hooks, history processors, approval channels |
-| `ChatExecution` | `src/zrb/llm/task/chat/execution.py` | Resolves the session once and builds the inner `LLMTask`, adding the summarizer processor |
-| `ChatRunning` | `src/zrb/llm/task/chat/running.py` | Runs a one-shot session, and hands an interactive one to the presentation layer |
-| `run_interactive_session` | `src/zrb/llm/ui/session.py` | Chooses the UI (one, several via `MultiUI`, or the default terminal UI) and runs the session loop |
-| `resolve_history_manager`, `build_session_history_config`, `replay_conversation` | `src/zrb/llm/task/chat/persistence.py` | Where a session's conversation is kept: the manager and session name the inner task runs with, and a resumed session's stored conversation put back on screen |
-| `copy_conversation`, `truncate_conversation` | `src/zrb/llm/history_manager/conversation_edits.py` | What `/save` and `/rewind` do to a stored conversation: keep it under a second name, drop what a restored snapshot did not have |
-| `release_chat_resources` | `src/zrb/llm/task/chat/teardown.py` | Releases what an interactive session holds, in order, at exit: `SessionEnd`, features, LSP servers, detached hooks, background subprocesses |
-| `LLMTask` | `src/zrb/llm/task/llm_task.py` | One turn: load history, compose the prompt, build the agent, call `run_agent`, save |
-| `create_agent` | `src/zrb/llm/agent/common.py` | The only place a `pydantic_ai.Agent` is built; stores history processors on it as `zrb_history_processors` |
-| `run_agent` | `src/zrb/llm/agent/run/runner.py` | Binds the run's context, prepares history, drives the rounds, fires `Stop`, returns output and new history |
-| `TurnCursor` | `src/zrb/llm/agent/run/turn_cursor.py` | The loop's state across rounds: history, pending tool results, this turn's new messages |
-| `handle_stream_error` | `src/zrb/llm/agent/run/retry_loop.py` | Classifies a failed round and decides the one-shot fix |
-| `process_deferred_requests` | `src/zrb/llm/agent/run/deferred_calls.py` | Asks for approval of the tool calls the model made, and returns their results |
-| `resolve_context_dependencies`, `setup_print_and_events` | `src/zrb/llm/agent/run/setup.py` | Resolve the UI, confirmation, yolo, approval channel and hook manager a run uses; build the print function and the handler that renders streamed events |
-| `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
-| `LLMLimiter` | `src/zrb/llm/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
+| `LLMChatTask` | `src/zrb/llm/orchestration/task/chat/task.py` | The chat session's configuration: tools, UIs, hooks, history processors, approval channels |
+| `ChatExecution` | `src/zrb/llm/orchestration/task/chat/execution.py` | Resolves the session once and builds the inner `LLMTask`, adding the summarizer processor |
+| `ChatRunning` | `src/zrb/llm/orchestration/task/chat/running.py` | Runs a one-shot session, and hands an interactive one to the presentation layer |
+| `run_interactive_session` | `src/zrb/llm/presentation/ui/session.py` | Chooses the UI (one, several via `MultiUI`, or the default terminal UI) and runs the session loop |
+| `resolve_history_manager`, `build_session_history_config`, `replay_conversation` | `src/zrb/llm/orchestration/task/chat/persistence.py` | Where a session's conversation is kept: the manager and session name the inner task runs with, and a resumed session's stored conversation put back on screen |
+| `copy_conversation`, `truncate_conversation` | `src/zrb/llm/capabilities/history_manager/conversation_edits.py` | What `/save` and `/rewind` do to a stored conversation: keep it under a second name, drop what a restored snapshot did not have |
+| `release_chat_resources` | `src/zrb/llm/orchestration/task/chat/teardown.py` | Releases what an interactive session holds, in order, at exit: `SessionEnd`, features, LSP servers, detached hooks, background subprocesses |
+| `LLMTask` | `src/zrb/llm/orchestration/task/llm_task.py` | One turn: load history, compose the prompt, build the agent, call `run_agent`, save |
+| `create_agent` | `src/zrb/llm/engine/agent/common.py` | The only place a `pydantic_ai.Agent` is built; stores history processors on it as `zrb_history_processors` |
+| `run_agent` | `src/zrb/llm/engine/agent/run/runner.py` | Binds the run's context, prepares history, drives the rounds, fires `Stop`, returns output and new history |
+| `TurnCursor` | `src/zrb/llm/engine/agent/run/turn_cursor.py` | The loop's state across rounds: history, pending tool results, this turn's new messages |
+| `handle_stream_error` | `src/zrb/llm/engine/agent/run/retry_loop.py` | Classifies a failed round and decides the one-shot fix |
+| `process_deferred_requests` | `src/zrb/llm/engine/agent/run/deferred_calls.py` | Asks for approval of the tool calls the model made, and returns their results |
+| `resolve_context_dependencies`, `setup_print_and_events` | `src/zrb/llm/engine/agent/run/setup.py` | Resolve the UI, confirmation, yolo, approval channel and hook manager a run uses; build the print function and the handler that renders streamed events |
+| `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/contracts/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
+| `LLMLimiter` | `src/zrb/llm/contracts/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
 
 ### How it runs
 
@@ -129,7 +129,7 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | `/compress` | `LLMTask` (before any agent is built) | Calls `summarize_history(force=True)`, saves, and returns without a model turn |
 | A `UserPromptSubmit` hook blocks | `run_agent` startup hooks | The turn ends before the model runs; the block reason is the output |
 | Approval arrives later through a channel | `process_deferred_requests` returns nothing | The turn suspends: the pending requests and history return, and `Stop` does not fire |
-| A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` times in a row |
+| A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/engine/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` times in a row |
 | A sub-agent's run | `run_agent(nested=...)` | No turn snapshot is taken, and the `Stop` payload marks `nested_run` — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | A message typed mid-turn | `MessageQueue.deliverable`, `BaseUI.deliver_queued_messages_early` | Queues like every submission; the running turn takes the ready entries at its next checkpoint, holding the one being edited and any inside their grace, and `Ctrl+G` sends everything now ([ADR-0078](../../adr/adr-0078.md), [ADR-0116](../../adr/adr-0116.md)) |
 
@@ -137,19 +137,19 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change how the inner task is built per session | `src/zrb/llm/task/chat/execution.py` | `test/llm/task/chat/test_execution.py` |
-| Change UI selection | `src/zrb/llm/ui/session.py` | `test/llm/task/chat/` |
-| Change where a session's conversation is stored or replayed | `src/zrb/llm/task/chat/persistence.py` | `test/llm/task/chat/test_persistence.py` |
-| Change what `/save` or `/rewind` does to a stored conversation | `src/zrb/llm/history_manager/conversation_edits.py` | `test/llm/history_manager/test_conversation_edits.py` |
-| Change what a session releases at exit, or in what order | `src/zrb/llm/task/chat/teardown.py` | `test/llm/task/chat/test_llm_chat_task_teardown.py` |
-| Change how a typed message becomes a command, an action, or an `@agent` nudge | `src/zrb/llm/task/chat/message_expansion.py` | `test/llm/task/chat/test_message_expansion.py` |
-| Change what a turn loads, sends or saves | `src/zrb/llm/task/llm_task.py` | `test/llm/task/test_llm_task.py` |
-| Change the round loop or the `Stop` handling | `src/zrb/llm/agent/run/runner.py` | `test/llm/agent/run/` |
-| Change the state carried between rounds | `src/zrb/llm/agent/run/turn_cursor.py` | `test/llm/agent/run/test_turn_cursor.py` |
-| Change how a failed round is retried | `src/zrb/llm/agent/run/retry_loop.py` | `test/llm/agent/run/test_retry_loop.py` |
-| Change how agents are constructed | `src/zrb/llm/agent/common.py` | `test/llm/agent/test_common_agent_creation.py` |
-| Change how a model name becomes a model | `src/zrb/llm/config/model_resolver.py` | `test/llm/config/` |
-| Change rate limiting or token counting | `src/zrb/llm/config/limiter.py` | `test/llm/config/` |
+| Change how the inner task is built per session | `src/zrb/llm/orchestration/task/chat/execution.py` | `test/llm/orchestration/task/chat/test_execution.py` |
+| Change UI selection | `src/zrb/llm/presentation/ui/session.py` | `test/llm/orchestration/task/chat/` |
+| Change where a session's conversation is stored or replayed | `src/zrb/llm/orchestration/task/chat/persistence.py` | `test/llm/orchestration/task/chat/test_persistence.py` |
+| Change what `/save` or `/rewind` does to a stored conversation | `src/zrb/llm/capabilities/history_manager/conversation_edits.py` | `test/llm/capabilities/history_manager/test_conversation_edits.py` |
+| Change what a session releases at exit, or in what order | `src/zrb/llm/orchestration/task/chat/teardown.py` | `test/llm/orchestration/task/chat/test_llm_chat_task_teardown.py` |
+| Change how a typed message becomes a command, an action, or an `@agent` nudge | `src/zrb/llm/orchestration/task/chat/message_expansion.py` | `test/llm/orchestration/task/chat/test_message_expansion.py` |
+| Change what a turn loads, sends or saves | `src/zrb/llm/orchestration/task/llm_task.py` | `test/llm/orchestration/task/test_llm_task.py` |
+| Change the round loop or the `Stop` handling | `src/zrb/llm/engine/agent/run/runner.py` | `test/llm/engine/agent/run/` |
+| Change the state carried between rounds | `src/zrb/llm/engine/agent/run/turn_cursor.py` | `test/llm/engine/agent/run/test_turn_cursor.py` |
+| Change how a failed round is retried | `src/zrb/llm/engine/agent/run/retry_loop.py` | `test/llm/engine/agent/run/test_retry_loop.py` |
+| Change how agents are constructed | `src/zrb/llm/engine/agent/common.py` | `test/llm/engine/agent/test_common_agent_creation.py` |
+| Change how a model name becomes a model | `src/zrb/llm/contracts/config/model_resolver.py` | `test/llm/contracts/config/` |
+| Change rate limiting or token counting | `src/zrb/llm/contracts/config/limiter.py` | `test/llm/contracts/config/` |
 
 ## See Also
 

@@ -2,7 +2,7 @@
 
 # Dictation & Barge-in
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/` · Read first: [UI](../2-extension-surface/ui.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/presentation/dictation/` · Read first: [UI](../2-extension-surface/ui.md)
 
 Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. Barge-in is where the two meet: the user starts talking while zrb is still speaking. This page covers what happens between the microphone hearing that and zrb either stopping or carrying on. The one idea to take away: zrb holds its voice first and decides on the words, because a cough, an echo of its own voice and a real "stop" all sound alike until they are transcribed. The hold is taken on loudness, before anything is known, and the words decide whether it stays held: being talked over is worse than a hold that is given back.
 
@@ -51,23 +51,23 @@ Each one fails quietly: the chat keeps working, but zrb talks over the user, sta
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| Words over zrb pause its voice, then stop it | zrb keeps talking over the user, or never stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_words_over_zrb_pause_it_then_stop_it` |
-| A stop the word lists cannot read still stops zrb | "please fucking stop" reaches the model as a message, and zrb answers the very words that asked it to be quiet | `test/llm/dictation/test_feature_barge_in_pause.py::test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway` |
-| Talk over zrb holds its voice before it is transcribed, with `barge_in_hold` on | zrb talks through the whole interruption, and a stop lands seconds after it was said | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_wake_words_talk_not_meant_for_zrb_is_held_and_given_back` |
-| With `barge_in_hold` off, speech over zrb is neither held nor given back, and its words still stop it | a room loud enough to keep crossing the bar makes zrb stutter, or turning the hold off costs the stop itself | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_noise_over_zrb_never_touches_its_voice` |
-| With `barge_in_hold` off, a stop word seen in the live transcript stops zrb as soon as it is heard | "stop" said over zrb is answered only once the utterance ends, which a batch backend makes seconds | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_heard` |
-| A barge-in is reported once, before the utterance ends | zrb only pauses after the user has finished speaking | `test/llm/dictation/test_listen_barge_in.py::test_listen_reports_a_barge_in_once_before_the_utterance_ends` |
-| Closing the listener mid-pause resumes speech | zrb's voice stays held forever after hands-free stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_closing_mid_pause_resumes` |
+| Words over zrb pause its voice, then stop it | zrb keeps talking over the user, or never stops | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_words_over_zrb_pause_it_then_stop_it` |
+| A stop the word lists cannot read still stops zrb | "please fucking stop" reaches the model as a message, and zrb answers the very words that asked it to be quiet | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway` |
+| Talk over zrb holds its voice before it is transcribed, with `barge_in_hold` on | zrb talks through the whole interruption, and a stop lands seconds after it was said | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_with_wake_words_talk_not_meant_for_zrb_is_held_and_given_back` |
+| With `barge_in_hold` off, speech over zrb is neither held nor given back, and its words still stop it | a room loud enough to keep crossing the bar makes zrb stutter, or turning the hold off costs the stop itself | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_noise_over_zrb_never_touches_its_voice` |
+| With `barge_in_hold` off, a stop word seen in the live transcript stops zrb as soon as it is heard | "stop" said over zrb is answered only once the utterance ends, which a batch backend makes seconds | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_heard` |
+| A barge-in is reported once, before the utterance ends | zrb only pauses after the user has finished speaking | `test/llm/presentation/dictation/test_listen_barge_in.py::test_listen_reports_a_barge_in_once_before_the_utterance_ends` |
+| Closing the listener mid-pause resumes speech | zrb's voice stays held forever after hands-free stops | `test/llm/presentation/dictation/test_feature_barge_in_pause.py::test_closing_mid_pause_resumes` |
 | zrb's own voice is kept out by the loudness bar and the minimum word count, not by a transcript match | zrb answers its own reply as a user turn | **unpinned** — ADR-0105 records why there is no transcript-match guard |
-| A stop word said alone, with polite words, fillers or a repeat around it, cancels the turn without asking a model | "stop please" or "wait wait" waits on a model clock and may only quiet the voice | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_polite_or_repeated_stop_cancels_the_turn_without_the_judge` |
-| A hush quiets zrb and sends nothing; the turn goes on | "I got it" reaches the agent as a new message, or cancels its work | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_hush_quiets_zrb_and_leaves_the_turn_and_the_words_alone` |
-| A stop that carries on cancels the turn and sends the words | "hold on, use postgres" is lost, or steers a turn that is already cancelled | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_stop_that_carries_on_cancels_the_turn_and_sends_the_words` |
-| A long utterance, or one the lists read, never waits on the judge | Every interruption costs a model call and up to the judge's budget | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_long_utterance_is_a_request_and_skips_the_judge` |
-| A single word over zrb does not interrupt it | A stray "yeah" or echoed word cuts the reply short | `test/llm/dictation/test_feature_barge_in.py::test_a_single_word_over_zrb_is_not_taken_for_the_user` |
-| A room heard loudly enough does not open a turn | The room's own conversation becomes turns | `test/llm/dictation/test_listen.py::test_a_room_loud_enough_to_lift_the_bar_opens_no_turn` |
-| "No" to a pending approval denies the tool, not the turn | Answering an approval by voice cancels the whole turn | `test/llm/dictation/test_feature_barge_in.py::test_no_to_a_pending_approval_denies_it_rather_than_the_turn` |
-| Interrupting speech affects only this chat session, and the cut reply is not read again | Talking in one web session silences another, or the reply restarts at turn end | `test/llm/speech/test_feature_stream.py::test_interrupt_speech_silences_this_chat_session_only` |
-| Where `LLM_VOICE_REMOTE_URL` names a face server, this machine opens no microphone and no output stream | The voice is in two rooms at once — one of them empty — and a laptop microphone hears a room nobody is speaking into | `test/llm/dictation/test_remote_microphone.py::test_open_microphone_takes_the_page_and_never_this_machine`, `test/llm/speech/test_remote_output_stream.py::test_speech_goes_to_the_page_and_no_device_is_opened` |
+| A stop word said alone, with polite words, fillers or a repeat around it, cancels the turn without asking a model | "stop please" or "wait wait" waits on a model clock and may only quiet the voice | `test/llm/presentation/dictation/test_feature_barge_in_outcomes.py::test_a_polite_or_repeated_stop_cancels_the_turn_without_the_judge` |
+| A hush quiets zrb and sends nothing; the turn goes on | "I got it" reaches the agent as a new message, or cancels its work | `test/llm/presentation/dictation/test_feature_barge_in_outcomes.py::test_a_hush_quiets_zrb_and_leaves_the_turn_and_the_words_alone` |
+| A stop that carries on cancels the turn and sends the words | "hold on, use postgres" is lost, or steers a turn that is already cancelled | `test/llm/presentation/dictation/test_feature_barge_in_outcomes.py::test_a_stop_that_carries_on_cancels_the_turn_and_sends_the_words` |
+| A long utterance, or one the lists read, never waits on the judge | Every interruption costs a model call and up to the judge's budget | `test/llm/presentation/dictation/test_feature_barge_in_outcomes.py::test_a_long_utterance_is_a_request_and_skips_the_judge` |
+| A single word over zrb does not interrupt it | A stray "yeah" or echoed word cuts the reply short | `test/llm/presentation/dictation/test_feature_barge_in.py::test_a_single_word_over_zrb_is_not_taken_for_the_user` |
+| A room heard loudly enough does not open a turn | The room's own conversation becomes turns | `test/llm/presentation/dictation/test_listen.py::test_a_room_loud_enough_to_lift_the_bar_opens_no_turn` |
+| "No" to a pending approval denies the tool, not the turn | Answering an approval by voice cancels the whole turn | `test/llm/presentation/dictation/test_feature_barge_in.py::test_no_to_a_pending_approval_denies_it_rather_than_the_turn` |
+| Interrupting speech affects only this chat session, and the cut reply is not read again | Talking in one web session silences another, or the reply restarts at turn end | `test/llm/presentation/speech/test_feature_stream.py::test_interrupt_speech_silences_this_chat_session_only` |
+| Where `LLM_VOICE_REMOTE_URL` names a face server, this machine opens no microphone and no output stream | The voice is in two rooms at once — one of them empty — and a laptop microphone hears a room nobody is speaking into | `test/llm/presentation/dictation/test_remote_microphone.py::test_open_microphone_takes_the_page_and_never_this_machine`, `test/llm/presentation/speech/test_remote_output_stream.py::test_speech_goes_to_the_page_and_no_device_is_opened` |
 
 ## Realization
 
@@ -87,19 +87,19 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `enable_dictation`, `DictationSession` | `src/zrb/llm/dictation/feature.py` | Registering `/voice` and the hands-free trigger; per session, turning each utterance into a command or nothing, and deciding pause, stop or resume |
-| `listen`, `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Keeping the microphone open, cutting audio into `Utterance` values by loudness and silence, and spotting a barge-in early |
-| `count_words`, `is_transcriber_guess`, `is_said_alone`, `read_barge_in` | `src/zrb/llm/dictation/words.py` | The word-level guards, and what the stop and hush lists make of words said over zrb |
-| `EchoCancelledMicrophone` | `src/zrb/llm/dictation/echo_cancel.py` | The microphone opened through macOS voice processing, standing in for the sounddevice stream |
-| `RemoteMicrophone`, `RemoteOutputStream` | `src/zrb/llm/dictation/remote_microphone.py`, `src/zrb/llm/speech/remote_output_stream.py` | The page's microphone and speaker, standing in for the device streams where `LLM_VOICE_REMOTE_URL` names a face server; the routes both speak are named once in `src/zrb/llm/util/face_server.py` |
-| `DictationConfig` | `src/zrb/llm/dictation/config.py` | One field per `CFG.LLM_DICTATION_*` setting; `None` means "use the setting" |
-| `enable_speech`, `SpeechSession` | `src/zrb/llm/speech/feature.py` | Registering speech hooks and the stream observer; per session, feeding the speaker |
-| `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
-| `Speaker` | `src/zrb/llm/speech/player.py` | Queuing, synthesizing and playing speech; pause, resume and interrupt |
-| `StreamedReply` | `src/zrb/llm/speech/streamed_reply.py` | Turning stream events into sentences; muting a reply that was talked over |
-| `TriggerReply` | `src/zrb/llm/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
-| `BaseUITriggers` | `src/zrb/llm/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
-| `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/shared/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
+| `enable_dictation`, `DictationSession` | `src/zrb/llm/presentation/dictation/feature.py` | Registering `/voice` and the hands-free trigger; per session, turning each utterance into a command or nothing, and deciding pause, stop or resume |
+| `listen`, `UtteranceCutter` | `src/zrb/llm/presentation/dictation/listen.py` | Keeping the microphone open, cutting audio into `Utterance` values by loudness and silence, and spotting a barge-in early |
+| `count_words`, `is_transcriber_guess`, `is_said_alone`, `read_barge_in` | `src/zrb/llm/presentation/dictation/words.py` | The word-level guards, and what the stop and hush lists make of words said over zrb |
+| `EchoCancelledMicrophone` | `src/zrb/llm/presentation/dictation/echo_cancel.py` | The microphone opened through macOS voice processing, standing in for the sounddevice stream |
+| `RemoteMicrophone`, `RemoteOutputStream` | `src/zrb/llm/presentation/dictation/remote_microphone.py`, `src/zrb/llm/presentation/speech/remote_output_stream.py` | The page's microphone and speaker, standing in for the device streams where `LLM_VOICE_REMOTE_URL` names a face server; the routes both speak are named once in `src/zrb/llm/contracts/util/face_server.py` |
+| `DictationConfig` | `src/zrb/llm/presentation/dictation/config.py` | One field per `CFG.LLM_DICTATION_*` setting; `None` means "use the setting" |
+| `enable_speech`, `SpeechSession` | `src/zrb/llm/presentation/speech/feature.py` | Registering speech hooks and the stream observer; per session, feeding the speaker |
+| `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/presentation/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
+| `Speaker` | `src/zrb/llm/presentation/speech/player.py` | Queuing, synthesizing and playing speech; pause, resume and interrupt |
+| `StreamedReply` | `src/zrb/llm/presentation/speech/streamed_reply.py` | Turning stream events into sentences; muting a reply that was talked over |
+| `TriggerReply` | `src/zrb/llm/presentation/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
+| `BaseUITriggers` | `src/zrb/llm/presentation/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
+| `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/contracts/shared/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
 
 ### How it runs
 
@@ -183,22 +183,22 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Speech not enabled | `interrupt_speech` and siblings | Find no speech session for the key and do nothing; dictation works the same |
 | Push-to-talk (`/voice`) | `DictationSession.toggle_recording` | Every word is kept; the transcript is submitted through the keyboard's own path, so it queues as typed words do |
 | A sentence played by an external program | `Speaker.pause` | It cannot be held, so it is stopped and speech carries on with the next sentence |
-| The voice in the page | `get_remote_url` in `src/zrb/llm/util/face_server.py` | `listen` reads its blocks from the server's `GET /audio/in` and the speaker posts each block to its `POST /say`, so this machine opens neither. The browser cancels the page's own voice out of what it hears, so the local canceller is not opened and `echo_cancel_enabled` is not read; no player program takes a sentence over |
+| The voice in the page | `get_remote_url` in `src/zrb/llm/contracts/util/face_server.py` | `listen` reads its blocks from the server's `GET /audio/in` and the speaker posts each block to its `POST /say`, so this machine opens neither. The browser cancels the page's own voice out of what it hears, so the local canceller is not opened and `echo_cancel_enabled` is not read; no player program takes a sentence over |
 | The web runner | `close_feature_sessions` in `src/zrb/runner/chat/chat_session_manager.py` | Each connection is its own chat session, with its own microphone and speaker state |
 
 ### Change it here
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
-| Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py`, `test/llm/dictation/test_words.py` |
-| Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
-| Change how the macOS microphone takes zrb's voice out | `src/zrb/llm/dictation/echo_cancel.py` | `test/llm/dictation/test_echo_cancel.py`, `test/llm/dictation/test_listen_echo_cancel.py` |
-| Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |
-| Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
-| Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |
-| Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |
-| Change where the voice lives — the face server's microphone and speaker | `src/zrb/llm/util/face_server.py`, `src/zrb/llm/dictation/remote_microphone.py`, `src/zrb/llm/speech/remote_output_stream.py` | `test/llm/util/test_face_server.py`, `test/llm/dictation/test_remote_microphone.py`, `test/llm/speech/test_remote_output_stream.py` |
+| Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/presentation/dictation/listen.py` | `test/llm/presentation/dictation/test_listen_barge_in.py`, `test/llm/presentation/dictation/test_listen.py` |
+| Change the transcript guards or command routing | `src/zrb/llm/presentation/dictation/feature.py`, `src/zrb/llm/presentation/dictation/words.py` | `test/llm/presentation/dictation/test_feature_barge_in.py`, `test/llm/presentation/dictation/test_words.py` |
+| Change pause, stop or resume | `src/zrb/llm/presentation/dictation/feature.py` | `test/llm/presentation/dictation/test_feature_barge_in_pause.py` |
+| Change how the macOS microphone takes zrb's voice out | `src/zrb/llm/presentation/dictation/echo_cancel.py` | `test/llm/presentation/dictation/test_echo_cancel.py`, `test/llm/presentation/dictation/test_listen_echo_cancel.py` |
+| Change playback or pausing | `src/zrb/llm/presentation/speech/player.py` | `test/llm/presentation/speech/test_player_in_process.py`, `test/llm/presentation/speech/test_player_pause.py`, `test/llm/presentation/speech/test_player_render_failure.py` |
+| Change how a streamed reply is spoken | `src/zrb/llm/presentation/speech/streamed_reply.py`, `src/zrb/llm/presentation/speech/feature.py` | `test/llm/presentation/speech/test_feature_stream.py` |
+| Change how a spoken reply reaches a prompt | `src/zrb/llm/presentation/ui/base/triggers.py` | `test/llm/presentation/ui/base/` |
+| Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/presentation/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |
+| Change where the voice lives — the face server's microphone and speaker | `src/zrb/llm/contracts/util/face_server.py`, `src/zrb/llm/presentation/dictation/remote_microphone.py`, `src/zrb/llm/presentation/speech/remote_output_stream.py` | `test/llm/contracts/util/test_face_server.py`, `test/llm/presentation/dictation/test_remote_microphone.py`, `test/llm/presentation/speech/test_remote_output_stream.py` |
 
 ## See Also
 

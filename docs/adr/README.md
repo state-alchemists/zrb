@@ -90,7 +90,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
 - **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
 - **ADR-0129** — [A lazy registration holds the configuration it was given until it loads](adr-0129.md)
-- **ADR-0120** — [LLM layered architecture with L0 facades and registries](0120-llm-layered-architecture.md)
+- **ADR-0120** — [`zrb.llm` is five directories, and the directory is the layer](0120-llm-layered-architecture.md)
 
 ### Testing
 
@@ -116,6 +116,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0130** — [Compaction hands over a briefing, and the tail is a handover too](adr-0130.md)
 - **ADR-0131** — [Speech's player defaults meet the measured machine, and its threads ask to be scheduled above the work that starved them](adr-0131.md)
 - **ADR-0142** — [A usage line names the call that spent it](adr-0142.md)
+- **ADR-0143** — [One usage line per request, with its reason and a digest of its prompt](adr-0143.md)
 
 ### Prompt
 

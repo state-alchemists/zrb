@@ -2,7 +2,7 @@
 
 An audit found 8 dead `.py` references across the repository map (then in
 `AGENTS.md`) and the ADR log, plus one dead directory in the orientation table
-(`llm/app/`, which had moved to `llm/ui/default/app/`). Every one of them was
+(`llm/app/`, which had moved to `llm/presentation/ui/default/app/`). Every one of them was
 a rename or a test-file split that swept the source but not the prose pointing
 at it. The map is the first page a contributor or an agent reads, and an
 ADR's "Where it lives" line is the only index from a decision back to the
@@ -59,7 +59,7 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
     "docs/adr/adr-0124.md": {
         # The record says this module was deleted; naming where it lived is the
         # subject of the ADR, and there is no post-removal path to point at.
-        "src/zrb/llm/tool/rag.py",
+        "src/zrb/llm/capabilities/tool/rag.py",
     },
     "docs/adr/adr-0088.md": {
         # The Context and Decision paragraphs name both modules at their
@@ -73,36 +73,36 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
         # "Tests" paragraph name the modules that implemented it. All of them
         # were deleted with the journal in 3.33.0 (ADR-0138), so there is no
         # surviving module that embodies the same mechanism to point at.
-        "src/zrb/llm/tool/journal.py",
-        "src/zrb/llm/tool/journal_write.py",
-        "src/zrb/llm/hook/journal_compliance.py",
-        "test/llm/tool/test_journal_notes.py",
-        "test/llm/tool/test_journal_backlinks.py",
-        "test/llm/tool/test_journal_git.py",
-        "test/llm/hook/test_journal_compliance.py",
+        "src/zrb/llm/capabilities/tool/journal.py",
+        "src/zrb/llm/capabilities/tool/journal_write.py",
+        "src/zrb/llm/capabilities/hook/journal_compliance.py",
+        "test/llm/capabilities/tool/test_journal_notes.py",
+        "test/llm/capabilities/tool/test_journal_backlinks.py",
+        "test/llm/capabilities/tool/test_journal_git.py",
+        "test/llm/capabilities/hook/test_journal_compliance.py",
     },
     "docs/adr/adr-0127.md": {
         # The record added the `/usage` Journal section and the event log behind
         # it; both went with the journal in 3.33.0. The usage half it also
-        # describes is live, and `src/zrb/llm/shared/usage_log.py` is checked normally.
+        # describes is live, and `src/zrb/llm/contracts/shared/usage_log.py` is checked normally.
         "src/zrb/llm/journal_usage_log.py",
-        "src/zrb/llm/tool/journal.py",
+        "src/zrb/llm/capabilities/tool/journal.py",
         "test/llm/test_journal_usage_log.py",
-        "test/llm/tool/test_journal_usage_events.py",
+        "test/llm/capabilities/tool/test_journal_usage_events.py",
     },
     "docs/adr/adr-0134.md": {
         # This record measures journal retrieval — the `prompted` and
         # `auto_searched` events and the two `/usage` lines they feed — and
         # every module it names was deleted with the journal in 3.33.0.
         "src/zrb/llm/journal_usage_log.py",
-        "src/zrb/llm/custom_command/usage_command_journal.py",
+        "src/zrb/llm/orchestration/custom_command/usage_command_journal.py",
     },
     "docs/adr/adr-0136.md": {
         # The ranked cap was extracted into this module, and its adversarial
         # test walk lived in that test file. Both are gone with the journal in
         # 3.33.0; the decision has no implementation left to point at.
-        "src/zrb/llm/prompt/journal_core.py",
-        "test/llm/prompt/test_journal_core.py",
+        "src/zrb/llm/capabilities/prompt/journal_core.py",
+        "test/llm/capabilities/prompt/test_journal_core.py",
     },
 }
 
@@ -164,7 +164,7 @@ def _known_paths() -> set[str]:
     """Every repo file, indexed by each of its path suffixes.
 
     A doc may cite `agent/run/runner.py` or the full
-    `src/zrb/llm/agent/run/runner.py`; both should resolve.
+    `src/zrb/llm/engine/agent/run/runner.py`; both should resolve.
     """
     known: set[str] = set()
     for path in _checkout_python_files():

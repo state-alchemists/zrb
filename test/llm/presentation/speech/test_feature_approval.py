@@ -1,0 +1,288 @@
+"""A spoken approval request is dropped once its prompt is answered."""
+
+import time
+
+import pytest
+
+from zrb.config.config import CFG
+from zrb.llm.capabilities.hook.contracts.interface import HookContext
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
+from zrb.llm.presentation.speech import SpeechConfig
+from zrb.llm.presentation.speech.feature import SpeechSession, describe_tool_call, is_answered_since
+
+
+class StaleCheckSpeaker:
+    def __init__(self):
+        self.stale_checks: list = []
+
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
+        self.stale_checks.append(is_stale)
+
+    def close(self):
+        pass
+
+
+class PromptUI:
+    """Dates each prompt it asks, as a UI does."""
+
+    def __init__(self):
+        self.prompts: list[list] = []  # [asked at, is answered]
+
+    def ask(self) -> list:
+        prompt = [time.monotonic(), False]
+        self.prompts.append(prompt)
+        return prompt
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        return next((p[1] for p in self.prompts if p[0] >= asked_at), False)
+
+    # The session reads a prompt's state through the input role, as a UI
+    # reaches it: this fake is its own input side.
+    input = property(lambda self: self)
+
+
+@pytest.fixture
+def session_ui():
+    """A UI bound to the session, reporting when its prompt appeared."""
+    ui = PromptUI()
+    set_session_ui(ui)  # type: ignore[arg-type]
+    yield ui
+    reset_session_ui()
+
+
+def _session() -> tuple[SpeechSession, StaleCheckSpeaker]:
+    session = SpeechSession(SpeechConfig(enabled=True).resolve())
+    speaker = StaleCheckSpeaker()
+    session.speaker = speaker  # type: ignore[assignment]
+    return session, speaker
+
+
+def _assert_goes_stale_once_answered(ui, is_stale) -> None:
+    assert not is_stale()
+    prompt = ui.ask()
+    assert not is_stale()
+    prompt[1] = True
+    assert is_stale()
+
+
+@pytest.mark.asyncio
+async def test_a_spoken_approval_goes_stale_once_its_prompt_is_answered(session_ui):
+    session, speaker = _session()
+
+    await session.handle_permission_request(
+        HookContext(
+            event=HookEvent.PERMISSION_REQUEST, event_data={}, tool_name="Shell"
+        )
+    )
+
+    (is_stale,) = speaker.stale_checks
+    _assert_goes_stale_once_answered(session_ui, is_stale)
+
+
+@pytest.mark.asyncio
+async def test_the_session_ui_reaches_a_hook_run_by_the_hook_manager(session_ui):
+    """Hooks run on a pool thread with the ambient UI cleared, so the session's
+    UI has to reach them another way."""
+    session, speaker = _session()
+    manager = HookManager(search_dirs=[])
+    session.register_hooks(manager)
+
+    await manager.execute_hooks(HookEvent.PERMISSION_REQUEST, {}, tool_name="Shell")
+
+    (is_stale,) = speaker.stale_checks
+    _assert_goes_stale_once_answered(session_ui, is_stale)
+
+
+def test_an_older_prompt_answered_does_not_make_a_new_approval_stale():
+    ui = PromptUI()
+    older = ui.ask()
+    is_answered = is_answered_since(ui, time.monotonic())
+
+    older[1] = True
+    assert not is_answered()
+    ui.ask()[1] = True  # the prompt after the hook
+    assert is_answered()
+
+
+def test_a_ui_that_cannot_time_its_prompt_never_reads_as_answered():
+    is_answered = is_answered_since(None, time.monotonic())
+
+    assert not is_answered()
+
+
+class TextSpeaker:
+    def __init__(self):
+        self.said: list[str] = []
+
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
+        self.said.append(text)
+
+    def close(self):
+        pass
+
+
+def _text_session(**config) -> tuple[SpeechSession, TextSpeaker]:
+    session = SpeechSession(SpeechConfig(enabled=True, **config).resolve())
+    speaker = TextSpeaker()
+    session.speaker = speaker  # type: ignore[assignment]
+    return session, speaker
+
+
+@pytest.mark.asyncio
+async def test_the_approval_request_follows_the_configured_template():
+    session, speaker = _text_session(
+        approval_message="Boleh saya {action}{target}?",
+        approval_target_keys=["url"],
+        approval_target_max_chars=5,
+    )
+    await session.handle_permission_request(
+        HookContext(
+            event=HookEvent.PERMISSION_REQUEST,
+            event_data={},
+            tool_name="WebFetch",
+            tool_input={"path": "/tmp/a.py", "url": "https://x.io"},
+        )
+    )
+    assert speaker.said == ["Boleh saya use the WebFetch tool https?"]
+
+
+def test_a_zero_target_length_leaves_the_target_out():
+    spoken = describe_tool_call(
+        "Bash", {"command": "ls"}, message="{action}{target}.", target_max_chars=0
+    )
+    assert spoken == "run a shell command."
+
+
+def test_the_approval_template_is_read_from_cfg_when_left_unset(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_SPEECH_APPROVAL_MESSAGE", "OK to {action}?")
+    assert describe_tool_call("Bash", {}) == "OK to run a shell command?"
+
+
+@pytest.mark.asyncio
+async def test_a_question_with_no_text_says_the_configured_message():
+    session, speaker = _text_session(question_message="Ada pertanyaan.")
+    await session.handle_notification(
+        HookContext(
+            event=HookEvent.NOTIFICATION,
+            event_data={},
+            notification_type="elicitation_dialog",
+            message="",
+        )
+    )
+    assert speaker.said == ["Ada pertanyaan."]
+
+
+def test_the_approval_action_comes_from_the_configured_patterns():
+    actions = {"Write": "menulis berkas", "Mcp*": "memakai {tool}"}
+    message = "{action}"
+    assert describe_tool_call("Write", {}, message, actions=actions) == "menulis berkas"
+    assert (
+        describe_tool_call("McpGit", {}, message, actions=actions) == "memakai McpGit"
+    )
+    # No pattern matches: the tool's own name.
+    assert describe_tool_call("Grep", {}, message, actions=actions) == "Grep"
+
+
+def test_the_approval_actions_are_read_from_cfg_when_left_unset(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_SPEECH_APPROVAL_ACTIONS", '{"*": "memakai {tool}"}')
+    assert describe_tool_call("Bash", {}, "{action}") == "memakai Bash"
+
+
+def test_the_approval_says_what_the_call_is_for_instead_of_the_command():
+    """The approval-side half of #764: a call carrying a ``purpose`` is
+    announced by it, so the raw command is never read aloud."""
+    spoken = describe_tool_call(
+        "Shell",
+        {
+            "command": "find . -type f | xargs ls -S | head -1",
+            "purpose": "Getting the biggest file",
+        },
+    )
+    assert spoken == (
+        "I need to run a shell command Getting the biggest file. "
+        "I need your approval."
+    )
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"command": "ls"},
+        {"command": "ls", "purpose": ""},
+        {"command": "ls", "purpose": "   "},
+        {"command": "ls", "purpose": 3},
+        {"command": "ls", "purpose": None},
+    ],
+)
+def test_a_call_with_no_usable_purpose_is_announced_by_its_target(args):
+    assert describe_tool_call("Shell", args) == (
+        "I need to run a shell command ls. I need your approval."
+    )
+
+
+@pytest.mark.parametrize("args", [None, {}, {"command": ""}, {"command": 3}, "no json"])
+def test_a_call_whose_arguments_name_no_command_still_asks_for_approval(args):
+    """No arguments, a blank or non-string target, and the unparseable JSON
+    string a provider can leave behind keep today's line: a hook never raises
+    over one."""
+    assert describe_tool_call("Shell", args) == (
+        "I need to run a shell command. I need your approval."
+    )
+
+
+def test_a_purpose_streamed_as_json_is_read_too():
+    spoken = describe_tool_call(
+        "Shell", '{"command": "ls", "purpose": "Listing the files here"}'
+    )
+    assert spoken == (
+        "I need to run a shell command Listing the files here. " "I need your approval."
+    )
+
+
+def test_a_tool_carrying_no_purpose_is_announced_as_before():
+    spoken = describe_tool_call("Write", {"path": "/tmp/a.py", "content": "x"})
+    assert spoken == "I need to write a file /tmp/a.py. I need your approval."
+
+
+def test_the_purpose_is_cut_to_the_target_length():
+    spoken = describe_tool_call(
+        "Shell",
+        {"command": "ls", "purpose": "Getting the biggest file"},
+        message="[{target}]",
+        target_max_chars=5,
+    )
+    assert spoken == "[ Getti]"
+
+
+def test_a_zero_target_length_leaves_the_purpose_out_too():
+    """``{target}`` means one thing whichever fills it: a template that asks
+    for no target does not get the purpose either."""
+    spoken = describe_tool_call(
+        "Shell",
+        {"command": "ls", "purpose": "Getting the biggest file"},
+        message="{action}{target}.",
+        target_max_chars=0,
+    )
+    assert spoken == "run a shell command."
+
+
+@pytest.mark.asyncio
+async def test_the_session_asks_for_approval_in_the_calls_own_words():
+    session, speaker = _text_session()
+    await session.handle_permission_request(
+        HookContext(
+            event=HookEvent.PERMISSION_REQUEST,
+            event_data={},
+            tool_name="Shell",
+            tool_input={
+                "command": "find . -type f | xargs ls -S | head -1",
+                "purpose": "Getting the biggest file",
+            },
+        )
+    )
+    assert speaker.said == [
+        "I need to run a shell command Getting the biggest file. "
+        "I need your approval."
+    ]

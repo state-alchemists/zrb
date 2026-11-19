@@ -55,47 +55,47 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm.config.limiter import LLMLimiter, llm_limiter
-    from zrb.llm.config.model_resolver import ModelResolver, model_resolver
-    from zrb.llm.hook import HookContext, HookEvent, HookResult
-    from zrb.llm.hook.manager import HookManager, hook_manager
-    from zrb.llm.hook.registry import HookRegistry, hook_registry
-    from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
-    from zrb.llm.prompt.manager import PromptManager
-    from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
-    from zrb.llm.shared.tool_registry import ToolRegistry, tool_registry
-    from zrb.llm.skill import Skill, SkillRegistry
-    from zrb.llm.skill.manager import SkillManager, skill_manager
-    from zrb.llm.skill.registry import skill_registry
-    from zrb.llm.subagent.manager.manager import (
+    from zrb.llm.contracts.config.limiter import LLMLimiter, llm_limiter
+    from zrb.llm.contracts.config.model_resolver import ModelResolver, model_resolver
+    from zrb.llm.capabilities.hook import HookContext, HookEvent, HookResult
+    from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
+    from zrb.llm.capabilities.hook.registry import HookRegistry, hook_registry
+    from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
+    from zrb.llm.capabilities.prompt.manager import PromptManager
+    from zrb.llm.capabilities.prompt.registry import PromptRegistry, prompt_registry
+    from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_registry
+    from zrb.llm.capabilities.skill import Skill, SkillRegistry
+    from zrb.llm.capabilities.skill.manager import SkillManager, skill_manager
+    from zrb.llm.capabilities.skill.registry import skill_registry
+    from zrb.llm.orchestration.subagent.manager.manager import (
         SubAgentDefinition,
         SubAgentManager,
         sub_agent_manager,
     )
-    from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
-    from zrb.llm.task.chat.task import LLMChatTask
-    from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.always_approve import (
+    from zrb.llm.orchestration.subagent.registry import SubAgentRegistry, sub_agent_registry
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
+    from zrb.llm.capabilities.tool_call.always_approve import (
         register_always_auto_approve,
         register_default_auto_approve,
         register_default_auto_approve_if,
     )
-    from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
-    from zrb.llm.util.capabilities import model_capabilities
-    from zrb.llm.voice.manager import (
+    from zrb.llm.presentation.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.trigger import TriggerMessage, TriggerReply
+    from zrb.llm.contracts.util.capabilities import model_capabilities
+    from zrb.llm.presentation.voice.manager import (
         STTServiceManager,
         TTSServiceManager,
         stt_manager,
         tts_manager,
     )
-    from zrb.llm.voice.registry import (
+    from zrb.llm.presentation.voice.registry import (
         STTServiceRegistry,
         TTSServiceRegistry,
         stt_registry,
         tts_registry,
     )
-    from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+    from zrb.llm.presentation.voice.spec import STTServiceSpec, TTSServiceSpec
     from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
     from zrb.runner.cli import Cli, cli
     from zrb.runner.web_schema.user import User
@@ -291,57 +291,57 @@ _LAZY_EXPORTS = {
     "load_module": "zrb.util.load",
     "to_infinite_stream": "zrb.util.stream",
     "Xcom": "zrb.xcom.xcom",
-    "LLMTask": "zrb.llm.task.llm_task",
-    "LLMChatTask": "zrb.llm.task.chat.task",
-    "LLMLimiter": "zrb.llm.config.limiter",
-    "llm_limiter": "zrb.llm.config.limiter",
-    "ModelResolver": "zrb.llm.config.model_resolver",
-    "model_resolver": "zrb.llm.config.model_resolver",
-    "SubAgentManager": "zrb.llm.subagent.manager.manager",
-    "sub_agent_manager": "zrb.llm.subagent.manager.manager",
-    "SubAgentDefinition": "zrb.llm.subagent.manager.manager",
-    "SubAgentRegistry": "zrb.llm.subagent.registry",
-    "sub_agent_registry": "zrb.llm.subagent.registry",
-    "HookManager": "zrb.llm.hook.manager",
-    "hook_manager": "zrb.llm.hook.manager",
-    "HookEvent": "zrb.llm.hook",
-    "HookContext": "zrb.llm.hook",
-    "HookResult": "zrb.llm.hook",
-    "HookRegistry": "zrb.llm.hook.registry",
-    "hook_registry": "zrb.llm.hook.registry",
-    "SkillManager": "zrb.llm.skill.manager",
-    "skill_manager": "zrb.llm.skill.manager",
-    "Skill": "zrb.llm.skill",
-    "SkillRegistry": "zrb.llm.skill",
-    "skill_registry": "zrb.llm.skill.registry",
-    "PromptManager": "zrb.llm.prompt.manager",
-    "PromptRegistry": "zrb.llm.prompt.registry",
-    "prompt_registry": "zrb.llm.prompt.registry",
-    "STTServiceManager": "zrb.llm.voice.manager",
-    "STTServiceRegistry": "zrb.llm.voice.registry",
-    "STTServiceSpec": "zrb.llm.voice.spec",
-    "stt_manager": "zrb.llm.voice.manager",
-    "stt_registry": "zrb.llm.voice.registry",
-    "TTSServiceManager": "zrb.llm.voice.manager",
-    "TTSServiceRegistry": "zrb.llm.voice.registry",
-    "TTSServiceSpec": "zrb.llm.voice.spec",
-    "tts_manager": "zrb.llm.voice.manager",
-    "tts_registry": "zrb.llm.voice.registry",
-    "ToolRegistry": "zrb.llm.shared.tool_registry",
-    "tool_registry": "zrb.llm.shared.tool_registry",
-    "AnyUI": "zrb.llm.ui.any_ui",
-    "TriggerMessage": "zrb.llm.ui.trigger",
-    "TriggerReply": "zrb.llm.ui.trigger",
-    "model_capabilities": "zrb.llm.util.capabilities",
+    "LLMTask": "zrb.llm.orchestration.task.llm_task",
+    "LLMChatTask": "zrb.llm.orchestration.task.chat.task",
+    "LLMLimiter": "zrb.llm.contracts.config.limiter",
+    "llm_limiter": "zrb.llm.contracts.config.limiter",
+    "ModelResolver": "zrb.llm.contracts.config.model_resolver",
+    "model_resolver": "zrb.llm.contracts.config.model_resolver",
+    "SubAgentManager": "zrb.llm.orchestration.subagent.manager.manager",
+    "sub_agent_manager": "zrb.llm.orchestration.subagent.manager.manager",
+    "SubAgentDefinition": "zrb.llm.orchestration.subagent.manager.manager",
+    "SubAgentRegistry": "zrb.llm.orchestration.subagent.registry",
+    "sub_agent_registry": "zrb.llm.orchestration.subagent.registry",
+    "HookManager": "zrb.llm.capabilities.hook.manager",
+    "hook_manager": "zrb.llm.capabilities.hook.manager",
+    "HookEvent": "zrb.llm.capabilities.hook",
+    "HookContext": "zrb.llm.capabilities.hook",
+    "HookResult": "zrb.llm.capabilities.hook",
+    "HookRegistry": "zrb.llm.capabilities.hook.registry",
+    "hook_registry": "zrb.llm.capabilities.hook.registry",
+    "SkillManager": "zrb.llm.capabilities.skill.manager",
+    "skill_manager": "zrb.llm.capabilities.skill.manager",
+    "Skill": "zrb.llm.capabilities.skill",
+    "SkillRegistry": "zrb.llm.capabilities.skill",
+    "skill_registry": "zrb.llm.capabilities.skill.registry",
+    "PromptManager": "zrb.llm.capabilities.prompt.manager",
+    "PromptRegistry": "zrb.llm.capabilities.prompt.registry",
+    "prompt_registry": "zrb.llm.capabilities.prompt.registry",
+    "STTServiceManager": "zrb.llm.presentation.voice.manager",
+    "STTServiceRegistry": "zrb.llm.presentation.voice.registry",
+    "STTServiceSpec": "zrb.llm.presentation.voice.spec",
+    "stt_manager": "zrb.llm.presentation.voice.manager",
+    "stt_registry": "zrb.llm.presentation.voice.registry",
+    "TTSServiceManager": "zrb.llm.presentation.voice.manager",
+    "TTSServiceRegistry": "zrb.llm.presentation.voice.registry",
+    "TTSServiceSpec": "zrb.llm.presentation.voice.spec",
+    "tts_manager": "zrb.llm.presentation.voice.manager",
+    "tts_registry": "zrb.llm.presentation.voice.registry",
+    "ToolRegistry": "zrb.llm.contracts.shared.tool_registry",
+    "tool_registry": "zrb.llm.contracts.shared.tool_registry",
+    "AnyUI": "zrb.llm.presentation.ui.any_ui",
+    "TriggerMessage": "zrb.llm.presentation.ui.trigger",
+    "TriggerReply": "zrb.llm.presentation.ui.trigger",
+    "model_capabilities": "zrb.llm.contracts.util.capabilities",
     "register_theme": "zrb.config.theme",
-    "register_always_auto_approve": "zrb.llm.tool_call.always_approve",
-    "register_default_auto_approve": "zrb.llm.tool_call.always_approve",
-    "register_default_auto_approve_if": "zrb.llm.tool_call.always_approve",
-    "PermissionPolicy": "zrb.llm.permission",
-    "Rule": "zrb.llm.permission",
-    "ALLOW": "zrb.llm.permission",
-    "DENY": "zrb.llm.permission",
-    "ASK": "zrb.llm.permission",
+    "register_always_auto_approve": "zrb.llm.capabilities.tool_call.always_approve",
+    "register_default_auto_approve": "zrb.llm.capabilities.tool_call.always_approve",
+    "register_default_auto_approve_if": "zrb.llm.capabilities.tool_call.always_approve",
+    "PermissionPolicy": "zrb.llm.capabilities.permission",
+    "Rule": "zrb.llm.capabilities.permission",
+    "ALLOW": "zrb.llm.capabilities.permission",
+    "DENY": "zrb.llm.capabilities.permission",
+    "ASK": "zrb.llm.capabilities.permission",
 }
 
 _NO_LLM_CONFIG = (

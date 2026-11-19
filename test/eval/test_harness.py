@@ -21,7 +21,7 @@ from harness import (
 from tasks import BROKEN_FIXTURE, FAILING_TEST_IN_LOG, TASKS, TASKS_BY_NAME
 
 from zrb.config.config import CFG
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter
 
 
 def _task(**overrides) -> EvalTask:
@@ -60,7 +60,7 @@ def test_the_large_log_fixture_stays_over_the_prune_budget():
     says so instead of certifying it.
     """
     pruner = pytest.importorskip(
-        "zrb.llm.summarizer.tool_result_pruner",
+        "zrb.llm.engine.summarizer.tool_result_pruner",
         reason="per-result pruning lands with #811; until then the log arrives whole",
     )
     log = TASKS_BY_NAME["find_in_large_log"].files["logs/build.log"]

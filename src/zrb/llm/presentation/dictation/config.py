@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from zrb.llm.contracts.shared.feature_config import accepts_renamed_fields, resolve_from_cfg
+
+if TYPE_CHECKING:
+    from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+
+
+@accepts_renamed_fields(
+    enable_echo_cancel="echo_cancel_enabled",
+    detect_emotion="detect_emotion_enabled",
+    emotion_out_of_process="emotion_out_of_process_enabled",
+)
+@dataclass
+class DictationConfig:
+    """Settings for `enable_dictation`. Each field mirrors
+    `CFG.LLM_DICTATION_<FIELD>`; one left ``None`` is read from there when a
+    session starts.
+
+    ``enable_echo_cancel``, ``detect_emotion`` and ``emotion_out_of_process``
+    are the pre-`_ENABLED` names, and still work as constructor arguments and
+    attributes, warning once.
+
+    *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
+    ``multimodal``, ``sensevoice``), a speech service registered with ``stt_manager``
+    (``whisper``, ``moonshine``, ``funasr``), or is an `AnyDictationBackend` of
+    your own. *stt_model* picks the model of whichever service is named.
+
+    New fields go at the end: a caller may pass them positionally, and a field
+    inserted earlier would shift every argument after it.
+    """
+
+    mode: str | None = None
+    commands: list[str] | None = None
+    hands_free_commands: list[str] | None = None
+    backend: "str | AnyDictationBackend | None" = None
+    wake_words: list[str] | None = None
+    wake_window: float | None = None
+    threshold: float | None = None
+    noise_margin: float | None = None
+    silence: float | None = None
+    min_silence: float | None = None
+    min_speech: float | None = None
+    min_words: int | None = None
+    max_utterance: float | None = None
+    max_backlog: float | None = None
+    pre_roll: float | None = None
+    barge_in_enabled: bool | None = None
+    barge_in_min_speech: float | None = None
+    barge_in_margin: float | None = None
+    barge_in_min_words: int | None = None
+    interrupt_judge_enabled: bool | None = None
+    interrupt_judge_model: str | None = None
+    approve_words: list[str] | None = None
+    deny_words: list[str] | None = None
+    stop_words: list[str] | None = None
+    polite_words: list[str] | None = None
+    device: str | None = None
+    block_duration: float | None = None
+    transcribe_prompt: str | None = None
+    language: str | None = None
+    stt_model: str | None = None
+    openai_model: str | None = None
+    openai_base_url: str | None = None
+    google_model: str | None = None
+    vosk_model_name: str | None = None
+    vosk_model_url: str | None = None
+    vosk_download_timeout: float | None = None
+    vosk_max_download_mb: float | None = None
+    vosk_max_uncompressed_mb: float | None = None
+    vosk_max_file_mb: float | None = None
+    vosk_max_files: float | None = None
+    vosk_confidence: float | None = None
+    barge_in_hold: bool | None = None
+    interrupt_judge_timeout: float | None = None
+    interrupt_judge_max_words: int | None = None
+    hush_words: list[str] | None = None
+    echo_cancel_enabled: bool | None = None
+    detect_emotion_enabled: bool | None = None
+    sensevoice_model: str | None = None
+    sensevoice_threads: int | None = None
+    emotion_model: str | None = None
+    emotion_min_score: float | None = None
+    emotion_out_of_process_enabled: bool | None = None
+
+    @property
+    def is_barge_in_enabled(self) -> bool:
+        """Whether *barge_in_enabled* is set: hands-free hears the user
+        while zrb speaks, and a stop word cancels a running turn."""
+        return bool(self.barge_in_enabled)
+
+    @property
+    def is_barge_in_hold_enabled(self) -> bool:
+        """Whether speech heard over zrb holds its voice at once, before
+        anything about it is known. Unset counts as set: the hold is what a
+        session does until it is turned off."""
+        if self.barge_in_hold is None:
+            return True
+        return bool(self.barge_in_hold)
+
+    @property
+    def is_echo_cancel_enabled(self) -> bool:
+        """Whether *echo_cancel_enabled* is set: on macOS, the microphone opens
+        through voice processing, which takes zrb's own voice out of it."""
+        return bool(self.echo_cancel_enabled)
+
+    def resolve(self) -> "DictationConfig":
+        """A copy with every ``None`` field read from `CFG`."""
+        return resolve_from_cfg(self, "LLM_DICTATION_")

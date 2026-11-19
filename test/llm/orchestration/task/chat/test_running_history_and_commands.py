@@ -1,0 +1,354 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from zrb.llm.contracts.config.ui_config import UIConfig
+from zrb.llm.orchestration.task.chat.running import ChatRunning
+
+
+class MockLLMChatTask:
+    """Stand-in for `LLMChatTask` exposing what `ChatRunning` reads."""
+
+    def __init__(self):
+        self.uis = []
+        self.ui_factories = []
+        self.include_default_ui = True
+        self.approval_channels = []
+        self.ui_config = UIConfig()
+        self.triggers = []
+        self.response_handlers = []
+        self.tool_policies = []
+        self.argument_formatters = []
+        self.markdown_theme = None
+        self.custom_commands = []
+        self.custom_model_names = []
+
+    def get_model(self, ctx):
+        return "test-model"
+
+    def get_ui_conversation_name(self, ui, name):
+        return name
+
+
+@pytest.fixture
+def runner():
+    return ChatRunning(MockLLMChatTask())
+
+
+class SimpleMockUI:
+    display = input = tools = property(lambda self: self)
+
+    def __init__(self, **kwargs):
+        self.last_output = "Final"
+        self.run_async = AsyncMock(return_value="Final")
+
+    def append_to_output(self, *args, **kwargs):
+        pass
+
+    def set_approval_channel(self, chan):
+        pass
+
+    def set_tool_call_handler(self, handler):
+        pass
+
+
+class FakeCustomCommand:
+    """Duck-typed stand-in for AnyCustomCommand used to test slash-command
+    resolution without depending on a concrete implementation."""
+
+    def __init__(self, command: str, args: list[str], prompt_template: str):
+        self.command = command
+        self.description = "fake command"
+        self.args = args
+        self._prompt_template = prompt_template
+
+    def get_prompt(self, kwargs: dict[str, str]) -> str:
+        return self._prompt_template.format(**kwargs)
+
+
+UI_COMMAND_KEYS = [
+    "summarize",
+    "attach",
+    "exit",
+    "info",
+    "save",
+    "load",
+    "rewind",
+    "yolo_toggle",
+    "set_model",
+    "redirect_output",
+    "exec",
+    "btw",
+    "plan",
+    "copy",
+    "voice",
+    "photo",
+    "build",
+]
+
+
+@pytest.fixture
+def ui_commands():
+    return {k: [] for k in UI_COMMAND_KEYS}
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_applies_agent_mention_nudge(runner, ui_commands):
+    """A plain message mentioning a known agent gets the nudge prepended
+    before it reaches the UI."""
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with (
+        patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI,
+        patch(
+            "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention",
+            return_value="NUDGED:hi @researcher",
+        ) as mock_resolve_mention,
+    ):
+        MockUI.return_value = mock_ui
+
+        res = await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="hi @researcher",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert res == "Final"
+        mock_resolve_mention.assert_called_once_with("hi @researcher")
+        assert MockUI.call_args.kwargs["initial_message"] == "NUDGED:hi @researcher"
+
+
+@pytest.mark.asyncio
+async def test_run_interactive_session_slash_command_skips_mention_resolution(
+    runner, ui_commands
+):
+    """A resolved slash command must not also run through mention resolution --
+    the two syntaxes are mutually exclusive."""
+    runner.llm_chat_task.custom_commands = [
+        FakeCustomCommand(
+            command="/foo", args=["text"], prompt_template="RESOLVED:{text}"
+        )
+    ]
+
+    ctx = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+
+    mock_ui = SimpleMockUI()
+
+    with (
+        patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI,
+        patch(
+            "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention"
+        ) as mock_resolve_mention,
+    ):
+        MockUI.return_value = mock_ui
+
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/foo bar",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        mock_resolve_mention.assert_not_called()
+        assert MockUI.call_args.kwargs["initial_message"] == "RESOLVED:bar"
+
+
+@pytest.mark.asyncio
+async def test_run_non_interactive_session_applies_agent_mention_nudge(runner):
+    """Non-interactive (web) path applies the same mention nudge as the
+    interactive path."""
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+
+    with patch(
+        "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention",
+        return_value="NUDGED:hi @researcher",
+    ) as mock_resolve_mention:
+        await runner.run_non_interactive_session(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="hi @researcher",
+            initial_conversation_name="sess1",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    mock_resolve_mention.assert_called_once_with("hi @researcher")
+    sent_session = llm_task_core.async_run.call_args.args[0]
+    assert sent_session.shared_ctx.input["message"] == "NUDGED:hi @researcher"
+
+
+@pytest.mark.asyncio
+async def test_non_interactive_action_command_runs_no_turn(runner):
+    """An ActionCommand as the initial message prints its reply and never
+    reaches the LLM."""
+    from zrb.llm.orchestration.custom_command import ActionCommand
+
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/toggle", lambda kwargs, ui: "Toggled")
+    ]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock()
+
+    result = await runner.run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="/toggle",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert result == "Toggled"
+    llm_task_core.async_run.assert_not_called()
+    ctx.print.assert_called_once_with("Toggled", plain=True)
+    assert "__conversation_name__" not in ctx.xcom
+
+
+@pytest.mark.asyncio
+async def test_interactive_action_command_shows_reply_and_sends_nothing(
+    runner, ui_commands
+):
+    """In the TUI the reply lands in the output and the UI starts with no
+    initial message, so no turn is submitted."""
+    from zrb.llm.orchestration.custom_command import ActionCommand
+
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/toggle", lambda kwargs, ui: "Toggled")
+    ]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    mock_ui = SimpleMockUI()
+    shown: list = []
+    mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
+
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/toggle",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert MockUI.call_args.kwargs["initial_message"] == ""
+    assert any("Toggled" in str(v) for v in shown)
+
+
+@pytest.mark.asyncio
+async def test_interactive_initial_action_command_runs_with_the_ui(runner, ui_commands):
+    """`zrb llm chat "/photo"`: the action must get the interactive UI, not
+    the `None` of the pre-UI expansion that makes it answer "needs an
+    interactive chat session"."""
+    from zrb.llm.orchestration.custom_command import ActionCommand
+
+    seen: list = []
+
+    def action(kwargs, ui):
+        seen.append(ui)
+        return "Captured"
+
+    runner.llm_chat_task.custom_commands = [ActionCommand("/photo", action)]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    mock_ui = SimpleMockUI()
+    shown: list = []
+    mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
+
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/photo",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert seen == [mock_ui]
+    assert MockUI.call_args.kwargs["initial_message"] == ""
+    assert any("Captured" in str(v) for v in shown)
+
+
+@pytest.mark.asyncio
+async def test_initial_action_command_gets_the_main_ui_of_a_combined_ui(
+    runner, ui_commands
+):
+    """A combined UI lacks what an action needs (`insert_input_text`,
+    `pending_attachments`); typed commands run against its main UI, and so
+    does the initial one."""
+    from zrb.llm.orchestration.custom_command import ActionCommand
+
+    seen: list = []
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/photo", lambda kwargs, ui: seen.append(ui) or "Captured")
+    ]
+    runner.llm_chat_task.ui_factories = [lambda **kwargs: SimpleMockUI()]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    main_ui = SimpleMockUI()
+    main_ui.tool_call_handler = None
+
+    with (
+        patch("zrb.llm.presentation.ui.default.ui.UI", return_value=main_ui),
+        patch(
+            "zrb.llm.presentation.ui.multi.multi_ui.MultiUI.run_async",
+            new=AsyncMock(return_value=""),
+        ),
+    ):
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/photo",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert seen == [main_ui]

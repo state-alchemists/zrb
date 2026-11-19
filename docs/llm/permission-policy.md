@@ -46,7 +46,7 @@ graph TD
 
 ### Capabilities
 
-The `Capability` enum lives in `src/zrb/llm/permission/capability.py`; the built-in tools are tagged in `src/zrb/llm/common_tools.py`:
+The `Capability` enum lives in `src/zrb/llm/capabilities/permission/capability.py`; the built-in tools are tagged in `src/zrb/llm/orchestration/common_tools.py`:
 
 | Capability | Description | Example Tools |
 |------------|-------------|---------------|
@@ -63,7 +63,7 @@ The `Capability` enum lives in `src/zrb/llm/permission/capability.py`; the built
 A tool you add is `UNKNOWN` until you tag it, so a rule like `read:allow` never matches it and [Plan Mode](plan-mode.md) denies it. Tag the callable before registering it:
 
 ```python
-from zrb.llm.permission import Capability, tag
+from zrb.llm.capabilities.permission import Capability, tag
 
 
 def lookup_ticket(ticket_id: str) -> str:
@@ -74,7 +74,7 @@ def lookup_ticket(ticket_id: str) -> str:
 llm_chat.append_tool(tag(lookup_ticket, Capability.READ))
 ```
 
-For a tool defined inside a toolset, where the original callable is not what zrb sees, put the tag in its definition's metadata instead: `metadata=capability_metadata(Capability.READ)`, also from `zrb.llm.permission`.
+For a tool defined inside a toolset, where the original callable is not what zrb sees, put the tag in its definition's metadata instead: `metadata=capability_metadata(Capability.READ)`, also from `zrb.llm.capabilities.permission`.
 
 ---
 
@@ -83,7 +83,7 @@ For a tool defined inside a toolset, where the original callable is not what zrb
 A `PermissionPolicy` is an ordered tuple of `Rule` objects.
 
 ```python
-from zrb.llm.permission import PermissionPolicy, Rule, ALLOW, DENY, ASK, Capability
+from zrb.llm.capabilities.permission import PermissionPolicy, Rule, ALLOW, DENY, ASK, Capability
 
 my_policy = PermissionPolicy(
     (
@@ -168,7 +168,7 @@ Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the po
 
 ```python
 from zrb import LLMChatTask, LLMTask, cli
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 safe_task = cli.add_task(
     LLMTask(
@@ -199,10 +199,10 @@ zrb llm chat
 
 ### Advanced: the ambient policy ContextVar
 
-Under the hood every policy resolves to the `current_permission_policy` ContextVar, which each tool call reads via `get_effective_policy()`. The `permissions=` argument is the normal way to set it. For dynamic cases — e.g. choosing a policy at runtime based on live state — scope it with the `permission_policy` context manager from `zrb.llm.permission.state`:
+Under the hood every policy resolves to the `current_permission_policy` ContextVar, which each tool call reads via `get_effective_policy()`. The `permissions=` argument is the normal way to set it. For dynamic cases — e.g. choosing a policy at runtime based on live state — scope it with the `permission_policy` context manager from `zrb.llm.capabilities.permission.state`:
 
 ```python
-from zrb.llm.permission.state import permission_policy
+from zrb.llm.capabilities.permission.state import permission_policy
 
 with permission_policy(my_dynamic_policy):
     ...  # policy is guaranteed to unwind here, even on exception
@@ -210,11 +210,11 @@ with permission_policy(my_dynamic_policy):
 
 The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
-To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained.
+To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.capabilities.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained.
 
 ### Debugging decisions
 
-With `ZRB_LOGGING_LEVEL=DEBUG`, the permission-policy layer logs one JSON `policy_decision` event per tool call (its decision and the tool name), and the [sandbox](sandbox.md) logs one per shell command it wraps. Tool arguments are never logged. Code of your own that decides approvals, such as a custom approval channel, can emit the same event with `record_policy_decision(layer=..., decision=..., tool_name=..., reason=...)` from `zrb.llm.permission`.
+With `ZRB_LOGGING_LEVEL=DEBUG`, the permission-policy layer logs one JSON `policy_decision` event per tool call (its decision and the tool name), and the [sandbox](sandbox.md) logs one per shell command it wraps. Tool arguments are never logged. Code of your own that decides approvals, such as a custom approval channel, can emit the same event with `record_policy_decision(layer=..., decision=..., tool_name=..., reason=...)` from `zrb.llm.capabilities.permission`.
 
 ---
 🔖 [Documentation Home](../README.md) > [LLM](./) > Permission Policy

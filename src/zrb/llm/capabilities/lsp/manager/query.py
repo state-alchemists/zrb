@@ -1,0 +1,470 @@
+"""Symbol-based LSP queries for `LSPManager`; each returns a dict with a `found`/`success` flag."""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
+from zrb.llm.capabilities.lsp.no_server_error import no_server_error
+from zrb.llm.capabilities.lsp.protocol import SymbolKind
+from zrb.llm.capabilities.lsp.symbol_utils import format_document_symbols, uri_to_path
+
+if TYPE_CHECKING:
+    from zrb.llm.capabilities.lsp.manager.manager import LSPManager
+
+
+class LSPManagerQuery:
+    """LSP query part of `LSPManager`."""
+
+    def __init__(self, lsp_manager: "LSPManager") -> None:
+        self._lsp_manager = lsp_manager
+
+    async def find_definition(
+        self,
+        symbol_name: str,
+        file_path: str,
+        symbol_kind: str | None = None,
+    ) -> dict:
+        """Find the definition of a symbol, falling back to workspace symbol search."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(
+                file_path,
+                self._lsp_manager.list_available_servers,
+                extra_hint="[SYSTEM SUGGESTION]: Install an LSP server for this language.",
+            )
+
+        # textDocument/definition at an occurrence works on every server;
+        # workspace/symbol does not (pyright needs indexing, pylsp lacks it).
+        try:
+            position = await self._lsp_manager.find_symbol_position(
+                file_path, symbol_name
+            )
+            if position:
+                line, character = position
+                locations = await server.goto_definition(file_path, line, character)
+                if locations:
+                    loc = locations[0]
+                    # Location uses uri/range; LocationLink uses target*.
+                    uri = loc.get("uri") or loc.get("targetUri", "")
+                    rng = loc.get("range") or loc.get("targetRange", {})
+                    return {
+                        "found": True,
+                        "symbol": symbol_name,
+                        "uri": uri,
+                        "path": uri_to_path(uri),
+                        "range": rng,
+                    }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP definition query failed: {e}")
+
+        try:
+            symbols = await server.workspace_symbols(symbol_name)
+            if symbols:
+                matched = []
+                for sym in symbols:
+                    if sym.get("name", "") != symbol_name:
+                        continue
+                    if symbol_kind:
+                        kind_name = SymbolKind.name_for_kind(sym.get("kind", 0))
+                        if symbol_kind.lower() in kind_name:
+                            matched.append(sym)
+                    else:
+                        matched.append(sym)
+
+                if matched:
+                    best = matched[0]
+                    location = best.get("location", {})
+                    return {
+                        "found": True,
+                        "symbol": best.get("name"),
+                        "kind": SymbolKind.name_for_kind(best.get("kind", 0)),
+                        "uri": location.get("uri", ""),
+                        "path": uri_to_path(location.get("uri", "")),
+                        "range": location.get("range", {}),
+                        "container": best.get("containerName", ""),
+                    }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol lookup failed: {e}")
+
+        return {
+            "found": False,
+            "error": (
+                f"Symbol '{symbol_name}' not found. [SYSTEM SUGGESTION]: Try using "
+                f"Grep to search for 'def {symbol_name}' or 'class {symbol_name}'"
+            ),
+        }
+
+    async def find_references(
+        self,
+        symbol_name: str,
+        file_path: str,
+        line: int = 0,
+        character: int = 0,
+        include_declaration: bool = True,
+    ) -> dict:
+        """Find all references to a symbol. Falls back to grep if position unknown."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(file_path, self._lsp_manager.list_available_servers)
+
+        try:
+            if line == 0 and character == 0:
+                position = await self._lsp_manager.find_symbol_position(
+                    file_path, symbol_name
+                )
+                if position:
+                    line, character = position
+
+            refs = await server.find_references(
+                file_path, line, character, include_declaration
+            )
+            if refs:
+                locations = []
+                for ref in refs:
+                    uri = ref.get("uri", "")
+                    range_info = ref.get("range", {})
+                    locations.append(
+                        {
+                            "uri": uri,
+                            "path": uri_to_path(uri),
+                            "line": range_info.get("start", {}).get("line", 0) + 1,
+                            "character": range_info.get("start", {}).get(
+                                "character", 0
+                            ),
+                        }
+                    )
+                return {
+                    "found": True,
+                    "symbol": symbol_name,
+                    "count": len(locations),
+                    "references": locations,
+                }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP references query failed: {e}")
+
+        return {
+            "found": False,
+            "error": (
+                f"No references found for '{symbol_name}'. "
+                f"[SYSTEM SUGGESTION]: Try using Grep to search for the symbol name."
+            ),
+        }
+
+    async def get_diagnostics(
+        self,
+        file_path: str,
+        severity: str | None = None,
+    ) -> dict:
+        """Get diagnostics (errors, warnings) for a file."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(file_path, self._lsp_manager.list_available_servers)
+
+        try:
+            diagnostics = await server.get_diagnostics(file_path)
+            if diagnostics:
+                severity_map = {"error": 1, "warning": 2, "info": 3, "hint": 4}
+                severity_filter = (
+                    severity_map.get(severity.lower()) if severity else None
+                )
+
+                results = []
+                for diag in diagnostics:
+                    diag_severity = diag.get("severity", 1)
+                    if severity_filter and diag_severity != severity_filter:
+                        continue
+
+                    range_info = diag.get("range", {})
+                    results.append(
+                        {
+                            "severity": (
+                                ["error", "warning", "info", "hint"][diag_severity - 1]
+                                if 1 <= diag_severity <= 4
+                                else "unknown"
+                            ),
+                            "message": diag.get("message", ""),
+                            "line": range_info.get("start", {}).get("line", 0) + 1,
+                            "character": range_info.get("start", {}).get(
+                                "character", 0
+                            ),
+                            "source": diag.get("source", ""),
+                            "code": diag.get("code"),
+                        }
+                    )
+
+                return {
+                    "found": True,
+                    "file": file_path,
+                    "count": len(results),
+                    "diagnostics": results,
+                }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP diagnostics query failed: {e}")
+
+        return {
+            "found": False,
+            "file": file_path,
+            "count": 0,
+            "diagnostics": [],
+            "message": (
+                "No diagnostics available. This may be normal for files without errors."
+            ),
+        }
+
+    async def get_document_symbols(self, file_path: str) -> dict:
+        """Get all symbols (classes, functions, variables) defined in a document."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(file_path, self._lsp_manager.list_available_servers)
+
+        try:
+            symbols = await server.document_symbols(file_path)
+            if symbols:
+                results = format_document_symbols(symbols)
+                return {
+                    "found": True,
+                    "file": file_path,
+                    "count": len(results),
+                    "symbols": results,
+                }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP document-symbols query failed: {e}")
+
+        return {
+            "found": False,
+            "error": (
+                "Could not retrieve document symbols. "
+                "[SYSTEM SUGGESTION]: Ensure the LSP server supports this file type."
+            ),
+        }
+
+    async def get_workspace_symbols(self, query: str, file_path: str) -> dict:
+        """Search for symbols across the workspace.
+
+        Falls back to ``file_path``'s symbols filtered by ``query`` when the server
+        lacks ``workspace/symbol`` (pylsp) or returns nothing (unindexed pyright).
+        """
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(file_path, self._lsp_manager.list_available_servers)
+
+        try:
+            symbols = await server.workspace_symbols(query)
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP workspace-symbols query failed: {e}")
+            symbols = None
+
+        if symbols:
+            results = []
+            for sym in symbols[:50]:
+                location = sym.get("location", {})
+                results.append(
+                    {
+                        "name": sym.get("name", ""),
+                        "kind": SymbolKind.name_for_kind(sym.get("kind", 0)),
+                        "uri": location.get("uri", ""),
+                        "path": uri_to_path(location.get("uri", "")),
+                        "container": sym.get("containerName", ""),
+                    }
+                )
+            return {
+                "found": True,
+                "query": query,
+                "count": len(results),
+                "symbols": results,
+            }
+
+        if file_path and file_path != ".":
+            doc = await self._lsp_manager.get_document_symbols(file_path)
+            if doc.get("found"):
+                q = query.lower()
+                matches = [
+                    s
+                    for s in doc.get("symbols", [])
+                    if not query or q in s.get("name", "").lower()
+                ]
+                if matches:
+                    return {
+                        "found": True,
+                        "query": query,
+                        "count": len(matches),
+                        "scope": "file",
+                        "symbols": matches[:50],
+                        "note": (
+                            "Workspace-wide symbol search is unavailable for this "
+                            "server; results are limited to the given file. "
+                            "[SYSTEM SUGGESTION]: use Grep for a project-wide search."
+                        ),
+                    }
+
+        return {
+            "found": False,
+            "error": (
+                f"No symbols found matching '{query}'. [SYSTEM SUGGESTION]: this server "
+                "may not support workspace symbol search — use Grep instead."
+            ),
+        }
+
+    async def get_hover_info(
+        self,
+        file_path: str,
+        line: int,
+        character: int,
+    ) -> dict:
+        """Get hover information (type, docs) at a position."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(file_path, self._lsp_manager.list_available_servers)
+
+        try:
+            hover = await server.hover(file_path, line, character)
+            if hover:
+                content = hover.get("contents", "")
+                if isinstance(content, dict):
+                    content = content.get("value", str(content))
+                elif isinstance(content, list):
+                    content = "\n".join(
+                        c.get("value", str(c)) if isinstance(c, dict) else str(c)
+                        for c in content
+                    )
+
+                return {
+                    "found": True,
+                    "file": file_path,
+                    "line": line + 1,
+                    "character": character,
+                    "info": content.strip(),
+                }
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP hover query failed: {e}")
+
+        return {
+            "found": False,
+            "error": "No hover information available at this position.",
+        }
+
+    async def rename_symbol(
+        self,
+        symbol_name: str,
+        new_name: str,
+        file_path: str,
+        line: int = 0,
+        character: int = 0,
+        dry_run: bool = True,
+    ) -> dict:
+        """Rename a symbol across the workspace."""
+        server = await self._lsp_manager.get_server(file_path)
+        if server is None:
+            return no_server_error(
+                file_path,
+                self._lsp_manager.list_available_servers,
+                success_key="success",
+            )
+        try:
+            if line == 0 and character == 0:
+                position = await self._lsp_manager.find_symbol_position(
+                    file_path, symbol_name
+                )
+                if position:
+                    line, character = position
+            result = await server.rename(
+                file_path, line, character, new_name, dry_run=dry_run
+            )
+            if result:
+                return _rename_result(result, symbol_name, new_name, dry_run)
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP rename query failed: {e}")
+        return {
+            "success": False,
+            "error": (
+                f"Could not rename symbol '{symbol_name}'. "
+                f"[SYSTEM SUGGESTION]: Try using Grep to find all occurrences and "
+                f"Edit to change them."
+            ),
+        }
+
+    async def find_symbol_position(
+        self, file_path: str, symbol_name: str
+    ) -> tuple[int, int] | None:
+        """Locate a symbol as ``(line, character)`` on the identifier itself.
+
+        Document symbols pick the line only: SymbolInformation ranges (pylsp)
+        start at column 0, so the column comes from searching the line's text.
+        """
+        ident = re.compile(rf"\b{re.escape(symbol_name)}\b")
+
+        candidate_line: int | None = None
+        try:
+            symbols = await self._lsp_manager.get_document_symbols(file_path)
+            if symbols.get("found"):
+                for sym in symbols.get("symbols", []):
+                    if sym.get("name") == symbol_name:
+                        candidate_line = sym.get("line", 1) - 1
+                        break
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol-line resolution failed: {e}")
+
+        # Candidate line first, then the first occurrence anywhere.
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.read().splitlines()
+            if candidate_line is not None and 0 <= candidate_line < len(lines):
+                match = ident.search(lines[candidate_line])
+                if match:
+                    return (candidate_line, match.start())
+            for i, line in enumerate(lines):
+                match = ident.search(line)
+                if match:
+                    return (i, match.start())
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP symbol-position search failed: {e}")
+
+        return None
+
+
+def _count_rename_edits(result: dict) -> tuple[int, list[str]]:
+    """Total edits and affected paths across `changes` and `documentChanges`."""
+    total_edits = 0
+    files_affected: list[str] = []
+    for uri, edits in (result.get("changes") or {}).items():
+        if isinstance(edits, list):
+            total_edits += len(edits)
+            files_affected.append(uri_to_path(uri))
+    for doc_edit in result.get("documentChanges") or []:
+        if not isinstance(doc_edit, dict):
+            continue
+        edits = doc_edit.get("edits")
+        uri = (doc_edit.get("textDocument") or {}).get("uri")
+        if uri and isinstance(edits, list):
+            total_edits += len(edits)
+            files_affected.append(uri_to_path(uri))
+    return total_edits, files_affected
+
+
+def _rename_result(
+    result: dict, symbol_name: str, new_name: str, dry_run: bool
+) -> dict:
+    """Summarize a `rename` response; a real write succeeds only if `applied`."""
+    total_edits, files_affected = _count_rename_edits(result)
+    summary = {
+        "symbol": symbol_name,
+        "new_name": new_name,
+        "dry_run": dry_run,
+        "files_affected": len(files_affected),
+        "total_edits": total_edits,
+    }
+    if dry_run:
+        changes = result.get("changes") or {}
+        return {
+            "success": True,
+            **summary,
+            "changes": changes or result.get("documentChanges"),
+        }
+    applied = result.get("applied", False)
+    return {
+        "success": bool(applied),
+        **summary,
+        "changes": "Applied" if applied else "not_applied",
+    }

@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 4.0.0](#upgrading-to-400)
 - [Upgrading to 3.38.0](#upgrading-to-3380)
 - [Upgrading to 3.37.0](#upgrading-to-3370)
 - [Upgrading to 3.35.0](#upgrading-to-3350)
@@ -28,6 +29,46 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ---
 
+## Upgrading to 4.0.0
+
+One change, and it is an import change: `zrb.llm` is sorted into five directories, one per layer, and every unit that used to sit at the top of the package has moved into one of them. Nothing behaves differently; the modules are the same modules at new paths.
+
+**The five directories**, in layer order: `contracts/` (L0), `capabilities/` (L1), `engine/` (L2), `orchestration/` (L3), `presentation/` (L4). A module's layer is now its first path segment, so there is no table to consult and no filename convention that grants a rank.
+
+**There is no shim.** A compatibility package answering to `zrb.llm.ui` would have to import the package above it, which is the upward edge the move exists to remove, so the old paths are deleted rather than aliased. An import that names one of them raises `ModuleNotFoundError` — immediately, at load, which is the clearest failure available.
+
+### Paths
+
+| Before | After |
+|---|---|
+| `zrb.llm.config`, `zrb.llm.memory`, `zrb.llm.shared`, `zrb.llm.util` | `zrb.llm.contracts.<same>` |
+| `zrb.llm.tool`, `.tool_call`, `.prompt`, `.hook`, `.permission`, `.approval`, `.sandbox`, `.history_manager`, `.skill`, `.lsp`, `.snapshot` | `zrb.llm.capabilities.<same>` |
+| `zrb.llm.agent`, `zrb.llm.summarizer` | `zrb.llm.engine.<same>` |
+| `zrb.llm.task`, `.subagent`, `.custom_command` | `zrb.llm.orchestration.<same>` |
+| `zrb.llm.common_tools`, `zrb.llm.resumed_session` | `zrb.llm.orchestration.common_tools`, `zrb.llm.orchestration.resumed_session` |
+| `zrb.llm.ui` | `zrb.llm.presentation.ui` |
+| `zrb.llm.camera`, `.dictation`, `.emotion`, `.screenshot`, `.speech`, `.voice` | `zrb.llm.presentation.<same>` |
+
+Two of those are worth spelling out because they are what a custom UI or a plugin most often imported:
+
+- **`from zrb.llm.ui import UIConfig` is `from zrb.llm.presentation.ui import UIConfig`.** The object itself moved to `zrb.llm.contracts.config.ui_config` in 3.41.4; the re-export that most code used travels with the UI package.
+- **`zrb.llm.ui.any_ui` is `zrb.llm.presentation.ui.any_ui`.** The `AnyUI*` protocols stayed beside the implementations that answer them, rather than moving to `contracts/`, because sent down they would import `presentation/` back at it.
+
+`zrb`'s own public surface is unchanged: `from zrb import ...` names the same objects, and the lazy export map inside `src/zrb/__init__.py` was repointed in the same change.
+
+### The tables below
+
+Each section after this one records the layout **at the release it describes** — an "After" column from 3.12 says where a path went at 3.12, and rewriting it would claim that release shipped a path that did not exist until 4.0. They are history and are left as they were written. This table is the one to follow when upgrading now.
+
+### For a plugin or a `zrb_init.py`
+
+Search for `zrb.llm.` and check every hit against the table above. The two shapes that are easy to miss:
+
+- A path built from parts — `"zrb", "llm", "task"` in a list, or `"llm" / "ui"` in a `pathlib` expression — never appears as a dotted name, so no search for `zrb.llm.task` will find it.
+- A file that walks the source tree, e.g. `Path(__file__).parents[2] / "llm" / "ui"`. Test files of zrb's own needed one more level for each directory the move added.
+
+---
+
 ## Upgrading to 3.38.0
 
 Two changes reach code and configuration outside zrb itself.
@@ -41,7 +82,7 @@ def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
 
 **`ZRB_LLM_HOOKS` must name every memory hook you want.** The day's log line and the cancelled-turn line are no longer written by the reviewer: `memory-event-log` and `memory-interrupt-log` are hooks of their own. An allowlist of `memory-reviewer` alone therefore keeps the reviewer's model call and silently drops both log lines. Name all five — `memory-reviewer`, `memory-event-log`, `memory-interrupt-log`, `memory-recall` and `memory-week` — or leave `ZRB_LLM_HOOKS` empty as most setups do. With the reviewer off, a completed turn still writes one log line and (with `ZRB_LLM_MEMORY_GIT_ENABLED`) one commit.
 
-`zrb.llm.memory.render.render_week` and `LLM_MEMORY_WEEK_LOOKBACK_DAYS` are gone: the week rung replaced a rendered log with one sentence per finished week. Both were internal, and nothing in zrb called them.
+`zrb.llm.contracts.memory.render.render_week` and `LLM_MEMORY_WEEK_LOOKBACK_DAYS` are gone: the week rung replaced a rendered log with one sentence per finished week. Both were internal, and nothing in zrb called them.
 
 ## Upgrading to 3.37.0
 
@@ -73,7 +114,7 @@ class MyUI(AnyUI):
 
 Each returns the object itself rather than a separate part, so a subclass that overrides one of the members keeps answering for it; mixing in `UIStateDefaultsMixin` supplies the same five accessors plus an inert default for every member you leave out. What a caller sees on a `ui: AnyUI` is 9 members where it was 55, and the role contracts (`AnyUIDisplay`, `AnyUIInput`, `AnyUITools`, ...) are unchanged.
 
-Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared`. See [the UI packages](#the-ui-packages) and [the shared package](#the-shared-package).
+Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.contracts.shared`. See [the UI packages](#the-ui-packages) and [the shared package](#the-shared-package).
 
 ### The UI packages
 
@@ -91,12 +132,12 @@ Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the f
 
 ### The shared package
 
-Fourteen modules at the top of `zrb.llm` were the vocabulary every feature speaks — the ambient state a run publishes, the two seams a package registers itself into, the tool registry, the message shapes and the helpers that cut, observe and log a run. They now live in `zrb.llm.shared`, which imports nothing from `zrb.llm` at runtime; that is what makes naming one cost nothing, and it is why the package exists rather than the modules staying where they were.
+Fourteen modules at the top of `zrb.llm` were the vocabulary every feature speaks — the ambient state a run publishes, the two seams a package registers itself into, the tool registry, the message shapes and the helpers that cut, observe and log a run. They now live in `zrb.llm.contracts.shared`, which imports nothing from `zrb.llm` at runtime; that is what makes naming one cost nothing, and it is why the package exists rather than the modules staying where they were.
 
 | Before | After |
 |---|---|
-| `zrb.llm.agent_state`, `agent_activity`, `agent_tool_result`, `agent_runner`, `ambient_state`, `delegation_api`, `factory_resolver`, `input_source`, `message`, `message_text`, `shell_cut`, `stream_observer`, `tool_registry`, `usage_log` | the same name under `zrb.llm.shared.` |
-| `from zrb.llm.util.feature_config import ...` | `from zrb.llm.shared.feature_config import ...` |
+| `zrb.llm.agent_state`, `agent_activity`, `agent_tool_result`, `agent_runner`, `ambient_state`, `delegation_api`, `factory_resolver`, `input_source`, `message`, `message_text`, `shell_cut`, `stream_observer`, `tool_registry`, `usage_log` | the same name under `zrb.llm.contracts.shared.` |
+| `from zrb.llm.contracts.util.feature_config import ...` | `from zrb.llm.contracts.shared.feature_config import ...` |
 | `from zrb.llm.any_agent import AnyAgent, AnyAgentResult` | `from zrb.llm.agent.any_agent import AnyAgent, AnyAgentResult` |
 | `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.agent.any_agent_runner import AnyAgentRunner` |
 | `from zrb.llm.any_sub_agent_manager import ...` (and `any_sub_agent_definition`, `any_live_sub_agent_session`, `any_live_session_registry`) | the same name under `zrb.llm.subagent.` |
@@ -164,7 +205,7 @@ A facade with several parts is now a package, and its `__init__` re-exports the 
 | `from zrb.llm.prompt.live_context import render_live_context, render_carried_context, LIVE_CONTEXT_ANCHOR` | unchanged — it is the package now |
 | `from zrb.llm.prompt.live_context_providers import LiveContextProviders, SimplePrompt` | `from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt` |
 
-The last row is the one path in this group that is gone rather than moved: `zrb.llm.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.util.live_context_block`.
+The last row is the one path in this group that is gone rather than moved: `zrb.llm.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.contracts.util.live_context_block`.
 
 ### The hook machinery is now four packages
 
@@ -321,11 +362,11 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 | `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
 | `from zrb.llm.subagent.manager.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
 | `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
-| `from zrb.llm.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
+| `from zrb.llm.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.contracts.util.live_context_block import append_live_context, split_live_context` |
 
 `zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
 
-`split_live_context` is still importable from `zrb.llm.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
+`split_live_context` is still importable from `zrb.llm.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.contracts.util.live_context_block` now.
 
 ---
 
@@ -354,13 +395,13 @@ Top-level `zrb` exports are unchanged. A deep import of a module that moved to t
 | `zrb.util.git.snapshot_store` / `snapshot_listing` / `snapshot_command` | `zrb.llm.snapshot.store` / `listing` / `command` |
 | `zrb.llm.agent.subagent.*` | `zrb.llm.subagent.*` |
 | `zrb.llm.agent.activity`, `zrb.llm.tool.ambient_state`, `zrb.llm.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.tool`) |
-| `zrb.llm.util.conversation_naming`, `zrb.llm.util.multimodal_describe` | `zrb.llm.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
-| `zrb.llm.tool_call.args` | now `zrb.llm.util.tool_args` |
+| `zrb.llm.contracts.util.conversation_naming`, `zrb.llm.contracts.util.multimodal_describe` | `zrb.llm.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
+| `zrb.llm.tool_call.args` | now `zrb.llm.contracts.util.tool_args` |
 | `zrb.llm.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
-| `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
+| `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.contracts.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
 | `zrb.llm.ui.any_ui` | `zrb.llm.ui.any_ui` (the old path still re-exports it) |
 | `zrb.llm.ui.std_ui`, `zrb.llm.ui.state_defaults` | `zrb.llm.ui.fallback.std_ui`, `zrb.llm.ui.fallback.state_defaults` (the old paths still re-export them) |
-| `zrb.llm.tool_call.choice_spec_format` | `zrb.llm.util.choice_spec_format` |
+| `zrb.llm.tool_call.choice_spec_format` | `zrb.llm.contracts.util.choice_spec_format` |
 
 ---
 
@@ -443,7 +484,7 @@ There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so wh
 | `AnyCustomCommand.handle(self, kwargs)` | `handle(self, kwargs, ui)` |
 | `run_custom_command(message, commands)` | `run_custom_command(message, commands, ui)` |
 | `from zrb.llm.voice import VoiceEngine` | `zrb.llm.dictation`: `record(should_record)` / `listen(config, should_listen)` for audio, `zrb.llm.dictation.backend.get_dictation_backend(...).transcribe(audio)` for text |
-| `from zrb.llm.util.camera import get_camera_photo` | `from zrb.llm.camera import AutoCameraBackend`; `await AutoCameraBackend().capture(device)` |
+| `from zrb.llm.contracts.util.camera import get_camera_photo` | `from zrb.llm.camera import AutoCameraBackend`; `await AutoCameraBackend().capture(device)` |
 | `missing_tool_hint()` (camera) | `backend.get_failure_hint()` on the backend that captured |
 | `ui.voice`, `ui.voice_commands`, `ui.photo_commands`, `ui.handle_toggle_voice`, `ui.handle_photo_command`, `ui.submit_photo` | (removed) |
 | `UIConfig(voice_commands=..., photo_commands=...)` | `DictationConfig(commands=...)`, `CameraConfig(commands=...)` passed to `enable_dictation`/`enable_camera` |
@@ -533,15 +574,15 @@ The moved groups are `base64`, `case`, `cron`, `hash`, `hex`, `json`, `jwt`, `md
 | `llm_config.api_key` | `CFG.LLM_API_KEY` |
 | `llm_config.base_url` | `CFG.LLM_BASE_URL` |
 | `llm_config.provider` | `CFG.LLM_PROVIDER` (new, `ZRB_LLM_PROVIDER`) |
-| `llm_config.resolve_model(m)` | `resolve_configured_model(m)` (`zrb.llm.config.model_resolver`) |
+| `llm_config.resolve_model(m)` | `resolve_configured_model(m)` (`zrb.llm.contracts.config.model_resolver`) |
 | `llm_config.model_getter = f` | `task.model_getter = f` (per task, not process-wide) |
 | `llm_config.model_renderer = f` | `task.model_renderer = f` (per task, not process-wide) |
 | `LLMTask(llm_config=...)` | `LLMTask(model_getter=..., model_renderer=...)` |
 
-`llm_config.model_settings` had no real reader and has no replacement. `model_getter`/`model_renderer` are now **task-scoped**: a `zrb_init.py` that set them once to affect every agent process-wide must set them per task instead — *or* set them once on `model_resolver` (`zrb.llm.config.model_resolver.model_resolver`) for a process-wide default that also reaches sub-agent delegation, which has no task of its own:
+`llm_config.model_settings` had no real reader and has no replacement. `model_getter`/`model_renderer` are now **task-scoped**: a `zrb_init.py` that set them once to affect every agent process-wide must set them per task instead — *or* set them once on `model_resolver` (`zrb.llm.contracts.config.model_resolver.model_resolver`) for a process-wide default that also reaches sub-agent delegation, which has no task of its own:
 
 ```python
-from zrb.llm.config.model_resolver import model_resolver
+from zrb.llm.contracts.config.model_resolver import model_resolver
 
 model_resolver.model_getter = my_model_getter
 model_resolver.model_renderer = my_model_renderer
@@ -558,7 +599,7 @@ A task's own `model_getter`/`model_renderer`, when set, still applies on top of 
 LLMChatTask(ui_commands=UICommands(exit="/quit"))
 
 # After
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 LLMChatTask(ui_config=UIConfig(exit_commands=["/quit"]))
 ```
@@ -809,29 +850,29 @@ If you implement or annotate against one of these contracts you are unaffected b
 
 ### LLM Shared Layer-0 Modules
 
-The modules every package in `zrb.llm` speaks — the ambient state a run publishes, the two seams, the tool registry, the message shapes — moved from the top of `zrb.llm` into `zrb.llm.shared`, so `llm/` holds features and one shared vocabulary rather than a mixture of both. The `config`, `memory` and `util` packages did not move.
+The modules every package in `zrb.llm` speaks — the ambient state a run publishes, the two seams, the tool registry, the message shapes — moved from the top of `zrb.llm` into `zrb.llm.contracts.shared`, so `llm/` holds features and one shared vocabulary rather than a mixture of both. The `config`, `memory` and `util` packages did not move.
 
 | before | after |
 |---|---|
-| `from zrb.llm.agent_state import ...` | `from zrb.llm.shared.agent_state import ...` |
-| `from zrb.llm.ambient_state import ...` | `from zrb.llm.shared.ambient_state import ...` |
-| `from zrb.llm.agent_activity import ...` | `from zrb.llm.shared.agent_activity import ...` |
-| `from zrb.llm.agent_tool_result import ...` | `from zrb.llm.shared.agent_tool_result import ...` |
-| `from zrb.llm.tool_registry import ...` | `from zrb.llm.shared.tool_registry import ...` |
-| `from zrb.llm.agent_runner import ...` | `from zrb.llm.shared.agent_runner import ...` |
-| `from zrb.llm.delegation_api import ...` | `from zrb.llm.shared.delegation_api import ...` |
-| `from zrb.llm.message import ...` | `from zrb.llm.shared.message import ...` |
-| `from zrb.llm.message_text import ...` | `from zrb.llm.shared.message_text import ...` |
-| `from zrb.llm.input_source import ...` | `from zrb.llm.shared.input_source import ...` |
-| `from zrb.llm.factory_resolver import ...` | `from zrb.llm.shared.factory_resolver import ...` |
-| `from zrb.llm.stream_observer import ...` | `from zrb.llm.shared.stream_observer import ...` |
-| `from zrb.llm.shell_cut import ...` | `from zrb.llm.shared.shell_cut import ...` |
-| `from zrb.llm.usage_log import ...` | `from zrb.llm.shared.usage_log import ...` |
-| `from zrb.llm.util.feature_config import ...` | `from zrb.llm.shared.feature_config import ...` |
+| `from zrb.llm.agent_state import ...` | `from zrb.llm.contracts.shared.agent_state import ...` |
+| `from zrb.llm.ambient_state import ...` | `from zrb.llm.contracts.shared.ambient_state import ...` |
+| `from zrb.llm.agent_activity import ...` | `from zrb.llm.contracts.shared.agent_activity import ...` |
+| `from zrb.llm.agent_tool_result import ...` | `from zrb.llm.contracts.shared.agent_tool_result import ...` |
+| `from zrb.llm.tool_registry import ...` | `from zrb.llm.contracts.shared.tool_registry import ...` |
+| `from zrb.llm.agent_runner import ...` | `from zrb.llm.contracts.shared.agent_runner import ...` |
+| `from zrb.llm.delegation_api import ...` | `from zrb.llm.contracts.shared.delegation_api import ...` |
+| `from zrb.llm.message import ...` | `from zrb.llm.contracts.shared.message import ...` |
+| `from zrb.llm.message_text import ...` | `from zrb.llm.contracts.shared.message_text import ...` |
+| `from zrb.llm.input_source import ...` | `from zrb.llm.contracts.shared.input_source import ...` |
+| `from zrb.llm.factory_resolver import ...` | `from zrb.llm.contracts.shared.factory_resolver import ...` |
+| `from zrb.llm.stream_observer import ...` | `from zrb.llm.contracts.shared.stream_observer import ...` |
+| `from zrb.llm.shell_cut import ...` | `from zrb.llm.contracts.shared.shell_cut import ...` |
+| `from zrb.llm.usage_log import ...` | `from zrb.llm.contracts.shared.usage_log import ...` |
+| `from zrb.llm.contracts.util.feature_config import ...` | `from zrb.llm.contracts.shared.feature_config import ...` |
 
 No compatibility shims sit at the old paths; each import fails with `ImportError` rather than resolving somewhere else. Anything reached through `from zrb import ...` is unchanged.
 
-`zrb.llm.shared` imports nothing, so `from zrb.llm.shared.message import ...` costs no more than the module named — which is the point of these living at layer 0. `feature_config` moved for the same reason it belongs here: it reads ambient session state, and staying in `util/` made the two units import each other. `zrb.llm.util` now imports nothing from `zrb.llm` at runtime.
+`zrb.llm.contracts.shared` imports nothing, so `from zrb.llm.contracts.shared.message import ...` costs no more than the module named — which is the point of these living at layer 0. `feature_config` moved for the same reason it belongs here: it reads ambient session state, and staying in `util/` made the two units import each other. `zrb.llm.contracts.util` now imports nothing from `zrb.llm` at runtime.
 
 ### Hooks Timeout Unit
 

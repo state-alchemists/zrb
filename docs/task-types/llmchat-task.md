@@ -137,8 +137,8 @@ Every component a task may hold exactly one of is a settable property (R8) — t
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.ui import UIConfig
+from zrb.llm.capabilities.prompt.manager import PromptManager
+from zrb.llm.presentation.ui import UIConfig
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
@@ -240,7 +240,7 @@ A custom command is a slash command added to the chat, listed in `/help`. There 
 - **`ActionCommand`** runs a Python callable instead and starts no LLM turn. The callable receives the parsed arguments as a dict and the chat UI (`None` when there is none, as for the initial message of a non-interactive run), and returns the text to show the user, or `None` to show nothing.
 
 ```python
-from zrb.llm.custom_command import ActionCommand, CustomCommand
+from zrb.llm.orchestration.custom_command import ActionCommand, CustomCommand
 
 chat.append_custom_command(
     CustomCommand("/review", "Review $path for bugs", args=["path"]),
@@ -264,12 +264,12 @@ An action may also:
 - **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command waits for the model to finish.
 - **Complete its first argument**, with `complete_arg=lambda prefix: [...]`.
 
-A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
+A `/photo` command, simplified from the built-in one (`zrb.llm.presentation.camera.feature`):
 
 ```python
-from zrb.llm.agent.types import BinaryContent
-from zrb.llm.camera import AutoCameraBackend
-from zrb.llm.custom_command import ActionCommand
+from zrb.llm.engine.agent.types import BinaryContent
+from zrb.llm.presentation.camera import AutoCameraBackend
+from zrb.llm.orchestration.custom_command import ActionCommand
 
 camera = AutoCameraBackend()
 
@@ -301,7 +301,7 @@ A trigger yields items, and each item becomes a user turn. An item may be:
 | `TriggerInput(text, attachments, source)` | The same, plus the turn's [input provenance](../llm/llm-custom-ui.md#input-provenance), shown to the model in its live context |
 | `TriggerReply(...)` | An answer to the pending prompt (below) |
 
-`TriggerMessage` and `TriggerReply` are exported from `zrb`; all four come from `zrb.llm.ui`. An item with neither text nor attachments is skipped, and a malformed item is reported while the trigger carries on.
+`TriggerMessage` and `TriggerReply` are exported from `zrb`; all four come from `zrb.llm.presentation.ui`. An item with neither text nor attachments is skipped, and a malformed item is reported while the trigger carries on.
 
 ```python
 import asyncio
@@ -324,7 +324,7 @@ Camera, dictation and speech are added with one call each — see [Voice and cam
 ### History Manager
 
 ```python
-from zrb.llm.history_manager import FileHistoryManager
+from zrb.llm.capabilities.history_manager import FileHistoryManager
 
 chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
@@ -338,7 +338,7 @@ chat.history_config.conversation_name
 
 Same property, same fields, on both `LLMTask` and `LLMChatTask`.
 
-To store history somewhere else (a database, an object store), subclass `AnyHistoryManager` from `zrb.llm.history_manager.any_history_manager`. The setter rejects anything else with a `TypeError`. It has four methods:
+To store history somewhere else (a database, an object store), subclass `AnyHistoryManager` from `zrb.llm.capabilities.history_manager.any_history_manager`. The setter rejects anything else with a `TypeError`. It has four methods:
 
 | Method | Called to |
 |---|---|

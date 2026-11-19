@@ -1,0 +1,263 @@
+"""Pin Speaker cleanup, silence after close, and lock-file deregistration."""
+
+import threading
+import time
+
+import pytest
+
+from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech.player import is_speaking
+from zrb.util.file_lock import hold_file_lock
+
+
+class RecordingUtterance(Utterance):
+    def __init__(self, text, played, done):
+        super().__init__([])
+        self.text = text
+        self.played = played
+        self.done = done
+        self.cleaned = False
+
+    def play(self, timeout):
+        self.played.append(self.text)
+        self.done.set()
+
+    def cleanup(self):
+        self.cleaned = True
+
+
+class FakeBackend(AnySpeechBackend):
+    def __init__(self):
+        self.played: list[str] = []
+        self.done = threading.Event()
+        self.utterances: list[RecordingUtterance] = []
+
+    def create_utterance(self, text):
+        utterance = RecordingUtterance(text, self.played, self.done)
+        self.utterances.append(utterance)
+        return utterance
+
+
+class ClosingBackend(FakeBackend):
+    """A backend that says when the speaker let it go."""
+
+    def __init__(self):
+        super().__init__()
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def lock_file(tmp_path):
+    return str(tmp_path / "speech.lock")
+
+
+def _config(backend, lock_file, **fields):
+    fields.setdefault("player", "command")
+    return SpeechConfig(
+        backend=backend, lock_file=lock_file, lock_timeout=0.05, **fields
+    ).resolve()
+
+
+def _built_by_zrb(monkeypatch, **by_name):
+    """Hand a speaker a name, so what it speaks with is its own to close."""
+    any_backend = next(iter(by_name.values()))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.get_speech_backend",
+        lambda name, config: by_name.get(name, any_backend),
+    )
+    return any_backend
+
+
+def test_a_closed_speaker_stops_being_probed_for_its_lock_file(lock_file):
+    """A closed speaker is no longer reported by its lock file."""
+    Speaker(_config(FakeBackend(), lock_file)).close()
+
+    with hold_file_lock(lock_file):
+        assert not is_speaking()
+
+
+def test_a_closed_speaker_says_nothing(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.close()
+
+    speaker.say("too late")
+    speaker.drain()
+
+    assert backend.played == []
+
+
+def test_speech_created_after_close_is_never_played(lock_file):
+    """Speech created after close is cleaned up without playback."""
+    created = threading.Event()
+    release = threading.Event()
+
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            created.set()
+            release.wait(5)
+            return super().create_utterance(text)
+
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("slow")
+    assert created.wait(5)
+
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert backend.played == []
+    assert backend.utterances[0].cleaned
+
+
+def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    producing = threading.Event()
+    release = threading.Event()
+
+    def produce():
+        producing.set()
+        release.wait(5)
+        return "too late"
+
+    speaker.say_later(produce)
+    assert producing.wait(5)
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert backend.played == []
+
+
+def test_a_backend_zrb_built_is_let_go_when_speech_never_started_a_thread(
+    lock_file, monkeypatch
+):
+    """Close and drain release the backends zrb built, even without workers."""
+    spoken = ClosingBackend()
+    drained = ClosingBackend()
+    _built_by_zrb(monkeypatch, spoken=spoken, drained=drained)
+    speaker = Speaker(_config("spoken", lock_file))
+    draining = Speaker(_config("drained", lock_file))
+
+    speaker.speak("one")
+    speaker.close()
+    draining.speak("two")
+    draining.drain()
+
+    assert spoken.played == ["one"]
+    assert drained.played == ["two"]
+    assert spoken.closed
+    assert drained.closed
+
+
+def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(
+    lock_file, monkeypatch
+):
+    created = threading.Event()
+    release = threading.Event()
+    closed_while_synthesizing = []
+
+    class SlowClosingBackend(ClosingBackend):
+        def create_utterance(self, text):
+            created.set()
+            release.wait(5)
+            closed_while_synthesizing.append(self.closed)
+            return super().create_utterance(text)
+
+    backend = _built_by_zrb(monkeypatch, slow=SlowClosingBackend())
+    speaker = Speaker(_config("slow", lock_file))
+    speaker.say("slow")
+    assert created.wait(5)
+
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert closed_while_synthesizing == [False]
+    assert backend.closed
+    assert backend.utterances[0].cleaned
+
+
+def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(
+    lock_file, monkeypatch
+):
+    """A backend remains until the player finishes its final sentence."""
+    let_go_while_playing: "list[bool]" = []
+    let_go = threading.Event()
+
+    class PlayingUtterance(RecordingUtterance):
+        """An utterance held until released."""
+
+        def __init__(self, text, played, done, playing, release):
+            super().__init__(text, played, done)
+            self._playing = playing
+            self._release = release
+
+        def play(self, timeout):
+            self._playing.set()
+            self._release.wait(5)
+            super().play(timeout)
+
+    class WatchedBackend(ClosingBackend):
+        """A backend that records whether it closed during playback."""
+
+        def __init__(self):
+            super().__init__()
+            self.playing = threading.Event()
+            self.release = threading.Event()
+
+        def create_utterance(self, text):
+            return PlayingUtterance(
+                text, self.played, self.done, self.playing, self.release
+            )
+
+        def close(self):
+            let_go_while_playing.append(
+                self.playing.is_set() and not self.release.is_set()
+            )
+            super().close()
+            let_go.set()
+
+    backend = _built_by_zrb(monkeypatch, watched=WatchedBackend())
+    speaker = Speaker(_config("watched", lock_file))
+    speaker.say("the last sentence")
+    assert backend.playing.wait(5)
+
+    speaker.close()
+    time.sleep(0.3)
+    assert let_go_while_playing == []
+
+    backend.release.set()
+    assert let_go.wait(5)
+    assert let_go_while_playing == [False]
+    assert backend.closed
+
+
+def test_audio_is_imported_before_the_exit_handler_is_registered(
+    monkeypatch, lock_file
+):
+    """Exit handlers run last-registered first. sounddevice terminates
+    PortAudio from its own, so it has to be registered before the speaker's:
+    otherwise it runs first and stops a stream that is still playing."""
+    order: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.is_in_process_available",
+        lambda: order.append("import audio") or False,
+    )
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.atexit.register", lambda fn: order.append("register")
+    )
+    monkeypatch.setattr("zrb.llm.presentation.speech.player.atexit.unregister", lambda fn: None)
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+
+    speaker.say("hello")
+    backend.done.wait(2)
+    speaker.close()
+
+    assert order[:2] == ["import audio", "register"]

@@ -20,8 +20,20 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.llm.tool import read_file as read_file_tool
-from zrb.llm.tool import run_shell_command as run_shell_command_tool
+
+# Two paths for the same two tools, because this file is loaded by two zrbs: the
+# checkout (4.0, where a capability lives under `capabilities/`) and the released
+# 3.28.1 inside the review container (`_zrb.yml`, pinned by digest), which loads
+# the *base* branch's copy of this file. The old path is the only one that
+# version knows; the new one is the only one the tree will have after 4.0. The
+# bridge goes when that image is bumped, not before.
+try:
+    from zrb.llm.capabilities.tool import read_file as read_file_tool
+    from zrb.llm.capabilities.tool import run_shell_command as run_shell_command_tool
+except ImportError:  # pragma: no cover - the released zrb that runs the review
+    from zrb.llm.tool import read_file as read_file_tool
+    from zrb.llm.tool import run_shell_command as run_shell_command_tool
+
 from zrb.util.file import read_file
 
 _DIR = os.path.dirname(__file__)

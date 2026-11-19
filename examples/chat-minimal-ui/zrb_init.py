@@ -35,7 +35,7 @@ import asyncio
 import os
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
+from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
 
 # =============================================================================
 # Configuration (optional)

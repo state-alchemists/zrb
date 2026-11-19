@@ -22,11 +22,11 @@ import sys
 import zrb.builtin.llm.deferred  # what starting the web server pays
 from zrb.runner.chat.chat_api_route import resolve_llm_chat_task_for_session
 
-import zrb.llm.subagent.building as building
-from zrb.llm.subagent.definition import SubAgentDefinition
-from zrb.llm.subagent.manager.manager import sub_agent_manager
+import zrb.llm.orchestration.subagent.building as building
+from zrb.llm.orchestration.subagent.definition import SubAgentDefinition
+from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 
-assert "zrb.llm.task.chat.task" not in sys.modules, "probe must start without it"
+assert "zrb.llm.orchestration.task.chat.task" not in sys.modules, "probe must start without it"
 building.resolve_configured_model = lambda *args, **kwargs: "probe-model"
 sub_agent_manager.add_agent(
     SubAgentDefinition(
@@ -41,7 +41,7 @@ sub_agent_manager.add_agent(
 task, _ = asyncio.run(
     resolve_llm_chat_task_for_session("parent-sub-probe-agent-abcd1234", None)
 )
-print(type(task).__name__, "zrb.llm.task.chat.task" in sys.modules)
+print(type(task).__name__, "zrb.llm.orchestration.task.chat.task" in sys.modules)
 """
 
 
@@ -50,7 +50,7 @@ def test_a_delegated_session_resumes_before_any_chat_task_was_loaded():
 
     `zrb.builtin.llm.deferred` exists to keep the chat task's import off
     startup, so a server that has only served normal sessions has not loaded
-    `zrb.llm.task.chat.task`. The route must not need it loaded first:
+    `zrb.llm.orchestration.task.chat.task`. The route must not need it loaded first:
     `resumed_session.py` imports it when a session is actually resumed.
     """
     result = subprocess.run(

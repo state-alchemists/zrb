@@ -15,6 +15,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from llm_layers import _LAYERS
 
 REPO_ROOT = Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
@@ -23,16 +24,16 @@ SRC = REPO_ROOT / "src" / "zrb"
 CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # Pipecat and its re-exporting backend package form a genuine cycle; defer the
     # backend half where the pipeline is built.
-    "llm/speech/backend/pipecat/backend.py": 1,
-    # zrb.llm.agent is a lazy facade; its registration adapter resolves
+    "llm/presentation/speech/backend/pipecat/backend.py": 1,
+    # zrb.llm.engine.agent is a lazy facade; its registration adapter resolves
     # engine pieces on first call to avoid pulling pydantic_ai at import time.
-    "llm/agent/__init__.py": 2,
+    "llm/engine/agent/__init__.py": 2,
     # The interactive session loop reads the typed message and puts the stored
-    # conversation back on screen. `task/chat/execution.py` imports
-    # `ui/fallback/resolution.py` for `resolve_ui`, so importing `task/` back at
-    # module level would make the two packages import each other; the helpers
-    # are needed once per session instead.
-    "llm/ui/session.py": 1,
+    # conversation back on screen. `orchestration/task/chat/execution.py` imports
+    # `presentation/ui/fallback/resolution.py` for `resolve_ui`, so importing the
+    # task package back at module level would make the two packages import each
+    # other; the helpers are needed once per session instead.
+    "llm/presentation/ui/session.py": 1,
 }
 
 
@@ -68,8 +69,13 @@ PACKAGE_CYCLE_ALLOWLIST: set[frozenset[str]] = {
 
 def _package_of(module: str) -> str:
     parts = module.split(".")
-    depth = 3 if len(parts) > 2 and parts[1] == "llm" else 2
-    return ".".join(parts[:depth])
+    if len(parts) > 2 and parts[1] == "llm":
+        # The 4.0 layout names the layer in the path: `zrb.llm.<layer>.<unit>`.
+        # Before it, a unit sat directly under `llm/` and three parts were the
+        # package. Both are read here while the move is half done.
+        depth = 4 if len(parts) > 3 and parts[2] in _LAYERS else 3
+        return ".".join(parts[:depth])
+    return ".".join(parts[:2])
 
 
 def _runtime_imports(tree: ast.Module) -> list[str]:

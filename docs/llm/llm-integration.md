@@ -175,7 +175,7 @@ Use `LLMChatTask` to create your own fully customizable, interactive chat interf
 
 ```python
 from zrb import LLMChatTask, Tpl, cli, StrInput
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 custom_chat = cli.add_task(
     LLMChatTask(

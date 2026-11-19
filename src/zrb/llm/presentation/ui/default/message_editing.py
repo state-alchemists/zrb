@@ -1,0 +1,534 @@
+"""Queued-message recall, editing, deletion, and echo tracking for `UI`.
+
+`UIMessageEditing` handles Up/Down/Enter/Ctrl+X and maintains re-renderable
+output spans for queued-message echoes. Previous-message recall is delegated to
+`PreviousMessageHistory`.
+"""
+
+from __future__ import annotations
+
+import weakref
+from dataclasses import dataclass
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+from zrb.llm.presentation.ui.base.message_queue import EchoSpan, QueuedMessage
+from zrb.llm.presentation.ui.base.user_echo import should_render_user_markdown
+from zrb.util.cli.style import stylize_warning
+
+if TYPE_CHECKING:
+    from prompt_toolkit.key_binding import KeyPressEvent
+
+    from zrb.llm.presentation.ui.default.previous_message_history import PreviousMessageHistory
+    from zrb.llm.presentation.ui.default.ui import UI
+
+
+@dataclass
+class RenderedEcho:
+    """The source of a queued message's echo block.
+
+    `header` is the `\n💬 10:00 >> ` prefix and `text` the message as last
+    drawn; `redraw_echo` re-registers the block whenever the message changes.
+
+    `entry` is weak and only identifies the owning message: a strong
+    reference would pin the `QueuedMessage` (attachments, run coroutine) for
+    as long as the never-pruned block lives. A dead referent matches nothing.
+
+    `rendered` is what `render_echo` last produced, i.e. exactly what the
+    buffer holds at the block's offsets. `_refresh_echo_span` compares
+    against it, catching a block that drifted onto another message with the
+    same header.
+    """
+
+    header: str
+    text: str
+    entry: "weakref.ReferenceType[QueuedMessage]"
+    rendered: str = ""
+
+
+class UIMessageEditing:
+    """Up/Down/Enter editing of still-queued messages (part of the default `UI`)."""
+
+    def __init__(self, ui: "UI") -> None:
+        self._ui = ui
+        self._queued_edit_entry: QueuedMessage | None = None
+        self._queued_edit_draft: str = ""
+        self._previous_recall_index: int | None = None
+        self._previous_recall_draft: str = ""
+
+    @property
+    def queued_edit_entry(self) -> QueuedMessage | None:
+        """The still-queued message currently recalled for editing, if any."""
+        return self._queued_edit_entry
+
+    @queued_edit_entry.setter
+    def queued_edit_entry(self, value: QueuedMessage | None) -> None:
+        # The entry carries the flag, not this helper: a checkpoint delivers
+        # from the turn's own thread, where this object is not in hand, and it
+        # has to see that the message is being edited (ADR-0078).
+        current = self._queued_edit_entry
+        if current is not None and current is not value:
+            current.is_being_edited = False
+        self._queued_edit_entry = value
+        if value is not None:
+            value.is_being_edited = True
+
+    @property
+    def queued_edit_draft(self) -> str:
+        """The in-progress input text saved when a recall started, if any."""
+        return self._queued_edit_draft
+
+    @queued_edit_draft.setter
+    def queued_edit_draft(self, value: str) -> None:
+        self._queued_edit_draft = value
+
+    def _load_edit_text(self, buffer: Any, text: str) -> None:
+        """Put `text` in the input buffer with the cursor at its end.
+
+        `Buffer.text` keeps the cursor where it was, which would strand it
+        mid-message when recalling a text longer than the draft it replaces.
+        """
+        buffer.text = text
+        buffer.cursor_position = len(text)
+
+    @property
+    def _previous_history(self) -> "PreviousMessageHistory | None":
+        """The previous-message history, or None when the owner has none."""
+        return getattr(self._ui, "previous_messages", None)
+
+    def _previous_recall_active(self) -> bool:
+        """Whether the input still holds the untouched recalled previous message."""
+        index = self._previous_recall_index
+        if index is None:
+            return False
+        history = self._previous_history
+        if history is None:
+            return False
+        strings = history.recall_strings()
+        if index >= len(strings):
+            return False
+        buffer = self._ui.input_field.buffer
+        recalled = strings[index]
+        return buffer.text == recalled and buffer.cursor_position == len(buffer.text)
+
+    def reset_previous_recall(self) -> None:
+        """Forget any in-progress previous-message recall (called after /load)."""
+        self._previous_recall_index = None
+        self._previous_recall_draft = ""
+
+    def recall_navigation_active(self) -> bool:
+        """Whether Up should walk recalled messages rather than move the cursor.
+
+        True while the input still holds the untouched recalled text — a
+        queued message or a previous message — with the cursor at its end,
+        needed because a multi-line recall leaves the cursor off the first
+        line, where Up would otherwise move the cursor.
+        """
+        if self._previous_recall_active():
+            return True
+        entry = self._queued_edit_entry
+        if entry is None:
+            return False
+        buffer = self._ui.input_field.buffer
+        return buffer.text == entry.text and buffer.cursor_position == len(buffer.text)
+
+    def handle_up_arrow(self, event: Any) -> bool:
+        """Recall a message into the input field for editing.
+
+        Prefers a still-queued message; with none queued it walks the
+        previous-message history (the loaded conversation, then the
+        cross-session history) newest first. Returns ``True`` when the
+        keypress was consumed; ``False`` lets the input field's history
+        recall run.
+        """
+        queue = self._ui.effective_message_queue
+        buffer = event.current_buffer
+        entry = self._queued_edit_entry
+
+        if entry is not None and not self.recall_navigation_active():
+            # The user edited since the recall; navigating would clobber the
+            # edit, which the saved (pre-recall) draft cannot restore.
+            return False
+
+        if entry is not None:
+            if not queue.contains(entry):
+                # The recalled message's turn started: recall afresh, keeping
+                # the saved pre-recall draft.
+                self.queued_edit_entry = None
+                return self._recall_latest(buffer)
+            older = queue.editable_before(entry)
+            if older is not None:
+                self.queued_edit_entry = older
+                self._load_edit_text(buffer, older.text)
+            return True
+
+        if self._recall_latest(buffer, save_draft=True):
+            return True
+
+        history = self._previous_history
+        if history is None:
+            return False
+        strings = history.recall_strings()
+        if not strings:
+            return False
+        if self._previous_recall_index is None:
+            self._previous_recall_draft = buffer.text
+            self._previous_recall_index = 0
+            self._load_edit_text(buffer, strings[0])
+            return True
+        if not self._previous_recall_active():
+            # The user edited the recalled message; fall through rather than
+            # clobber the edit.
+            return False
+        if self._previous_recall_index >= len(strings) - 1:
+            # Already at the oldest previous message: swallow the key so the
+            # prompt-toolkit history does not re-walk the same entries.
+            return True
+        self._previous_recall_index += 1
+        self._load_edit_text(buffer, strings[self._previous_recall_index])
+        return True
+
+    def _recall_latest(self, buffer: Any, save_draft: bool = False) -> bool:
+        """Load the newest queued message into the input field.
+
+        On the first recall (`save_draft=True`), save the in-progress text for
+        Down; later stale-edit recalls leave the saved draft untouched.
+        """
+        newest = self._ui.effective_message_queue.latest_editable()
+        if newest is None:
+            return False
+        if save_draft:
+            self._queued_edit_draft = buffer.text
+        self.queued_edit_entry = newest
+        self._load_edit_text(buffer, newest.text)
+        return True
+
+    def handle_down_arrow(self, event: Any) -> bool:
+        """Step toward the newest queued message, then exit edit mode.
+
+        Returns ``True`` when the keypress was consumed; ``False`` lets the
+        input field's history recall run. With an empty input field and no
+        recall navigation in progress, Down Arrow opens the sub-agent picker
+        instead (consumed) when live sub-agent sessions exist.
+        """
+        buffer = event.current_buffer
+        if (
+            buffer.text.strip() == ""
+            and not self.recall_navigation_active()
+            and self._ui.open_agent_picker()
+        ):
+            return True
+
+        queue = self._ui.effective_message_queue
+        entry = self._queued_edit_entry
+
+        if entry is None:
+            history = self._previous_history
+            if history is None or self._previous_recall_index is None:
+                return False
+            if not self._previous_recall_active():
+                # The user edited the recall; never restore the draft over it.
+                return False
+            strings = history.recall_strings()
+            if self._previous_recall_index > 0:
+                self._previous_recall_index -= 1
+                self._load_edit_text(buffer, strings[self._previous_recall_index])
+                return True
+            # Past the newest previous message: exit recall, restore the draft.
+            self._previous_recall_index = None
+            self._load_edit_text(buffer, self._previous_recall_draft)
+            return True
+
+        # Same guard as Up: never restore the draft over an in-progress edit.
+        if not self.recall_navigation_active():
+            return False
+        if not queue.contains(entry):
+            self.queued_edit_entry = None
+            return False
+        newer = queue.editable_after(entry)
+        if newer is not None:
+            self.queued_edit_entry = newer
+            self._load_edit_text(buffer, newer.text)
+            return True
+        # Past the newest queued message: exit edit mode, restore the draft.
+        self.queued_edit_entry = None
+        self._load_edit_text(buffer, self._queued_edit_draft)
+        return True
+
+    def _note_uneditable_recall(self) -> None:
+        """Explain why a recalled message needs a second Enter to submit."""
+        self.queued_edit_entry = None
+        self.reset_previous_recall()
+        self._ui.append_to_output(
+            stylize_warning(
+                "\n  ❗ Message is no longer waiting (already started or sent); "
+                "press Enter again to send it as a new message.\n"
+            )
+        )
+
+    def handle_enter_queued_edit(self, event: Any) -> bool:
+        """Handle Enter after recalling a still-queued message.
+
+        Replaces a still-queued message's text in place. An empty edit cancels
+        back to the saved draft. If the recalled message's turn already started
+        (so the queue no longer holds it), the first Enter explains that it is
+        no longer waiting and is consumed; the next Enter follows the
+        plain-submit path. An ordinary previous-message recall recalls no queued
+        entry at all, so Enter submits it directly — no stale-queue warning.
+        """
+        entry = self._queued_edit_entry
+        if entry is None:
+            return False
+        self.queued_edit_entry = None
+        text = event.current_buffer.text
+        if not text.strip():
+            # An empty edit cancels and restores the pre-edit draft.
+            self._load_edit_text(event.current_buffer, self._queued_edit_draft)
+            return True
+        if self._ui.edit_queued_message(entry, text):
+            event.current_buffer.reset()
+            return True
+        self._note_uneditable_recall()
+        return True
+
+    def handle_delete_queued(self, event: "KeyPressEvent") -> None:
+        """Ctrl+X while a still-queued message is recalled: drop it from the
+        queue, and take its echoed line out of every transcript.
+
+        Nothing when no message is recalled, so the key is harmless to press.
+        The input always goes back to the draft saved before the recall — also
+        when the message's turn started while it was recalled, where abandoning
+        the recall is all that is left and the recalled text must not be left in
+        the buffer to be submitted again by a later Enter.
+        """
+        entry = self._queued_edit_entry
+        if entry is None:
+            return
+        self.queued_edit_entry = None
+        self._ui.delete_queued_message(entry)
+        self._load_edit_text(event.current_buffer, self._queued_edit_draft)
+
+    def track_rendered_echo(self, entry: QueuedMessage, header: str) -> None:
+        """Record the span of an echo whose body was rendered as Markdown.
+
+        `echo_user_message` writes such an echo in two pieces — the header
+        verbatim, then the body through the Markdown renderer, which registers a
+        re-renderable block for the body alone — and returns no echo text for
+        it, so `track_echo_span` has nothing to match. This widens that block to
+        the whole echo, header and trailing newline included, and registers the
+        echo as its block: an edit or a delivered marker can then splice it, and
+        a resize still re-renders the body exactly once.
+
+        A heuristic, but a guarded one: the block is only taken over when
+        re-rendering reproduces the written line, so a mismatch (a buffered
+        write, a text the renderer would lay out differently) leaves the body
+        block with its own renderer rather than risking a corrupted transcript.
+        """
+        text = self._ui.output_text
+        body = entry.text.strip()
+        block = None
+        for candidate in reversed(self._ui.rendered_blocks):
+            if candidate[2] == body:
+                block = candidate
+                break
+        if block is None:
+            return
+        start, end = block[0] - len(header), block[1] + 1
+        if start < 0 or end > len(text) or not text[end - 1 : end] == "\n":
+            return
+        echo = text[start:end]
+        source = self._create_echo_source(entry)
+        if self.render_echo(source, self._ui.output_field_width) != echo:
+            return
+        self._ui.rendered_blocks.remove(block)
+        self._ui.set_rendered_block(start, end, source, self.render_echo)
+        entry.echo_spans[self._ui] = EchoSpan(start=start, end=end, text=echo)
+
+    def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
+        """Record where `echo` landed so an edit can rewrite it in place.
+
+        Spans are keyed by this UI and recorded only when the line reached the
+        buffer verbatim; the writer may append a separator newline.
+        """
+        text = self._ui.output_text
+        if not (text.endswith(echo) or text.endswith(echo + "\n")):
+            return
+        index = text.rfind(echo)
+        if index < 0:
+            return
+        entry.echo_spans[self._ui] = EchoSpan(
+            start=index,
+            end=index + len(echo),
+            text=echo,
+        )
+        # Register as a block only if re-rendering reproduces the written line:
+        # the writer and this decide Markdown from slightly different text.
+        source = self._create_echo_source(entry)
+        if self.render_echo(source, self._ui.output_field_width) == echo:
+            self._ui.set_rendered_block(
+                index, index + len(echo), source, self.render_echo
+            )
+
+    def _validated_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+        """The echo span still safe to splice for this UI, or ``None``.
+
+        The span is re-read off its tracked block, then pruned if it lies past
+        the buffer or no longer holds the echoed line (a block-less echo whose
+        offsets nothing kept current, or a rewound transcript).
+        """
+        if getattr(self._ui, "viewing_agent_id", None) is not None:
+            # The main transcript is parked behind a sub-agent view; the span
+            # is kept, since it is still correct for the text that returns.
+            return None
+        span = self._refresh_echo_span(entry, self._ui.output_text)
+        if span is None:
+            return None
+        if span.end > len(self._ui.output_text):
+            # Stale: the buffer was rewritten since (e.g. rewind).
+            del entry.echo_spans[self._ui]
+            return None
+        if span.text and self._ui.output_text[span.start : span.end] != span.text:
+            # A block-less echo the transcript shifted under. The edit still
+            # takes effect; only the on-screen echo is left as is.
+            del entry.echo_spans[self._ui]
+            return None
+        return span
+
+    def _parked_main_text(self) -> str | None:
+        """The main transcript parked behind a sub-agent view, if one is up.
+
+        ``None`` while the pane holds the main transcript itself, where the echo
+        offsets index `output_text` directly. During a view the offsets address
+        the *parked* text — what `UIOutput._get_main_text` returns, and what
+        `replace_output_span` therefore writes — so a splice validated against it
+        lands where the echo belongs for when the view closes.
+        """
+        if getattr(self._ui, "viewing_agent_id", None) is None:
+            return None
+        return getattr(self._ui, "saved_main_output", None)
+
+    def _refresh_echo_span(self, entry: QueuedMessage, text: str) -> EchoSpan | None:
+        """This UI's recorded span for `entry`, re-read off its tracked block.
+
+        `text` is this UI's output or the main transcript parked behind a
+        sub-agent view. Falls back to the stored span when there is no block.
+        """
+        span = entry.echo_spans.get(self._ui)
+        if span is None:
+            return None
+        block = self._echo_block(entry)
+        if block is None:
+            return span
+        start, end = block[0], block[1]
+        if text[start:end] != block[2].rendered:
+            # The buffer was replaced or rewound under the block: drop both
+            # the span and the block, which would corrupt the next re-wrap.
+            self._ui.rendered_blocks.remove(block)
+            del entry.echo_spans[self._ui]
+            return None
+        span = EchoSpan(start=start, end=end, text=text[start:end])
+        entry.echo_spans[self._ui] = span
+        return span
+
+    def _echo_block(self, entry: QueuedMessage) -> "list[Any] | None":
+        """The `rendered_blocks` record holding `entry`'s echo, or None.
+
+        A linear scan by weakref identity: an index keyed on the entry would
+        keep every queued message alive. Runs only on an edit or merge.
+        """
+        for block in self._ui.rendered_blocks:
+            source = block[2]
+            if isinstance(source, RenderedEcho) and source.entry() is entry:
+                return block
+        return None
+
+    def _create_echo_source(self, entry: QueuedMessage) -> RenderedEcho:
+        return RenderedEcho(
+            header=self._echo_header(entry),
+            text=entry.text,
+            entry=weakref.ref(entry),
+        )
+
+    def _echo_header(self, entry: QueuedMessage) -> str:
+        """`entry`'s echo prefix — the marker and timestamp it was echoed with."""
+        marker = entry.echo_marker or "💬"
+        ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
+        return f"\n{marker} {ts} >> "
+
+    def redraw_echo(self, entry: QueuedMessage) -> str | None:
+        """Splice `entry`'s echo back into the output buffer at its current text.
+
+        Markdown vs. plain is re-decided from `entry.text` each time. Returns
+        the rewritten echo, or ``None`` when no valid span can be redrawn.
+        """
+        span = self._validated_echo_span(entry)
+        if span is None:
+            return None
+        source = self._create_echo_source(entry)
+        echo = self.render_echo(source, self._ui.output_field_width)
+        if not self._ui.replace_output_span(span.start, span.end, echo):
+            return None
+        # Re-register so the block keeps tracking (and re-wrapping) the echo.
+        self._ui.set_rendered_block(
+            span.start, span.start + len(echo), source, self.render_echo
+        )
+        entry.echo_spans[self._ui] = EchoSpan(
+            start=span.start,
+            end=span.start + len(echo),
+            text=echo,
+        )
+        return echo
+
+    def remove_echo(self, entry: QueuedMessage) -> None:
+        """Take `entry`'s echoed line out of this UI's output buffer.
+
+        A stale span is left alone rather than risking transcript corruption. A
+        sub-agent view uses `_parked_echo_span` because the main transcript is
+        behind the view.
+        """
+        span = self._validated_echo_span(entry)
+        if span is None:
+            span = self._parked_echo_span(entry)
+        if span is None:
+            return
+        block = self._echo_block(entry)
+        if block is not None:
+            self._ui.rendered_blocks.remove(block)
+        entry.echo_spans.pop(self._ui, None)
+        self._ui.replace_output_span(span.start, span.end, "")
+
+    def _parked_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+        """`entry`'s span within the parked main transcript, or ``None``.
+
+        The view-aware half of `remove_echo`: re-read the same way, but validated
+        against the parked text, so the offsets stay correct for the transcript
+        that returns. ``None`` when no main transcript is parked (the pane holds
+        the main text, and `_validated_echo_span` is the right reader) or the
+        parked text no longer holds the echoed line.
+        """
+        parked = self._parked_main_text()
+        if parked is None:
+            return None
+        return self._refresh_echo_span(entry, parked)
+
+    def render_echo(self, source: RenderedEcho, width: int | None) -> str:
+        """Render a queued message's whole echo — header, body, separator.
+
+        As the block's re-render hook it must reproduce the whole spliced
+        region. Records the result on `source` on every call, re-wraps
+        included.
+        """
+        source.rendered = (
+            f"{source.header}{self._render_echo_body(source.text, width)}\n"
+        )
+        return source.rendered
+
+    def _render_echo_body(self, text: str, width: int | None) -> str:
+        """Render a queued message's echo body at `width`.
+
+        Markdown when `text` carries a construct, the stripped line otherwise
+        — the same rule `echo_user_message` applies to the first echo.
+        """
+        if should_render_user_markdown(text):
+            return self._ui.render_markdown(text, width)
+        return text.strip()

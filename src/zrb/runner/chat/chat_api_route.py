@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, TypeGuard, cast
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
-from zrb.llm.subagent.manager.manager import sub_agent_manager
-from zrb.llm.util.attachment import check_attachment_bytes, get_media_type
+from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
+from zrb.llm.contracts.util.attachment import check_attachment_bytes, get_media_type
 from zrb.runner.chat.chat_session_manager import (
     ChatSessionManager,
     parse_delegated_session,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI, Request, UploadFile
     from fastapi.responses import JSONResponse
 
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
 
 
 def _ensure_private_dir(path: str) -> None:
@@ -34,7 +34,7 @@ def _ensure_private_dir(path: str) -> None:
 
     The upload root has a fixed name under the shared temp dir, so another
     local user could pre-create it as a symlink. Mirrors
-    `llm/agent/spill.py::_ensure_root`.
+    `llm/engine/agent/spill.py::_ensure_root`.
     """
     os.makedirs(path, mode=0o700, exist_ok=True)
     info = os.lstat(path)

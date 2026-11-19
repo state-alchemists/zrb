@@ -17,13 +17,13 @@ import pathlib
 SRC = pathlib.Path(__file__).parents[2] / "src" / "zrb"
 
 # The module that defines the singleton and the fallback accessors.
-_ALLOWED = {"llm/hook/manager/manager.py"}
+_ALLOWED = {"llm/capabilities/hook/manager/manager.py"}
 
 # The module that defines it, and the package that re-exports it: an import from
 # either one is an import of the singleton.
 _SINGLETON_MODULES = {
-    "zrb.llm.hook.manager",
-    "zrb.llm.hook.manager.manager",
+    "zrb.llm.capabilities.hook.manager",
+    "zrb.llm.capabilities.hook.manager.manager",
 }
 
 
@@ -67,7 +67,7 @@ def test_no_agent_tool_imports_the_singleton_limiter():
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ImportFrom)
-                and node.module == "zrb.llm.config.limiter"
+                and node.module == "zrb.llm.contracts.config.limiter"
                 and any(alias.name == "llm_limiter" for alias in node.names)
             ):
                 offenders.append(f"{path.relative_to(SRC).as_posix()}:{node.lineno}")

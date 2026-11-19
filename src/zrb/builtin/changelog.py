@@ -65,9 +65,9 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 )
 async def generate_changelog(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    # lazy: zrb.llm.config is transitively heavy — this task is registered with
+    # lazy: zrb.llm.contracts.config is transitively heavy — this task is registered with
     # every built-in, and importing the LLM tree here would load it for all of them.
-    from zrb.llm.config.model_resolver import resolve_configured_model
+    from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 
     model = str(ctx.input.model).strip() or resolve_configured_model()
     os.makedirs(ctx.input.dir, exist_ok=True)
@@ -113,8 +113,12 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
 
 
 async def _summarize(ctx, repo_dir, template, tag, previous, model):
-    from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
-    from zrb.llm.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.engine.agent import create_agent  # lazy: pydantic_ai is a heavy extra
+    from zrb.llm.contracts.shared.request_log import (
+        REASON_CHANGELOG,
+        record_standalone_requests,
+    )
+    from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
     log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
     # Pre-fill the values we already know; the LLM fills the section details.
@@ -142,6 +146,7 @@ async def _summarize(ctx, repo_dir, template, tag, previous, model):
     agent = create_agent(model=model, tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
     result = await agent.run(instruction)
     record_agent_usage(result, component=COMPONENT_OTHER)
+    record_standalone_requests(result, REASON_CHANGELOG, component=COMPONENT_OTHER)
     return result.output
 
 

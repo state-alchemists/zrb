@@ -39,7 +39,7 @@ flowchart TB
 | `ui.session` | `AnyUISession` | which conversation is open, which model answers, its meters |
 | `ui.tools` | `AnyUITools` | a tool call's lifecycle and its approval state |
 
-This changes nothing about the two methods you write below: `print()` and `get_input()` are `SimpleUI`'s own hooks, called by the message loop, and a caller holding `ui.input` or `ui.display` still lands on your override. A UI that renders one role and not another mixes in the matching inert default from `zrb.llm.ui.fallback` instead of implementing it.
+This changes nothing about the two methods you write below: `print()` and `get_input()` are `SimpleUI`'s own hooks, called by the message loop, and a caller holding `ui.input` or `ui.display` still lands on your override. A UI that renders one role and not another mixes in the matching inert default from `zrb.llm.presentation.ui.fallback` instead of implementing it.
 
 ## How It Works
 
@@ -50,7 +50,7 @@ import asyncio
 import os
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
+from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
 
 
 class MinimalUI(SimpleUI):
@@ -116,9 +116,9 @@ ZRB_CHAT_LOG_FILE=chat.log zrb llm chat
 
 ## Related Files
 
-- `src/zrb/llm/ui/__init__.py` — UI package docstring with the full class hierarchy
-- `src/zrb/llm/ui/simple_ui_base.py` — `SimpleUI` base class
-- `src/zrb/llm/ui/base/ui.py` — `BaseUI` (advanced) base class
-- `src/zrb/llm/ui/default/ui.py` — default terminal UI (full TUI)
-- `src/zrb/llm/ui/ui_factory.py` — `create_ui_factory` and friends
+- `src/zrb/llm/presentation/ui/__init__.py` — UI package docstring with the full class hierarchy
+- `src/zrb/llm/presentation/ui/simple_ui_base.py` — `SimpleUI` base class
+- `src/zrb/llm/presentation/ui/base/ui.py` — `BaseUI` (advanced) base class
+- `src/zrb/llm/presentation/ui/default/ui.py` — default terminal UI (full TUI)
+- `src/zrb/llm/presentation/ui/ui_factory.py` — `create_ui_factory` and friends
 - `examples/chat-telegram/zrb_init.py` — event-driven multi-channel example

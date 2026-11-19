@@ -99,7 +99,7 @@ LLMTask(name="safe-agent", history_processors=[redact_secrets])
 For the common case — automatic summarization once the conversation grows past a token threshold — Zrb ships a factory so you don't write the windowing logic yourself:
 
 ```python
-from zrb.llm.summarizer.history_summarizer import create_summarizer_history_processor
+from zrb.llm.engine.summarizer.history_summarizer import create_summarizer_history_processor
 
 summarizer = create_summarizer_history_processor(
     conversational_token_threshold=40_000,  # summarize older turns past this

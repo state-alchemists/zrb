@@ -1,0 +1,121 @@
+"Input provenance and linked-worktree lines in the live context."
+
+from unittest.mock import MagicMock, patch
+
+from zrb.context.any_context import AnyContext
+from zrb.llm.capabilities.prompt.live_context.context import render_live_context
+from zrb.llm.contracts.shared.ambient_state import input_provenance
+from zrb.llm.contracts.shared.input_source import InputProvenance
+
+
+def test_live_context_includes_input_provenance():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(InputProvenance("Telegram"))
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "- Input: user via Telegram" in rendered
+
+
+def test_live_context_warns_for_transcribed_input():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance("microphone", modality="dictation", transcription=True)
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "STT transcript may be inaccurate" in rendered
+
+
+def test_live_context_says_how_a_dictated_turn_sounded():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone", "dictation", transcription=True, tone="sad", tone_score=0.82
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "- Input: user via microphone/dictation, sounding sad (0.82)" in rendered
+
+
+def test_live_context_says_how_a_dictated_turn_cut_in():
+    """The listener already knows how long an utterance lasted and whether it
+    talked over zrb; without this the turn reaches the model as a bare
+    transcript and the model cannot tell being interrupted from a monologue."""
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone",
+            "dictation",
+            transcription=True,
+            spoken_seconds=6.4,
+            is_barge_in=True,
+            is_over_speech=True,
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert (
+        "- Input: user via microphone/dictation, 6.4s spoken, talked over the reply"
+        in rendered
+    )
+
+
+def test_live_context_separates_partly_over_the_reply_from_a_barge_in():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone", "dictation", transcription=True, is_over_speech=True
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "- Input: user via microphone/dictation, partly over the reply" in rendered
+
+
+def test_live_context_includes_active_worktrees(tmp_path):
+    current = tmp_path / "current"
+    other = tmp_path / "other"
+    current.mkdir()
+    other.mkdir()
+    porcelain = (
+        f"worktree {current}\nHEAD abc\nbranch refs/heads/main\n\n"
+        f"worktree {other}\nHEAD def\nbranch refs/heads/feature\n\n"
+        f"worktree {tmp_path / 'gone'}\nHEAD ghi\n"
+        "prunable stale\n\n"
+    )
+    ctx = MagicMock(spec=AnyContext)
+    with patch(
+        "zrb.llm.capabilities.prompt.live_context.context.os.getcwd", return_value=str(current)
+    ):
+        with patch("zrb.llm.contracts.util.git.is_inside_git_dir", return_value=True):
+            with patch("subprocess.run") as mock_run:
+
+                def run_git(args, **kwargs):
+                    result = MagicMock(returncode=0, stdout="")
+                    if args[:4] == ["git", "worktree", "list", "--porcelain"]:
+                        result.stdout = porcelain
+                    return result
+
+                mock_run.side_effect = run_git
+                rendered = render_live_context(ctx)
+
+    assert "- Worktrees:" in rendered
+    assert "main @" in rendered and ", current" in rendered
+    assert "feature @" in rendered
+    assert "gone" not in rendered

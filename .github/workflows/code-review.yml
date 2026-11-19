@@ -22,10 +22,6 @@ on:
   pull_request_target:
     branches:
       - main
-      # The 4.0 line: a PR into `v4` is a PR that ships a major, so it gets the
-      # same reviewer as one into `main`. The review still reads the base
-      # branch's YAML, which on `v4` is the branch's own copy of this file.
-      - v4
 
 jobs:
   review:

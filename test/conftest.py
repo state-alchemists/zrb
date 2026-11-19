@@ -212,7 +212,7 @@ def _reset_unscoped_ambient_state():
     Their setters are intentionally unscoped, so a missed reset can leak session,
     worktree, or interactive-mode state into unrelated tests.
     """
-    from zrb.llm.shared.ambient_state import (
+    from zrb.llm.contracts.shared.ambient_state import (
         get_active_worktree,
         get_current_context_session,
         get_interactive_mode,
@@ -239,7 +239,7 @@ def _isolate_agent_mode():
     The process-wide default is mutated in place, so an unscoped setter can
     otherwise leave later permission checks in `PLAN` mode.
     """
-    from zrb.llm.permission.state import AgentModeState, current_agent_mode
+    from zrb.llm.capabilities.permission.state import AgentModeState, current_agent_mode
 
     token = current_agent_mode.set(AgentModeState())
     try:
@@ -257,9 +257,9 @@ def _disable_real_filesystem_hooks():
     """
     from unittest.mock import patch
 
-    import zrb.llm.task.building as llm_task_building
-    import zrb.llm.task.chat.execution as chat_execution
-    from zrb.llm.hook.manager import HookManager, hook_manager
+    import zrb.llm.orchestration.task.building as llm_task_building
+    import zrb.llm.orchestration.task.chat.execution as chat_execution
+    from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
 
     class _InertHookManager(HookManager):
         """A HookManager that never discovers filesystem hooks."""

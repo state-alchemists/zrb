@@ -35,9 +35,9 @@ import tempfile
 
 from zrb import CFG, TriggerMessage
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.camera import AutoCameraBackend
-from zrb.llm.dictation import DictationConfig, record
-from zrb.llm.dictation.backend import get_dictation_backend
+from zrb.llm.presentation.camera import AutoCameraBackend
+from zrb.llm.presentation.dictation import DictationConfig, record
+from zrb.llm.presentation.dictation.backend import get_dictation_backend
 
 try:
     from gpiozero import Button

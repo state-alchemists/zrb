@@ -7,19 +7,19 @@ and that each default in `UIStateDefaultsMixin` is what the absent hook meant.
 
 import pytest
 
-from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
-from zrb.llm.ui.any_ui_input import AnyUIInput
-from zrb.llm.ui.any_ui_session import AnyUISession
-from zrb.llm.ui.any_ui_tools import AnyUITools
-from zrb.llm.ui.fallback.defaults import (
+from zrb.llm.presentation.ui.any_ui import AnyUI, AnyUIDisplay
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+from zrb.llm.presentation.ui.any_ui_session import AnyUISession
+from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
+from zrb.llm.presentation.ui.fallback.defaults import (
     UIDisplayDefaults,
     UIInputDefaults,
     UIPickerDefaults,
     UISessionDefaults,
     UIToolsDefaults,
 )
-from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.util.delivery_report import DeliveryOutcome
+from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.contracts.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
 
 PARTS = (
@@ -163,7 +163,7 @@ def test_an_answer_is_rendered_like_markdown_when_nothing_is_overridden():
 def test_a_resumed_history_is_written_as_plain_text():
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-    from zrb.llm.util.history_formatter import format_history_as_text
+    from zrb.llm.contracts.util.history_formatter import format_history_as_text
 
     history = [ModelRequest(parts=[UserPromptPart(content="hi there")])]
     ui = _BareUI()

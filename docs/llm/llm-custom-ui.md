@@ -87,7 +87,7 @@ So moving from `BaseUI` to `SimpleUI` drops the event loop, the lifecycle and th
 import asyncio
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
+from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
 
 class MyUI(SimpleUI):
     async def print(self, text: str, kind: str = "text") -> None:
@@ -123,7 +123,7 @@ Both must be `async` — see [Implementation Tips](#1-async-methods). The [Quick
 import asyncio
 from pathlib import Path
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
+from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
 
 class LoggingUI(SimpleUI):
     """Logs all output to file, CLI for input."""
@@ -154,7 +154,7 @@ import asyncio
 import json
 from datetime import datetime
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
+from zrb.llm.presentation.ui import SimpleUI, create_ui_factory
 
 class StructuredLogUI(SimpleUI):
     """Outputs structured JSON for each message."""
@@ -211,7 +211,7 @@ flowchart LR
 import asyncio
 from telegram.ext import Application, MessageHandler, filters
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import EventDrivenUI, create_ui_factory
+from zrb.llm.presentation.ui import EventDrivenUI, create_ui_factory
 
 class TelegramUI(EventDrivenUI):
     """Telegram bot using EventDrivenUI."""
@@ -263,7 +263,7 @@ Discord has the same shape as Telegram; only the two backend methods change. Its
 
 ```python
 import discord
-from zrb.llm.ui import EventDrivenUI
+from zrb.llm.presentation.ui import EventDrivenUI
 from zrb.util.cli.style import remove_style
 
 class DiscordUI(EventDrivenUI):
@@ -366,14 +366,14 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. Reached as `ui.input.is_waiting_for_answer` and `ui.input.is_prompt_answered_since` |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
-| `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label`, `description` and `recommended`, `context` — the few facts needed to answer, which the default panel renders above the question — `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.ui.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
+| `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label`, `description` and `recommended`, `context` — the few facts needed to answer, which the default panel renders above the question — `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.presentation.ui.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `track_echo_span(entry, echo)` / `redraw_echo(entry)` / `remove_echo(entry)` | No-ops (the default TUI splices its own output buffer) | Keep a queued message's echoed line in step with the message: record where it landed on submit, rewrite it after an edit, take it out when `Ctrl+X` drops the message. `BaseUI` fans all three out to every child of a `MultiUI`, since each child holds its own echo. A class implementing `AnyUI` directly must define all three |
 | `_get_output_field_width()` | None | Custom text width for formatting (read by the diff/markdown formatters through the public `output_field_width` property) |
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
 | `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |
 | `collapse_thinking_block(collapsed, full)` | No-op | Collapse the block opened by `mark_thinking_block_start()`; the thinking text still reaches the UI via the normal `append_to_output` stream |
-| `send_queued_messages_now()` | `BaseUI` and `MultiUI` run the ladder; a UI with no queue reports `NOTHING_MOVED` | Deliver the queued messages into the running turn on demand — the default TUI's `Ctrl+G`. Returns a `DeliveryReport` from `zrb.llm.ui.base.queue_delivery` (`DELIVERED_EARLY`, `DELIVERED_PARTIAL`, `FELL_BACK_TO_CANCEL`, `WAITING_ON_DIALOG` or `NOTHING_MOVED`, plus how many messages moved); the ladder waits while a dialog owns the input, else steers into the live run, else interrupts the turn. It takes *everything* queued, since the user asked: no edit hold, no grace. See [ADR-0116](../adr/adr-0116.md). Reached as `ui.input.send_queued_messages_now` |
+| `send_queued_messages_now()` | `BaseUI` and `MultiUI` run the ladder; a UI with no queue reports `NOTHING_MOVED` | Deliver the queued messages into the running turn on demand — the default TUI's `Ctrl+G`. Returns a `DeliveryReport` from `zrb.llm.presentation.ui.base.queue_delivery` (`DELIVERED_EARLY`, `DELIVERED_PARTIAL`, `FELL_BACK_TO_CANCEL`, `WAITING_ON_DIALOG` or `NOTHING_MOVED`, plus how many messages moved); the ladder waits while a dialog owns the input, else steers into the live run, else interrupts the turn. It takes *everything* queued, since the user asked: no edit hold, no grace. See [ADR-0116](../adr/adr-0116.md). Reached as `ui.input.send_queued_messages_now` |
 | `submit_message(text, source=KEYBOARD_INPUT)` / `submit_user_message(task, text, source=KEYBOARD_INPUT)` | Queues the text for the next turn | Feed a message in from your backend. It always joins the queue and stays editable there; a turn that is already running takes it at its next checkpoint, once it is neither being edited nor inside its one-second grace. `source` is the turn's [input provenance](#input-provenance) |
 | `submit_message_now(text, source=None, may_interrupt=True)` | Submits, then asks the ladder for the ready entries | Submit and hand the message to the running turn at its earliest safe model request — hands-free speech's path, which passes `may_interrupt=False` so a spoken message never stops work. It skips the grace for *its own* new entry only: a message being edited, or another draft inside its grace, still waits. `Ctrl+G` is the only caller that drains everything |
 | `deliver_queued_messages_early()` | `BaseUI` and `MultiUI` run the ladder; any other UI reports `NOTHING_MOVED` | The checkpoint's own call: the run loop asks the UI at each checkpoint to deliver the ready entries, interrupting nothing. A backend that keeps a queue of its own overrides it to get mid-turn delivery without a key press. Reached as `ui.input.deliver_queued_messages_early` |
@@ -413,7 +413,7 @@ A caller typed against `AnyUI` reaches all of them this way. A class implementin
 
 ### State every `AnyUI` must define
 
-`BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.ui.fallback.state_defaults`) for inert defaults:
+`BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.presentation.ui.fallback.state_defaults`) for inert defaults:
 
 | Member | What it is |
 |---|---|
@@ -425,7 +425,7 @@ A caller typed against `AnyUI` reaches all of them this way. A class implementin
 
 ### The session role: `ui.session`
 
-`ui.session` is how a caller reads the conversation without depending on the whole UI object: which conversation is open, which model answers, whether a turn is running, the history and snapshot managers, and the token meters. `AnyUISession` in `zrb.llm.ui.any_ui_session` is that narrow contract, so a helper that only needs the model can be typed against it.
+`ui.session` is how a caller reads the conversation without depending on the whole UI object: which conversation is open, which model answers, whether a turn is running, the history and snapshot managers, and the token meters. `AnyUISession` in `zrb.llm.presentation.ui.any_ui_session` is that narrow contract, so a helper that only needs the model can be typed against it.
 
 The accessor returns the UI itself. Every UI in zrb answers for the role on the object — `BaseUI` holds the state, `MultiUI` reads it off its primary child, `BufferedUI` forwards the conversation name and the usage meter to the UI it wraps and takes the inert defaults for the rest, `StdUI` takes those defaults throughout — so a subclass that overrides one of these members keeps answering for it, and there is no second copy of the state to drift.
 
@@ -448,18 +448,18 @@ Each role's inert default is a module of its own, beside the contract it answers
 
 | Module | Class | The role it answers |
 |---|---|---|
-| `zrb.llm.ui.fallback.defaults.display` | `UIDisplayDefaults` | writes nothing; the three that do write go through `append_to_output` |
-| `zrb.llm.ui.fallback.defaults.input` | `UIInputDefaults` | keeps no queue: a message handed to it goes nowhere, and a prompt reports absence |
-| `zrb.llm.ui.fallback.defaults.picker` | `UIPickerDefaults` | renders a choice as numbered text through `ask_user` |
-| `zrb.llm.ui.fallback.defaults.session` | `UISessionDefaults` | tracks no conversation: no model, no history, no snapshots, no turn |
-| `zrb.llm.ui.fallback.defaults.tools` | `UIToolsDefaults` | shows no tool call and never auto-approves |
+| `zrb.llm.presentation.ui.fallback.defaults.display` | `UIDisplayDefaults` | writes nothing; the three that do write go through `append_to_output` |
+| `zrb.llm.presentation.ui.fallback.defaults.input` | `UIInputDefaults` | keeps no queue: a message handed to it goes nowhere, and a prompt reports absence |
+| `zrb.llm.presentation.ui.fallback.defaults.picker` | `UIPickerDefaults` | renders a choice as numbered text through `ask_user` |
+| `zrb.llm.presentation.ui.fallback.defaults.session` | `UISessionDefaults` | tracks no conversation: no model, no history, no snapshots, no turn |
+| `zrb.llm.presentation.ui.fallback.defaults.tools` | `UIToolsDefaults` | shows no tool call and never auto-approves |
 
-`UIStateDefaultsMixin` (`zrb.llm.ui.fallback.state_defaults`) is what a host inherits: all five parts plus `multi_ui_parent`, the one member no role owns. `StdUI`, `BufferedUI` and `MultiUI` take it in full, and a host that implements a member for real wins over it on MRO.
+`UIStateDefaultsMixin` (`zrb.llm.presentation.ui.fallback.state_defaults`) is what a host inherits: all five parts plus `multi_ui_parent`, the one member no role owns. `StdUI`, `BufferedUI` and `MultiUI` take it in full, and a host that implements a member for real wins over it on MRO.
 
 A host that keeps one role for real can take only the parts it still needs:
 
 ```python
-from zrb.llm.ui.fallback.defaults import UIDisplayDefaults, UISessionDefaults
+from zrb.llm.presentation.ui.fallback.defaults import UIDisplayDefaults, UISessionDefaults
 ```
 
 Both parts are ordinary classes with no `__init__` and no state of their own beyond what a setter shadows per instance, so mixing in two of them is the same act as mixing in the whole set. What a part cannot do is answer a role you hand back to yourself: if `ui.tools` returns the UI, that UI must answer the tools role — either with its own members or by taking `UIToolsDefaults`.
@@ -471,7 +471,7 @@ The rule the split enforces, by test: **every abstract member of a role has an i
 import asyncio
 import json
 from websockets.asyncio.server import serve
-from zrb.llm.ui import BaseUI, UIConfig
+from zrb.llm.presentation.ui import BaseUI, UIConfig
 from zrb.builtin.llm.chat import llm_chat
 
 class WebSocketUI(BaseUI):
@@ -561,7 +561,7 @@ Starting from the [Telegram example](#example-telegram-bot), four changes add bu
 
 ```python
 import asyncio
-from zrb.llm.ui import EventDrivenUI, BufferedOutputMixin
+from zrb.llm.presentation.ui import EventDrivenUI, BufferedOutputMixin
 
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
     def __init__(self, bot_token: str, chat_id: int, **kwargs):
@@ -605,7 +605,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import UIConfig, create_ui_factory
+from zrb.llm.presentation.ui import UIConfig, create_ui_factory
 
 # Bundle all configuration in one object
 config = UIConfig(
@@ -677,7 +677,7 @@ def factory(
 Writing that by hand means building a `UIConfig` and merging `ui_commands` into it yourself. `create_ui_factory()` does it for you:
 
 ```python
-from zrb.llm.ui import create_ui_factory, UIConfig
+from zrb.llm.presentation.ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot")
@@ -696,7 +696,7 @@ The built-in terminal UI runs whenever `include_default_ui` is `True` (the defau
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import create_ui_factory
+from zrb.llm.presentation.ui import create_ui_factory
 
 # Default terminal UI is used automatically; add Telegram on top
 llm_chat.append_ui_factory(
@@ -713,8 +713,8 @@ The framework then wraps them automatically:
 
 | Class | Module | Behavior |
 |-------|--------|----------|
-| `MultiUI` | `zrb.llm.ui` | **Output** broadcasts to all UIs; **input** waits for the first response from any channel |
-| `MultiplexApprovalChannel` | `zrb.llm.approval` | First approval response wins (CLI or external) |
+| `MultiUI` | `zrb.llm.presentation.ui` | **Output** broadcasts to all UIs; **input** waits for the first response from any channel |
+| `MultiplexApprovalChannel` | `zrb.llm.capabilities.approval` | First approval response wins (CLI or external) |
 
 ### The primary child
 
@@ -774,7 +774,7 @@ Three more hooks are not declared on `AnyUI`, because a UI that has them behaves
 For tool confirmations, implement `AnyApprovalChannel`:
 
 ```python
-from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 
 class TelegramApprovalChannel(AnyApprovalChannel):
     """Send approval requests to Telegram."""
@@ -835,14 +835,14 @@ llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 | `message` | Reason shown with the decision (optional) |
 | `override_args` | Replacement tool arguments, for an "edit then approve" flow (optional) |
 
-`ApprovalResult.to_pydantic_result()` converts a result to pydantic-ai's `ToolApproved` / `ToolDenied`, for code that drives an agent run directly. `resolve_approval_channel(channels)` from `zrb.llm.approval` turns a list into one channel the way the task does: `None` for an empty list, the channel itself for one, a `MultiplexApprovalChannel` for more.
+`ApprovalResult.to_pydantic_result()` converts a result to pydantic-ai's `ToolApproved` / `ToolDenied`, for code that drives an agent run directly. `resolve_approval_channel(channels)` from `zrb.llm.capabilities.approval` turns a list into one channel the way the task does: `None` for an empty list, the channel itself for one, a `MultiplexApprovalChannel` for more.
 
 When a result carries `override_args`, the call runs with them, and the model sees a note appended to the tool result: `[SYSTEM NOTE] The user edited this tool call's arguments before it ran.`, followed by the changed arguments. The call in history still shows what the model wrote, so without the note the result would not match its request.
 
 Built-in channels: `TerminalApprovalChannel` (terminal confirmation through a UI instance) and `NullApprovalChannel` (auto-approves everything — YOLO mode):
 
 ```python
-from zrb.llm.approval import NullApprovalChannel
+from zrb.llm.capabilities.approval import NullApprovalChannel
 
 # Auto-approve all tool calls
 llm_chat.approval_channels = [NullApprovalChannel()]
@@ -856,7 +856,7 @@ Or turn YOLO on for one run: `zrb llm chat --yolo true` (or a comma-separated to
 
 Every user turn can carry where it came from. The model sees it in its live context as `Input: user via <channel>`; for a transcription, it also gets a warning to verify names, paths and commands before acting on them.
 
-`InputProvenance(channel, modality="text", transcription=False)` comes from `zrb.llm.shared.input_source`, with three ready-made values:
+`InputProvenance(channel, modality="text", transcription=False)` comes from `zrb.llm.contracts.shared.input_source`, with three ready-made values:
 
 | Value | Used by |
 |---|---|

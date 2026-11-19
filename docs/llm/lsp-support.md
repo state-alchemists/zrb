@@ -21,7 +21,7 @@ When a language server is installed, zrb's assistant gets IDE-like code intellig
 
 ## Supported Languages
 
-The built-in catalogue (`LSP_SERVER_CONFIGS` in `src/zrb/llm/lsp/configs.py`) covers 21 servers. The **Name** column is the registry key you use in `ZRB_LLM_LSP_PREFERRED_SERVERS`.
+The built-in catalogue (`LSP_SERVER_CONFIGS` in `src/zrb/llm/capabilities/lsp/configs.py`) covers 21 servers. The **Name** column is the registry key you use in `ZRB_LLM_LSP_PREFERRED_SERVERS`.
 
 | Language | Name | Extensions | Install Command |
 |----------|------|------------|-----------------|
@@ -65,7 +65,7 @@ rustup component add rust-analyzer                      # Rust
 Check what zrb detects, from Python:
 
 ```python
-from zrb.llm.lsp.server.server import detect_available_lsp_servers
+from zrb.llm.capabilities.lsp.server.server import detect_available_lsp_servers
 
 servers = detect_available_lsp_servers()
 for name, path in servers.items():
@@ -89,7 +89,7 @@ flowchart TD
 ```
 
 - The LSP tools are registered with the agent only when at least one server is detected.
-- Detection is cached for the process lifetime. After installing a server mid-session, call `lsp_server_configs.invalidate_detection()` (from `zrb.llm.lsp.configs`) or restart; registering a config invalidates it automatically.
+- Detection is cached for the process lifetime. After installing a server mid-session, call `lsp_server_configs.invalidate_detection()` (from `zrb.llm.capabilities.lsp.configs`) or restart; registering a config invalidates it automatically.
 
 ---
 
@@ -98,8 +98,8 @@ flowchart TD
 To use a server not in the catalogue — another language, an in-house server, a custom binary — register it from your `zrb_init.py`:
 
 ```python
-from zrb.llm.lsp.configs import LSPServerConfig
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.lsp.configs import LSPServerConfig
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 
 lsp_manager.register_lsp_server(
     "zls",  # unique key, also usable in ZRB_LLM_LSP_PREFERRED_SERVERS
@@ -146,7 +146,7 @@ User entries are merged over the built-in table in a single module-level registr
 
 ```
 Where is the LSPManager class defined?
-Show me all symbols in src/zrb/llm/lsp/manager/manager.py
+Show me all symbols in src/zrb/llm/capabilities/lsp/manager/manager.py
 Are there any errors in server.py?
 Find all references to find_definition
 What LSP servers are available?
@@ -157,7 +157,7 @@ What LSP servers are available?
 `AnalyzeCode` uses LSP automatically to pre-analyze files for symbol structure:
 
 ```python
-from zrb.llm.tool.code import analyze_code
+from zrb.llm.capabilities.tool.code import analyze_code
 
 result = await analyze_code("./src", "What classes are defined?")
 ```
@@ -165,7 +165,7 @@ result = await analyze_code("./src", "What classes are defined?")
 ### Programmatic Usage
 
 ```python
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 
 # List available servers
 servers = lsp_manager.list_available_servers()
@@ -280,7 +280,7 @@ Installing only the server you want for a language also works, as a coarser leve
 **Per-call override.** A direct `get_server` call may pass its own list, which replaces the env var:
 
 ```python
-from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 
 server = await lsp_manager.get_server(
     "src/zrb/example.py",

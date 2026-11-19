@@ -2,7 +2,7 @@
 
 # History & Compaction
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/history_manager/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/capabilities/history_manager/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 History is what lets a conversation continue: the next turn, a resumed session, or a retry after a crash all start from the saved message list. This page covers how that list is loaded, shrunk when it outgrows the model's window, repaired before it is sent, and saved. The one idea to take away: the summary is not a side channel; it is a message inside the list, and that list is exactly what gets saved.
 
@@ -44,14 +44,14 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A tool call still awaiting its result survives compaction in native, resumable form | pydantic-ai cannot match the deferred result to a `ToolCallPart` that was flattened away | `test/llm/summarizer/test_verbatim_tail.py::test_a_trailing_deferred_call_stays_in_native_message_form` |
-| The real opening user message survives every compaction round | The model loses the task's goal; a later round keeps an old summary instead | `test/llm/summarizer/test_history_summarizer_preservation.py::test_summarize_history_second_round_preserves_the_true_first_user_message` |
-| A history that is mostly tool output is summarized as one conversation, not as byte-sized pieces | The chunks are merged newest-wins, so the newest chunk overrules the user's earlier request and the summary reads as if the conversation began at the last turn | `test/llm/summarizer/test_chunk_processor.py::test_clipping_keeps_a_tool_heavy_conversation_in_one_chunk` |
-| A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/summarizer/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
-| Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
-| A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
+| A tool call still awaiting its result survives compaction in native, resumable form | pydantic-ai cannot match the deferred result to a `ToolCallPart` that was flattened away | `test/llm/engine/summarizer/test_verbatim_tail.py::test_a_trailing_deferred_call_stays_in_native_message_form` |
+| The real opening user message survives every compaction round | The model loses the task's goal; a later round keeps an old summary instead | `test/llm/engine/summarizer/test_history_summarizer_preservation.py::test_summarize_history_second_round_preserves_the_true_first_user_message` |
+| A history that is mostly tool output is summarized as one conversation, not as byte-sized pieces | The chunks are merged newest-wins, so the newest chunk overrules the user's earlier request and the summary reads as if the conversation began at the last turn | `test/llm/engine/summarizer/test_chunk_processor.py::test_clipping_keeps_a_tool_heavy_conversation_in_one_chunk` |
+| A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/engine/summarizer/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
+| Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/engine/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
+| A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/capabilities/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
 | An unsaved in-memory update wins over a newer file on load | An external write between update and save discards the turn | **unpinned** |
-| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
+| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/orchestration/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
 
 ## Realization
 
@@ -69,17 +69,17 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `LLMTaskHistory` | `src/zrb/llm/task/history.py` | Picks the manager and the conversation name; saves what a failed or cancelled turn did |
-| `resolve_conversation_name` | `src/zrb/llm/task/shared_getters.py` | The configured name, or a fresh random one when it is blank |
-| `FileHistoryManager` | `src/zrb/llm/history_manager/file_history_manager.py` | The default store: a small LRU cache, load-time cleanup, validated atomic JSON writes, backups and retention |
-| `AnyHistoryManager` | `src/zrb/llm/history_manager/any_history_manager.py` | The protocol a custom store implements: `load`, `update`, `save`, `search` |
-| `create_summarizer_history_processor` | `src/zrb/llm/summarizer/history_summarizer.py` | Builds the processor that runs both tiers: first per-message, then the whole conversation |
-| `process_message_for_summarization` | `src/zrb/llm/summarizer/message_processor.py` | Tier one: shrinks one oversized tool result, or truncates it if summarizing fails |
-| `summarize_history` | `src/zrb/llm/summarizer/history_summarizer.py` | Tier two: splits the list, summarizes the old part, rebuilds the list |
-| `split_history` | `src/zrb/llm/summarizer/history_splitter.py` | Finds a token-budget cut, preferring the start of a turn |
-| `archive_verbatim_history` | `src/zrb/llm/summarizer/verbatim_archive.py` | Appends the messages a summary replaced to a private, append-only markdown file; returns `None` instead of raising when it cannot |
-| `sanitize_history` | `src/zrb/llm/agent/run/history_utils.py` | The provider-boundary repair pipeline: a fixed tuple of steps, run in order |
-| `PartialRunAccumulator` | `src/zrb/llm/agent/run/partial_run.py` | Records what a turn did as it streams, so a failed turn can be saved honestly |
+| `LLMTaskHistory` | `src/zrb/llm/orchestration/task/history.py` | Picks the manager and the conversation name; saves what a failed or cancelled turn did |
+| `resolve_conversation_name` | `src/zrb/llm/orchestration/task/shared_getters.py` | The configured name, or a fresh random one when it is blank |
+| `FileHistoryManager` | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | The default store: a small LRU cache, load-time cleanup, validated atomic JSON writes, backups and retention |
+| `AnyHistoryManager` | `src/zrb/llm/capabilities/history_manager/any_history_manager.py` | The protocol a custom store implements: `load`, `update`, `save`, `search` |
+| `create_summarizer_history_processor` | `src/zrb/llm/engine/summarizer/history_summarizer.py` | Builds the processor that runs both tiers: first per-message, then the whole conversation |
+| `process_message_for_summarization` | `src/zrb/llm/engine/summarizer/message_processor.py` | Tier one: shrinks one oversized tool result, or truncates it if summarizing fails |
+| `summarize_history` | `src/zrb/llm/engine/summarizer/history_summarizer.py` | Tier two: splits the list, summarizes the old part, rebuilds the list |
+| `split_history` | `src/zrb/llm/engine/summarizer/history_splitter.py` | Finds a token-budget cut, preferring the start of a turn |
+| `archive_verbatim_history` | `src/zrb/llm/engine/summarizer/verbatim_archive.py` | Appends the messages a summary replaced to a private, append-only markdown file; returns `None` instead of raising when it cannot |
+| `sanitize_history` | `src/zrb/llm/engine/agent/run/history_utils.py` | The provider-boundary repair pipeline: a fixed tuple of steps, run in order |
+| `PartialRunAccumulator` | `src/zrb/llm/engine/agent/run/partial_run.py` | Records what a turn did as it streams, so a failed turn can be saved honestly |
 
 ### How it runs
 
@@ -126,25 +126,25 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
-| Mid-turn checkpoint | the stream handler in `src/zrb/llm/agent/run/runner.py` | Saved in the background whenever the list ends in a completed tool round; all checkpoints finish before the turn returns |
+| Mid-turn checkpoint | the stream handler in `src/zrb/llm/engine/agent/run/runner.py` | Saved in the background whenever the list ends in a completed tool round; all checkpoints finish before the turn returns |
 | The turn fails | `LLMTaskHistory.handle_run_error` | Closes dangling tool calls, appends an error note and a summary of the tools that ran |
 | A context-length failure | `LLMTaskHistory.handle_run_error` | Saves the history as it was, with nothing appended |
 | The user cancels | `LLMTaskHistory.save_cancelled_history` | Saves the live messages, closes dangling calls, adds an "interrupted" reply |
 | `/compress` | `LLMTask`, before any agent is built | Runs `summarize_history` with `force=True`, even under the threshold |
 | A `PreCompact` hook blocks | `run_agent` history preparation | Summarization is skipped; the emergency prune to the last message still runs if the list does not fit |
-| A delegated sub-agent's transcript | `src/zrb/llm/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](../2-extension-surface/sub-agents.md) |
+| A delegated sub-agent's transcript | `src/zrb/llm/contracts/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`, whether it still has just its generated name or a `-topic` after it (see `LLM_AUTO_NAME_ENABLED`); a name someone chose is never pruned. A verbatim archive that no saved history refers to is deleted by the same cutoff |
 
 ### Change it here
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change naming or what a failed turn saves | `src/zrb/llm/task/history.py` | `test/llm/task/test_history.py` |
-| Change caching, file layout, backups or retention | `src/zrb/llm/history_manager/file_history_manager.py` | `test/llm/history_manager/` |
-| Change when or how history is summarized | `src/zrb/llm/summarizer/history_summarizer.py` | `test/llm/summarizer/` |
-| Change where the list may be cut | `src/zrb/llm/summarizer/history_splitter.py` | `test/llm/summarizer/` |
-| Change the provider-boundary repair | `src/zrb/llm/agent/run/history_utils.py` | `test/llm/agent/run/` |
-| Change what a partial run records | `src/zrb/llm/agent/run/partial_run.py` | `test/llm/agent/run/test_partial_run.py` |
+| Change naming or what a failed turn saves | `src/zrb/llm/orchestration/task/history.py` | `test/llm/orchestration/task/test_history.py` |
+| Change caching, file layout, backups or retention | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | `test/llm/capabilities/history_manager/` |
+| Change when or how history is summarized | `src/zrb/llm/engine/summarizer/history_summarizer.py` | `test/llm/engine/summarizer/` |
+| Change where the list may be cut | `src/zrb/llm/engine/summarizer/history_splitter.py` | `test/llm/engine/summarizer/` |
+| Change the provider-boundary repair | `src/zrb/llm/engine/agent/run/history_utils.py` | `test/llm/engine/agent/run/` |
+| Change what a partial run records | `src/zrb/llm/engine/agent/run/partial_run.py` | `test/llm/engine/agent/run/test_partial_run.py` |
 
 ## See Also
 

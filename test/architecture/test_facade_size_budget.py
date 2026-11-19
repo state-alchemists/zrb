@@ -111,7 +111,7 @@ FACADE_BUDGETS = {
     # +3 (1298->1301): `stream_ai_response` renders the answer through
     # `shown_text`, so the `<spoken>` markers speech alone needs never reach the
     # screen: one import and the comment saying why; the parsing stays in
-    # `llm/util/spoken.py`. +2 (1301->1303): the same reason and the same
+    # `llm/contracts/util/spoken.py`. +2 (1301->1303): the same reason and the same
     # one-line call at `end_side_question` -- a `/btw` answer is a screen too,
     # and its history is never involved.
     # +10 (1303->1313): `append_answer` -- the hook a turn's answer goes through
@@ -127,7 +127,7 @@ FACADE_BUDGETS = {
     # display part, because a subclass override that calls `super()` has to land
     # on it rather than on the plain-text fallback next in MRO -- a delegator,
     # not new surface.
-    # +4 (1271->1275): the imports naming `zrb.llm.shared.*` are longer than
+    # +4 (1271->1275): the imports naming `zrb.llm.contracts.shared.*` are longer than
     # `zrb.llm.*` were, so black wrapped four `from ... import (...)` blocks that
     # used to fit one line. Same names, same surface.
     # +19 (1275->1294): `cancel_current_turn` grew the exit path it now carries —
@@ -136,7 +136,7 @@ FACADE_BUDGETS = {
     # writes one event line per cut turn however many keys were pressed, and the
     # `turn_cancelled` payload field the log-only hook matches. New surface on a
     # method `AnyUI` already declares; the multi-UI copy lives in `multi/turn.py`.
-    "llm/ui/base/ui.py": 1294,
+    "llm/presentation/ui/base/ui.py": 1294,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -207,7 +207,7 @@ FACADE_BUDGETS = {
     # message puts the reader back on the tail — because the base queue knows
     # nothing about a view. The three lines of comment on the output-field
     # construction are the part that could move if this grows again.
-    "llm/ui/default/ui.py": 823,
+    "llm/presentation/ui/default/ui.py": 823,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
@@ -218,7 +218,7 @@ FACADE_BUDGETS = {
     # run's session and hooks are built, so `zrb chat` can apply its launch flags
     # to `CFG` before the speech preset and the memory hooks have read it -- a new
     # seam, not a delegator.
-    "llm/task/chat/task.py": 1047,
+    "llm/orchestration/task/chat/task.py": 1047,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a
@@ -228,8 +228,8 @@ FACADE_BUDGETS = {
     # the summarizer resolves a model. A run only publishes them once it starts,
     # and this command is handled before that -- new behavior, and the reason
     # `/model small` was being ignored.
-    "llm/task/llm_task.py": 820,
-    "llm/subagent/manager/manager.py": 299,
+    "llm/orchestration/task/llm_task.py": 820,
+    "llm/orchestration/subagent/manager/manager.py": 299,
 }
 
 

@@ -1,0 +1,492 @@
+from unittest.mock import MagicMock, patch
+
+from zrb.config.config import CFG
+from zrb.llm.presentation.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.presentation.ui.base.status_bar import RunningTool
+from zrb.llm.presentation.ui.default.output import UIOutput, format_elapsed
+
+
+class MockOutputUI:
+    """Stand-in UI composing the real `UIOutput`.
+
+    Holds the state `UIOutput` reaches via `self._ui` (normally supplied by
+    the default `UI`) and forwards everything else (public
+    methods/properties) to the composed part.
+    """
+
+    display = input = tools = property(lambda self: self)
+
+    def __init__(self):
+        self._output_field = MagicMock()
+        self._output_field.text = ""
+        self._input_field = MagicMock()
+        self.conversation_session_name = "test"
+        self.cwd = "/test"
+        self.yolo = False
+        self.model = "test-model"
+        self.git_info = "main"
+        self.assistant_name = "Zrb"
+        self.confirmation = BaseUIConfirmationState()
+        self.rendered_blocks = []
+        self.rendered_width = None
+        self.pending_invalidate = False
+        self.invalidate_task = None
+        self.markdown_theme = None
+        self.status_badges: tuple[str, ...] = ()
+        # This double IS the implementation site for these (mirroring the
+        # real `UI`, which owns them directly — `UIOutput` just reads them
+        # through the public properties below, one hop, no bounce back).
+        self._is_thinking = False
+        self.working_started_at: float | None = None
+        self._current_confirmation = None
+        self._output = UIOutput(self)
+        # Public aliases so tests can reach these without a leading-underscore
+        # dotted expression (the private-test-access ratchet counts those).
+        self.output_part = self._output
+
+    @property
+    def output_field(self):
+        return self._output_field
+
+    @property
+    def input_field(self):
+        return self._input_field
+
+    @property
+    def is_thinking(self):
+        return self._is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value):
+        self._is_thinking = value
+
+    @property
+    def is_application_built(self):
+        return self.__dict__.get("application") is not None
+
+    @property
+    def current_confirmation(self):
+        return self._current_confirmation
+
+    @current_confirmation.setter
+    def current_confirmation(self, value):
+        self._current_confirmation = value
+
+    def invalidate_ui(self):
+        pass
+
+    def execute_hook(self, *args, **kwargs):
+        pass
+
+    def set_thinking(self, value):
+        self._is_thinking = value
+
+    def set_current_confirmation(self, value):
+        self._current_confirmation = value
+
+    def __getattr__(self, name):
+        output = self.__dict__.get("_output")
+        if output is None:
+            raise AttributeError(name)
+        return getattr(output, name)
+
+
+class MockMarkdownUI(MockOutputUI):
+    """MockOutputUI with a buffer that really stores text, so the offset-based
+    re-wrap can be driven through the public methods."""
+
+    def __init__(self):
+        super().__init__()
+        self.output_field.buffer = _RecordingBuffer(self.output_field)
+
+
+class _RecordingBuffer:
+    def __init__(self, output_field):
+        self._output_field = output_field
+        self.cursor_position = 0
+
+    @property
+    def text(self):
+        return self._output_field.text
+
+    def set_document(self, document, bypass_readonly=False):
+        self._output_field.text = document.text
+        self.cursor_position = document.cursor_position
+
+
+def test_get_status_bar_text_shows_queued_messages():
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    ui.queued_message_count = 2
+
+    text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "2 queued" in text
+
+
+def test_the_status_bar_shows_a_sandbox_that_was_on_before_the_session(monkeypatch):
+    """The line reads the switch, so starting sandboxed is not a silent state.
+
+    A badge written only when `/sandbox` runs would leave a session that began
+    with `LLM_SANDBOX_ENABLED=true` looking unsandboxed while the gate
+    enforces the opposite.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.set_thinking(True)
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+
+def test_the_status_bar_shows_this_session_switch_while_it_idles(monkeypatch):
+    """The bar asks the session it draws for, not whatever run is ambient.
+
+    Between turns no run is bound, so an ambient lookup would fall back to the
+    deployment's setting and a `/sandbox on` would vanish from the screen for
+    as long as the user was reading it.
+    """
+    ui = MockOutputUI()
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+
+    ui.sandbox_override = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    ui.sandbox_override = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
+def test_the_status_bar_shows_the_policy_the_run_was_given(monkeypatch):
+    """What a run was handed wins, in both directions and over the config.
+
+    A task's `sandbox=` reaches the gate as `deps`, a value the task drawing
+    the bar cannot see, so the runner publishes it on the session. Without
+    that, `sandbox=True` over a sandboxless deployment contains every tool
+    call and says nothing.
+    """
+    ui = MockOutputUI()
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", False)
+    ui.sandbox_run_policy = True
+    assert "🐚 sandboxed" in "".join(f[1] for f in ui.get_status_bar_text())
+
+    monkeypatch.setattr(CFG, "LLM_SANDBOX_ENABLED", True)
+    ui.sandbox_run_policy = False
+    assert "sandboxed" not in "".join(f[1] for f in ui.get_status_bar_text())
+
+
+def test_output_field_width_prefers_the_running_application():
+    """GlobalStreamCapture points fds 1/2 at a pipe, so get_terminal_size can
+    disagree with what prompt_toolkit is painting; the app's own size wins."""
+    ui = MockOutputUI()
+    ui.application = MagicMock()
+    ui.application.output.get_size.return_value = MagicMock(columns=120)
+
+    with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+        mock_size.return_value.columns = 80
+        assert ui.output_field_width == 116
+
+        # Unusable app size (e.g. console not detected) falls back.
+        ui.application.output.get_size.side_effect = Exception("no console")
+        assert ui.output_field_width == 76
+
+
+def test_set_rendered_block_keeps_the_list_in_position_order():
+    """`rewrap_output` accumulates a shift as it walks `rendered_blocks`, and
+    `toggle_collapsible_block_at_cursor` stops at the first block past the
+    cursor — both read the list as position-ordered, so an in-place record is
+    inserted at its offset rather than appended."""
+    ui = MockMarkdownUI()
+    ui.rendered_blocks.append([100, 110, "tail", lambda s, w: s])
+
+    ui.set_rendered_block(10, 20, "head", lambda s, w: s)
+
+    assert [block[0] for block in ui.rendered_blocks] == [10, 100]
+
+
+def test_replace_output_span_shifts_tracked_blocks_after_span():
+    """Splicing a shorter echo shifts rendered-block offsets for later re-wrap."""
+    ui = MockMarkdownUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui.output_field.text = "head" + echo + "markdown"
+    block_start = len("head" + echo)
+    ui.rendered_blocks.append(
+        [block_start, block_start + len("markdown"), "source", lambda s, w: "markdown"]
+    )
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        replaced = ui.replace_output_span(
+            len("head"), len("head") + len(echo), "\n💬 10:00 >> edited\n"
+        )
+
+    assert replaced is True
+    assert ui.output_text == "head" + "\n💬 10:00 >> edited\n" + "markdown"
+    # "original" (8 chars) → "edited" (6): -2 shift applied to the block.
+    assert ui.rendered_blocks[0][0] == block_start - 2
+    assert ui.rendered_blocks[0][1] == block_start - 2 + len("markdown")
+
+
+def test_replace_output_span_refuses_stale_span():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "short"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        assert ui.replace_output_span(0, 100, "x") is False
+
+
+def test_append_toggle_block_shows_collapsed_by_default():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+
+    assert "short" in ui.output_text
+    assert "much longer full text" not in ui.output_text
+    assert len(ui.rendered_blocks) == 1
+
+
+def test_append_toggle_block_skips_tracking_when_variants_match():
+    """No point tracking a block that has nothing to expand into."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("same", "same")
+
+    assert ui.output_text == "same"
+    assert ui.rendered_blocks == []
+
+
+def test_toggle_collapsible_block_at_cursor_expands_then_collapses():
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+        # Cursor follows the tail after the append (see _RecordingBuffer).
+        toggled = ui.toggle_collapsible_block_at_cursor()
+        expanded = ui.output_text
+        toggled_again = ui.toggle_collapsible_block_at_cursor()
+        collapsed_again = ui.output_text
+
+    assert toggled is True
+    assert "much longer full text" in expanded
+    assert toggled_again is True
+    assert "short" in collapsed_again
+    assert "much longer full text" not in collapsed_again
+
+
+def test_toggle_collapsible_block_at_cursor_returns_false_without_a_block():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "plain text, no toggle blocks"
+    ui.output_field.buffer.cursor_position = len(ui.output_field.text)
+
+    assert ui.toggle_collapsible_block_at_cursor() is False
+
+
+def test_toggle_collapsible_block_at_cursor_leaves_state_unchanged_on_stale_span():
+    """Stale span: neither `expanded` nor the tracked offsets may move."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("short", "much longer full text")
+
+    block = ui.rendered_blocks[0]
+    # Simulate a stale span (end past the end of the buffer).
+    block[1] = len(ui.output_text) + 100
+    ui.output_field.buffer.cursor_position = len(ui.output_text)
+
+    result = ui.toggle_collapsible_block_at_cursor()
+
+    assert result is False
+    assert block[2].expanded is False
+    assert "much longer full text" not in ui.output_text
+
+
+def test_toggle_collapsible_block_at_cursor_shifts_later_blocks():
+    """Toggling an earlier block keeps a later block's offsets correct."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_toggle_block("first", "first EXPANDED")
+        ui.append_to_output("between")
+        ui.append_toggle_block("second", "second EXPANDED")
+
+        second_block = ui.rendered_blocks[1]
+        expected_second_text = ui.output_text[second_block[0] : second_block[1]]
+
+        # Point the cursor at the first block and toggle it.
+        ui.output_field.buffer.cursor_position = 0
+        toggled = ui.toggle_collapsible_block_at_cursor()
+
+    assert toggled is True
+    # The second block's span must still slice its own text after the growth.
+    assert ui.output_text[second_block[0] : second_block[1]] == expected_second_text
+
+
+def test_rewrap_output_preserves_toggle_block_expanded_state():
+    """A toggle block's renderer reads `expanded`, so rewrap must not revert it."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+            mock_size.return_value.columns = 60
+            ui.append_toggle_block("short", "much longer full text")
+            ui.output_field.buffer.cursor_position = len(ui.output_field.text)
+            ui.toggle_collapsible_block_at_cursor()
+            assert "much longer full text" in ui.output_text
+
+            mock_size.return_value.columns = 120
+            ui.rewrap_output()
+
+    assert "much longer full text" in ui.output_text
+
+
+def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
+    """Thinking streams live; collapse rewraps from the supplied `full` text."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("before ")
+        ui.mark_thinking_block_start()
+        ui.append_to_output(
+            "a long stream of live thinking text", end="", kind="thinking"
+        )
+        collapsed = ui.collapse_thinking_block(
+            "🧠 Thought\n", "a long stream of live thinking text"
+        )
+
+    assert collapsed is True
+    assert "a long stream of live thinking text" not in ui.output_text
+    assert "🧠 Thought" in ui.output_text
+    assert ui.output_text.startswith("before ")
+    assert len(ui.rendered_blocks) == 1
+    # The full original text is still one toggle away.
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+    assert ui.output_text.startswith("before ")
+    assert "a long stream of live thinking text" in ui.output_text
+
+
+def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
+    """The passed-in `full` wins even when a stray \\r rewrote the live line."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+        # \r erases back to the start of the current line — simulates what
+        # append_to_output's spinner handling does to any \r-bearing chunk.
+        ui.append_to_output("first part\rsecond part", end="", kind="thinking")
+        # What's actually on screen right now is only "second part" — but a
+        # caller that accumulated the untouched original still has it all.
+        assert "first part" not in ui.output_text
+
+        collapsed = ui.collapse_thinking_block("🧠 Thought\n", "first part second part")
+        ui.output_field.buffer.cursor_position = len(ui.output_text)
+        ui.toggle_collapsible_block_at_cursor()
+
+    assert collapsed is True
+    assert "first part" in ui.output_text
+    assert "second part" in ui.output_text
+
+
+def test_collapse_thinking_block_without_a_mark_is_a_noop():
+    ui = MockMarkdownUI()
+    ui.output_field.text = "no marked thinking block here"
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "thinking text") is False
+    assert ui.output_text == "no marked thinking block here"
+
+
+def test_collapse_thinking_block_without_full_text_is_a_noop():
+    """Nothing was actually accumulated — nothing to collapse into, so this
+    must not create a broken (empty-when-expanded) block."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+
+    assert ui.collapse_thinking_block("🧠 Thought\n", "") is False
+
+
+def test_status_badges_have_a_line_of_their_own():
+    ui = MockOutputUI()
+    assert ui.get_badge_bar_text() == []
+
+    ui.status_badges = ("🎤 listening", "📷 ready")
+
+    badge_line = "".join(fragment[1] for fragment in ui.get_badge_bar_text())
+    status_line = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+    assert badge_line == " 🎤 listening  ·  📷 ready "
+    assert "🎤" not in status_line
+
+
+def test_format_elapsed():
+    assert format_elapsed(0) == "0s"
+    assert format_elapsed(45) == "45s"
+    assert format_elapsed(60) == "1m 0s"
+    assert format_elapsed(754) == "12m 34s"
+    assert format_elapsed(3600) == "1h 0m 0s"
+    assert format_elapsed(3661) == "1h 1m 1s"
+    assert format_elapsed(-3) == "0s"
+
+
+def test_status_bar_includes_current_working_duration():
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=754.0):
+        ui.working_started_at = 0.0
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Zrb is working (12m 34s)" in text
+
+
+def test_status_bar_resets_working_duration_when_idle():
+    ui = MockOutputUI()
+    ui.working_started_at = None
+
+    text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "working" not in text
+    assert "12m 34s" not in text
+
+
+def test_status_bar_includes_running_tool_duration():
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0):
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Shell" in text
+    assert "5s" in text
+
+
+def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED", False, raising=False)
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0):
+        ui.working_started_at = 0.0
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Shell" not in text
+    assert "16m 40s" not in text
+
+
+def test_the_judge_switch_says_auto_when_a_safe_verdict_may_skip():
+    """`AUTO`, not `On`: a bar saying `On` would claim the judge only annotates,
+    which is the state a deployment without the second grant leaves it in."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    with patch(
+        "zrb.llm.presentation.ui.default.output.is_shell_judge_auto_approve_enabled_for",
+        return_value=True,
+    ):
+        res = ui.get_info_bar_text()
+    assert "AUTO" in "".join(t for _style, t, *_ in to_formatted_text(res))

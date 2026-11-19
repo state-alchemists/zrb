@@ -57,7 +57,7 @@ export ZRB_LOGGING_FILE_MAX_BYTES=10485760     # 10 MiB, then rotate; 0 never ro
 export ZRB_LOGGING_FILE_BACKUP_COUNT=3         # how many rotated files to keep
 ```
 
-The handler is installed at CLI startup, before any init source loads, so a warning raised while starting up is kept too. Its directory is created when missing, and a file that cannot be opened is reported rather than fatal: a chat that cannot log still runs. File lines also carry the logger's name — `2026-10-25 16:20:14 WARNING zrb.llm.speech.pcm_player: Speech stuttered: …` — because a file is read out of context.
+The handler is installed at CLI startup, before any init source loads, so a warning raised while starting up is kept too. Its directory is created when missing, and a file that cannot be opened is reported rather than fatal: a chat that cannot log still runs. File lines also carry the logger's name — `2026-10-25 16:20:14 WARNING zrb.llm.presentation.speech.pcm_player: Speech stuttered: …` — because a file is read out of context.
 
 Installing twice adds nothing, so `CFG.LOGGER` never writes one line to the same file twice.
 
@@ -86,9 +86,9 @@ Some modules create their own named loggers via `logging.getLogger(__name__)`. T
 |---|---|
 | `zrb.util.dir_search` | `src/zrb/util/dir_search.py` |
 | `zrb.util.owner_only` | `src/zrb/util/owner_only.py` |
-| `zrb.llm.hook.*` | Hook system (loader, executor, manager, matcher) |
-| `zrb.llm.snapshot.manager` | Snapshot system |
-| `zrb.llm.ui.*` | UI implementations |
+| `zrb.llm.capabilities.hook.*` | Hook system (loader, executor, manager, matcher) |
+| `zrb.llm.capabilities.snapshot.manager` | Snapshot system |
+| `zrb.llm.presentation.ui.*` | UI implementations |
 
 ### Common Debugging Usage
 

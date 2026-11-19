@@ -10,18 +10,23 @@ import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
-UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui"
+LLM = REPO_ROOT / "src" / "zrb" / "llm"
 
 # The contract files, and the class each one declares. `any_ui.py` holds what
-# belongs to the whole rather than to a role.
+# belongs to the whole rather than to a role. A role belongs under `contracts/`
+# when a layer beneath `presentation/ui/` has to name it — `input` is named by `tool_call`,
+# `approval`, `dictation` and `custom_command`, and `picker` by `tool/ask.py` —
+# because a contract cannot sit above its consumers, and a role left in `presentation/ui/`
+# scores L4 with the object it is a part of. The other three are reached only
+# through an accessor, so they travel with the object.
 ROLE_FILES = {
-    "any_ui_display.py": "AnyUIDisplay",
-    "any_ui_input.py": "AnyUIInput",
-    "any_ui_picker.py": "AnyUIPicker",
-    "any_ui_session.py": "AnyUISession",
-    "any_ui_tools.py": "AnyUITools",
+    "presentation/ui/any_ui_display.py": "AnyUIDisplay",
+    "contracts/ui/any_ui_input.py": "AnyUIInput",
+    "contracts/ui/any_ui_picker.py": "AnyUIPicker",
+    "presentation/ui/any_ui_session.py": "AnyUISession",
+    "presentation/ui/any_ui_tools.py": "AnyUITools",
 }
-CORE_FILE = "any_ui.py"
+CORE_FILE = "presentation/ui/any_ui.py"
 CORE_CLASS = "AnyUI"
 
 # A role reached through an accessor instead of by inheritance: a UI hands out
@@ -89,10 +94,10 @@ def _members(path: pathlib.Path, class_name: str) -> set[str]:
 
 def _declared() -> dict[str, set[str]]:
     declared = {
-        class_name: _members(UI / file_name, class_name)
+        class_name: _members(LLM / file_name, class_name)
         for file_name, class_name in ROLE_FILES.items()
     }
-    declared[CORE_CLASS] = _members(UI / CORE_FILE, CORE_CLASS)
+    declared[CORE_CLASS] = _members(LLM / CORE_FILE, CORE_CLASS)
     return declared
 
 
@@ -112,7 +117,7 @@ def test_no_member_is_declared_twice():
 
 
 def test_every_role_member_reaches_the_whole_object():
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     missing: list[str] = []
     for class_name, members in _declared().items():
@@ -189,9 +194,9 @@ def _hosts() -> dict[str, object]:
     are the ones that answer a role by forwarding to a child, casting to
     themselves or taking a default — where a member goes missing unnoticed.
     """
-    from zrb.llm.ui.buffered import BufferedUI
-    from zrb.llm.ui.fallback.std_ui import StdUI
-    from zrb.llm.ui.multi import MultiUI
+    from zrb.llm.presentation.ui.buffered import BufferedUI
+    from zrb.llm.presentation.ui.fallback.std_ui import StdUI
+    from zrb.llm.presentation.ui.multi import MultiUI
 
     return {
         "StdUI": StdUI(),
@@ -210,11 +215,11 @@ def test_every_host_answers_every_member_of_the_role_it_hands_out():
     to the type checker, missing at the call. Same shape three times, so it is
     checked here once: every host, every accessor, every abstract member.
     """
-    from zrb.llm.ui.any_ui_display import AnyUIDisplay
-    from zrb.llm.ui.any_ui_input import AnyUIInput
-    from zrb.llm.ui.any_ui_picker import AnyUIPicker
-    from zrb.llm.ui.any_ui_session import AnyUISession
-    from zrb.llm.ui.any_ui_tools import AnyUITools
+    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+    from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
+    from zrb.llm.presentation.ui.any_ui_session import AnyUISession
+    from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 
     roles = {
         "display": AnyUIDisplay,

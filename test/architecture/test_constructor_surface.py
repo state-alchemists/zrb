@@ -28,9 +28,9 @@ import re
 import textwrap
 from typing import Unpack, get_origin
 
-from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.orchestration.task.chat.task import LLMChatTask
+from zrb.llm.orchestration.task.llm_task import LLMTask
+from zrb.llm.presentation.ui.base.ui import BaseUI
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.cmd_task import CmdTask
@@ -104,8 +104,8 @@ def _params(cls) -> list[str]:
 def _declared_params(cls) -> dict[str, tuple[str | None, str | None]]:
     """`cls.__init__`'s parameters as `{name: (annotation source, default source)}`.
 
-    Read from the AST rather than `inspect.signature`: `llm/task/llm_task.py`
-    and `llm/task/chat/task.py` carry `from __future__ import annotations`
+    Read from the AST rather than `inspect.signature`: `llm/orchestration/task/llm_task.py`
+    and `llm/orchestration/task/chat/task.py` carry `from __future__ import annotations`
     while `task/base/base_task.py` does not, so at runtime one side's
     annotations are strings and the other's are type objects, and every shared
     parameter on those two classes compares unequal. Source text is also what

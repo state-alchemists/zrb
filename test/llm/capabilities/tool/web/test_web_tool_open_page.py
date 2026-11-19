@@ -1,0 +1,354 @@
+import asyncio
+import os
+import threading
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from zrb.config.config import CFG
+from zrb.llm.capabilities.tool.web import open_web_page, run_blocking, search_internet
+
+
+@pytest.fixture
+def mock_google_rss():
+    with patch("zrb.llm.capabilities.tool.web.search.google_rss.search_internet") as mock:
+        yield mock
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_truncates_oversized_page():
+    """A page larger than LLM_MAX_OUTPUT_CHARS is capped, so the rate limiter
+    never sees an un-admittable request."""
+    huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
+    with (
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.display = mock_response
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = huge_html
+        mock_page.eval_on_selector_all.return_value = []
+
+        result = await open_web_page("https://example.com", summarize=False)
+
+    assert result["truncated"] is True
+    assert "[TRUNCATED]" in result["content"]
+    # Bounded to the cap plus the short marker, not the multi-KB original.
+    assert len(result["content"]) < 600
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_summarizer_input_is_bounded():
+    """The summarizer sub-agent must receive the capped content, not the raw
+    page — this is the request the limiter would otherwise reject forever."""
+    huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
+    with (
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch("zrb.llm.capabilities.tool.web.tools.create_agent"),
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.display = mock_response
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = huge_html
+        mock_page.eval_on_selector_all.return_value = []
+        mock_run_agent.return_value = ("summary", [])
+
+        await open_web_page("https://example.com", summarize=True)
+
+    sent_message = mock_run_agent.call_args.kwargs["message"]
+    assert "[TRUNCATED]" in sent_message
+    # Bounded to cap + json envelope + instruction, not the 100k+ raw page.
+    assert len(sent_message) < 2000
+
+
+@pytest.mark.asyncio
+async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
+    """A slow sync backend runs on another thread *and* a concurrent heartbeat
+    gets a turn while it runs (a worker joined synchronously would still block).
+
+    The backend holds a "running" flag until the heartbeat releases it, so the
+    check does not depend on wall-clock scheduling.
+    """
+    backend_running = threading.Event()
+    backend_finished = threading.Event()
+    backend_release = threading.Event()
+    backend_thread_ident = {}
+    heartbeat_saw_backend_running = {}
+
+    def slow_backend(query, page=1):
+        backend_thread_ident["value"] = threading.get_ident()
+        backend_running.set()
+        try:
+            backend_release.wait(timeout=5.0)
+        finally:
+            backend_running.clear()
+            backend_finished.set()
+        return {"query": query, "results": [], "page": page}
+
+    mock_google_rss.side_effect = slow_backend
+    loop_thread_ident = threading.get_ident()
+
+    async def heartbeat():
+        # Poll until the worker enters the backend; a blocked loop only gets
+        # here after backend_finished is set, which records False.
+        deadline = time.monotonic() + 2.0
+        while not backend_running.is_set() and not backend_finished.is_set():
+            if time.monotonic() >= deadline:
+                break
+            await asyncio.sleep(0.01)
+        heartbeat_saw_backend_running["value"] = backend_running.is_set()
+        backend_release.set()
+
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}):
+        await asyncio.gather(search_internet("query"), heartbeat())
+
+    assert backend_thread_ident.get("value") is not None, "backend never ran"
+    assert backend_thread_ident["value"] != loop_thread_ident, (
+        "sync backend ran on the event loop's thread; it must be dispatched "
+        "off-loop via run_blocking"
+    )
+    assert heartbeat_saw_backend_running.get("value") is True, (
+        "event loop was blocked while the backend ran; the heartbeat did not "
+        "fire until after the backend had already finished"
+    )
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_closes_browser_even_when_goto_fails():
+    """A launched browser closes even when page.goto raises."""
+    with (
+        patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.fetch_page_fallback", return_value=("f", [], False)
+        ),
+    ):
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_page.goto.side_effect = RuntimeError("timeout")
+
+        await open_web_page("https://example.com", summarize=False)
+
+        mock_browser.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_closes_browser_on_success():
+    """The success path closes the browser exactly once."""
+    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.display = mock_response
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
+        mock_page.eval_on_selector_all.return_value = []
+
+        await open_web_page("https://example.com", summarize=False)
+
+        mock_browser.close.assert_awaited_once()
+
+
+def test_serpapi_request_has_a_timeout():
+    """No timeout means a stalled connection hangs forever, freezing the
+    whole (single-threaded) event loop for every concurrent sub-agent."""
+    from zrb.llm.capabilities.tool.web.search.serpapi import search_internet as serpapi_search
+
+    with patch("zrb.llm.capabilities.tool.web.search.serpapi.requests.get") as mock_get:
+        mock_get.return_value = MagicMock(status_code=200, json=lambda: {})
+        serpapi_search("query", api_key="fake-key")
+
+    assert mock_get.call_args.kwargs.get("timeout") is not None
+
+
+def test_brave_request_has_a_timeout():
+    from zrb.llm.capabilities.tool.web.search.brave import search_internet as brave_search
+
+    with patch("zrb.llm.capabilities.tool.web.search.brave.requests.get") as mock_get:
+        mock_get.return_value = MagicMock(status_code=200, json=lambda: {})
+        brave_search("query", api_key="fake-key")
+
+    assert mock_get.call_args.kwargs.get("timeout") is not None
+
+
+def test_notify_is_a_noop_with_no_current_ui():
+    """No ambient UI (the common case outside a running agent turn, e.g. these
+    tests) must not raise -- this is a courtesy message, never load-bearing."""
+    from zrb.llm.capabilities.tool.web import notify
+
+    with patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=None):
+        notify("should not raise")  # must simply do nothing
+
+
+def test_notify_forwards_to_the_current_uis_stream_to_parent():
+    from zrb.llm.capabilities.tool.web import notify
+
+    mock_ui = MagicMock()
+    mock_ui.display = mock_ui
+    with patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=mock_ui):
+        notify("hello")
+
+    mock_ui.stream_to_parent.assert_called_once()
+    assert "hello" in mock_ui.stream_to_parent.call_args.args[0]
+
+
+def test_notify_swallows_a_broken_uis_exception():
+    """A UI whose stream_to_parent raises must never break the actual tool
+    call -- this is a best-effort courtesy message, not the result."""
+    from zrb.llm.capabilities.tool.web import notify
+
+    mock_ui = MagicMock()
+    mock_ui.display = mock_ui
+    mock_ui.stream_to_parent.side_effect = RuntimeError("ui exploded")
+    with patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=mock_ui):
+        notify("should not raise either")  # must not propagate
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_notifies_before_fetching():
+    mock_ui = MagicMock()
+    mock_ui.display = mock_ui
+    with (
+        patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=mock_ui),
+        patch(
+            "playwright.async_api.async_playwright",
+            side_effect=ImportError("No playwright"),
+        ),
+        patch("requests.get") as mock_get,
+    ):
+        mock_get.return_value = MagicMock(
+            text="<html><body>hi</body></html>", headers={}
+        )
+        await open_web_page("https://example.com/page", summarize=False)
+
+    messages = [c.args[0] for c in mock_ui.stream_to_parent.call_args_list]
+    assert any("https://example.com/page" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
+    """The user is told when a Playwright failure falls back to plain HTTP."""
+    mock_ui = MagicMock()
+    mock_ui.display = mock_ui
+    with (
+        patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=mock_ui),
+        patch(
+            "playwright.async_api.async_playwright",
+            side_effect=RuntimeError("browser launch failed"),
+        ),
+        patch("requests.get") as mock_get,
+    ):
+        mock_get.return_value = MagicMock(
+            text="<html><body>hi</body></html>", headers={}
+        )
+        await open_web_page("https://example.com/page", summarize=False)
+
+    messages = [c.args[0] for c in mock_ui.stream_to_parent.call_args_list]
+    assert any("retrying via plain HTTP" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_search_internet_notifies_before_searching(mock_google_rss):
+    mock_ui = MagicMock()
+    mock_ui.display = mock_ui
+    mock_google_rss.return_value = {"query": "q", "results": [], "page": 1}
+    with (
+        patch("zrb.llm.capabilities.tool.web.tools.get_current_ui", return_value=mock_ui),
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}),
+    ):
+        await search_internet("claude code vs opencode")
+
+    messages = [c.args[0] for c in mock_ui.stream_to_parent.call_args_list]
+    assert any("claude code vs opencode" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_run_blocking_times_out_even_if_the_call_never_returns():
+    never_return = threading.Event()
+
+    def blocks_forever():
+        never_return.wait()  # would hang forever without run_blocking's timeout
+
+    start = time.monotonic()
+    try:
+        with pytest.raises(TimeoutError):
+            await run_blocking(blocks_forever, timeout=0.05)
+        elapsed = time.monotonic() - start
+        assert elapsed < 2  # bounded, not "forever"
+    finally:
+        never_return.set()  # let the orphaned thread finish, don't leak it
+
+
+@pytest.mark.asyncio
+async def test_run_blocking_runs_the_call_on_a_daemon_thread():
+    """A non-daemon thread that outlives its timeout would block interpreter exit."""
+    never_return = threading.Event()
+    was_daemon = {}
+
+    def blocks_forever():
+        was_daemon["value"] = threading.current_thread().daemon
+        never_return.wait()
+
+    try:
+        with pytest.raises(TimeoutError):
+            await run_blocking(blocks_forever, timeout=0.05)
+    finally:
+        never_return.set()
+
+    # Give the spawned thread a moment to record its own daemon flag before
+    # the test process moves on.
+    for _ in range(20):
+        if "value" in was_daemon:
+            break
+        await asyncio.sleep(0.01)
+    assert was_daemon.get("value") is True
+
+
+@pytest.mark.asyncio
+async def test_search_internet_returns_promptly_even_if_backend_never_returns(
+    mock_google_rss,
+):
+    """A stalled backend call does not hang `search_internet` indefinitely."""
+    never_return = threading.Event()
+    mock_google_rss.side_effect = lambda *a, **k: never_return.wait()
+
+    with (
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}),
+        patch("zrb.llm.capabilities.tool.web.tools.TIMEOUT_MARGIN_SECONDS", 0.05),
+        patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_WEB_HTTP_TIMEOUT": "10"}),
+    ):
+        start = time.monotonic()
+        result = await search_internet("query")
+        elapsed = time.monotonic() - start
+
+    never_return.set()
+    assert elapsed < 2
+    assert result["error"] is not None

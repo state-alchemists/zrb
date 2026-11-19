@@ -26,7 +26,7 @@ Three ordered lists on `LLMChatTask` control everything about that prompt — wh
 | 2. Argument formatter | `ArgumentFormatter` | How are the call's arguments displayed? | `append_argument_formatter` / `prepend_argument_formatter` / `set_argument_formatters` / `remove_argument_formatter` |
 | 3. Response handler | `ResponseHandler` | What does the typed answer mean? | `append_response_handler` / `prepend_response_handler` / `set_response_handlers` / `remove_response_handler` |
 
-All three also exist as constructor arguments (`tool_policies=`, `argument_formatters=`, `response_handlers=`). The types live in `zrb.llm.tool_call`; `ToolApproved`, `ToolDenied` and `ToolCallPart` in `zrb.llm.agent.types`.
+All three also exist as constructor arguments (`tool_policies=`, `argument_formatters=`, `response_handlers=`). The types live in `zrb.llm.capabilities.tool_call`; `ToolApproved`, `ToolDenied` and `ToolCallPart` in `zrb.llm.engine.agent.types`.
 
 Where these sit relative to permission rules, YOLO and hooks is in [Permission Policy → The Precedence Chain](permission-policy.md#the-precedence-chain): tool policies run at priority 1, before the permission ruleset. To send the prompt somewhere other than the terminal (Telegram, HTTP), use an [approval channel](llm-custom-ui.md#approval-channels) instead.
 
@@ -46,8 +46,8 @@ Where these sit relative to permission rules, YOLO and hooks is in [Permission P
 An argument formatter receives the UI, the tool call, and the arguments section rendered so far (YAML, indented seven spaces). It returns a replacement string, or `None` to leave it unchanged:
 
 ```python
-from zrb.llm.tool_call import ArgumentFormatter
-from zrb.llm.util.tool_args import parse_tool_args
+from zrb.llm.capabilities.tool_call import ArgumentFormatter
+from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 
 async def command_formatter(ui, call, args_section: str) -> str | None:
@@ -84,13 +84,13 @@ Return the string with its own trailing newline: the instruction line is concate
 A tool policy decides a call before anyone is asked. It returns `ToolApproved()`, `ToolDenied(reason)`, or hands the call on with `await next_handler(ui, call)`:
 
 ```python
-from zrb.llm.tool_call import auto_approve
+from zrb.llm.capabilities.tool_call import auto_approve
 
 
 async def no_force_push(ui, call, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolDenied
-    from zrb.llm.util.tool_args import parse_tool_args
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolDenied
+    from zrb.llm.contracts.util.tool_args import parse_tool_args
 
     args = parse_tool_args(call) or {}
     if call.tool_name == "Shell" and "push --force" in args.get("command", ""):
@@ -117,14 +117,14 @@ Two limits apply. A [permission-policy](permission-policy.md) `ASK` is a hard as
 A response handler receives the typed answer and returns `ToolApproved(...)`, `ToolDenied(reason)`, `None` to show the prompt again, or passes the answer on with `await next_handler(ui, call, response)`:
 
 ```python
-from zrb.llm.tool_call import auto_approve
+from zrb.llm.capabilities.tool_call import auto_approve
 
 always_allowed: set[str] = set()
 
 
 async def allow_remembered(ui, call, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolApproved
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolApproved
 
     if call.tool_name in always_allowed:
         return ToolApproved()
@@ -132,8 +132,8 @@ async def allow_remembered(ui, call, next_handler):
 
 
 async def always_for_session(ui, call, response: str, next_handler):
-    # lazy: zrb.llm.agent.types loads pydantic_ai
-    from zrb.llm.agent.types import ToolApproved
+    # lazy: zrb.llm.engine.agent.types loads pydantic_ai
+    from zrb.llm.engine.agent.types import ToolApproved
 
     if response.strip().lower() != "a":
         return await next_handler(ui, call, response)
@@ -170,7 +170,7 @@ Sub-agents the chat delegates to run under its approval handler — its tool pol
 
 ## Built-ins you can reuse
 
-All importable from `zrb.llm.tool_call` unless noted.
+All importable from `zrb.llm.capabilities.tool_call` unless noted.
 
 | Name | Kind | What it does | On `llm_chat` by default |
 |---|---|---|---|
@@ -182,11 +182,11 @@ All importable from `zrb.llm.tool_call` unless noted.
 | `auto_approve(tool, patterns)` | policy factory | Approves matching calls | yes, for reads inside the project, notes and skill directories |
 | `bash_safe_command_policy()` | policy factory | Approves read-only shell commands | yes |
 | `read_file_validation_policy` | policy | Denies a `Read` of a missing file | yes |
-| `replace_in_file_validation_policy` | policy | Denies an `Edit` whose `old_text` is not in the file. Import from `zrb.llm.tool_call.tool_policy.replace_in_file_validation` | yes |
+| `replace_in_file_validation_policy` | policy | Denies an `Edit` whose `old_text` is not in the file. Import from `zrb.llm.capabilities.tool_call.tool_policy.replace_in_file_validation` | yes |
 
 A tool that *is* the user interaction (like `AskUserQuestion`) can skip approval everywhere with `register_always_auto_approve("ToolName")`, exported from `zrb`. That sits above the permission rules, so no rule of yours can stop it — which is why only the user interaction belongs there.
 
-A tool whose blast radius is already bounded — it writes only inside a directory zrb owns, or reads something you just approved producing — belongs one level lower: `register_default_auto_approve("ToolName")`, also exported from `zrb`. That sits *below* the rules, so your `ask` or `deny` still wins and a `PreToolUse` hook's `ask` still forces the prompt, and it holds with YOLO off, which is where a prompt nobody wants costs the most. When the bound is an argument rather than the whole tool, use `register_default_auto_approve_if("ToolName", predicate)` — `LspRenameSymbol` is approved only for `dry_run=true` that way. `zrb`'s own list lives in `DEFAULT_AUTO_APPROVED_TOOLS` (`src/zrb/llm/common_tools.py`); [ADR-0139](../adr/adr-0139.md) records why each entry is there.
+A tool whose blast radius is already bounded — it writes only inside a directory zrb owns, or reads something you just approved producing — belongs one level lower: `register_default_auto_approve("ToolName")`, also exported from `zrb`. That sits *below* the rules, so your `ask` or `deny` still wins and a `PreToolUse` hook's `ask` still forces the prompt, and it holds with YOLO off, which is where a prompt nobody wants costs the most. When the bound is an argument rather than the whole tool, use `register_default_auto_approve_if("ToolName", predicate)` — `LspRenameSymbol` is approved only for `dry_run=true` that way. `zrb`'s own list lives in `DEFAULT_AUTO_APPROVED_TOOLS` (`src/zrb/llm/orchestration/common_tools.py`); [ADR-0139](../adr/adr-0139.md) records why each entry is there.
 
 ## Display settings without code
 

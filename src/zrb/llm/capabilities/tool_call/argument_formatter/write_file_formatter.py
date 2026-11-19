@@ -1,0 +1,72 @@
+import asyncio
+import os
+from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
+from zrb.llm.capabilities.tool_call.argument_formatter.util import (
+    format_diff,
+    render_indented_markdown,
+)
+from zrb.llm.contracts.util.tool_args import parse_tool_args
+
+if TYPE_CHECKING:
+    from zrb.llm.engine.agent.types import ToolCallPart
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+
+
+async def write_file_formatter(
+    ui: "AnyAgentOutput",
+    call: "ToolCallPart",
+    args_section: str,
+) -> str | None:
+    """Show a diff for a `Write` tool call."""
+    if call.tool_name != "Write":
+        return None
+
+    try:
+        args = parse_tool_args(call)
+        if args is None:
+            return None
+
+        path = args.get("path")
+        content = args.get("content")
+        mode = args.get("mode", "w")
+
+        if not path or content is None:
+            return None
+
+        # Blocking IO/CPU; inline it would freeze the TUI event loop.
+        return await asyncio.to_thread(format_single_write, path, content, mode, ui)
+
+    except Exception:
+        return None
+
+
+def format_single_write(path: str, new_content: str, mode: str, ui) -> str | None:
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    old_content = ""
+    file_exists = os.path.exists(abs_path)
+
+    if file_exists:
+        try:
+            with open(abs_path, "r", encoding="utf-8") as f:
+                old_content = f.read()
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read existing content of {abs_path}: {e}")
+
+    final_new_content = new_content
+    if mode == "a":
+        final_new_content = old_content + new_content
+
+    diff_md = format_diff(old_content, final_new_content, path)
+    if not diff_md:
+        return f"       📄 File: {path} (No changes)\n"
+
+    formatted_diff = render_indented_markdown(diff_md)
+
+    if mode == "a":
+        return f"       📝 Appending to: {path}\n{formatted_diff}\n"
+    elif file_exists:
+        return f"       📄 Overwriting: {path}\n{formatted_diff}\n"
+    else:
+        return f"       🆕 New File: {path}\n{formatted_diff}\n"

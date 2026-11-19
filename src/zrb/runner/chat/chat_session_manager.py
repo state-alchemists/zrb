@@ -7,26 +7,26 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.file_history_manager import (
+from zrb.llm.capabilities.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
-from zrb.llm.shared.agent_activity import agent_activity_registry
-from zrb.llm.shared.feature_config import close_feature_sessions
-from zrb.llm.shared.input_source import WEB_INPUT, InputProvenance
-from zrb.llm.util.live_context_block import split_live_context
-from zrb.llm.util.spoken import shown_text
+from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
+from zrb.llm.contracts.shared.feature_config import close_feature_sessions
+from zrb.llm.contracts.shared.input_source import WEB_INPUT, InputProvenance
+from zrb.llm.contracts.util.live_context_block import split_live_context
+from zrb.llm.contracts.util.spoken import shown_text
 
 # Re-exported for chat_api_route.py and tests.
-from zrb.llm.util.subagent_session_naming import (
+from zrb.llm.contracts.util.subagent_session_naming import (
     parse_delegated_session,
     subagent_history_directories,
 )
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from zrb.llm.task.chat.task import LLMChatTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
 
@@ -302,13 +302,13 @@ class ChatSessionManager:
             close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent, which pulls in pydantic_ai.
-            from zrb.llm.subagent.live_session import live_subagent_session_registry
+            from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
 
             live_subagent_session_registry.clear(session_id=session_id)
             # Background shells outlive a message; this is their only cleanup.
             # Keyed by session_id: session_name is not unique.
             # lazy: transitively heavy via internal — shell_background.py stays off load path
-            from zrb.llm.tool.shell.background import get_shell_background_registry
+            from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 
             await get_shell_background_registry().cancel_for_session(session_id)
             return True

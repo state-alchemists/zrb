@@ -4,7 +4,7 @@ Raising MAX_MEMBERS means a new kind of thing crosses the tool_call -> ui
 boundary. That is a design decision; make it on purpose, in review.
 """
 
-from zrb.llm.ui.any_agent_output import AnyAgentOutput
+from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 MAX_MEMBERS = 3
 
@@ -24,7 +24,7 @@ def test_agent_output_stays_narrow():
 
 
 def test_any_ui_satisfies_agent_output():
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     for name in _members():
         assert hasattr(AnyUI, name), f"AnyUI is missing {name}"

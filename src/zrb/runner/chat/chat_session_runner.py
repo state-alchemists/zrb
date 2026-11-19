@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.shared.ambient_state import current_chat_session_id, input_provenance
+from zrb.llm.contracts.shared.ambient_state import current_chat_session_id, input_provenance
 from zrb.runner.chat.chat_session_manager import (
     ChatSession,
     ChatSessionManager,
@@ -27,10 +27,10 @@ from zrb.util.exception import exception_summary
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.task.chat.task import LLMChatTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
 

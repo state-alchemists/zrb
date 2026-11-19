@@ -5,7 +5,7 @@ enforced mechanically, repo-wide:
    method — never a raw `_private` attribute on another object (AGENTS.md's
    part-boundary rule).
 2. Business logic (everything outside the presentation layer) stays free of
-   web/TUI framework imports — `llm/ui`, `llm/app`, `runner`, and `input` are
+   web/TUI framework imports — `llm/presentation/ui`, `llm/app`, `runner`, and `input` are
    the presentation layer and are exempt; everything else (task engine, LLM
    agent/tool/permission/history/hook machinery, builtins, ...) is consumed
    by both the CLI and the web runner, so it cannot depend on either's
@@ -30,7 +30,7 @@ enforced mechanically, repo-wide:
 Verified clean against the whole tree before being turned into a test: rule 1
 trips on exactly 3 legitimate patterns (`super()` delegation, the singleton
 `__new__` pattern that stashes state directly on `cls`, and one third-party
-monkeypatch in `llm/agent/run/openai_patch.py`), each handled below instead of
+monkeypatch in `llm/engine/agent/run/openai_patch.py`), each handled below instead of
 suppressed by a growing per-file allowlist. If a genuinely new exception shows
 up, extend `_PrivateAccessVisitor` or `MONKEYPATCH_EXCEPTIONS` — don't widen
 the private-name check itself, that's the whole point of the rule.
@@ -46,11 +46,11 @@ SRC = REPO_ROOT / "src" / "zrb"
 # One-off, by-name exceptions to rule 1 — see the module docstring. Keep this
 # short; if it grows, the visitor's pattern-matching is the better fix.
 MONKEYPATCH_EXCEPTIONS = {
-    "src/zrb/llm/agent/run/openai_patch.py",
+    "src/zrb/llm/engine/agent/run/openai_patch.py",
 }
 
 # Directories that ARE the presentation layer, exempt from rule 2.
-FRAMEWORK_EXEMPT_DIRS = ("llm/ui", "llm/app", "runner", "input")
+FRAMEWORK_EXEMPT_DIRS = ("llm/presentation/ui", "llm/app", "runner", "input")
 FORBIDDEN_IMPORT_PREFIXES = ("fastapi", "starlette", "prompt_toolkit")
 
 # One-off, by-name exceptions to rule 3 (R9) — see
@@ -64,7 +64,7 @@ EXTENSION_POINT_EXCEPTIONS = {
     # apply_common_tools's minimal duck-typed host requirement — no public
     # object exposes a "host: CommonToolHost" slot.
     "CommonToolHost",
-    # llm/agent/spill.py's payload store — only LocalFileStore implements it
+    # llm/engine/agent/spill.py's payload store — only LocalFileStore implements it
     # today, and default_spill_store is a hardcoded module singleton with no
     # public way to swap it yet (dead extensibility, like the old
     # LLMConfig.model_settings, which R12 found and deleted).
@@ -73,14 +73,14 @@ EXTENSION_POINT_EXCEPTIONS = {
     # panel", and the sub-agent messaging tool's "is this a sub-agent with a
     # parent" — capability probes, not slots any task/UI constructor takes.
     "HasActivityTracking",
-    # llm/tool/shell/command.py's narrowing of "can this UI render a command's output
+    # llm/capabilities/tool/shell/command.py's narrowing of "can this UI render a command's output
     # as one live line" — the same kind of probe: no constructor takes a
     # "live shell UI" slot, and a UI that lacks the methods simply isn't one.
     "_LiveShellUI",
-    # llm/util/layered_registry.py's TypeVar bound — the shape an item needs
+    # llm/contracts/util/layered_registry.py's TypeVar bound — the shape an item needs
     # (`name`, `path`), not a slot anything takes.
     "RegistryItem",
-    # llm/util/roster.py's TypeVar bound — likewise a shape, not a slot.
+    # llm/contracts/util/roster.py's TypeVar bound — likewise a shape, not a slot.
     "RosterItem",
 }
 
@@ -175,7 +175,7 @@ def test_no_part_reaches_another_objects_private_state():
 
 def test_business_logic_stays_free_of_presentation_frameworks():
     """fastapi/starlette belong to `runner/`; prompt_toolkit belongs to
-    `llm/ui/` and `llm/app/` (and `input/`, for its own CLI prompting) — not
+    `llm/presentation/ui/` and `llm/app/` (and `input/`, for its own CLI prompting) — not
     the engine, agent, tool, or permission code both the CLI and the web
     runner drive.
     """

@@ -34,8 +34,8 @@ from zrb.util.string.conversion import to_boolean
 def migrate_notes(ctx: AnyContext) -> str:
     # lazy: the memory package loads pydantic_ai-dependent modules in the tools,
     # and this command must stay cheap to register.
-    from zrb.llm.memory import paths
-    from zrb.llm.memory.migrate import migrate
+    from zrb.llm.contracts.memory import paths
+    from zrb.llm.contracts.memory.migrate import migrate
 
     dry_run = to_boolean(str(ctx.input.dry_run))
     counts = migrate(CFG.LLM_NOTES_DIR, dry_run)

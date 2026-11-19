@@ -56,17 +56,17 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 
 ```mermaid
 flowchart TD
-    Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution.exec_action()"]
+    Exec["src/zrb/llm/orchestration/task/chat/execution.py :: ChatExecution.exec_action()"]
     Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
-    Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py → src/zrb/llm/ui/session.py — resolve UIs, triggers, commands"]
+    Exec -->|resolves| Running["src/zrb/llm/orchestration/task/chat/running.py → src/zrb/llm/presentation/ui/session.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
+`LLMChatTask` (`src/zrb/llm/orchestration/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.subagent.sub_agent_manager` contribute their respective pieces.
-2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.capabilities.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.capabilities.skill.SkillManager`, `zrb.llm.capabilities.hook.HookManager`, and `zrb.llm.orchestration.subagent.sub_agent_manager` contribute their respective pieces.
+2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/presentation/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
 The chat task then calls into the inner `LLMTask` execution path.
@@ -77,8 +77,8 @@ The chat task then calls into the inner `LLMTask` execution path.
 
 ```mermaid
 flowchart TD
-    Inner["src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/agent/common.py :: create_agent()"]
-    Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/agent/run/runner.py :: run_agent()"]
+    Inner["src/zrb/llm/orchestration/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/engine/agent/common.py :: create_agent()"]
+    Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/engine/agent/run/runner.py :: run_agent()"]
 ```
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
@@ -91,7 +91,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Loop["src/zrb/llm/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
+    Loop["src/zrb/llm/engine/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
     Sanitize --> Stream["agent.run(event_stream_handler=...) — pydantic_ai"]
     Stream --> Collect["collect events and tool calls"]
     Collect -->|exception| Retry["retry_loop.py — retry, strip thinking, or give up"]
@@ -107,7 +107,7 @@ This is the heart. Every round of the loop:
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 
-Compression happens *before* the loop starts, in one processor pass: `run_agent()` calls `_prepare_history()`, which fires `PreCompact`, runs the agent's history processors, then fires `PostCompact`. The summarizer is one of those processors (`create_summarizer_history_processor()` in `src/zrb/llm/summarizer/history_summarizer.py`), and one pass covers both tiers — an oversized tool result is replaced by its own summary in place, then the older turns are condensed if the conversation is still over its budget. It compresses when the conversation crosses 75% of `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`, or when the message count exceeds `LLM_HISTORY_SUMMARIZATION_WINDOW` (a backstop for many small messages). It keeps the newest turns that fit 40% of that threshold verbatim, archives those it replaces to `<LLM_HISTORY_DIR>/verbatim/<session>.md` word for word, drops any tool return whose call was summarized away, and re-alternates roles. When that archive write succeeds the summary names its path, so the agent can read back what the summary compressed; when it fails, the block goes out without the pointer rather than failing the turn. Any orphaned tool *call* left in the kept slice is scrubbed by step 2 on the next sanitize pass.
+Compression happens *before* the loop starts, in one processor pass: `run_agent()` calls `_prepare_history()`, which fires `PreCompact`, runs the agent's history processors, then fires `PostCompact`. The summarizer is one of those processors (`create_summarizer_history_processor()` in `src/zrb/llm/engine/summarizer/history_summarizer.py`), and one pass covers both tiers — an oversized tool result is replaced by its own summary in place, then the older turns are condensed if the conversation is still over its budget. It compresses when the conversation crosses 75% of `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`, or when the message count exceeds `LLM_HISTORY_SUMMARIZATION_WINDOW` (a backstop for many small messages). It keeps the newest turns that fit 40% of that threshold verbatim, archives those it replaces to `<LLM_HISTORY_DIR>/verbatim/<session>.md` word for word, drops any tool return whose call was summarized away, and re-alternates roles. When that archive write succeeds the summary names its path, so the agent can read back what the summary compressed; when it fails, the block goes out without the pointer rather than failing the turn. Any orphaned tool *call* left in the kept slice is scrubbed by step 2 on the next sanitize pass.
 
 ---
 
@@ -135,13 +135,13 @@ Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approv
 - When the approval channel or the terminal prompt produces an answer, the observe-only `PermissionResolved` hook fires.
 - Otherwise the call goes to `current_approval_channel` if one is set, else to `current_tool_confirmation` (the terminal prompt). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
-UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
+UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/presentation/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 
 Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, PERMISSION_REQUEST, PERMISSION_RESOLVED, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 
 ### Tracing an AGENT-type hook (the memory reviewer)
 
-The built-in memory reviewer (`llm/hook/builtin/memory_reviewer.py`, see [hooks.md](./hooks.md#the-memory-reviewer)) is the one hook type whose builder can't live in `hook/execution/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
+The built-in memory reviewer (`llm/capabilities/hook/builtin/memory_reviewer.py`, see [hooks.md](./hooks.md#the-memory-reviewer)) is the one hook type whose builder can't live in `hook/execution/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
 
 1. `memory_reviewer.py::register_memory_reviewer_hook` — a hook factory, seeded into every fresh `HookManager`'s `_hook_factories` (`hook/manager/manager.py.__init__`). It registers three hooks: `memory-event-log` and `memory-interrupt-log` whenever `LLM_MEMORY_ENABLED` is on, each through `register_hook_config` and then swapped by `_register_log_hook` for a callable that writes the line and builds no agent (the registry does not refuse a duplicate, so `_register_log_hook` checks the name itself — a re-scan of a live manager would otherwise add a second copy); and `memory-reviewer` itself, on the `memory_reviewer` system prompt with `SearchMemory`/`Remember`/`Forget`, when `LLM_MEMORY_REVIEWER_ENABLED` is on as well.
 2. `agent/run/runner.py` fires `HookEvent.STOP`, computing `wrote_files`, `changed_paths` (via `hook/turn_evidence.py`) and `memory_due` — true on every completed turn while `LLM_MEMORY_ENABLED` is on, whether or not the reviewer is, because the log hooks match it and the reviewer's own switch decides whether it joins them.
@@ -150,7 +150,7 @@ The built-in memory reviewer (`llm/hook/builtin/memory_reviewer.py`, see [hooks.
 5. `agent/hook_agent.py::create_agent_hook` resolves `tools` through `resolve_agent_hook_tools` — the memory tools live behind factories rather than the static registry — and calls `run_llm_hook` (`hook/execution/creator.py`), the actual LLM round-trip.
 6. Back in `hook/manager/manager.py`: matcher evaluation (`matcher.py`), priority sort, and — since the reviewer is `async: true` — fire-and-forget dispatch and drain/timeout handling on shutdown.
 
-A hook-only test that never imports `zrb.llm.agent` sees `get_agent_hook_builder()` return `None` at step 3 and gets a logged "agent hooks unavailable" placeholder instead — expected, not a bug.
+A hook-only test that never imports `zrb.llm.engine.agent` sees `get_agent_hook_builder()` return `None` at step 3 and gets a logged "agent hooks unavailable" placeholder instead — expected, not a bug.
 
 ---
 
@@ -158,7 +158,7 @@ A hook-only test that never imports `zrb.llm.agent` sees `get_agent_hook_builder
 
 ```mermaid
 flowchart LR
-    Save["src/zrb/llm/history_manager/file_history_manager.py :: save()"]
+    Save["src/zrb/llm/capabilities/history_manager/file_history_manager.py :: save()"]
     Save -->|default path| File["~/.zrb/llm-history/&lt;session_name&gt;.json"]
 ```
 
@@ -182,21 +182,21 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/group/{any_group,group}.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
-| Chat task + parts | `src/zrb/llm/task/chat/{task,running,execution}.py` |
-| Inner LLM task | `src/zrb/llm/task/llm_task.py` |
-| Agent factory | `src/zrb/llm/agent/common.py` |
-| Run loop | `src/zrb/llm/agent/run/runner.py` |
-| History sanitization | `src/zrb/llm/agent/run/history_utils.py`, `src/zrb/llm/shared/message.py` |
-| OpenAI serializer patch | `src/zrb/llm/agent/run/openai_patch.py` |
-| Retry / error classification | `src/zrb/llm/agent/run/{retry_loop,error_classifier}.py` |
-| Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
-| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
+| Chat task + parts | `src/zrb/llm/orchestration/task/chat/{task,running,execution}.py` |
+| Inner LLM task | `src/zrb/llm/orchestration/task/llm_task.py` |
+| Agent factory | `src/zrb/llm/engine/agent/common.py` |
+| Run loop | `src/zrb/llm/engine/agent/run/runner.py` |
+| History sanitization | `src/zrb/llm/engine/agent/run/history_utils.py`, `src/zrb/llm/contracts/shared/message.py` |
+| OpenAI serializer patch | `src/zrb/llm/engine/agent/run/openai_patch.py` |
+| Retry / error classification | `src/zrb/llm/engine/agent/run/{retry_loop,error_classifier}.py` |
+| Compression / summarisation | `src/zrb/llm/engine/summarizer/history_summarizer.py` |
+| Default TUI | `src/zrb/llm/presentation/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
-| Hooks | `src/zrb/llm/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
-| Sub-agents | `src/zrb/llm/subagent/` |
-| Permission policy | `src/zrb/llm/permission/` |
-| Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
-| Snapshots | `src/zrb/llm/snapshot/manager.py` |
+| Hooks | `src/zrb/llm/capabilities/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
+| Sub-agents | `src/zrb/llm/orchestration/subagent/` |
+| Permission policy | `src/zrb/llm/capabilities/permission/` |
+| Persistence | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` |
+| Snapshots | `src/zrb/llm/capabilities/snapshot/manager.py` |
 | ContextVars index | `src/zrb/contextvars.py` |
 
 ---

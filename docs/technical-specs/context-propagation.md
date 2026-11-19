@@ -31,7 +31,7 @@ current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=N
 
 The active `Context` for the executing task. Set at the start of `execute_task_action()`, reset in its `finally` block.
 
-**Layer 2 — LLM agent execution** (`src/zrb/llm/shared/agent_state.py`, `src/zrb/llm/approval/approval_channel.py`). All ten are set at the start of `run_agent()` and reset in its `finally` block:
+**Layer 2 — LLM agent execution** (`src/zrb/llm/contracts/shared/agent_state.py`, `src/zrb/llm/capabilities/approval/approval_channel.py`). All ten are set at the start of `run_agent()` and reset in its `finally` block:
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -46,20 +46,20 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and the multimodal dictation backend, per-session for the same reason |
 | `current_model` | `str \| Model \| None` | The run's main model, so a helper needing its own model (the summarizer, the memory reviewer) falls back to it rather than to `CFG.LLM_MODEL` |
 
-**Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
+**Layer 3 — Permission state** (`src/zrb/llm/capabilities/permission/state.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
 | `current_permission_policy` | `PermissionPolicy \| None` | In-force tool ruleset (`None` = legacy yolo behavior). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. |
 | `current_agent_mode` | `AgentModeState` | Mutable holder whose `.mode` is `AgentMode.BUILD` or `AgentMode.PLAN`. `run_agent()` binds a fresh run-local holder (`enter_agent_mode_scope`) and writes the final mode back to the caller's on exit; the mode itself is switched by the `EnterPlanMode` / `ExitPlanMode` tools and by the UI's `/plan` and Shift+Tab; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
 
-**Layer 4 — Sandbox state** (`src/zrb/llm/sandbox/state.py`):
+**Layer 4 — Sandbox state** (`src/zrb/llm/capabilities/sandbox/state.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
 | `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `sandbox_gate` in `agent/gates.py` (which reads the policy `run_agent()` passes as `deps`, falling back to this var) and the shell tools' OS-sandbox wrapper. |
 
-**Layer 5 — Tool ambient state** (`src/zrb/llm/shared/ambient_state.py`). Set at several points rather than a single entry point — the worktree tools (`src/zrb/llm/tool/delegate/worktree.py`), the per-turn live-context wiring (`src/zrb/llm/prompt/live_context/context.py`, which sets the session name and interactive mode), and the chat session runner:
+**Layer 5 — Tool ambient state** (`src/zrb/llm/contracts/shared/ambient_state.py`). Set at several points rather than a single entry point — the worktree tools (`src/zrb/llm/capabilities/tool/delegate/worktree.py`), the per-turn live-context wiring (`src/zrb/llm/capabilities/prompt/live_context/context.py`, which sets the session name and interactive mode), and the chat session runner:
 
 | Variable | Type | Purpose |
 |---|---|---|

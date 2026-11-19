@@ -71,7 +71,7 @@ async def test_generate_changelog_writes_files(session, mock_print, tmp_path):
             new=_run_command_factory("v1.0.0\nv1.1.0\n"),
         ),
         mock.patch(
-            "zrb.llm.agent.create_agent",
+            "zrb.llm.engine.agent.create_agent",
             new=_agent_factory(captured, output="# Notes\n"),
         ),
     ):
@@ -123,7 +123,7 @@ async def test_generate_changelog_skips_existing(session, mock_print, tmp_path):
             new=_run_command_factory("v1.0.0\n"),
         ),
         mock.patch(
-            "zrb.llm.agent.create_agent",
+            "zrb.llm.engine.agent.create_agent",
             new=_agent_factory(captured),
         ),
     ):
@@ -167,7 +167,7 @@ async def test_git_tool_allows_and_refuses(session, tmp_path):
             new=_run_command_factory("v1.0.0\n", log_output="- x"),
         ),
         mock.patch(
-            "zrb.llm.agent.create_agent",
+            "zrb.llm.engine.agent.create_agent",
             new=_agent_factory(captured),
         ),
     ):

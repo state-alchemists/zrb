@@ -6,9 +6,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from zrb.llm.approval.any_approval_channel import ApprovalContext
-from zrb.llm.shared.input_source import InputProvenance
-from zrb.llm.ui import EventDrivenUI, UIConfig
+from zrb.llm.capabilities.approval.any_approval_channel import ApprovalContext
+from zrb.llm.contracts.shared.input_source import InputProvenance
+from zrb.llm.presentation.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolDenied
     from pydantic_ai.messages import ToolCallPart
 
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 # mccabe sums the nested `HTTPUI` methods and the `http_ui_factory` closure into

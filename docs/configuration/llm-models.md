@@ -126,10 +126,10 @@ task = LLMChatTask(
 
 #### Global fallback: `model_resolver.model_getter` / `model_renderer`
 
-Sub-agent delegation (`DelegateToAgent`), the summarizer, and other internal agents have no task to hook — they resolve `CFG.LLM_*` via `zrb.llm.config.model_resolver.resolve_configured_model()` (and its `_small`/`_multimodal` siblings). To reach them too, set the pair once on the `model_resolver` singleton:
+Sub-agent delegation (`DelegateToAgent`), the summarizer, and other internal agents have no task to hook — they resolve `CFG.LLM_*` via `zrb.llm.contracts.config.model_resolver.resolve_configured_model()` (and its `_small`/`_multimodal` siblings). To reach them too, set the pair once on the `model_resolver` singleton:
 
 ```python
-from zrb.llm.config.model_resolver import model_resolver
+from zrb.llm.contracts.config.model_resolver import model_resolver
 
 model_resolver.model_getter = my_model_getter
 model_resolver.model_renderer = my_renderer
@@ -165,7 +165,7 @@ Which sources feed `/model` autocomplete in LLM chat:
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.config.ui_config import UIConfig
+from zrb.llm.contracts.config.ui_config import UIConfig
 
 task = LLMChatTask(
     name="chat",

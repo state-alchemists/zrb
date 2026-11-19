@@ -119,18 +119,18 @@ def test_the_guard_reads_python_fences_and_judges_only_zrb():
     reader's own dependency; treating either as ours would report a false
     positive, and a guard that cries wolf gets deleted."""
     text = (
-        "```python\nfrom zrb.llm.ui import AnyUI\n```\n"
-        "```python\nfrom zrb.llm.ui import NotAThing\n```\n"
+        "```python\nfrom zrb.llm.presentation.ui import AnyUI\n```\n"
+        "```python\nfrom zrb.llm.presentation.ui import NotAThing\n```\n"
         "```bash\nfrom zrb.nope import nothing\n```\n"
         "```python\nimport discord\n```\n"
-        "```\nfrom zrb.llm.ui import BaseUI\n```\n"
+        "```\nfrom zrb.llm.presentation.ui import BaseUI\n```\n"
     )
     fences = _python_fences(text)
     assert [_zrb_imports(fence) for fence in fences] == [
-        [("zrb.llm.ui", ["AnyUI"])],
-        [("zrb.llm.ui", ["NotAThing"])],
+        [("zrb.llm.presentation.ui", ["AnyUI"])],
+        [("zrb.llm.presentation.ui", ["NotAThing"])],
         # `import discord` is a Python fence with no zrb import in it; the shell
         # fence above never became one, which is why there are four and not five.
         [],
-        [("zrb.llm.ui", ["BaseUI"])],
+        [("zrb.llm.presentation.ui", ["BaseUI"])],
     ]

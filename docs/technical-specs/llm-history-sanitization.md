@@ -180,14 +180,14 @@ Two upstream changes were adopted: `ModelHTTPError` now carries `headers` and a 
 
 | File | Responsibility |
 |------|---------------|
-| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `_SANITIZE_STEPS`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()`, `is_empty_completion()`, `history_without_trailing_response()`, `TurnPruneFloor` |
-| `src/zrb/llm/agent/run/turn_cursor.py` | `TurnCursor` — the loop state `_execution_loop` threads across rounds; `carry_forward()` and `commit_round()` are the two invariants ADR-0040 depends on |
-| `src/zrb/llm/shared/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
-| `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
-| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |
-| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts`, the opaque-400 fallback, and the deferred-mismatch recovery (`deferred_mismatch_retry_done` / `clear_results`) |
-| `src/zrb/llm/agent/run/runner.py` | `_execution_loop`: never reapplies history processors mid-deferral |
-| `src/zrb/llm/summarizer/history_summarizer.py` | Drops orphaned tool returns from the kept slice and re-alternates roles after compression |
+| `src/zrb/llm/engine/agent/run/history_utils.py` | `sanitize_history()`, `_SANITIZE_STEPS`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()`, `is_empty_completion()`, `history_without_trailing_response()`, `TurnPruneFloor` |
+| `src/zrb/llm/engine/agent/run/turn_cursor.py` | `TurnCursor` — the loop state `_execution_loop` threads across rounds; `carry_forward()` and `commit_round()` are the two invariants ADR-0040 depends on |
+| `src/zrb/llm/contracts/shared/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
+| `src/zrb/llm/engine/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
+| `src/zrb/llm/engine/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |
+| `src/zrb/llm/engine/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts`, the opaque-400 fallback, and the deferred-mismatch recovery (`deferred_mismatch_retry_done` / `clear_results`) |
+| `src/zrb/llm/engine/agent/run/runner.py` | `_execution_loop`: never reapplies history processors mid-deferral |
+| `src/zrb/llm/engine/summarizer/history_summarizer.py` | Drops orphaned tool returns from the kept slice and re-alternates roles after compression |
 
 ---
 

@@ -1,0 +1,66 @@
+"""Shared utility for editing content via text editor."""
+
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
+from zrb.util.yaml import yaml_dump
+
+if TYPE_CHECKING:
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+
+
+async def edit_content_via_editor(
+    ui: "AnyAgentOutput",
+    content: dict,
+    text_editor: str | None = None,
+) -> dict | None:
+    """Edit *content* as YAML (JSON fallback) in an editor; `None` if the result is not a dict."""
+    editor = text_editor or CFG.EDITOR
+
+    is_yaml_edit = True
+    try:
+        content_str = yaml_dump(content)
+        extension = ".yaml"
+    except Exception:
+        content_str = json.dumps(content, indent=2)
+        extension = ".json"
+        is_yaml_edit = False
+
+    with tempfile.NamedTemporaryFile(suffix=extension, mode="w+", delete=False) as tf:
+        tf.write(content_str)
+        tf_path = tf.name
+
+    try:
+        await ui.input.run_interactive_command([editor, tf_path], shell=False)
+
+        with open(tf_path, "r", encoding="utf-8") as tf:
+            new_content_str = tf.read()
+    finally:
+        # A crashed/missing editor must not leak the temp file.
+        try:
+            os.remove(tf_path)
+        except OSError:
+            pass
+
+    if new_content_str == content_str:
+        return content
+
+    try:
+        if is_yaml_edit:
+            # lazy: heavy third-party
+            import yaml
+
+            new_content = yaml.safe_load(new_content_str)
+        else:
+            new_content = json.loads(new_content_str)
+
+        if isinstance(new_content, dict):
+            return new_content
+        return None
+    except Exception:
+        return None

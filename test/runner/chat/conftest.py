@@ -25,7 +25,7 @@ def mock_heavy_runners():
         patch(
             "zrb.runner.chat.chat_api_route.run_chat_session", new_callable=AsyncMock
         ),
-        patch("zrb.llm.agent.common.create_agent"),
+        patch("zrb.llm.engine.agent.common.create_agent"),
     ):
         yield
 

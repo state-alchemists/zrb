@@ -35,7 +35,7 @@ Ollama, OpenRouter, vLLM and LiteLLM all work this way. Provider-prefixed names 
 <!-- recipe: add-tool -->
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.permission import Capability, tag
+from zrb.llm.capabilities.permission import Capability, tag
 
 
 def lookup_ticket(ticket_id: str) -> str:
@@ -46,7 +46,7 @@ def lookup_ticket(ticket_id: str) -> str:
 llm_chat.append_tool(tag(lookup_ticket, Capability.READ))
 ```
 
-The type hints and docstring are the schema the model sees. Do not add a `ctx` parameter: the model would be asked to supply it. `tag` declares what the tool does, so permission rules and [Plan Mode](plan-mode.md) can treat it correctly; an untagged tool is `UNKNOWN`, which Plan Mode denies. To give the tool to sub-agents too, register it on `tool_registry` (from `zrb.llm.shared.tool_registry`) instead, and not on both.
+The type hints and docstring are the schema the model sees. Do not add a `ctx` parameter: the model would be asked to supply it. `tag` declares what the tool does, so permission rules and [Plan Mode](plan-mode.md) can treat it correctly; an untagged tool is `UNKNOWN`, which Plan Mode denies. To give the tool to sub-agents too, register it on `tool_registry` (from `zrb.llm.contracts.shared.tool_registry`) instead, and not on both.
 
 ## Replace the persona
 
@@ -63,7 +63,7 @@ zrb uses that file instead of the built-in persona; the other sections stay. The
 
 <!-- recipe: append-prompt -->
 ```python
-from zrb.llm.prompt.registry import prompt_registry
+from zrb.llm.capabilities.prompt.registry import prompt_registry
 
 prompt_registry.append_prompt(
     "Our services run on Kubernetes, so prefer kubectl over ssh, and never restart prod."
@@ -111,7 +111,7 @@ The main agent delegates to it through `DelegateToAgent`.
 <!-- recipe: own-chat -->
 ```python
 from zrb import LLMChatTask, StrInput, cli
-from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.orchestration.common_tools import apply_common_tools
 
 ops_chat = LLMChatTask(
     name="ops-chat",

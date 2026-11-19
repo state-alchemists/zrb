@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.shared.ambient_state import get_active_worktree
+from zrb.llm.contracts.shared.ambient_state import get_active_worktree
 
 
 def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
@@ -102,7 +102,7 @@ def approve_if_path_inside_skill_or_plugin_dir(args: dict[str, Any]) -> bool:
         return True
     # lazy: skill_manager transitively pulls CFG and other modules; not needed
     # at module load time.
-    from zrb.llm.skill.manager import skill_manager
+    from zrb.llm.capabilities.skill.manager import skill_manager
 
     abs_path = os.path.abspath(os.path.expanduser(str(path)))
     # Resolved skill search directories (builtin + home + project + extras)

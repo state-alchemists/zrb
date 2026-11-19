@@ -1,7 +1,8 @@
 """Ratchet the import direction inside ``zrb.llm`` downward.
 
-Every ``llm/`` unit (a subpackage, or a loose top-level module) sits in one
-layer, and a layer imports only from itself and the layers below:
+Every ``llm/`` unit — a package inside one of the five directories, or the
+directory itself — sits in one layer, and a layer imports only from itself and
+the layers below:
 
     L0 contracts      protocols, shared types, ambient state, leaf helpers
     L1 capabilities   tools, hooks, permissions, prompt, skills, LSP, snapshots
@@ -9,55 +10,29 @@ layer, and a layer imports only from itself and the layers below:
     L3 orchestration  tasks, sub-agents, custom commands
     L4 presentation   UIs and the optional voice/camera/screenshot features
 
-A module whose job is to be depended on counts as L0 wherever it lives: the
-``any_*.py`` protocols and ``agent/types.py`` (the pydantic-ai type facade).
-A package may also hold a floor beneath its own layer — see
-``_FLOOR_PREFIXES``.
+A module's layer comes from where it sits. `agent/types.py` is the one
+exemption: it re-exports the pydantic-ai types the run loop hands around by the
+names the framework gave them. A contract a lower layer must name is *placed*
+where that layer can reach it — under `contracts/` — rather than scored L0 by
+its filename, because a rank granted by a name is invisible in the path. A
+package may also hold a floor beneath its own layer — see `_FLOOR_PREFIXES`.
 
-The two allowlists below are today's debt. They may only shrink: remove a
-line when you fix it, and never add one to admit new code. To fix an upward
-edge, move the shared piece down to L0, or put a Protocol in L0 and let the
-upper layer register the implementation (``agent_state.get_current_ui`` is the
-pattern). Only runtime imports count; ``if TYPE_CHECKING`` blocks do not.
+A unit's layer comes from the directory it sits in (``_LAYERS``): the five
+directories are the five layers, and `llm/` holds nothing else. The table that
+scored a unit which had not moved yet is gone with the move that emptied it, so
+there is one place a layer can come from and a path says which.
+
+The two allowlists below are today's debt — and both are empty. They may only
+shrink: remove a line when you fix it, and never add one to admit new code. To
+fix an upward edge, move the shared piece down to L0, or put a Protocol in L0
+and let the upper layer register the implementation (``agent_state.get_current_ui``
+is the pattern). Only runtime imports count; ``if TYPE_CHECKING`` blocks do not.
 """
 
 import ast
-import fnmatch
 import importlib.util
-import pathlib
 
-REPO_ROOT = pathlib.Path(__file__).parents[2]
-SRC = REPO_ROOT / "src"
-LLM = SRC / "zrb" / "llm"
-
-_UNITS_BY_LAYER = {
-    0: "config memory shared util",
-    1: (
-        "approval history_manager hook lsp permission prompt sandbox skill "
-        "snapshot tool tool_call"
-    ),
-    2: "agent summarizer",
-    3: "common_tools custom_command resumed_session subagent task",
-    4: "camera dictation emotion screenshot speech ui voice",
-}
-LAYER_OF_UNIT = {
-    unit: layer for layer, units in _UNITS_BY_LAYER.items() for unit in units.split()
-}
-
-# Files that exist to be depended on, wherever they live.
-_CONTRACT_NAME = "any_*.py"
-_CONTRACT_PATHS = {"agent/types.py"}
-
-# Path prefixes that sit below the layer of the package holding them. A floor is
-# a part of a package that the layers beneath it must be able to build with:
-# `ui/fallback/` is the plain terminal UI that a headless run needs, and it
-# cannot drag `ui/` with it, so it scores L0 while its neighbours score L4.
-# `ui/buffered/` is the same shape for delegation — `tool/delegate/runner.py`
-# builds one buffer per sub-agent and hands it to `subagent/live_session.py` —
-# and its own runtime imports, `output_chunk` and `tracked_spans` included, now
-# sit at L0 beside it. The unit still ends up in the allowlists above if it
-# reaches back up.
-_FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
+from llm_layers import LLM, _is_upward, _layer, _unit
 
 # Upward runtime imports that exist today, as "importer -> imported" paths
 # under src/zrb/llm. Fix one, delete its line. Empty is where this ends: a new
@@ -70,23 +45,6 @@ KNOWN_UPWARD_EDGES: set[str] = set()
 # task a resumed session runs as, and the chat task reaches the manager for its
 # roster, so each asked the other to build what it needed.
 KNOWN_SAME_LAYER_CYCLES: set[str] = set()
-
-
-def _is_contract(path: str) -> bool:
-    return path in _CONTRACT_PATHS or fnmatch.fnmatch(
-        path.rsplit("/", 1)[-1], _CONTRACT_NAME
-    )
-
-
-def _unit(path: str) -> str:
-    return path.split("/")[0].removesuffix(".py")
-
-
-def _layer(path: str) -> int | None:
-    for prefix, layer in _FLOOR_PREFIXES.items():
-        if path.startswith(prefix):
-            return layer
-    return 0 if _is_contract(path) else LAYER_OF_UNIT.get(_unit(path))
 
 
 def _resolve(module: str) -> str | None:
@@ -115,8 +73,8 @@ _IMPORT_CALLS = {"import_module", "__import__"}
 def _absolute_name(name: str, package: list[str] | None) -> str | None:
     """Resolve a dotted name that may start with dots against *package*.
 
-    `from ..shared import x` in `zrb/llm/task/chat/` is `zrb.llm.task.shared`,
-    and so is `import_module("..shared", package="zrb.llm.task.chat")`: the two
+    `from ..shared import x` in `zrb/llm/orchestration/task/chat/` is `zrb.llm.orchestration.task.shared`,
+    and so is `import_module("..shared", package="zrb.llm.orchestration.task.chat")`: the two
     spellings follow the same level rule. Without a package an absolute name
     still reads; a relative one cannot.
     """
@@ -218,8 +176,8 @@ def _package_of(rel: str) -> list[str]:
     """The package a file under `llm/` is imported as, read from its path.
 
     The file's own name is dropped: a module's package is the directory it sits
-    in, and an `__init__.py` *is* that directory — `llm/tool/__init__.py`
-    anchors a relative name at `zrb.llm.tool`, exactly as Python does.
+    in, and an `__init__.py` *is* that directory — `llm/capabilities/tool/__init__.py`
+    anchors a relative name at `zrb.llm.capabilities.tool`, exactly as Python does.
     """
     return ["zrb", "llm"] + rel.removesuffix(".py").split("/")[:-1]
 
@@ -231,41 +189,42 @@ def test_an_import_spelled_as_a_call_is_an_edge():
     an upward import the ratchet cannot see — and a deferred import upward is
     an import upward however it is spelled.
     """
-    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.ui.session")'))
-    assert "zrb.llm.ui.session" in names
+    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.presentation.ui.session")'))
+    assert "zrb.llm.presentation.ui.session" in names
 
 
 def test_a_relative_import_resolves_against_the_importing_package():
-    """`from ..shared import x` is an edge to `zrb.llm.task.shared`."""
+    """`from ..shared import x` is an edge to `zrb.llm.orchestration.task.shared`."""
     names = _runtime_imports(
-        ast.parse("from ..shared import prompt_text"), ["zrb", "llm", "task", "chat"]
+        ast.parse("from ..shared import prompt_text"),
+        ["zrb", "llm", "orchestration", "task", "chat"],
     )
-    assert "zrb.llm.task.shared" in names
+    assert "zrb.llm.orchestration.task.shared" in names
 
 
 def test_a_relative_import_module_resolves_its_own_package():
-    """`import_module("..ui", package=__package__)` is an edge to `zrb.llm.ui`."""
+    """`import_module(".ui", package=__package__)` is an edge to the UI package."""
     names = _runtime_imports(
-        ast.parse('importlib.import_module("..ui", package=__package__)'),
-        ["zrb", "llm", "agent"],
+        ast.parse('importlib.import_module(".ui", package=__package__)'),
+        ["zrb", "llm", "presentation"],
     )
-    assert "zrb.llm.ui" in names
+    assert "zrb.llm.presentation.ui" in names
 
 
 def test_a_relative_import_module_resolves_a_literal_package():
     """`package=` anchors a relative name exactly as Python anchors it.
 
-    Not `zrb.llm.ui`: the anchor is the dotted name given, so `..ui` from
-    `zrb.llm.agent.loader` is `zrb.llm.agent.ui`. Asked of `importlib` itself,
+    Not `zrb.llm.presentation.ui`: the anchor is the dotted name given, so `..ui` from
+    `zrb.llm.engine.agent.loader` is `zrb.llm.engine.agent.ui`. Asked of `importlib` itself,
     so this expectation cannot drift from the rule it describes.
     """
-    source = 'importlib.import_module("..ui", package="zrb.llm.agent.loader")'
-    resolved = importlib.util.resolve_name("..ui", "zrb.llm.agent.loader")
+    source = 'importlib.import_module("..ui", package="zrb.llm.engine.agent.loader")'
+    resolved = importlib.util.resolve_name("..ui", "zrb.llm.engine.agent.loader")
     assert resolved in _runtime_imports(ast.parse(source))
 
 
 def test_a_package_init_file_is_its_own_package():
-    """A relative name in `llm/tool/__init__.py` anchors at `zrb.llm.tool`."""
+    """A relative name in `llm/capabilities/tool/__init__.py` anchors at `zrb.llm.capabilities.tool`."""
     assert _package_of("tool/__init__.py") == ["zrb", "llm", "tool"]
     assert _package_of("tool/delegate/runner.py") == ["zrb", "llm", "tool", "delegate"]
     assert _package_of("common_tools.py") == ["zrb", "llm"]
@@ -275,9 +234,9 @@ def test_a_type_checking_block_is_not_an_edge():
     source = (
         "from typing import TYPE_CHECKING\n"
         "if TYPE_CHECKING:\n"
-        "    import zrb.llm.ui.session\n"
+        "    import zrb.llm.presentation.ui.session\n"
     )
-    assert "zrb.llm.ui.session" not in _runtime_imports(ast.parse(source))
+    assert "zrb.llm.presentation.ui.session" not in _runtime_imports(ast.parse(source))
 
 
 def _file_edges() -> set[tuple[str, str]]:
@@ -293,63 +252,26 @@ def _file_edges() -> set[tuple[str, str]]:
 
 
 def _upward_edges() -> set[str]:
-    found = set()
-    for source, target in _file_edges():
-        source_layer, target_layer = _layer(source), _layer(target)
-        if source_layer is not None and target_layer is not None:
-            if source_layer < target_layer:
-                found.add(f"{source} -> {target}")
-    return found
+    return {
+        f"{source} -> {target}"
+        for source, target in _file_edges()
+        if _is_upward(source, target)
+    }
 
 
 def _same_layer_cycles() -> set[str]:
     unit_edges = {(_unit(s), _unit(t)) for s, t in _file_edges()}
     found = set()
     for a, b in unit_edges:
-        same = LAYER_OF_UNIT.get(a) is not None and LAYER_OF_UNIT.get(
-            a
-        ) == LAYER_OF_UNIT.get(b)
-        if same and a < b and (b, a) in unit_edges:
+        a_layer = _layer(a)
+        if (
+            a_layer is not None
+            and a_layer == _layer(b)
+            and a < b
+            and (b, a) in unit_edges
+        ):
             found.add(f"{a} <-> {b}")
     return found
-
-
-def _present_units() -> set[str]:
-    """The units `_UNITS_BY_LAYER` must describe: real modules, not artefacts.
-
-    A directory counts only when it holds at least one `.py` file. Without that
-    test, a `__pycache__` left behind by a moved module reads as a unit that
-    exists but has no layer, and sends the reader hunting for code already
-    gone.
-    """
-    units: set[str] = set()
-    for path in LLM.iterdir():
-        name = path.name
-        if name.startswith("_") or name == "__pycache__":
-            continue
-        if path.is_dir():
-            if any(path.rglob("*.py")):
-                units.add(name)
-        elif path.suffix == ".py":
-            units.add(name.removesuffix(".py"))
-    return units
-
-
-def test_every_llm_unit_has_a_layer():
-    missing = sorted(_present_units() - set(LAYER_OF_UNIT))
-    assert not missing, (
-        f"{missing} have no layer. Add each to _UNITS_BY_LAYER in this file; "
-        "a unit you cannot place is usually two units."
-    )
-
-
-def test_no_layer_names_a_unit_that_moved_away():
-    stale = sorted(set(LAYER_OF_UNIT) - _present_units())
-    assert not stale, (
-        f"{stale} are scored but no longer exist under llm/. A name left behind "
-        "by a move scores nothing and hides the unit that replaced it — delete "
-        "the line, and give the package it moved into a layer if it has none."
-    )
 
 
 RUNNER = "zrb.runner"
@@ -408,7 +330,7 @@ def test_the_runner_guard_sees_every_spelling():
     assert _runner_reaches_in("importlib.import_module('zrb.runner.cli')") == [
         "zrb.runner.cli"
     ]
-    assert _runner_reaches_in("from zrb.llm.tool.shell import run_shell_command") == []
+    assert _runner_reaches_in("from zrb.llm.capabilities.tool.shell import run_shell_command") == []
     assert _runner_reaches_in("from typing import TYPE_CHECKING\n") == []
     assert (
         _runner_reaches_in("if TYPE_CHECKING:\n    from zrb.runner.cli import cli\n")
@@ -417,7 +339,7 @@ def test_the_runner_guard_sees_every_spelling():
 
 
 def test_the_runner_guard_resolves_a_relative_import():
-    """`from ...runner import cli`, in `llm/tool/`, reaches `zrb.runner` too.
+    """`from ...runner import cli`, in `llm/capabilities/tool/`, reaches `zrb.runner` too.
 
     The scan reads a file's text and its package from its path; without the
     package, this spelling resolves to nothing and the guard reports a clean
@@ -432,7 +354,7 @@ def test_the_runner_guard_resolves_a_relative_import():
     assert _runner_reaches_in(
         'importlib.import_module("...runner.cli", package=__package__)', tool_package
     ) == ["zrb.runner.cli"]
-    # One level too shallow: `from ..runner import cli` in `llm/tool/` is
+    # One level too shallow: `from ..runner import cli` in `llm/capabilities/tool/` is
     # `zrb.llm.runner`, which does not exist — and is not the CLI.
     assert _runner_reaches_in("from ..runner import cli", tool_package) == []
 

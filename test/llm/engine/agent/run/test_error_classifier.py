@@ -1,0 +1,351 @@
+import pytest
+
+from zrb.llm.engine.agent.run.error_classifier import (
+    classify_error_type,
+    get_retry_wait,
+    is_invalid_tool_call_error,
+    is_missing_reasoning_content_error,
+    is_permanent_error,
+    is_prompt_too_long_error,
+    is_retryable_error,
+)
+
+
+def test_is_prompt_too_long_error():
+    assert is_prompt_too_long_error(Exception("Prompt too long")) is True
+    assert is_prompt_too_long_error(Exception("Context length exceeded")) is True
+    assert is_prompt_too_long_error(Exception("Some other error")) is False
+
+
+def test_is_invalid_tool_call_error():
+    e = Exception("Unknown tool 'foo'")
+    e.status_code = 400
+    assert is_invalid_tool_call_error(e) is True
+
+    e2 = Exception("Bad request")
+    e2.status_code = 400
+    assert is_invalid_tool_call_error(e2) is False
+
+    e3 = Exception("Unknown tool 'foo'")
+    e3.status_code = 500
+    assert is_invalid_tool_call_error(e3) is False
+
+
+def test_is_retryable_error():
+    e = Exception("Rate limit exceeded")
+    e.status_code = 429
+    assert is_retryable_error(e) is True
+
+    e2 = Exception("Server error")
+    e2.status_code = 500
+    assert is_retryable_error(e2) is True
+
+    e3 = Exception("Not found")
+    e3.status_code = 404
+    assert is_retryable_error(e3) is False
+
+    # Test via response object
+    e4 = Exception("Response error")
+    mock_response = type("obj", (object,), {"status_code": 429})
+    e4.response = mock_response
+    assert is_retryable_error(e4) is True
+
+    # Test via message keywords
+    assert is_retryable_error(Exception("overloaded")) is True
+    assert is_retryable_error(Exception("rate_limit")) is True
+
+
+def test_get_retry_wait():
+    # Test with Retry-After header
+    e = Exception("Retry")
+    mock_response = type("obj", (object,), {"headers": {"retry-after": "10"}})
+    e.response = mock_response
+    assert get_retry_wait(e, 1, 60) == 10.0
+
+    # Test with uppercase Retry-After header
+    mock_response.headers = {"Retry-After": "5"}
+    assert get_retry_wait(e, 1, 60) == 5.0
+
+    # Test with invalid Retry-After header
+    mock_response.headers = {"retry-after": "invalid"}
+    assert get_retry_wait(e, 2, 60) == 4.0
+
+    # Test with no header
+    e2 = Exception("Retry")
+    assert get_retry_wait(e2, 3, 60) == 8.0
+
+    # Test max wait
+    assert get_retry_wait(e2, 10, 30) == 30.0
+
+
+def test_get_retry_wait_reads_a_wrapped_model_http_error():
+    """pydantic-ai hands back `ModelHTTPError`, not the provider SDK's exception.
+
+    That wrapper has no `.response`, so its `retry_after` is the only place the
+    provider's requested wait survives.
+    """
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    e = ModelHTTPError(
+        status_code=429, model_name="m", body=None, headers={"retry-after": "12"}
+    )
+    assert get_retry_wait(e, 1, 60) == 12.0
+    # Still capped by max_wait.
+    assert get_retry_wait(e, 1, 5) == 5.0
+
+    # A wrapper carrying no usable header falls back to exponential backoff.
+    bare = ModelHTTPError(status_code=429, model_name="m", body=None)
+    assert get_retry_wait(bare, 3, 60) == 8.0
+
+
+def test_is_missing_reasoning_content_error():
+    e = Exception("Missing reasoning_content in history message")
+    e.status_code = 400
+    assert is_missing_reasoning_content_error(e) is True
+
+    e2 = Exception("The reasoning_content field is required")
+    e2.status_code = 400
+    assert is_missing_reasoning_content_error(e2) is True
+
+    # Bedrock GLM-5 pattern: ValidationException code with an empty Message.
+    e3 = Exception("ValidationException on bedrock")
+    e3.status_code = 400
+    e3.body = {"Error": {"Code": "ValidationException", "Message": ""}}
+    assert is_missing_reasoning_content_error(e3) is True
+
+    # A ValidationException *with* a message is something else entirely.
+    e4 = Exception("ValidationException with detail")
+    e4.status_code = 400
+    e4.body = {"Error": {"Code": "ValidationException", "Message": "bad input"}}
+    assert is_missing_reasoning_content_error(e4) is False
+
+
+def test_is_missing_reasoning_content_requires_status_400():
+    e = Exception("missing reasoning_content")
+    e.status_code = 500
+    assert is_missing_reasoning_content_error(e) is False
+
+
+def test_classify_error_type_by_status_code():
+    def err(status):
+        e = Exception(f"error {status}")
+        e.status_code = status
+        return e
+
+    assert classify_error_type(err(429)) == "rate_limit"
+    assert classify_error_type(err(401)) == "authentication_failed"
+    assert classify_error_type(err(403)) == "authentication_failed"
+    assert classify_error_type(err(404)) == "model_not_found"
+    assert classify_error_type(err(400)) == "invalid_request"
+    assert classify_error_type(err(500)) == "server_error"
+    assert classify_error_type(err(503)) == "server_error"
+
+
+def test_classify_error_type_overloaded():
+    e = Exception("server busy")
+    e.status_code = 529
+    assert classify_error_type(e) == "overloaded"
+
+    # Via message when the status code carries a plain 5xx.
+    e2 = Exception("The model is overloaded right now")
+    e2.status_code = 500
+    assert classify_error_type(e2) == "overloaded"
+
+    # Via message alone when there is no status code at all.
+    assert classify_error_type(Exception("HTTP 529 overloaded")) == "overloaded"
+    assert classify_error_type(Exception("rate limit exceeded")) == "rate_limit"
+
+
+def test_classify_error_type_reads_response_when_no_status_code():
+    e = Exception("gateway error")
+    e.response = type("obj", (object,), {"status_code": 502})
+    assert classify_error_type(e) == "server_error"
+
+
+def test_classify_error_type_context_length_wins():
+    e = Exception("prompt too long: context length exceeded")
+    e.status_code = 400
+    assert classify_error_type(e) == "context_length"
+
+
+def test_classify_error_type_unknown_fallback():
+    assert classify_error_type(Exception("something odd happened")) == "unknown"
+
+
+def test_is_permanent_error_flags_pydantic_user_error():
+    """A missing API key arrives as pydantic-ai's UserError -- never transient."""
+    from pydantic_ai.exceptions import UserError
+
+    assert is_permanent_error(UserError("Set the `OPENAI_API_KEY` env var")) is True
+
+
+def test_is_permanent_error_flags_bad_credentials_and_model():
+    for status_code in (401, 403, 404, 400):
+        e = Exception("nope")
+        e.status_code = status_code
+        assert is_permanent_error(e) is True, status_code
+    assert is_permanent_error(Exception("context length exceeded")) is True
+
+
+def test_is_permanent_error_keeps_unknown_and_transient_retryable():
+    """Not the inverse of is_retryable_error: anything unrecognized stays retryable."""
+    assert is_permanent_error(ConnectionError("connection reset by peer")) is False
+    assert is_permanent_error(Exception("something weird")) is False
+    rate_limited = Exception("slow down")
+    rate_limited.status_code = 429
+    assert is_permanent_error(rate_limited) is False
+    server_error = Exception("boom")
+    server_error.status_code = 503
+    assert is_permanent_error(server_error) is False
+
+
+_OPENAI_MISSING_KEY = (
+    "Set the `OPENAI_API_KEY` environment variable or pass it via "
+    "`OpenAIProvider(api_key=...)` to use the OpenAI provider."
+)
+
+
+def test_add_credential_hint_keeps_the_vendor_message_and_adds_zrb_key_scoping():
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    original = UserError(_OPENAI_MISSING_KEY)
+    hinted = add_credential_hint(original)
+
+    assert isinstance(hinted, UserError)
+    assert hinted.__cause__ is original
+    assert str(hinted).startswith(_OPENAI_MISSING_KEY)
+    assert "ZRB_LLM_API_KEY" in str(hinted)
+    assert "ZRB_LLM_PROVIDER" in str(hinted)
+
+
+def test_add_credential_hint_covers_the_openai_sdks_own_missing_key_error():
+    from openai import OpenAIError
+
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    message = (
+        "Missing credentials. Please pass an `api_key`, or set the "
+        "`OPENAI_API_KEY` environment variable."
+    )
+    original = OpenAIError(message)
+    hinted = add_credential_hint(original)
+
+    assert isinstance(hinted, OpenAIError)
+    assert hinted.__cause__ is original
+    assert str(hinted).startswith(message)
+    assert "ZRB_LLM_API_KEY" in str(hinted)
+
+
+def test_add_credential_hint_spells_the_active_env_prefix(monkeypatch):
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.config.config import CFG
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    monkeypatch.setattr(CFG, "ENV_PREFIX", "ACME")
+    hinted = add_credential_hint(UserError(_OPENAI_MISSING_KEY))
+
+    assert "ACME_LLM_API_KEY" in str(hinted)
+    assert "ZRB_" not in str(hinted)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError(_OPENAI_MISSING_KEY),
+        ValueError("boom"),
+    ],
+    ids=["not-a-user-error", "unrelated"],
+)
+def test_add_credential_hint_leaves_other_errors_alone(error):
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    assert add_credential_hint(error) is error
+
+
+def test_add_credential_hint_leaves_other_user_errors_alone():
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    error = UserError("Unknown model: foo:bar")
+    assert add_credential_hint(error) is error
+
+
+def test_add_credential_hint_returns_the_error_when_openai_cannot_be_imported(
+    monkeypatch,
+):
+    """A stub `openai` is what a shadowed or half-initialised module looks like.
+
+    The hint needs `OpenAIError` to tell a missing key from any other failure. A
+    module that cannot supply it must leave the original error in place: a
+    helper that raises here hides the error it was called to decorate, and the
+    traceback then names the helper instead of the cause.
+    """
+    import sys
+    import types
+
+    from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
+
+    monkeypatch.setitem(sys.modules, "openai", types.ModuleType("openai"))
+    original = RuntimeError("the actual failure")
+
+    assert add_credential_hint(original) is original
+
+
+def _typed(category, status_code: int):
+    """A pydantic-ai error that is both an HTTP error and its own category."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    return ModelHTTPError.for_category(
+        category, status_code=status_code, model_name="m"
+    )
+
+
+def test_a_typed_context_window_error_is_not_read_as_a_bare_400():
+    """OpenRouter and vLLM report an overflow as a 400 with no distinguishing
+    code, so the message is all there is — pydantic-ai reads it, and its type is
+    the answer where the status alone says "invalid request"."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelContextWindowExceededError
+
+    e = _typed(ModelContextWindowExceededError, 400)
+
+    assert is_prompt_too_long_error(e) is True
+    assert classify_error_type(e) == "context_length"
+
+
+def test_a_typed_overloaded_error_is_not_read_as_a_generic_5xx():
+    """A 503 and an overloaded model share a status; only the type separates them."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelOverloadedError
+
+    e = _typed(ModelOverloadedError, 503)
+
+    assert classify_error_type(e) == "overloaded"
+
+
+def test_an_exhausted_quota_is_not_retried_although_it_arrives_as_a_429():
+    """The 429 is exactly why the status branch gets this wrong: a rate limit
+    clears on its own, an exhausted quota or spend limit does not, and retrying
+    it burns the turn against a wall."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelQuotaExceededError
+
+    e = _typed(ModelQuotaExceededError, 429)
+
+    assert is_retryable_error(e) is False
+    assert is_permanent_error(e) is True
+    assert classify_error_type(e) == "rate_limit"
+
+
+def test_an_untyped_429_is_still_retried():
+    """The fallback is unchanged for an error pydantic-ai did not classify."""
+    e = Exception("Rate limit exceeded")
+    e.status_code = 429
+
+    assert is_retryable_error(e) is True
+    assert is_permanent_error(e) is False

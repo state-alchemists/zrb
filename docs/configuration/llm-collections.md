@@ -79,10 +79,10 @@ Anything an env var can't express — a callable tool, a discovered-skill collis
 ```python
 # zrb_init.py — ran once at CLI startup, before any task runs.
 from zrb import hook_registry, prompt_registry, skill_registry, sub_agent_registry
-from zrb.llm.subagent.definition import SubAgentDefinition
-from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.skill.manager import Skill
+from zrb.llm.orchestration.subagent.definition import SubAgentDefinition
+from zrb.llm.capabilities.hook.contracts.interface import HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.skill.manager import Skill
 
 # Skills and sub-agents — add to what discovery found.
 skill_registry.add_skill(
@@ -114,7 +114,7 @@ prompt_registry.set_prompts(["Only these extra prompts run."])
 Layer onto the shipped surface:
 
 ```python
-from zrb.llm.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_registry import tool_registry
 
 def my_special_tool(ticket_id: str) -> dict:
     """...: the parameters are what the model fills in, so no `ctx`."""
@@ -131,7 +131,7 @@ A manager or host constructor argument overrides the registry for that instance 
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 
 task = LLMChatTask(
     name="chat",
@@ -148,7 +148,7 @@ Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`)
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.capabilities.prompt.manager import PromptManager
 
 llm_chat.prompt_manager = PromptManager(
     prompts=["Just this one bot."], include_sections=[]
@@ -240,13 +240,13 @@ Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` 
 `ToolRegistry` has two methods beyond its verbs:
 
 - `apply_to(host)` appends every tool, tool factory and toolset factory to a host (`LLMChatTask`, `LLMTask`, `SubAgentManager`).
-- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is refused once a seed is in use: a registry that was only read, or only changed, still takes one. A seed that arrives late is folded in behind whatever was registered first — an append still runs last, a prepend still runs first, a `remove_tool` stays removed, and a list replaced by `set_tools` stays replaced. zrb sets it in `llm/agent/tool_seed.py`.
+- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is refused once a seed is in use: a registry that was only read, or only changed, still takes one. A seed that arrives late is folded in behind whatever was registered first — an append still runs last, a prepend still runs first, a `remove_tool` stays removed, and a list replaced by `set_tools` stays replaced. zrb sets it in `llm/engine/agent/tool_seed.py`.
 
 ## `get_prompt(name)` vs `get_prompts()`
 
 Two lookalikes with one letter of difference, resolved differently:
 
-- `zrb.llm.shared.prompt_text.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed.
+- `zrb.llm.contracts.shared.prompt_text.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed.
 - `.get_prompts()` (plural) on `PromptRegistry` — the **registry accessor**: returns the ordered *extra middleware list* configured via `set_prompts`/`append_prompt`.
 
 `get_prompt` answers "what does the *persona* *section* read?"; `get_prompts` answers "what *extra* content is appended after the sections?". Plural spells the registry question.

@@ -25,8 +25,8 @@ from a per-event block); on UserPromptSubmit/Stop it ends the turn.
 """
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
 # =============================================================================
 # Example 1: Simple Logging Hook
@@ -626,9 +626,9 @@ llm_chat.append_hook_factory(register_hooks)
 # Alternatively: Direct Registration
 # =============================================================================
 
-# `zrb.llm.hook.manager.hook_manager` is the process-wide singleton:
+# `zrb.llm.capabilities.hook.manager.hook_manager` is the process-wide singleton:
 #
-# from zrb.llm.hook.manager import hook_manager
+# from zrb.llm.capabilities.hook.manager import hook_manager
 #
 # hook_manager.add_hook(logging_hook, events=None)  # Global hook (all events)
 #

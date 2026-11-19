@@ -115,8 +115,8 @@ With `ZRB_LLM_EMOTION_ENABLED` on, the model opens each reply with an emoji for 
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
 
 def show_emotion(hooks):
@@ -320,7 +320,7 @@ After every completed turn, a small sub-agent reads that turn and writes what is
 - **Claim shape:** one sentence, at most 160 characters, carrying what is true or what was decided, and the reason the turn gave. The pronoun follows the subject: `I keep the log hook outside the reviewer — a switch that stops the reviewer must not stop the record.` for a decision of the assistant's, and `The event log runs outside the reviewer, so stopping the reviewer does not stop the record.` for a fact. A fact narrated as `I` is a lie in the assistant's voice, so the pronoun bends and the reason does not. The block has no room for evidence, so the sentence carries the reason; the quote or the command's output goes in `body`, which is never injected.
 - **One pen.** A turn that called `Remember` or `Forget` leaves that call in the transcript, and the reviewer treats it as the priority item rather than a second claim to file beside it: it searches the subject and revises **that id**. Filing beside it is how one subject came to hold two files, which a later search cannot repair. The flagged turn may still show nothing durable — the reviewer answers `skip`, and that is the outside check the flag cannot buy.
 - **The log line is not the reviewer's.** It is written by `memory-event-log`, a separate hook with no model behind it — see below. The diary stays the reviewer's to author.
-- **A full day is handed over, not refused in silence.** Every turn opens with today's date, the clock and how full the day's page is (`ZRB_LLM_MEMORY_DIARY_MAX_CHARS`, 8,000), because the cap is a refusal the reviewer cannot see coming: a paragraph longer than the room left does not fit, however comfortable the page looks. Once 600 characters or fewer remain, the reviewer is given the body and its digest and asked to write the whole day back (`body_mode="w"`), keeping every quoted moment and the reason behind a decision. The digest makes that rewrite refusable: a rewrite whose digest no longer matches the day is refused with the day as it is now, so two sessions compacting the same day merge instead of overwriting each other's paragraph. The clock is there because a paragraph describes a moment that has already passed: given a date and no hour, the reviewer named one from the shape of the turn, and a morning page can end up saying "late in the night".
+- **A day is compacted before it is full, and the page is handed over when it is due.** Every turn opens with today's date, the clock and how much room the day's page has left below `ZRB_LLM_MEMORY_DIARY_COMPACT_AT` (6,000 of the 8,000 it may hold), because past that point an append is refused: a paragraph does not fit a page that has already filled, however comfortable it looks. Once 600 characters or fewer remain below the threshold, the reviewer is given the body and its digest and asked to write the whole day back (`body_mode="w"`) under the threshold — not under the cap, because a rewrite that lands on the ceiling has freed nothing and the next paragraph is refused against the same wall. The digest makes that rewrite refusable: a rewrite whose digest no longer matches the day is refused with the day as it is now, so two sessions compacting the same day merge instead of overwriting each other's paragraph. The clock is there because a paragraph describes a moment that has already passed: given a date and no hour, the reviewer named one from the shape of the turn, and a morning page can end up saying "late in the night".
 - **It keeps the handover current**, but only when the state of play moved — a decision made, a thread opened or closed, a correction, a plan that shifted. A handover rewritten every turn becomes a log of the last turn, so a turn that only answered a question leaves it alone. It revises the day's `handover` without touching the day's `claim`.
 
 ### The event log
@@ -566,8 +566,8 @@ A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn 
 Use for actions that should happen invisibly to the user:
 
 ```python
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
 _extended_turns: set[str] = set()
 
@@ -693,9 +693,9 @@ To attach hooks to one `LLMTask`/`LLMChatTask`, use its `append_hook_factory(*fa
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
 
 async def my_hook(context: HookContext) -> HookResult:
@@ -720,9 +720,9 @@ The two task classes isolate differently:
 The `hook_manager` singleton is the default manager of every `LLMTask` that has no task-local one. It is **not** used by `LLMChatTask` — `zrb llm chat` included — which builds a fresh manager per session unless given `hook_manager=`. To reach every chat session and task alike, put the hook in a `*.hook.py` file under a [hook location](#hook-locations), since every manager loads those, or in a skill's frontmatter `hooks:` block, which every manager replays. A hook registered in code on the singleton (`hook_manager.add_hook(...)`) reaches the `LLMTask` runs that use it, and no chat session.
 
 ```python
-from zrb.llm.hook.manager import hook_manager
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import hook_manager
+from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
 
 async def block_production_writes(context: HookContext) -> HookResult:
     """Block writes to production config files."""
@@ -744,8 +744,8 @@ hook_manager.add_hook(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
 Here `HookConfig` carries only metadata (priority, matchers); the callable is the hook. Its required `type`/`config` fields take an inert placeholder, as `hook_manager` does internally for manually registered hooks:
 
 ```python
-from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
-from zrb.llm.hook.contracts.types import HookType
+from zrb.llm.capabilities.hook.contracts.schema import CommandHookConfig, HookConfig
+from zrb.llm.capabilities.hook.contracts.types import HookType
 
 async def critical_security_check(context: HookContext) -> HookResult:
     # ... security check logic ...

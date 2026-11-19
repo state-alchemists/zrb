@@ -43,7 +43,7 @@ REVIEWED_SYS_MODULES_SHADOWS = {
     # import ...` for real while the parent package is mocked.
     "pydantic_ai": "warmed (pydantic_ai.toolsets)",
     "pydantic_ai.models.openai": "mock-only; resolved via the warmed parent",
-    # Warmed in conftest: `zrb.llm.dictation.listen.record`/`listen` really do `import numpy`
+    # Warmed in conftest: `zrb.llm.presentation.dictation.listen.record`/`listen` really do `import numpy`
     # inside the block, and numpy is a single-phase-init C extension.
     "sounddevice": "warmed (numpy, imported for real alongside it)",
     # mock-only: the dictation backends read names off the fake module.
@@ -64,7 +64,7 @@ _PATCH_DICT_BODY = re.compile(
     re.DOTALL,
 )
 # Every quoted key inside that literal — a call may shadow several at once
-# (`test/llm/dictation/backend/test_google.py` shadows `google`,
+# (`test/llm/presentation/dictation/backend/test_google.py` shadows `google`,
 # `google.genai` and `google.genai.types` in one `patch.dict`).
 _DICT_KEY = re.compile(r"""["']([\w.]+)["']\s*:""")
 
