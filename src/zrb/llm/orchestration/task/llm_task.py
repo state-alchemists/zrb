@@ -294,7 +294,6 @@ class LLMTask(BaseTask):
 
     @tool_confirmation.setter
     def tool_confirmation(self, value: AnyToolConfirmation) -> None:
-        """Replace the tool-confirmation policy."""
         self._tool_confirmation = value
 
     @property
@@ -304,7 +303,6 @@ class LLMTask(BaseTask):
 
     @approval_channel.setter
     def approval_channel(self, value: "AnyApprovalChannel | None") -> None:
-        """Replace the approval channel."""
         self._approval_channel = value
 
     @property
@@ -314,7 +312,6 @@ class LLMTask(BaseTask):
 
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None) -> None:
-        """Replace the history manager."""
         self._history_manager = value
 
     @property
@@ -324,7 +321,6 @@ class LLMTask(BaseTask):
 
     @permissions.setter
     def permissions(self, value: PermissionPolicyInput) -> None:
-        """Replace the permission policy."""
         self._permissions = value
 
     @property
@@ -334,7 +330,6 @@ class LLMTask(BaseTask):
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
-        """Replace the sandbox configuration."""
         self._sandbox = value
 
     def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
@@ -348,7 +343,6 @@ class LLMTask(BaseTask):
 
     @custom_model_names.setter
     def custom_model_names(self, value: "StrListAttr | None") -> None:
-        """Replace the custom model-name list."""
         self._custom_model_names = value
 
     def append_toolset(self, *toolset: "AbstractToolset") -> None:
@@ -383,7 +377,6 @@ class LLMTask(BaseTask):
 
     @hook_manager.setter
     def hook_manager(self, value: HookManager) -> None:
-        """Replace the hook manager."""
         self._hook_manager = value
 
     @property
@@ -393,7 +386,6 @@ class LLMTask(BaseTask):
 
     @uis.setter
     def uis(self, value: "list[AnyUI]") -> None:
-        """Replace every attached UI."""
         self._uis = value
 
     @property
@@ -403,7 +395,6 @@ class LLMTask(BaseTask):
 
     @prompt_manager_attr.setter
     def prompt_manager_attr(self, value: "PromptManager | None") -> None:
-        """Replace the raw prompt manager."""
         self._prompt_manager = value
 
     @property
@@ -413,7 +404,6 @@ class LLMTask(BaseTask):
 
     @tool_factories.setter
     def tool_factories(self, value: "list[ToolFactory]") -> None:
-        """Replace the tool factories."""
         self._tool_factories = value
 
     @property
@@ -427,7 +417,6 @@ class LLMTask(BaseTask):
     def toolset_factories(
         self, value: "list[Callable[[AnyContext], AbstractToolset[None]]]"
     ) -> None:
-        """Replace the toolset factories."""
         self._toolset_factories = value
 
     @property
@@ -437,7 +426,6 @@ class LLMTask(BaseTask):
 
     @history_processors.setter
     def history_processors(self, value: "list[HistoryProcessor]") -> None:
-        """Replace the history processors."""
         self._history_processors = value
 
     @property

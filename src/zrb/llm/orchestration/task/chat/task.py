@@ -262,7 +262,6 @@ class LLMChatTask(BaseTask):
         self._system_prompt = system_prompt
         self._active_skills = active_skills
         self._init_tool_surface(tools, toolsets, tool_factories, toolset_factories)
-        # None means a fresh manager per run (see the docstring).
         self._hook_manager = hook_manager
         # Set per execution in _create_llm_task_core; the interactive teardown
         # fires the terminal SESSION_END on it.
@@ -353,7 +352,6 @@ class LLMChatTask(BaseTask):
 
     @prompt_manager.setter
     def prompt_manager(self, value: PromptManager) -> None:
-        """Replace the prompt manager wholesale."""
         if not isinstance(value, PromptManager):
             raise TypeError(
                 f"{self.name}.prompt_manager must be a PromptManager, "
@@ -396,7 +394,6 @@ class LLMChatTask(BaseTask):
 
     @custom_model_names.setter
     def custom_model_names(self, value: StrListAttr | None) -> None:
-        """Replace the custom model-name list."""
         self._custom_model_names = value
 
     def append_approval_channel(self, channel: "AnyApprovalChannel") -> None:

@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.context.context import Context
+from zrb.context.shared_context import SharedContext
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.presentation.ui.base.commands import BaseUICommands
 from zrb.llm.presentation.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.presentation.ui.base.ui import BaseUI
 from zrb.llm.presentation.ui.base.usage import BaseUIUsage
+
+from .base_ui_support import ConcreteUI
 
 
 class MockUI:
@@ -123,3 +127,16 @@ class MockUI:
 @pytest.fixture
 def ui():
     return MockUI()
+
+
+@pytest.fixture
+def base_ui():
+    """A concrete `BaseUI` on a real context, with its collaborators mocked."""
+    ctx = Context(SharedContext(), "test", 0, "")
+    llm_task = MagicMock(hook_manager=None, active_hook_manager=None)
+    history_manager = MagicMock()
+    return ConcreteUI(
+        ctx=ctx,
+        llm_task=llm_task,
+        history_manager=history_manager,
+    )
