@@ -43,16 +43,23 @@ _LAYERS = {
     "presentation": 4,
 }
 
-# The one file that is depended on without being scored where it sits.
-# `agent/types.py` re-exports the pydantic-ai types the run loop hands around by
-# the names the framework gave them, so it is a facade rather than a module of
-# its own. Everything else is scored by its directory — and that includes
-# `any_*.py`, which used to score L0 by its filename. The glob granted a rank by
-# name, which is a table by another name: a reader could not tell from the path
-# why a file at L4 was importable from L1. The contracts a lower layer must name
-# now live where the path says so (`contracts/ui/`, `contracts/shared/`), which
-# is what the move of #972, #973 and #970 bought.
-_CONTRACT_PATHS = {"agent/types.py"}
+# The one file that is depended on without being scored where it sits, named in
+# both layouts: `agent/types.py` re-exports the pydantic-ai types the run loop
+# hands around by the names the framework gave them, so it is a facade rather
+# than a module of its own. The second path is where `_UNIT_DESTINATIONS` sends
+# the agent unit, and it is written down now rather than remembered later: an
+# exemption that stopped applying on the day the move landed would surface as a
+# `contracts/` module importing L2, a real upward edge wearing the move's
+# clothes, and the fix would look like a layering mistake rather than a stale
+# literal. `test_a_contract_exemption_names_a_path_the_tree_has_or_will` holds
+# the pair to that, so the old path is deleted in the same diff that moves it.
+# Everything else is scored by its directory — and that includes `any_*.py`,
+# which used to score L0 by its filename. The glob granted a rank by name, which
+# is a table by another name: a reader could not tell from the path why a file
+# at L4 was importable from L1. The contracts a lower layer must name now live
+# where the path says so (`contracts/ui/`, `contracts/shared/`), which is what
+# the move of #970, #972 and #973 bought.
+_CONTRACT_PATHS = {"agent/types.py", "engine/agent/types.py"}
 
 # Path prefixes that sit below the layer of the package holding them. A floor is
 # a part of a package that the layers beneath it must be able to build with:

@@ -11,7 +11,9 @@ every import in the tree.
 """
 
 from llm_layers import (
+    LLM,
     LAYER_OF_UNIT,
+    _CONTRACT_PATHS,
     _LAYERS,
     _UNIT_DESTINATIONS,
     _is_upward,
@@ -61,7 +63,27 @@ def test_a_contract_is_scored_where_it_lives():
     assert _layer("agent/any_agent.py") == 2
     assert _layer("subagent/any_sub_agent_manager.py") == 3
     # The one exemption left: the framework's own types, handed around by name.
+    # Both of its paths score L0, so the move of the agent unit cannot turn a
+    # `contracts/` module's import of the facade into an upward edge.
     assert _layer("agent/types.py") == 0
+    assert _layer("engine/agent/types.py") == 0
+
+
+def test_a_contract_exemption_names_a_path_the_tree_has_or_will():
+    """An exemption that outlives its path fails here rather than silently.
+
+    `engine/agent/types.py` does not exist yet: it is where the move sends the
+    agent unit. A path that is neither in the tree nor a destination of the map
+    is a typo, and a path whose unit has already moved is an exemption that has
+    stopped applying — both are caught here, one line at a time.
+    """
+    destinations = set(_UNIT_DESTINATIONS.values())
+
+    for path in sorted(_CONTRACT_PATHS):
+        if (LLM / path).exists():
+            continue
+        directory = path.rsplit("/", 1)[0]
+        assert directory in destinations, path
 
 
 def test_a_floor_importing_its_own_package_contract_is_not_an_edge():
