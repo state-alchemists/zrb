@@ -57,7 +57,7 @@ KNOWN_UNATTRIBUTED = {
     "llm/capabilities/tool/code/analysis.py": "same as `tool/file/analyze.py`",
     "llm/capabilities/tool/multimodal_describe.py": "same as `tool/file/analyze.py`",
     "llm/dictation/backend/multimodal.py": "same as `tool/file/analyze.py`",
-    "llm/task/llm_task.py": (
+    "llm/orchestration/task/llm_task.py": (
         "same as `tool/file/analyze.py`: an LLMTask's rounds reach the engine "
         "without saying they are the task's"
     ),

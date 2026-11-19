@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
-from zrb.llm.custom_command.resolver import (
+from zrb.llm.orchestration.custom_command.resolver import (
     resolve_custom_commands,
     run_custom_command,
 )
@@ -25,10 +25,10 @@ from zrb.util.cli.style import stylize_muted
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.engine.agent.types import UserContent
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.task.chat.task import LLMChatTask
-    from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
 
@@ -55,8 +55,8 @@ async def run_interactive_session(
     # for `resolve_ui`, so a module-level import back into `task/` closes the
     # package cycle (test_circular_import_allowlist.py). Both helpers are
     # needed once per session, not when this module loads.
-    from zrb.llm.task.chat.message_expansion import expand_message, is_action_command
-    from zrb.llm.task.chat.persistence import replay_conversation
+    from zrb.llm.orchestration.task.chat.message_expansion import expand_message, is_action_command
+    from zrb.llm.orchestration.task.chat.persistence import replay_conversation
 
     resolved_custom_commands = resolve_custom_commands(llm_chat_task.custom_commands)
     # An action may need the UI (`/photo` attaches to it), which does not

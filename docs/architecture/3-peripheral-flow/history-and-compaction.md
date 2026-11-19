@@ -51,7 +51,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 | Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/engine/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
 | A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/capabilities/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
 | An unsaved in-memory update wins over a newer file on load | An external write between update and save discards the turn | **unpinned** |
-| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
+| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/orchestration/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
 
 ## Realization
 
@@ -69,8 +69,8 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `LLMTaskHistory` | `src/zrb/llm/task/history.py` | Picks the manager and the conversation name; saves what a failed or cancelled turn did |
-| `resolve_conversation_name` | `src/zrb/llm/task/shared_getters.py` | The configured name, or a fresh random one when it is blank |
+| `LLMTaskHistory` | `src/zrb/llm/orchestration/task/history.py` | Picks the manager and the conversation name; saves what a failed or cancelled turn did |
+| `resolve_conversation_name` | `src/zrb/llm/orchestration/task/shared_getters.py` | The configured name, or a fresh random one when it is blank |
 | `FileHistoryManager` | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | The default store: a small LRU cache, load-time cleanup, validated atomic JSON writes, backups and retention |
 | `AnyHistoryManager` | `src/zrb/llm/capabilities/history_manager/any_history_manager.py` | The protocol a custom store implements: `load`, `update`, `save`, `search` |
 | `create_summarizer_history_processor` | `src/zrb/llm/engine/summarizer/history_summarizer.py` | Builds the processor that runs both tiers: first per-message, then the whole conversation |
@@ -139,7 +139,7 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change naming or what a failed turn saves | `src/zrb/llm/task/history.py` | `test/llm/task/test_history.py` |
+| Change naming or what a failed turn saves | `src/zrb/llm/orchestration/task/history.py` | `test/llm/orchestration/task/test_history.py` |
 | Change caching, file layout, backups or retention | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` | `test/llm/capabilities/history_manager/` |
 | Change when or how history is summarized | `src/zrb/llm/engine/summarizer/history_summarizer.py` | `test/llm/engine/summarizer/` |
 | Change where the list may be cut | `src/zrb/llm/engine/summarizer/history_splitter.py` | `test/llm/engine/summarizer/` |

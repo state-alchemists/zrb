@@ -6,7 +6,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING
 
-from zrb.llm.custom_command.resolver import run_custom_command
+from zrb.llm.orchestration.custom_command.resolver import run_custom_command
 from zrb.llm.contracts.shared.input_source import InputProvenance
 
 if TYPE_CHECKING:

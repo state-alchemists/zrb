@@ -67,14 +67,14 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.skill import Skill, SkillRegistry
     from zrb.llm.capabilities.skill.manager import SkillManager, skill_manager
     from zrb.llm.capabilities.skill.registry import skill_registry
-    from zrb.llm.subagent.manager.manager import (
+    from zrb.llm.orchestration.subagent.manager.manager import (
         SubAgentDefinition,
         SubAgentManager,
         sub_agent_manager,
     )
-    from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
-    from zrb.llm.task.chat.task import LLMChatTask
-    from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.orchestration.subagent.registry import SubAgentRegistry, sub_agent_registry
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.capabilities.tool_call.always_approve import (
         register_always_auto_approve,
         register_default_auto_approve,
@@ -291,17 +291,17 @@ _LAZY_EXPORTS = {
     "load_module": "zrb.util.load",
     "to_infinite_stream": "zrb.util.stream",
     "Xcom": "zrb.xcom.xcom",
-    "LLMTask": "zrb.llm.task.llm_task",
-    "LLMChatTask": "zrb.llm.task.chat.task",
+    "LLMTask": "zrb.llm.orchestration.task.llm_task",
+    "LLMChatTask": "zrb.llm.orchestration.task.chat.task",
     "LLMLimiter": "zrb.llm.contracts.config.limiter",
     "llm_limiter": "zrb.llm.contracts.config.limiter",
     "ModelResolver": "zrb.llm.contracts.config.model_resolver",
     "model_resolver": "zrb.llm.contracts.config.model_resolver",
-    "SubAgentManager": "zrb.llm.subagent.manager.manager",
-    "sub_agent_manager": "zrb.llm.subagent.manager.manager",
-    "SubAgentDefinition": "zrb.llm.subagent.manager.manager",
-    "SubAgentRegistry": "zrb.llm.subagent.registry",
-    "sub_agent_registry": "zrb.llm.subagent.registry",
+    "SubAgentManager": "zrb.llm.orchestration.subagent.manager.manager",
+    "sub_agent_manager": "zrb.llm.orchestration.subagent.manager.manager",
+    "SubAgentDefinition": "zrb.llm.orchestration.subagent.manager.manager",
+    "SubAgentRegistry": "zrb.llm.orchestration.subagent.registry",
+    "sub_agent_registry": "zrb.llm.orchestration.subagent.registry",
     "HookManager": "zrb.llm.capabilities.hook.manager",
     "hook_manager": "zrb.llm.capabilities.hook.manager",
     "HookEvent": "zrb.llm.capabilities.hook",

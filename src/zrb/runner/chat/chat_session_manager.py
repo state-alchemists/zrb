@@ -25,7 +25,7 @@ from zrb.llm.contracts.util.subagent_session_naming import (
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
@@ -302,7 +302,7 @@ class ChatSessionManager:
             close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent, which pulls in pydantic_ai.
-            from zrb.llm.subagent.live_session import live_subagent_session_registry
+            from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
 
             live_subagent_session_registry.clear(session_id=session_id)
             # Background shells outlive a message; this is their only cleanup.

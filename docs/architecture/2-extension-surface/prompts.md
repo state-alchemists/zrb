@@ -52,7 +52,7 @@ The prompt is read by the model on every request, so small mistakes here cost on
 | The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/capabilities/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
 | An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/capabilities/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
 | Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/capabilities/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
-| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/subagent/manager/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
+| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/orchestration/subagent/manager/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
 
 ## Realization
 
@@ -79,7 +79,7 @@ flowchart TD
 | `PromptRegistry`, `prompt_registry` | `src/zrb/llm/capabilities/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
 | `render_live_context` | `src/zrb/llm/capabilities/prompt/live_context/context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
 | `render_memory_block`, `render_memory_delta` | `src/zrb/llm/capabilities/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
-| `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
+| `resolve_system_prompt` | `src/zrb/llm/orchestration/task/shared_getters.py` | Composes the prompt for one run |
 | `create_agent` | `src/zrb/llm/engine/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
 
 `get_prompt` and the section files sit at L0, under `shared/`, while the composition stays at L1. Reading a section and filling its placeholders is pure lookup: it needs `CFG` and the filesystem, and knows nothing about how sections are ordered. A tool that builds its own small agent — a summarizer, an extractor — needs a system prompt, and `tool/` may not import `prompt/`; putting the lookup between them is what keeps the two packages from importing each other (ADR-0049).
@@ -120,9 +120,9 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | `LLM_PROFILE=auto` | `resolve_profile` in `src/zrb/llm/capabilities/prompt/profile.py` | The model id picks the profile by declared size; an id that declares nothing gets `standard` |
 | The `minimal` profile | `active_profile`, read again at tool registration | Also drops the delegate tools — see [Tools](tools.md) |
 | First turn, or after compaction | `LLMTask` and `summarize_history` | The memory block is added to live context, or re-emitted so the summary carries it |
-| A sub-agent with `inherit_sections` | `src/zrb/llm/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the memory block) into its system prompt |
+| A sub-agent with `inherit_sections` | `src/zrb/llm/orchestration/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the memory block) into its system prompt |
 | A custom per-turn fact | `PromptManager.add_live_context` | Rendered inside `<live-context>`, never in the system prompt |
-| Plan mode, or memory on/off | `src/zrb/llm/common_tools.py` | Changes which tools are registered; no prompt section switches on or off |
+| Plan mode, or memory on/off | `src/zrb/llm/orchestration/common_tools.py` | Changes which tools are registered; no prompt section switches on or off |
 
 ### Change it here
 
@@ -136,7 +136,7 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Change session facts | `src/zrb/llm/capabilities/prompt/system_context.py` | `test/llm/capabilities/prompt/test_system_context.py` |
 | Change per-turn live context | `src/zrb/llm/capabilities/prompt/live_context/context.py` | `test/llm/capabilities/prompt/live_context/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/capabilities/prompt/registry.py` | `test/llm/capabilities/prompt/test_registry.py` |
-| Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
+| Change sub-agent inheritance | `src/zrb/llm/orchestration/subagent/building.py` | `test/llm/orchestration/subagent/manager/test_manager_building.py` |
 
 ## See Also
 

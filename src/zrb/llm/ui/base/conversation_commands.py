@@ -178,8 +178,8 @@ class BaseUIConversationCommands:
         if parse_delegated_session(name) is not None:
             return 0
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.subagent.live_session import live_subagent_session_registry
-        from zrb.llm.subagent.manager.manager import sub_agent_manager
+        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
         from zrb.llm.capabilities.tool.delegate import persist_subagent_history
         from zrb.llm.ui.buffered.ui import BufferedUI
 
@@ -292,7 +292,7 @@ class BaseUIConversationCommands:
     def _swap_to_subagent_persona(self, agent_name: str) -> None:
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
         from zrb.llm.capabilities.prompt.manager import PromptManager
-        from zrb.llm.subagent.manager.manager import sub_agent_manager
+        from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 
         definition = sub_agent_manager.get_agent_definition(agent_name)
         if definition is None or definition.agent_instance or definition.agent_factory:

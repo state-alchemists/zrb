@@ -218,7 +218,7 @@ FACADE_BUDGETS = {
     # run's session and hooks are built, so `zrb chat` can apply its launch flags
     # to `CFG` before the speech preset and the memory hooks have read it -- a new
     # seam, not a delegator.
-    "llm/task/chat/task.py": 1047,
+    "llm/orchestration/task/chat/task.py": 1047,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a
@@ -228,8 +228,8 @@ FACADE_BUDGETS = {
     # the summarizer resolves a model. A run only publishes them once it starts,
     # and this command is handled before that -- new behavior, and the reason
     # `/model small` was being ignored.
-    "llm/task/llm_task.py": 820,
-    "llm/subagent/manager/manager.py": 299,
+    "llm/orchestration/task/llm_task.py": 820,
+    "llm/orchestration/subagent/manager/manager.py": 299,
 }
 
 

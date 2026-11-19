@@ -5,8 +5,8 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.orchestration.task.chat.task import LLMChatTask
+from zrb.llm.orchestration.task.llm_task import LLMTask
 from zrb.session.any_session import AnySession
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.execution import BaseTaskExecution

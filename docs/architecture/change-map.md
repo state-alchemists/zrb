@@ -24,7 +24,7 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change what the terminal shows | `src/zrb/llm/ui/default/` | [UI](2-extension-surface/ui.md) |
 | Build/run an agent from a tool or hook | `src/zrb/llm/contracts/shared/agent_runner.py` | [Tools](2-extension-surface/tools.md) |
 | Use delegation from a tool without importing subagent | `src/zrb/llm/contracts/shared/delegation_api.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
-| Resume a delegated session as a chat task | `src/zrb/llm/resumed_session.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
+| Resume a delegated session as a chat task | `src/zrb/llm/orchestration/resumed_session.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Describe image/audio for a text-only model | `src/zrb/llm/capabilities/tool/multimodal_describe.py` | [Tools](2-extension-surface/tools.md) |
 | Change the system prompt or a mandate | `src/zrb/llm/capabilities/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
 | Add a hook point, or change matching | `src/zrb/llm/capabilities/hook/manager/manager.py` | [Hooks](2-extension-surface/hooks.md) |
@@ -34,7 +34,7 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change what the model may touch | `src/zrb/llm/capabilities/permission/`, `src/zrb/llm/capabilities/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
 | Change the agent loop itself | `src/zrb/llm/engine/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
 | Change history persistence or summarization | `src/zrb/llm/capabilities/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
-| Change how skills are found or activated, or add a slash command | `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
+| Change how skills are found or activated, or add a slash command | `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/orchestration/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | Change how a model name becomes a model, or the rate limits | `src/zrb/llm/contracts/config/model_resolver.py`, `src/zrb/llm/contracts/config/limiter.py` | [The LLM Turn](1-spine/llm-turn.md) |
 | Add a speech or dictation backend | `src/zrb/llm/voice/`, `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 

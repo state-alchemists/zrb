@@ -114,7 +114,7 @@ def test_an_empty_command_list_leaves_the_camera_out():
 
 
 def test_enabling_the_camera_again_replaces_the_first_call():
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
 
     chat = LLMChatTask(name="camera-twice")
     enable_camera(chat)

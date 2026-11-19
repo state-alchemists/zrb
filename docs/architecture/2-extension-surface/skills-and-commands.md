@@ -2,7 +2,7 @@
 
 # Skills & Commands
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/custom_command/`, `src/zrb/llm_plugin/` · Read first: [Prompts](prompts.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/capabilities/skill/`, `src/zrb/llm/orchestration/custom_command/`, `src/zrb/llm_plugin/` · Read first: [Prompts](prompts.md)
 
 A skill is a markdown (or Python) file of domain method the agent loads only when a turn needs it. A custom command is a `/word` the user types in chat. This page covers where both come from and how one skill file becomes both. The one idea to take away: expertise is discovered from directories at run time, not compiled into the prompt.
 
@@ -46,7 +46,7 @@ A skill is a markdown (or Python) file of domain method the agent loads only whe
 | A code-registered skill wins over a discovered one of the same name | A rescan silently replaces the skill a `zrb_init.py` installed | `test/llm/capabilities/skill/test_registry.py::test_manual_wins_name_collision_with_discovered` |
 | Core skills load even when built-in skills are switched off | The agent loses its methodology baseline with no error | `test/llm/capabilities/skill/test_skill_manager_search_dirs.py::test_builtin_core_skills_always_searched` |
 | A skill marked not model-invocable is refused, with a hint | The model runs a user-only command as if it were its own method | `test/llm/capabilities/tool/test_skill.py::TestActivateSkillErrorsSelfCorrect::test_user_only_skill_says_to_do_the_work_yourself` |
-| A skill marked not user-invocable never becomes a slash command | A model-only method shows up in the `/` menu | `test/llm/custom_command/test_skill_command_factory.py::TestGetSkillCustomCommand::test_get_skill_custom_command_with_non_user_invocable_skills` |
+| A skill marked not user-invocable never becomes a slash command | A model-only method shows up in the `/` menu | `test/llm/orchestration/custom_command/test_skill_command_factory.py::TestGetSkillCustomCommand::test_get_skill_custom_command_with_non_user_invocable_skills` |
 | The prompt's skill catalogue respects its cap | Every installed skill inflates every request | `test/llm/capabilities/prompt/test_claude_skills.py::test_build_skill_replacements_truncates_available_skills` |
 
 ## Realization
@@ -71,9 +71,9 @@ flowchart TD
 | `create_activate_skill_tool`, `create_search_skill_tool` | `src/zrb/llm/capabilities/tool/skill.py` | `ActivateSkill` and `SearchSkill`, the model's way in |
 | `build_skill_replacements` | `src/zrb/llm/capabilities/prompt/claude.py` | The capped catalogue the prompt shows |
 | `apply_skill_frontmatter_hooks` | `src/zrb/llm/capabilities/hook/skill_frontmatter.py` | Hooks declared in a skill's frontmatter — see [Hooks](hooks.md) |
-| `CustomCommand`, `ActionCommand` | `src/zrb/llm/custom_command/` | A prompt-template command, and a command that runs a callable |
-| `get_skill_custom_command` | `src/zrb/llm/custom_command/skill_command_factory.py` | Turning each user-invocable skill into a slash command |
-| `get_custom_command_match`, `run_custom_command` | `src/zrb/llm/custom_command/resolver.py` | Matching typed input to a command and running it |
+| `CustomCommand`, `ActionCommand` | `src/zrb/llm/orchestration/custom_command/` | A prompt-template command, and a command that runs a callable |
+| `get_skill_custom_command` | `src/zrb/llm/orchestration/custom_command/skill_command_factory.py` | Turning each user-invocable skill into a slash command |
+| `get_custom_command_match`, `run_custom_command` | `src/zrb/llm/orchestration/custom_command/resolver.py` | Matching typed input to a command and running it |
 | Built-in content | `src/zrb/llm_plugin/` | `core_skills/`, `skills/`, `core_agents/` and `agents/` |
 
 ### How it runs
@@ -102,7 +102,7 @@ flowchart TD
 | Change registry layering or the allowlist | `src/zrb/llm/contracts/util/layered_registry.py`, `src/zrb/llm/capabilities/skill/registry.py` | `test/llm/capabilities/skill/test_registry.py` |
 | Change what activation returns | `src/zrb/llm/capabilities/tool/skill.py` | `test/llm/capabilities/tool/test_skill.py` |
 | Change the prompt's catalogue | `src/zrb/llm/capabilities/prompt/claude.py` | `test/llm/capabilities/prompt/test_claude_skills.py` |
-| Add a kind of custom command | `src/zrb/llm/custom_command/` | `test/llm/custom_command/` |
+| Add a kind of custom command | `src/zrb/llm/orchestration/custom_command/` | `test/llm/orchestration/custom_command/` |
 | Ship a built-in skill or agent | `src/zrb/llm_plugin/` | `test/llm/capabilities/skill/test_skill_manager_search_dirs.py` |
 
 ## See Also

@@ -21,7 +21,7 @@ def test_help_panel_lists_one_row_per_alias_group(ui):
     """A feature registers one command per alias (`/voice` + `/v`) under one
     shared description; the panel shows the first alias only, and still shows
     a command whose description stands for itself."""
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     def alias(command: str, description: str):
         return ActionCommand(command, lambda kwargs, ui: None, description=description)

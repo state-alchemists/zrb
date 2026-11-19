@@ -168,7 +168,7 @@ def test_the_tool_can_be_had_without_the_command():
 
 
 def test_enabling_the_screenshot_again_replaces_the_first_call():
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
 
     chat = LLMChatTask(name="screenshot-twice")
     enable_screenshot(chat)

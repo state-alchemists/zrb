@@ -316,7 +316,7 @@ class TestApprovalChannelInLLMTask:
 
     def test_llm_task_accepts_approval_channel(self):
         """Test that LLMTask accepts approval_channel parameter."""
-        from zrb.llm.task.llm_task import LLMTask
+        from zrb.llm.orchestration.task.llm_task import LLMTask
 
         mock_channel = MagicMock(spec=AnyApprovalChannel)
 
@@ -329,7 +329,7 @@ class TestApprovalChannelInLLMTask:
 
     def test_llm_task_approval_channel_property(self):
         """Test that LLMTask has approval_channel property and setter."""
-        from zrb.llm.task.llm_task import LLMTask
+        from zrb.llm.orchestration.task.llm_task import LLMTask
 
         task = LLMTask(name="test_task")
 

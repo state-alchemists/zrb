@@ -2,7 +2,7 @@
 
 # Sub-agents
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/subagent/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/orchestration/subagent/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 A sub-agent is a second agent the main agent hands a piece of work to: a research sweep, a review, a batch of edits. It runs its own loop with its own context and reports back one result, which keeps the main agent's context clean. The one idea to take away: a sub-agent gets a fresh mind but never more authority than its parent, even when a human keeps talking to it after the parent's turn is over.
 
@@ -45,9 +45,9 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
+| A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/orchestration/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
 | A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/contracts/shared/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
-| A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
+| A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/orchestration/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
 | Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/capabilities/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
 | A child starts with no parent history | The child sees the parent's whole conversation, so it is neither a fresh view nor cheap | **unpinned** |
 | Cancelling one sub-agent does not cancel the parent's turn | Esc on one fan-out child kills the whole main turn | `test/llm/capabilities/tool/delegate/test_delegate_tool_run.py::test_delegate_human_cancel_returns_gracefully` |
@@ -69,19 +69,19 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `SubAgentManager` | `src/zrb/llm/subagent/manager/manager.py` | Scans the agent directories on first use, holds registrations, builds agents by name |
-| `SubAgentRegistry` | `src/zrb/llm/subagent/registry.py` | Two layers, manual and discovered; a manual entry wins a name collision and survives a rescan |
-| `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
-| `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
+| `SubAgentManager` | `src/zrb/llm/orchestration/subagent/manager/manager.py` | Scans the agent directories on first use, holds registrations, builds agents by name |
+| `SubAgentRegistry` | `src/zrb/llm/orchestration/subagent/registry.py` | Two layers, manual and discovered; a manual entry wins a name collision and survives a rescan |
+| `SubAgentDefinition` | `src/zrb/llm/orchestration/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
+| `SubAgentBuilding` | `src/zrb/llm/orchestration/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
 | `resolve_tools_by_name` | `src/zrb/llm/contracts/shared/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
 | `DelegateToAgent` | `src/zrb/llm/capabilities/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
 | `start_background_run` | `src/zrb/llm/capabilities/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
 | `run_agent_task` | `src/zrb/llm/capabilities/tool/delegate/runner.py` | One child's whole turn as the tool sees it: build, envelope, hooks, the run, transcript, result |
 | `run_subagent_turn` | `src/zrb/llm/contracts/shared/subagent_turn.py` | **The** sub-agent run call: the limiter, the usage tag, the captured grant. Both the tool and a live-session continuation go through it, so they cannot drift apart |
 | `SendMessageToSubagent` | `src/zrb/llm/capabilities/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
-| `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
+| `SendMessageToParent` | `src/zrb/llm/orchestration/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
-| `LiveSubAgentSessionRegistry` | `src/zrb/llm/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
+| `LiveSubAgentSessionRegistry` | `src/zrb/llm/orchestration/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
 | `AuthoritySnapshot` | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | The permission policy, yolo, sandbox, hook manager, approval handler (tool policies, formatters, response handlers) and approval channel captured at delegation |
 
 ### How it runs
@@ -148,13 +148,13 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change discovery, search order or registration | `src/zrb/llm/subagent/manager/manager.py` | `test/llm/subagent/` |
-| Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
+| Change discovery, search order or registration | `src/zrb/llm/orchestration/subagent/manager/manager.py` | `test/llm/orchestration/subagent/` |
+| Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/orchestration/subagent/building.py` | `test/llm/orchestration/subagent/manager/test_manager_building.py` |
 | Change how tool names resolve | `src/zrb/llm/contracts/shared/tool_resolver.py` | `test/llm/contracts/shared/test_tool_resolver.py` |
 | Change the envelope, fan-out or the child run | `src/zrb/llm/capabilities/tool/delegate/runner.py` | `test/llm/capabilities/tool/` |
 | Change background handles and waiting | `src/zrb/llm/capabilities/tool/delegate/background.py` | `test/llm/capabilities/tool/delegate/test_delegate_background_results.py` |
-| Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
-| Change agent-to-agent messages | `src/zrb/llm/capabilities/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/capabilities/tool/delegate/test_delegate_message.py` |
+| Change follow-ups to a finished child | `src/zrb/llm/orchestration/subagent/live_session.py` | `test/llm/orchestration/subagent/test_live_session_registry.py` |
+| Change agent-to-agent messages | `src/zrb/llm/capabilities/tool/delegate/message.py`, `src/zrb/llm/orchestration/subagent/parent_message.py` | `test/llm/capabilities/tool/delegate/test_delegate_message.py` |
 | Change what authority is captured | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | `test/llm/engine/agent/run/test_authority_snapshot.py` |
 
 ## See Also

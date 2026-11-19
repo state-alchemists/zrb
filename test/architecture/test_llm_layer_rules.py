@@ -37,13 +37,12 @@ def test_a_moved_path_is_scored_by_its_directory():
 def test_an_unmoved_unit_still_reads_the_table():
     """Half-moved is legal: a unit still in the old layout scores as it did before.
 
-    L0–L2 have no line left: the contracts, the eleven capabilities and the engine
-    all moved, so the table's first three layers are empty and the directory
-    answers for them. L3 and L4 still answer from the table.
+    L0–L3 have no line left: the contracts, the capabilities, the engine and the
+    orchestration units all moved, so only L4 still answers from the table.
     """
-    assert _layer("task/base.py") == 3
     assert _layer("ui/default.py") == 4
-    assert LAYER_OF_UNIT.get("agent") is None
+    assert _layer("camera/feature.py") == 4
+    assert LAYER_OF_UNIT.get("task") is None
 
 
 def test_the_directory_wins_over_the_table():
@@ -65,7 +64,7 @@ def test_a_contract_is_scored_where_it_lives():
     """
     assert _layer("ui/any_ui.py") == 4
     assert _layer("engine/agent/any_agent.py") == 2
-    assert _layer("subagent/any_sub_agent_manager.py") == 3
+    assert _layer("orchestration/subagent/any_sub_agent_manager.py") == 3
     # The one exemption left: the framework's own types, handed around by name.
     assert _layer("engine/agent/types.py") == 0
 
@@ -105,8 +104,8 @@ def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
     assert _is_upward("capabilities/tool/x.py", "engine/agent/y.py")
-    assert _is_upward("common_tools/x.py", "ui/y.py")
-    assert _is_upward("contracts/config/x.py", "subagent/y.py")
+    assert _is_upward("ui/fallback/x.py", "camera/y.py")
+    assert _is_upward("contracts/config/x.py", "orchestration/subagent/y.py")
     assert not _is_upward("presentation/ui/y.py", "contracts/config/x.py")
     assert not _is_upward("contracts/config/x.py", "contracts/shared/y.py")
 

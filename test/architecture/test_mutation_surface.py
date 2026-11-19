@@ -43,7 +43,7 @@ ORDERED_COLLECTIONS = {
 
 KEYED_COLLECTIONS = {
     "zrb.llm.capabilities.skill.registry:skill_registry": [("skill", "skills")],
-    "zrb.llm.subagent.registry:sub_agent_registry": [("agent", "agents")],
+    "zrb.llm.orchestration.subagent.registry:sub_agent_registry": [("agent", "agents")],
     "zrb.llm.capabilities.hook.registry:hook_registry": [("hook", "hooks")],
 }
 
@@ -211,7 +211,7 @@ def test_managers_expose_the_same_roster_api():
     """
     for path in (
         "zrb.llm.capabilities.skill.manager:skill_manager",
-        "zrb.llm.subagent.manager.manager:sub_agent_manager",
+        "zrb.llm.orchestration.subagent.manager.manager:sub_agent_manager",
         "zrb.llm.capabilities.hook.manager.manager:hook_manager",
     ):
         manager = _load(path)

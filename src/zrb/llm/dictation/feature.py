@@ -19,7 +19,7 @@ from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.custom_command.action_command import ActionCommand
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
@@ -50,8 +50,8 @@ from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.contracts.util.teardown import close_quietly
 
 if TYPE_CHECKING:
-    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.ui.base.ui import BaseUI

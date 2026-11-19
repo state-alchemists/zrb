@@ -72,8 +72,8 @@ _IMPORT_CALLS = {"import_module", "__import__"}
 def _absolute_name(name: str, package: list[str] | None) -> str | None:
     """Resolve a dotted name that may start with dots against *package*.
 
-    `from ..shared import x` in `zrb/llm/task/chat/` is `zrb.llm.task.shared`,
-    and so is `import_module("..shared", package="zrb.llm.task.chat")`: the two
+    `from ..shared import x` in `zrb/llm/orchestration/task/chat/` is `zrb.llm.orchestration.task.shared`,
+    and so is `import_module("..shared", package="zrb.llm.orchestration.task.chat")`: the two
     spellings follow the same level rule. Without a package an absolute name
     still reads; a relative one cannot.
     """
@@ -193,11 +193,12 @@ def test_an_import_spelled_as_a_call_is_an_edge():
 
 
 def test_a_relative_import_resolves_against_the_importing_package():
-    """`from ..shared import x` is an edge to `zrb.llm.task.shared`."""
+    """`from ..shared import x` is an edge to `zrb.llm.orchestration.task.shared`."""
     names = _runtime_imports(
-        ast.parse("from ..shared import prompt_text"), ["zrb", "llm", "task", "chat"]
+        ast.parse("from ..shared import prompt_text"),
+        ["zrb", "llm", "orchestration", "task", "chat"],
     )
-    assert "zrb.llm.task.shared" in names
+    assert "zrb.llm.orchestration.task.shared" in names
 
 
 def test_a_relative_import_module_resolves_its_own_package():

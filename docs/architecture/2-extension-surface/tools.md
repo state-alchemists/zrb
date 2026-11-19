@@ -48,8 +48,8 @@ Each one fails silently if broken: the code keeps running and does the wrong thi
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| Every built-in tool is registered with a known capability | It becomes `UNKNOWN`: denied in plan mode and over-restricted everywhere else, with no error | `test/llm/test_common_tools.py::test_every_registered_tool_carries_a_known_capability` |
-| Collecting tools does not resolve them | Per-run gates are frozen when the task is built | `test/llm/test_common_tools.py::test_apply_stores_providers_without_resolving_anything` |
+| Every built-in tool is registered with a known capability | It becomes `UNKNOWN`: denied in plan mode and over-restricted everywhere else, with no error | `test/llm/orchestration/test_common_tools.py::test_every_registered_tool_carries_a_known_capability` |
+| Collecting tools does not resolve them | Per-run gates are frozen when the task is built | `test/llm/orchestration/test_common_tools.py::test_apply_stores_providers_without_resolving_anything` |
 | Tool order is preserved | The model sees a different tool list from one run to the next, and the prompt cache stops hitting | `test/llm/contracts/shared/test_tool_registry.py::test_append_prepend_preserve_order` |
 
 ## Realization
@@ -70,7 +70,7 @@ flowchart TD
 | Tool functions | `src/zrb/llm/capabilities/tool/` | A package per domain with more than one module — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — each re-exporting the names its flat module used to export; every other tool is one module (`memory.py`, `skill.py`, `mcp.py`, ...) |
 | `agent/tool_seed` | `src/zrb/llm/engine/agent/tool_seed.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories; importing it installs them as the registry's seed |
 | `ToolRegistry` | `src/zrb/llm/contracts/shared/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
-| `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
+| `apply_common_tools` | `src/zrb/llm/orchestration/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
 | `Capability`, `tag`, `tool_capability` | `src/zrb/llm/capabilities/permission/capability.py` | Writing and reading the capability tag |
 | `resolve_tools_by_name` | `src/zrb/llm/contracts/shared/tool_resolver.py` | Turning the tool names a sub-agent asks for into tool objects |
 | `create_agent` | `src/zrb/llm/engine/agent/common.py` | The only place a `pydantic_ai.Agent` is built |
@@ -126,8 +126,8 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add a built-in tool | `src/zrb/llm/engine/agent/tool_seed.py` | `test/llm/test_common_tools.py` |
-| Add a tool gated by config | `src/zrb/llm/engine/agent/tool_seed.py` (the factories) | `test/llm/test_common_tools.py` |
+| Add a built-in tool | `src/zrb/llm/engine/agent/tool_seed.py` | `test/llm/orchestration/test_common_tools.py` |
+| Add a tool gated by config | `src/zrb/llm/engine/agent/tool_seed.py` (the factories) | `test/llm/orchestration/test_common_tools.py` |
 | Rename a tool the model sees | the tool's `__name__` line in `src/zrb/llm/capabilities/tool/` | `test/llm/capabilities/tool/` |
 | Change how capabilities are read | `src/zrb/llm/capabilities/permission/capability.py` | `test/llm/capabilities/permission/test_capability.py` |
 | Change registry order or mutation | `src/zrb/llm/contracts/shared/tool_registry.py` | `test/llm/contracts/shared/test_tool_registry.py` |

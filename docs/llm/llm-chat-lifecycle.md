@@ -56,16 +56,16 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 
 ```mermaid
 flowchart TD
-    Exec["src/zrb/llm/task/chat/execution.py :: ChatExecution.exec_action()"]
+    Exec["src/zrb/llm/orchestration/task/chat/execution.py :: ChatExecution.exec_action()"]
     Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
-    Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py → src/zrb/llm/ui/session.py — resolve UIs, triggers, commands"]
+    Exec -->|resolves| Running["src/zrb/llm/orchestration/task/chat/running.py → src/zrb/llm/ui/session.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
+`LLMChatTask` (`src/zrb/llm/orchestration/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.capabilities.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.capabilities.skill.SkillManager`, `zrb.llm.capabilities.hook.HookManager`, and `zrb.llm.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.capabilities.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.capabilities.skill.SkillManager`, `zrb.llm.capabilities.hook.HookManager`, and `zrb.llm.orchestration.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -77,7 +77,7 @@ The chat task then calls into the inner `LLMTask` execution path.
 
 ```mermaid
 flowchart TD
-    Inner["src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/engine/agent/common.py :: create_agent()"]
+    Inner["src/zrb/llm/orchestration/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/engine/agent/common.py :: create_agent()"]
     Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/engine/agent/run/runner.py :: run_agent()"]
 ```
 
@@ -182,8 +182,8 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Task tree resolution | `src/zrb/runner/cli.py`, `src/zrb/group/{any_group,group}.py` |
 | Task execution lifecycle | `src/zrb/task/base/{execution,lifecycle,monitoring}.py` |
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
-| Chat task + parts | `src/zrb/llm/task/chat/{task,running,execution}.py` |
-| Inner LLM task | `src/zrb/llm/task/llm_task.py` |
+| Chat task + parts | `src/zrb/llm/orchestration/task/chat/{task,running,execution}.py` |
+| Inner LLM task | `src/zrb/llm/orchestration/task/llm_task.py` |
 | Agent factory | `src/zrb/llm/engine/agent/common.py` |
 | Run loop | `src/zrb/llm/engine/agent/run/runner.py` |
 | History sanitization | `src/zrb/llm/engine/agent/run/history_utils.py`, `src/zrb/llm/contracts/shared/message.py` |
@@ -193,7 +193,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/capabilities/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
-| Sub-agents | `src/zrb/llm/subagent/` |
+| Sub-agents | `src/zrb/llm/orchestration/subagent/` |
 | Permission policy | `src/zrb/llm/capabilities/permission/` |
 | Persistence | `src/zrb/llm/capabilities/history_manager/file_history_manager.py` |
 | Snapshots | `src/zrb/llm/capabilities/snapshot/manager.py` |

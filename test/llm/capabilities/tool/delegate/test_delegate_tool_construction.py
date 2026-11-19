@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import (
     agent_not_found_message,
     agent_roster_doc,
@@ -58,7 +58,7 @@ def test_create_delegate_tool_docstring(mock_sub_agent_manager):
 def test_delegate_to_agent_params_carry_descriptions(mock_sub_agent_manager):
     """Not registered via common_tools.py (main-agent-only, added directly by
     LLMChatTask), so `test_every_registered_tool_parameter_carries_a_description`
-    in test/llm/test_common_tools.py never sees this one — pinned here instead."""
+    in test/llm/orchestration/test_common_tools.py never sees this one — pinned here instead."""
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
     missing = _missing_param_descriptions(tool)
     assert not missing, f"DelegateToAgent params with no description: {missing}"

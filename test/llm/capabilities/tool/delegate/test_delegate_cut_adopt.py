@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.contracts.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
-from zrb.llm.subagent.live_session import live_subagent_session_registry
-from zrb.llm.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.capabilities.tool.delegate.background import (
     create_get_delegation_result_tool,

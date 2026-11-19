@@ -19,7 +19,7 @@ from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
 from zrb.llm.ui.default.app.keybinding import (

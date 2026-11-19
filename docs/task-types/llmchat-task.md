@@ -240,7 +240,7 @@ A custom command is a slash command added to the chat, listed in `/help`. There 
 - **`ActionCommand`** runs a Python callable instead and starts no LLM turn. The callable receives the parsed arguments as a dict and the chat UI (`None` when there is none, as for the initial message of a non-interactive run), and returns the text to show the user, or `None` to show nothing.
 
 ```python
-from zrb.llm.custom_command import ActionCommand, CustomCommand
+from zrb.llm.orchestration.custom_command import ActionCommand, CustomCommand
 
 chat.append_custom_command(
     CustomCommand("/review", "Review $path for bugs", args=["path"]),
@@ -269,7 +269,7 @@ A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
 ```python
 from zrb.llm.engine.agent.types import BinaryContent
 from zrb.llm.camera import AutoCameraBackend
-from zrb.llm.custom_command import ActionCommand
+from zrb.llm.orchestration.custom_command import ActionCommand
 
 camera = AutoCameraBackend()
 

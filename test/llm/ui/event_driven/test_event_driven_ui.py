@@ -74,7 +74,7 @@ async def test_get_input_no_prompt():
 
 @pytest.mark.asyncio
 async def test_handle_incoming_message_resolves_slash_command():
-    from zrb.llm.custom_command import CustomCommand
+    from zrb.llm.orchestration.custom_command import CustomCommand
 
     class CapturingEventUI(EventDrivenUI):
         submitted: list[str]
@@ -119,7 +119,7 @@ async def test_handle_incoming_message_resolves_slash_command():
 
 @pytest.mark.asyncio
 async def test_handle_incoming_message_runs_action_command():
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     class CapturingEventUI(EventDrivenUI):
         def __init__(self, custom_commands=None):
@@ -153,7 +153,7 @@ async def test_handle_incoming_message_runs_action_command():
 
 
 def test_handle_incoming_message_forwards_non_string_input():
-    from zrb.llm.custom_command import ActionCommand
+    from zrb.llm.orchestration.custom_command import ActionCommand
 
     ui = MockEventUI(custom_commands=[ActionCommand("/toggle", lambda kwargs, ui: "x")])
     ui.waiting_for_input = False

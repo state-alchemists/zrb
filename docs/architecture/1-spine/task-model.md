@@ -97,7 +97,7 @@ The task types share `BaseTask` and differ only in their action:
 | `Scaffolder` | `src/zrb/task/scaffolder.py` | Copying a template tree and rewriting its files with content transformers |
 | `HttpCheck`, `TcpCheck` | `src/zrb/task/http_check.py`, `src/zrb/task/tcp_check.py` | Polling until a service answers; used as readiness checks |
 | `BaseTrigger`, `Scheduler` | `src/zrb/task/base_trigger.py`, `src/zrb/task/scheduler.py` | Running forever, pushing events that fan out to callbacks |
-| `LLMTask`, `LLMChatTask` | `src/zrb/llm/task/` | An agent turn, or a chat session — see [The LLM Turn](llm-turn.md) |
+| `LLMTask`, `LLMChatTask` | `src/zrb/llm/orchestration/task/` | An agent turn, or a chat session — see [The LLM Turn](llm-turn.md) |
 
 ### How it runs
 

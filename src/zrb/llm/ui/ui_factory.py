@@ -10,7 +10,7 @@ from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryM
 from zrb.llm.ui.base.ui import BaseUI
 
 if TYPE_CHECKING:
-    from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
 
 
 def create_ui_factory(

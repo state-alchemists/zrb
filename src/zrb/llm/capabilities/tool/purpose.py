@@ -41,7 +41,7 @@ read at one place: it is folded into every declaring tool's schema, so editing
 it changes what the model is asked for everywhere at once. Which tools must
 declare one is
 `test_every_tool_outside_the_harness_says_what_the_call_is_for` in
-`test/llm/test_common_tools.py`.
+`test/llm/orchestration/test_common_tools.py`.
 """
 
 from __future__ import annotations

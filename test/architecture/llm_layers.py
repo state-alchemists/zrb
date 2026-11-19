@@ -19,7 +19,6 @@ LLM = SRC / "zrb" / "llm"
 # The table, for a unit that has not moved into the five-directory layout yet.
 # It is deleted when the last one has (the P7 step of the 4.0 move).
 _UNITS_BY_LAYER = {
-    3: "common_tools custom_command resumed_session subagent task",
     4: "camera dictation emotion screenshot speech ui voice",
 }
 LAYER_OF_UNIT = {
@@ -153,12 +152,6 @@ _UNIT_DESTINATIONS = {
     # back at it.
     "ui/fallback": "presentation/ui/fallback",
     "ui/buffered": "presentation/ui/buffered",
-    # orchestration
-    "common_tools": "orchestration/common_tools.py",
-    "custom_command": "orchestration/custom_command",
-    "resumed_session": "orchestration/resumed_session.py",
-    "subagent": "orchestration/subagent",
-    "task": "orchestration/task",
     # presentation
     "camera": "presentation/camera",
     "dictation": "presentation/dictation",
