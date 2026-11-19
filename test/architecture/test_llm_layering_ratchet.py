@@ -9,10 +9,12 @@ layer, and a layer imports only from itself and the layers below:
     L3 orchestration  tasks, sub-agents, custom commands
     L4 presentation   UIs and the optional voice/camera/screenshot features
 
-A module whose job is to be depended on counts as L0 wherever it lives: the
-``any_*.py`` protocols and ``agent/types.py`` (the pydantic-ai type facade).
-A package may also hold a floor beneath its own layer — see
-``_FLOOR_PREFIXES``.
+A module's layer comes from where it sits. `agent/types.py` is the one
+exemption: it re-exports the pydantic-ai types the run loop hands around by the
+names the framework gave them. A contract a lower layer must name is *placed*
+where that layer can reach it — under `contracts/` — rather than scored L0 by
+its filename, because a rank granted by a name is invisible in the path. A
+package may also hold a floor beneath its own layer — see `_FLOOR_PREFIXES`.
 
 A unit's layer comes from one of two places while the tree is being sorted into
 five directories: the directory it sits in (``_LAYERS``), or the table below for

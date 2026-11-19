@@ -11,7 +11,9 @@ every import in the tree.
 """
 
 from llm_layers import (
+    LLM,
     LAYER_OF_UNIT,
+    _CONTRACT_PATHS,
     _LAYERS,
     _UNIT_DESTINATIONS,
     _is_upward,
@@ -47,6 +49,55 @@ def test_the_directory_wins_over_the_table():
     # from the directory once they have moved under `contracts/`.
     assert _layer("ui/fallback/defaults/display.py") == 0
     assert _layer("contracts/ui_fallback/defaults/display.py") == 0
+
+
+def test_a_contract_is_scored_where_it_lives():
+    """A file called `any_*.py` scores where it sits, not L0 by its name.
+
+    The glob that used to grant it L0 was a table by another name: a reader
+    could not tell from the path why a file at L4 was importable from L1. The
+    contracts a lower layer must name have moved under `contracts/` instead, so
+    these are the paths as the tree holds them.
+    """
+    assert _layer("ui/any_ui.py") == 4
+    assert _layer("agent/any_agent.py") == 2
+    assert _layer("subagent/any_sub_agent_manager.py") == 3
+    # The one exemption left: the framework's own types, handed around by name.
+    # Both of its paths score L0, so the move of the agent unit cannot turn a
+    # `contracts/` module's import of the facade into an upward edge.
+    assert _layer("agent/types.py") == 0
+    assert _layer("engine/agent/types.py") == 0
+
+
+def test_a_contract_exemption_names_a_path_the_tree_has_or_will():
+    """An exemption that outlives its path fails here rather than silently.
+
+    `engine/agent/types.py` does not exist yet: it is where the move sends the
+    agent unit. A path that is neither in the tree nor a destination of the map
+    is a typo, and a path whose unit has already moved is an exemption that has
+    stopped applying — both are caught here, one line at a time.
+    """
+    destinations = set(_UNIT_DESTINATIONS.values())
+
+    for path in sorted(_CONTRACT_PATHS):
+        if (LLM / path).exists():
+            continue
+        directory = path.rsplit("/", 1)[0]
+        assert directory in destinations, path
+
+
+def test_a_floor_importing_its_own_package_contract_is_not_an_edge():
+    """`ui/fallback` reaching `ui/any_ui.py` is one unit talking to itself.
+
+    The floor scores L0 and the contract it builds with scores L4, so the two
+    layers say the pair is upward — and the ratchet never reports it, because
+    `_file_edges` drops a pair whose ends share a unit. Both halves are pinned
+    here so a reader who finds `_is_upward` returning True does not go "fix" a
+    rule that is working.
+    """
+    assert _unit("ui/fallback/echo_broadcast.py") == _unit("ui/any_ui.py") == "ui"
+    assert _layer("ui/fallback/echo_broadcast.py") == 0
+    assert _layer("ui/any_ui.py") == 4
 
 
 def test_an_upward_import_is_refused_in_both_layouts():

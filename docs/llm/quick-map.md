@@ -13,7 +13,7 @@ Use this page as the short orientation to the LLM subsystem. For deep details, f
 
 Key units (one-liners)
 
-- L0: `shared/` (the vocabulary every other package speaks: the ambient state, the three seams, the tool registry, the message shapes), the `any_*.py` contracts, `ui/fallback` (the floor inside the UI package), and the `config`, `memory` and `util` packages.
+- L0: `shared/` (the vocabulary every other package speaks: the ambient state, the three seams, the tool registry, the message shapes), the contracts a lower layer must name — those live under `contracts/` (`contracts/ui/`, `contracts/shared/`), because a module is scored by the directory it sits in and not by its filename: `ui/any_ui.py` scores L4, beside the UI that answers it — `ui/fallback` (the floor inside the UI package), and the `config`, `memory` and `util` packages.
 - L0 too: `shared/prompt_text.py` reads a prompt section by name and fills its placeholders — the lookup a tool needs to prompt its own small agent, kept out of `prompt/` so the two packages do not import each other. Its section files are in `shared/markdown/`.
 - L1: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager.
 - L2: agent (engine, and the built-in tool seed), summarizer.
