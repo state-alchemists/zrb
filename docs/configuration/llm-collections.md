@@ -240,7 +240,7 @@ Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` 
 `ToolRegistry` has two methods beyond its verbs:
 
 - `apply_to(host)` appends every tool, tool factory and toolset factory to a host (`LLMChatTask`, `LLMTask`, `SubAgentManager`).
-- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is refused once a seed is in use: a registry that was only read, or only changed, still takes one. A seed that arrives late is folded in behind whatever was registered first — an append still runs last, a prepend still runs first, a `remove_tool` stays removed, and a list replaced by `set_tools` stays replaced. zrb sets it in `llm/agent/tool_seed.py`.
+- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is refused once a seed is in use: a registry that was only read, or only changed, still takes one. A seed that arrives late is folded in behind whatever was registered first — an append still runs last, a prepend still runs first, a `remove_tool` stays removed, and a list replaced by `set_tools` stays replaced. zrb sets it in `llm/engine/agent/tool_seed.py`.
 
 ## `get_prompt(name)` vs `get_prompts()`
 

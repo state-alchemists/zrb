@@ -15,7 +15,7 @@ from zrb.llm.contracts.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import BinaryContent, ToolReturn
+    from zrb.llm.engine.agent.types import BinaryContent, ToolReturn
 
 # Shared read-size cap for the text and PDF paths alike.
 _MAX_READ_FILE_BYTES = 10 * 1024 * 1024
@@ -142,8 +142,8 @@ async def _read_image(path: str, abs_path: str, media_type: str) -> "str | ToolR
 
 def _load_image(path: str, abs_path: str, media_type: str) -> "BinaryContent | str":
     """The image scaled for a model, or an error when it is unreadable or corrupt."""
-    # lazy: heavy third-party (pydantic_ai) via zrb.llm.agent.types
-    from zrb.llm.agent.types import BinaryContent
+    # lazy: heavy third-party (pydantic_ai) via zrb.llm.engine.agent.types
+    from zrb.llm.engine.agent.types import BinaryContent
 
     try:
         data = Path(abs_path).read_bytes()

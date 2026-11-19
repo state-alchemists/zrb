@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolDefinition
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
-    from zrb.llm.agent.types import AbstractToolset
+    from zrb.llm.engine.agent.types import AbstractToolset
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
 # OpenAI's limit, the strictest provider's; one longer name fails the whole request.
@@ -92,7 +92,7 @@ def _create_mcp_toolsets(
     from fastmcp.client.transports import StdioTransport
 
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import MCPToolset
+    from zrb.llm.engine.agent.types import MCPToolset
 
     toolsets: "list[AbstractToolset]" = []
 

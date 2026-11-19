@@ -50,7 +50,7 @@ A path is read when the turn reaches the model, not when it is submitted, which 
 **A camera button is not the only way in.** If you want the *agent* to decide when to look, register the camera as a tool instead and let it call one:
 
 ```python
-from zrb.llm.agent.types import BinaryContent
+from zrb.llm.engine.agent.types import BinaryContent
 from zrb.llm.camera import AutoCameraBackend
 
 camera = AutoCameraBackend()

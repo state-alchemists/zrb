@@ -45,7 +45,7 @@ A hook is a small program the user plugs into the agent's lifecycle: run a linte
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| Tool-call hooks fire on the run's manager, not the process-wide one | A task's deny hook is skipped and the tool runs anyway | `test/llm/agent/test_common_tool_calls.py::test_call_tool_pretooluse_fires_on_the_run_hook_manager` |
+| Tool-call hooks fire on the run's manager, not the process-wide one | A task's deny hook is skipped and the tool runs anyway | `test/llm/engine/agent/test_common_tool_calls.py::test_call_tool_pretooluse_fires_on_the_run_hook_manager` |
 | A block on a non-blocking event does not stop the other hooks | One notification hook silently disables every hook after it | `test/llm/capabilities/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_block_on_non_blocking_event_continues_chain` |
 | `continue: false` stops the chain on any event | A hook asking zrb to halt is ignored | `test/llm/capabilities/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_continue_false_stops_execution` |
 | A hook that raises becomes a failed result | One broken hook aborts the user's turn | `test/llm/capabilities/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_exception_handling` |
@@ -77,10 +77,10 @@ flowchart TD
 | `HookConfig`, `HookContext` | `src/zrb/llm/capabilities/hook/contracts/schema.py`, `src/zrb/llm/capabilities/hook/contracts/interface.py` | A parsed hook declaration; the event payload a hook receives |
 | `evaluate_matchers` | `src/zrb/llm/capabilities/hook/execution/matcher.py` | Decides whether a hook applies; every matcher must pass |
 | `create_command_hook`, `create_prompt_hook` | `src/zrb/llm/capabilities/hook/execution/creator.py` | Build the subprocess hook and the one-shot LLM hook |
-| `create_agent_hook` | `src/zrb/llm/agent/hook_agent.py` | Builds the agent-type hook; installed through `register_agent_hook_builder` |
+| `create_agent_hook` | `src/zrb/llm/engine/agent/hook_agent.py` | Builds the agent-type hook; installed through `register_agent_hook_builder` |
 | `ThreadPoolHookExecutor` | `src/zrb/llm/capabilities/hook/execution/executor.py` | Runs one hook on a worker thread with a timeout and cancellation, and normalizes the result |
 | `get_run_hook_manager` | `src/zrb/llm/capabilities/hook/manager/manager.py` | The run's manager from `current_hook_manager`, else the process-wide `hook_manager` |
-| Result extractors | `src/zrb/llm/agent/run/hook_result_extractor.py` | Turn a result list into a decision the caller applies |
+| Result extractors | `src/zrb/llm/engine/agent/run/hook_result_extractor.py` | Turn a result list into a decision the caller applies |
 
 ### How it runs
 
@@ -113,8 +113,8 @@ sequenceDiagram
 | `async: true` command or agent hook | `HookManager.execute_hooks` | Matched, then started in the background on the main loop. Concurrency and backlog are capped; extra hooks are dropped |
 | Agent-type hook with no builder installed | `get_agent_hook_builder` returns `None` | Logs a warning and returns a failed result; only reachable in an isolated test |
 | A hook declared in a skill's frontmatter | `src/zrb/llm/capabilities/hook/skill_frontmatter.py` | Kept in a process-wide record and replayed onto every manager, including fresh per-run ones and after `reload` |
-| A run started inside another run | `resolve_context_dependencies` in `src/zrb/llm/agent/run/setup.py` | Inherits the parent run's manager, so a sub-agent's tools see the parent's hooks |
-| A call that needs approval | `src/zrb/llm/agent/run/deferred_calls.py` | Fires `PreToolUse` before the prompt, `PermissionRequest` when the user is actually asked, and observe-only `PermissionResolved` once the answer is known |
+| A run started inside another run | `resolve_context_dependencies` in `src/zrb/llm/engine/agent/run/setup.py` | Inherits the parent run's manager, so a sub-agent's tools see the parent's hooks |
+| A call that needs approval | `src/zrb/llm/engine/agent/run/deferred_calls.py` | Fires `PreToolUse` before the prompt, `PermissionRequest` when the user is actually asked, and observe-only `PermissionResolved` once the answer is known |
 | A Claude tool name in a matcher (`Bash`) | `evaluate_matchers` | Expanded to the zrb tool it means (`Shell`) for `tool_name` |
 | `LLM_HOOKS` set | `HookRegistry` | Only hooks with those names run |
 
@@ -127,8 +127,8 @@ sequenceDiagram
 | Change how hook files are found or parsed | `src/zrb/llm/capabilities/hook/hook_loader.py`, `src/zrb/llm/capabilities/hook/manager/loading.py` | `test/llm/capabilities/hook/manager/test_manager_lifecycle.py` |
 | Change matching | `src/zrb/llm/capabilities/hook/execution/matcher.py` | `test/llm/capabilities/hook/execution/test_matchers.py` |
 | Change command-hook I/O, timeouts or kill | `src/zrb/llm/capabilities/hook/execution/creator.py`, `src/zrb/llm/capabilities/hook/execution/process_io.py`, `src/zrb/llm/capabilities/hook/execution/process_kill.py` | `test/llm/capabilities/hook/execution/test_creator_subprocess.py` |
-| Change the agent-type hook | `src/zrb/llm/agent/hook_agent.py` | `test/llm/agent/test_hook_agent.py` |
-| Change how a verdict is applied | `src/zrb/llm/agent/run/hook_result_extractor.py` | `test/llm/capabilities/hook/execution/test_hook_result_processing.py` |
+| Change the agent-type hook | `src/zrb/llm/engine/agent/hook_agent.py` | `test/llm/engine/agent/test_hook_agent.py` |
+| Change how a verdict is applied | `src/zrb/llm/engine/agent/run/hook_result_extractor.py` | `test/llm/capabilities/hook/execution/test_hook_result_processing.py` |
 | Change skill-frontmatter hooks | `src/zrb/llm/capabilities/hook/skill_frontmatter.py` | `test/llm/capabilities/hook/test_skill_frontmatter.py` |
 
 ## See Also

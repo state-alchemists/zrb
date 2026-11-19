@@ -39,7 +39,7 @@ from zrb.llm.ui.base.user_echo import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
 
 
 EARLY_DELIVERY_GRACE_SECONDS = 1.0

@@ -3,7 +3,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 # Placeholders for parts that would otherwise be empty or text-less. Readable so
 # the model can tell a missing payload from a terse reply and not imitate it.
@@ -23,7 +23,7 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
         return messages
 
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, ModelResponse
+    from zrb.llm.engine.agent.types import ModelRequest, ModelResponse
 
     merged: list[Any] = []
     for msg in messages:
@@ -45,7 +45,7 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
 def _is_tool_call(part: object) -> bool:
     """True when *part* is a tool call."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
 
     return isinstance(part, ToolCallPart)
 
@@ -64,7 +64,7 @@ def is_tool_return_part(part: object) -> bool:
     or stripped as an orphan of, a call it never answered.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolReturnPart
+    from zrb.llm.engine.agent.types import ToolReturnPart
 
     if isinstance(part, ToolReturnPart):
         return True
@@ -90,7 +90,7 @@ def _strip_orphaned_parts(
     stays valid.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import TextPart
+    from zrb.llm.engine.agent.types import TextPart
 
     new_parts = [
         p
@@ -118,7 +118,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     that become text-less as a result.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.types import (
         ModelRequest,
         ModelResponse,
     )
@@ -157,7 +157,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     the summarised (dropped) portion are stripped.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest
+    from zrb.llm.engine.agent.types import ModelRequest
 
     call_ids, return_ids = _tool_call_ids(messages)
 

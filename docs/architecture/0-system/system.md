@@ -77,8 +77,8 @@ flowchart TD
 | `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [The Task Model](../1-spine/task-model.md) and [Task Execution](../1-spine/task-execution.md) |
 | `SharedContext`, `Session`, `Context` | `src/zrb/context/`, `src/zrb/session/` | The three tiers of state for one run |
 | `LLMTask`, `LLMChatTask` | `src/zrb/llm/task/` | Tasks that build and drive an agent |
-| `run_agent` | `src/zrb/llm/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](../1-spine/llm-turn.md) |
-| `create_agent` | `src/zrb/llm/agent/common.py` | Where zrb builds every `pydantic_ai.Agent`, wrapping every tool call in the safety checks |
+| `run_agent` | `src/zrb/llm/engine/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](../1-spine/llm-turn.md) |
+| `create_agent` | `src/zrb/llm/engine/agent/common.py` | Where zrb builds every `pydantic_ai.Agent`, wrapping every tool call in the safety checks |
 | `CFG` | `src/zrb/config/` | Every setting, read from the environment when used |
 | `src/zrb/contextvars.py` | `src/zrb/contextvars.py` | The index of every ambient `ContextVar`, its owning module and its typed wrapper — see [Context Propagation](../../technical-specs/context-propagation.md) |
 
@@ -117,7 +117,7 @@ Most changes land on one of the Tier 2 pages:
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/capabilities/tool/`, `src/zrb/llm/agent/tool_seed.py` | `test/llm/capabilities/tool/` |
+| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/capabilities/tool/`, `src/zrb/llm/engine/agent/tool_seed.py` | `test/llm/capabilities/tool/` |
 | Change what the terminal shows — [UI](../2-extension-surface/ui.md) | `src/zrb/llm/ui/` | `test/llm/ui/` |
 | Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/capabilities/prompt/` | `test/llm/capabilities/prompt/` |
 | Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/capabilities/hook/` | `test/llm/capabilities/hook/` |

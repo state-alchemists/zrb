@@ -42,10 +42,10 @@ _ROWS_COME_FROM_THE_RUN = {"llm/contracts/shared/subagent_turn.py"}
 
 # Path -> why this site does not attribute its run today.
 KNOWN_UNATTRIBUTED = {
-    "llm/agent/run/runner.py": (
+    "llm/engine/agent/run/runner.py": (
         "the recorder itself: the conversation's rounds are `main_agent` by default"
     ),
-    "llm/summarizer/text_summarizer.py": (
+    "llm/engine/summarizer/text_summarizer.py": (
         "its calls are folded into the compaction total that writes the line, so a "
         "second line here would count the same tokens twice"
     ),

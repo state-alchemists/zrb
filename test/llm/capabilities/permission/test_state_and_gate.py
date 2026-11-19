@@ -142,7 +142,7 @@ def test_plan_mode_overrides_explicit_policy():
 
 @pytest.mark.asyncio
 async def test_gate_blocks_denied_tool():
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     calls = []
 
@@ -166,7 +166,7 @@ async def test_gate_blocks_denied_tool():
 
 @pytest.mark.asyncio
 async def test_gate_allows_non_denied_tool():
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def read(path: str = ""):
         return "content"
@@ -188,7 +188,7 @@ async def test_gate_allows_non_denied_tool():
 @pytest.mark.asyncio
 async def test_gate_inert_without_policy():
     """Default-off: no policy → tool runs exactly as before."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def mutate():
         return "did it"

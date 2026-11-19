@@ -247,7 +247,7 @@ async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
     builder = get_agent_hook_builder()
     if builder is None:
         CFG.LOGGER.warning(
-            "Self-review skipped: zrb.llm.agent was never imported in this process."
+            "Self-review skipped: zrb.llm.engine.agent was never imported in this process."
         )
         return None
     reviewer = builder(

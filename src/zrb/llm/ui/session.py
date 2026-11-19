@@ -24,7 +24,7 @@ from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask

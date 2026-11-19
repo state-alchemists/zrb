@@ -282,7 +282,7 @@ def test_mcp_config_prefix_renames_tools_and_skips_overlong_names(mock_fs):
     with (
         patch("os.path.expanduser", return_value=home_dir),
         patch("os.getcwd", return_value=sub_dir),
-        patch("zrb.llm.agent.types.MCPToolset", side_effect=_fake_mcp_toolset),
+        patch("zrb.llm.engine.agent.types.MCPToolset", side_effect=_fake_mcp_toolset),
         patch("zrb.llm.capabilities.tool.mcp.zrb_print") as mock_print,
     ):
         toolsets = load_mcp_config()

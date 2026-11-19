@@ -112,7 +112,7 @@ async def test_stream_btw_response_uses_the_tool_less_prompt(ui):
     fake_agent = MagicMock()
     fake_agent.run = AsyncMock(return_value=MagicMock(output="side answer"))
 
-    with patch("zrb.llm.agent.create_agent", return_value=fake_agent) as create:
+    with patch("zrb.llm.engine.agent.create_agent", return_value=fake_agent) as create:
         await ui.stream_btw_response(ui.llm_task, "quick question")
 
     kwargs = create.call_args.kwargs
@@ -147,7 +147,7 @@ async def test_stream_btw_response_ties_the_answer_to_its_question(ui):
     fake_agent = MagicMock()
     fake_agent.run = AsyncMock(return_value=MagicMock(output="side answer"))
 
-    with patch("zrb.llm.agent.create_agent", return_value=fake_agent):
+    with patch("zrb.llm.engine.agent.create_agent", return_value=fake_agent):
         await ui.stream_btw_response(ui.llm_task, "quick question")
 
     ui.end_side_question.assert_called_once_with("side answer", request)

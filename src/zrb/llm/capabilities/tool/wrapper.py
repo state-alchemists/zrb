@@ -1,7 +1,7 @@
 """Tool wrapper utilities.
 
 Tools registered via create_agent() are already wrapped by
-zrb.llm.agent.common; use tool_safe_async only to append a custom error_hint.
+zrb.llm.engine.agent.common; use tool_safe_async only to append a custom error_hint.
 """
 
 import functools

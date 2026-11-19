@@ -15,7 +15,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runner import run_agent
+from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.usage_log import (
     count_tool_calls,

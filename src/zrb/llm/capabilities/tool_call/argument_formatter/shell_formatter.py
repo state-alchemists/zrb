@@ -16,7 +16,7 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 # Fence language per shell, so pygments highlights the command as the shell

@@ -77,8 +77,8 @@ The chat task then calls into the inner `LLMTask` execution path.
 
 ```mermaid
 flowchart TD
-    Inner["src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/agent/common.py :: create_agent()"]
-    Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/agent/run/runner.py :: run_agent()"]
+    Inner["src/zrb/llm/task/llm_task.py :: LLMTask._exec_action()"] --> Create["src/zrb/llm/engine/agent/common.py :: create_agent()"]
+    Create -->|"builds a pydantic_ai.Agent"| RunAgent["src/zrb/llm/engine/agent/run/runner.py :: run_agent()"]
 ```
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
@@ -91,7 +91,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Loop["src/zrb/llm/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
+    Loop["src/zrb/llm/engine/agent/run/runner.py :: _execution_loop()"] --> Sanitize["sanitize_history() — history_utils.py"]
     Sanitize --> Stream["agent.run(event_stream_handler=...) — pydantic_ai"]
     Stream --> Collect["collect events and tool calls"]
     Collect -->|exception| Retry["retry_loop.py — retry, strip thinking, or give up"]
@@ -107,7 +107,7 @@ This is the heart. Every round of the loop:
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 
-Compression happens *before* the loop starts, in one processor pass: `run_agent()` calls `_prepare_history()`, which fires `PreCompact`, runs the agent's history processors, then fires `PostCompact`. The summarizer is one of those processors (`create_summarizer_history_processor()` in `src/zrb/llm/summarizer/history_summarizer.py`), and one pass covers both tiers — an oversized tool result is replaced by its own summary in place, then the older turns are condensed if the conversation is still over its budget. It compresses when the conversation crosses 75% of `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`, or when the message count exceeds `LLM_HISTORY_SUMMARIZATION_WINDOW` (a backstop for many small messages). It keeps the newest turns that fit 40% of that threshold verbatim, archives those it replaces to `<LLM_HISTORY_DIR>/verbatim/<session>.md` word for word, drops any tool return whose call was summarized away, and re-alternates roles. When that archive write succeeds the summary names its path, so the agent can read back what the summary compressed; when it fails, the block goes out without the pointer rather than failing the turn. Any orphaned tool *call* left in the kept slice is scrubbed by step 2 on the next sanitize pass.
+Compression happens *before* the loop starts, in one processor pass: `run_agent()` calls `_prepare_history()`, which fires `PreCompact`, runs the agent's history processors, then fires `PostCompact`. The summarizer is one of those processors (`create_summarizer_history_processor()` in `src/zrb/llm/engine/summarizer/history_summarizer.py`), and one pass covers both tiers — an oversized tool result is replaced by its own summary in place, then the older turns are condensed if the conversation is still over its budget. It compresses when the conversation crosses 75% of `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`, or when the message count exceeds `LLM_HISTORY_SUMMARIZATION_WINDOW` (a backstop for many small messages). It keeps the newest turns that fit 40% of that threshold verbatim, archives those it replaces to `<LLM_HISTORY_DIR>/verbatim/<session>.md` word for word, drops any tool return whose call was summarized away, and re-alternates roles. When that archive write succeeds the summary names its path, so the agent can read back what the summary compressed; when it fails, the block goes out without the pointer rather than failing the turn. Any orphaned tool *call* left in the kept slice is scrubbed by step 2 on the next sanitize pass.
 
 ---
 
@@ -150,7 +150,7 @@ The built-in memory reviewer (`llm/capabilities/hook/builtin/memory_reviewer.py`
 5. `agent/hook_agent.py::create_agent_hook` resolves `tools` through `resolve_agent_hook_tools` — the memory tools live behind factories rather than the static registry — and calls `run_llm_hook` (`hook/execution/creator.py`), the actual LLM round-trip.
 6. Back in `hook/manager/manager.py`: matcher evaluation (`matcher.py`), priority sort, and — since the reviewer is `async: true` — fire-and-forget dispatch and drain/timeout handling on shutdown.
 
-A hook-only test that never imports `zrb.llm.agent` sees `get_agent_hook_builder()` return `None` at step 3 and gets a logged "agent hooks unavailable" placeholder instead — expected, not a bug.
+A hook-only test that never imports `zrb.llm.engine.agent` sees `get_agent_hook_builder()` return `None` at step 3 and gets a logged "agent hooks unavailable" placeholder instead — expected, not a bug.
 
 ---
 
@@ -184,12 +184,12 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | `llm chat` task definition | `src/zrb/builtin/llm/chat.py` |
 | Chat task + parts | `src/zrb/llm/task/chat/{task,running,execution}.py` |
 | Inner LLM task | `src/zrb/llm/task/llm_task.py` |
-| Agent factory | `src/zrb/llm/agent/common.py` |
-| Run loop | `src/zrb/llm/agent/run/runner.py` |
-| History sanitization | `src/zrb/llm/agent/run/history_utils.py`, `src/zrb/llm/contracts/shared/message.py` |
-| OpenAI serializer patch | `src/zrb/llm/agent/run/openai_patch.py` |
-| Retry / error classification | `src/zrb/llm/agent/run/{retry_loop,error_classifier}.py` |
-| Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
+| Agent factory | `src/zrb/llm/engine/agent/common.py` |
+| Run loop | `src/zrb/llm/engine/agent/run/runner.py` |
+| History sanitization | `src/zrb/llm/engine/agent/run/history_utils.py`, `src/zrb/llm/contracts/shared/message.py` |
+| OpenAI serializer patch | `src/zrb/llm/engine/agent/run/openai_patch.py` |
+| Retry / error classification | `src/zrb/llm/engine/agent/run/{retry_loop,error_classifier}.py` |
+| Compression / summarisation | `src/zrb/llm/engine/summarizer/history_summarizer.py` |
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/capabilities/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |

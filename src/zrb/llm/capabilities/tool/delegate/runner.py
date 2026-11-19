@@ -49,7 +49,7 @@ from zrb.util.string.name import get_random_name
 from zrb.util.string.suggestion import suggest_name
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.contracts.shared.delegation_api import SubAgentManagerAPI
     from zrb.llm.ui.any_ui import AnyUI
 

@@ -29,7 +29,7 @@ from zrb.llm.contracts.shared.feature_config import get_session_ui
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RunUsage
+    from zrb.llm.engine.agent.types import RunUsage
 
 # The record a month file holds. Nothing here reads a record's fields: the
 # window and the conversation are the caller's `select`, which is what lets one

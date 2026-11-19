@@ -31,9 +31,9 @@ class TestMultimodalBackend:
         with (
             _supports_audio(),
             _resolves_to("gemini:gemini-2.5-flash") as resolve,
-            patch("zrb.llm.agent.create_agent", return_value="agent") as create,
+            patch("zrb.llm.engine.agent.create_agent", return_value="agent") as create,
             patch(
-                "zrb.llm.agent.run_agent",
+                "zrb.llm.engine.agent.run_agent",
                 new_callable=AsyncMock,
                 return_value=("  hello world ", None),
             ) as run,

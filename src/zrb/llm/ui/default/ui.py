@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from prompt_toolkit.widgets import TextArea
     from rich.theme import Theme
 
-    from zrb.llm.agent.types import Model, UserContent
+    from zrb.llm.engine.agent.types import Model, UserContent
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.base.message_queue import QueuedMessage
 

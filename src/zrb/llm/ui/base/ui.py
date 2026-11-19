@@ -86,7 +86,7 @@ InputSource = InputProvenance | None
 if TYPE_CHECKING:
     from rich.theme import Theme
 
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.types import (
         Model,
         RequestUsage,
         RunUsage,

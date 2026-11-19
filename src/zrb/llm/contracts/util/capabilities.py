@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import Model
+    from zrb.llm.engine.agent.types import Model
 
 Modality = Literal["image", "audio", "video", "document"]
 

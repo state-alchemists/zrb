@@ -25,9 +25,9 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # Pipecat and its re-exporting backend package form a genuine cycle; defer the
     # backend half where the pipeline is built.
     "llm/speech/backend/pipecat/backend.py": 1,
-    # zrb.llm.agent is a lazy facade; its registration adapter resolves
+    # zrb.llm.engine.agent is a lazy facade; its registration adapter resolves
     # engine pieces on first call to avoid pulling pydantic_ai at import time.
-    "llm/agent/__init__.py": 2,
+    "llm/engine/agent/__init__.py": 2,
     # The interactive session loop reads the typed message and puts the stored
     # conversation back on screen. `task/chat/execution.py` imports
     # `ui/fallback/resolution.py` for `resolve_ui`, so importing `task/` back at

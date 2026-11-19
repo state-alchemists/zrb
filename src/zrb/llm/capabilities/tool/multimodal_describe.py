@@ -26,7 +26,7 @@ from zrb.llm.contracts.util.capabilities import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import BinaryContent, Model, ToolReturn, UserContent
+    from zrb.llm.engine.agent.types import BinaryContent, Model, ToolReturn, UserContent
 
 
 async def describe_binary_attachment(
@@ -96,8 +96,8 @@ async def create_image_tool_return(
     (``"Photo taken"``): the image attached for a model that reads images, its
     description for a text-only one, or a `[SYSTEM SUGGESTION]` naming
     `LLM_MULTIMODAL_MODEL` when neither works."""
-    # lazy: heavy third-party (pydantic_ai) via zrb.llm.agent.types
-    from zrb.llm.agent.types import ToolReturn
+    # lazy: heavy third-party (pydantic_ai) via zrb.llm.engine.agent.types
+    from zrb.llm.engine.agent.types import ToolReturn
 
     shown = await get_attachment_for_current_model(image)
     if not shown:
@@ -146,7 +146,7 @@ async def replace_unsupported_attachments(
         return prompt_content
 
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import BinaryContent
+    from zrb.llm.engine.agent.types import BinaryContent
 
     out: list[UserContent | None] = []
     notify = print_fn or (lambda *a, **k: None)

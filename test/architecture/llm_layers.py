@@ -19,7 +19,6 @@ LLM = SRC / "zrb" / "llm"
 # The table, for a unit that has not moved into the five-directory layout yet.
 # It is deleted when the last one has (the P7 step of the 4.0 move).
 _UNITS_BY_LAYER = {
-    2: "agent summarizer",
     3: "common_tools custom_command resumed_session subagent task",
     4: "camera dictation emotion screenshot speech ui voice",
 }
@@ -55,7 +54,7 @@ _LAYERS = {
 # at L4 was importable from L1. The contracts a lower layer must name now live
 # where the path says so (`contracts/ui/`, `contracts/shared/`), which is what
 # the move of #970, #972 and #973 bought.
-_CONTRACT_PATHS = {"agent/types.py", "engine/agent/types.py"}
+_CONTRACT_PATHS = {"engine/agent/types.py"}
 
 # Path prefixes that sit below the layer of the package holding them. A floor is
 # a part of a package that the layers beneath it must be able to build with:
@@ -154,9 +153,6 @@ _UNIT_DESTINATIONS = {
     # back at it.
     "ui/fallback": "presentation/ui/fallback",
     "ui/buffered": "presentation/ui/buffered",
-    # engine
-    "agent": "engine/agent",
-    "summarizer": "engine/summarizer",
     # orchestration
     "common_tools": "orchestration/common_tools.py",
     "custom_command": "orchestration/custom_command",

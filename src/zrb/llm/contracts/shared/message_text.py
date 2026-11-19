@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelRequest, ModelResponse
+    from zrb.llm.engine.agent.types import ModelRequest, ModelResponse
 else:
     ModelRequest = Any
     ModelResponse = Any
@@ -36,7 +36,7 @@ def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
     `TAIL_TOOL_OUTPUT_LIMIT`).
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, ModelResponse
+    from zrb.llm.engine.agent.types import ModelRequest, ModelResponse
 
     if isinstance(msg, ModelRequest):
         return model_request_to_text(msg, tool_output_limit)
@@ -106,7 +106,7 @@ def model_request_to_text(
     msg: ModelRequest, tool_output_limit: int | None = None
 ) -> str:
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
+    from zrb.llm.engine.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
     from zrb.llm.contracts.util.history_formatter import format_multimodal_item
 
     parts = []
@@ -141,7 +141,7 @@ def model_response_to_text(
     msg: ModelResponse, tool_output_limit: int | None = None
 ) -> str:
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
+    from zrb.llm.engine.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
     parts = []
     for p in getattr(msg, "parts", []):

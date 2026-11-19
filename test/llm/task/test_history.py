@@ -147,7 +147,7 @@ class TestSaveCancelledHistory:
     def test_with_partial_run(self):
         from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.completed_tools.append(
@@ -187,7 +187,7 @@ class TestSaveCancelledHistory:
         assert len(saved) == 2  # user msg + cancelled marker only
 
     def test_skips_summary_when_no_tools(self):
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.is_interrupted = True
@@ -221,7 +221,7 @@ class TestSaveCancelledHistory:
             UserPromptPart,
         )
 
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.latest_history = [
@@ -265,7 +265,7 @@ class TestSaveCancelledHistory:
             UserPromptPart,
         )
 
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.latest_history = [
@@ -294,7 +294,7 @@ class TestHandleRunError:
     def test_appends_partial_summary(self):
         from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.completed_tools.append(("search", "{}", "Found foo.py"))
@@ -324,7 +324,7 @@ class TestHandleRunError:
         assert "Found foo.py" in content
 
     def test_skips_partial_summary_on_context_length(self):
-        from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+        from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
 
         partial_run = PartialRunAccumulator()
         partial_run.completed_tools.append(("search", "{}", "Found foo.py"))

@@ -47,7 +47,7 @@ def test_plan_mode_tools_are_meta():
 @pytest.mark.asyncio
 async def test_plan_mode_blocks_edit_and_execute_allows_read():
     """Under plan mode, the gate denies edit/execute/delegate, allows read."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     ran = []
 
@@ -96,7 +96,7 @@ async def test_plan_mode_allows_read_through_full_toolset_dispatch():
     from pydantic_ai.toolsets import FunctionToolset
     from pydantic_ai.usage import RunUsage
 
-    from zrb.llm.agent.common import wrap_tool, wrap_toolset
+    from zrb.llm.engine.agent.common import wrap_tool, wrap_toolset
 
     def read_file(path: str = ""):
         return f"contents of {path}"

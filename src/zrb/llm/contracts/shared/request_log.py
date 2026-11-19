@@ -61,8 +61,8 @@ from zrb.util.string.name import get_conversation_key
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
 
-    from zrb.llm.agent.run.turn_cursor import TurnCursor
-    from zrb.llm.agent.run.typing_aliases import History
+    from zrb.llm.engine.agent.run.turn_cursor import TurnCursor
+    from zrb.llm.engine.agent.run.typing_aliases import History
 
 _FILE_PREFIX = "request-"
 _FILE_SUFFIX = ".jsonl"

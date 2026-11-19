@@ -82,7 +82,7 @@ flowchart TD
 | `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
 | `LiveSubAgentSessionRegistry` | `src/zrb/llm/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
-| `AuthoritySnapshot` | `src/zrb/llm/agent/run/authority_snapshot.py` | The permission policy, yolo, sandbox, hook manager, approval handler (tool policies, formatters, response handlers) and approval channel captured at delegation |
+| `AuthoritySnapshot` | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | The permission policy, yolo, sandbox, hook manager, approval handler (tool policies, formatters, response handlers) and approval channel captured at delegation |
 
 ### How it runs
 
@@ -155,7 +155,7 @@ sequenceDiagram
 | Change background handles and waiting | `src/zrb/llm/capabilities/tool/delegate/background.py` | `test/llm/capabilities/tool/delegate/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
 | Change agent-to-agent messages | `src/zrb/llm/capabilities/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/capabilities/tool/delegate/test_delegate_message.py` |
-| Change what authority is captured | `src/zrb/llm/agent/run/authority_snapshot.py` | `test/llm/agent/run/test_authority_snapshot.py` |
+| Change what authority is captured | `src/zrb/llm/engine/agent/run/authority_snapshot.py` | `test/llm/engine/agent/run/test_authority_snapshot.py` |
 
 ## See Also
 

@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 from pydantic_ai import ToolCallPart
 from pydantic_ai.messages import TextPart
 
-from zrb.llm.agent.run.setup import setup_print_and_events
+from zrb.llm.engine.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.output import UIOutput

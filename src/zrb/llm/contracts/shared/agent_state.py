@@ -4,10 +4,10 @@ Set by `run_agent` (`agent/run/runner.py`) at the start of a turn; read by
 sub-agents, delegate tools and UI callbacks that don't receive them as
 arguments.
 
-Lives outside `zrb.llm.agent` so leaf modules (`tool/ask.py`, `tool/shell.py`,
+Lives outside `zrb.llm.engine.agent` so leaf modules (`tool/ask.py`, `tool/shell.py`,
 `ui/base/ui.py`, ...) can read it without loading that package's `__init__`,
 which would be circular (see `test/architecture/test_circular_import_allowlist.py`).
-Outside `zrb.llm.agent.run`, use the typed getters rather than the raw vars.
+Outside `zrb.llm.engine.agent.run`, use the typed getters rather than the raw vars.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.contracts.config.limiter import LLMLimiter
     from zrb.llm.capabilities.hook.manager import HookManager

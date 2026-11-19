@@ -478,7 +478,7 @@ class HookManager(HookManagerLoading):
         logging placeholder for anything else."""
         # lazy: zrb internal (heavy via transitive). Deferring this and
         # agent/hook_agent.py's matching import keeps hook.creator out of
-        # zrb.llm.agent's eager import closure; hoisting either puts it back.
+        # zrb.llm.engine.agent's eager import closure; hoisting either puts it back.
         from zrb.llm.capabilities.hook.execution.creator import (
             create_command_hook,
             create_prompt_hook,
@@ -497,7 +497,7 @@ class HookManager(HookManagerLoading):
 
             async def unavailable_hook(context: HookContext) -> HookResult:
                 logger.warning(
-                    f"Agent-type hook '{config.name}' skipped: zrb.llm.agent was "
+                    f"Agent-type hook '{config.name}' skipped: zrb.llm.engine.agent was "
                     "never imported in this process."
                 )
                 return HookResult(success=False, output="Agent hooks unavailable")

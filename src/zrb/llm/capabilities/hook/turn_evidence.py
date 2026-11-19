@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 # Not imported from `llm.tool`, which transitively loads `pydantic_ai`.
 FILE_MUTATING_TOOL_NAMES = frozenset({"Write", "Edit", "RM", "MV"})
@@ -27,7 +27,7 @@ _PREFERENCE_SIGNAL_RE = re.compile(
 
 def _has_call_to(turn_messages: Sequence[object], tool_names: frozenset[str]) -> bool:
     """Whether *turn_messages* contains a call to any of *tool_names*."""
-    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.engine.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelResponse,
         ToolCallPart,
     )
@@ -61,7 +61,7 @@ def turn_changed_paths(
     """Paths named by file-mutating tool calls, deduplicated in first-seen order.
 
     Files changed through a shell command are not seen."""
-    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.engine.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelResponse,
         ToolCallPart,
     )
@@ -86,7 +86,7 @@ def turn_changed_paths(
 
 def turn_states_preference(turn_messages: Sequence[object]) -> bool:
     """Whether a user prompt in *turn_messages* reads like a standing preference."""
-    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.engine.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelRequest,
         UserPromptPart,
     )

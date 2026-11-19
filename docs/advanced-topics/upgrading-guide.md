@@ -118,19 +118,19 @@ Only the import path changed. A subclass that wants one of the parts can import 
 
 ### The tools are grouped by domain
 
-The tools under `zrb.llm.capabilities.tool` are now grouped by the domain they act on. A domain with more than one module is a package — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — and its `__init__` re-exports every name the flat module exported, so `from zrb.llm.capabilities.tool.file import read_file` and `from zrb.llm.capabilities.tool import read_file` both keep working.
+The tools under `zrb.llm.tool` are now grouped by the domain they act on. A domain with more than one module is a package — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — and its `__init__` re-exports every name the flat module exported, so `from zrb.llm.tool.file import read_file` and `from zrb.llm.tool import read_file` both keep working.
 
 | Before | After |
 |---|---|
-| `from zrb.llm.capabilities.tool import read_file` | unchanged |
-| `from zrb.llm.capabilities.tool.file import read_file` | unchanged — it is the package now |
-| `from zrb.llm.capabilities.tool.file_read import read_file` | `from zrb.llm.capabilities.tool.file.read import read_file` |
-| `from zrb.llm.capabilities.tool.delegate_background import start_background_run` | `from zrb.llm.capabilities.tool.delegate.background import start_background_run` |
-| `from zrb.llm.capabilities.tool.shell_background import get_shell_background_registry` | `from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry` |
-| `from zrb.llm.capabilities.tool.stream_capture import StreamCapture` | `from zrb.llm.capabilities.tool.shell.capture import StreamCapture` |
-| `from zrb.llm.capabilities.tool.plan_mode import enter_plan_mode` | `from zrb.llm.capabilities.tool.plan.mode import enter_plan_mode` |
-| `from zrb.llm.capabilities.tool.worktree import enter_worktree` | `from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree` |
-| `from zrb.llm.capabilities.tool.code_constants import DEFAULT_EXTENSIONS` | `from zrb.llm.capabilities.tool.code.constants import DEFAULT_EXTENSIONS` |
+| `from zrb.llm.tool import read_file` | unchanged |
+| `from zrb.llm.tool.file import read_file` | unchanged — it is the package now |
+| `from zrb.llm.tool.file_read import read_file` | `from zrb.llm.tool.file.read import read_file` |
+| `from zrb.llm.tool.delegate_background import start_background_run` | `from zrb.llm.tool.delegate.background import start_background_run` |
+| `from zrb.llm.tool.shell_background import get_shell_background_registry` | `from zrb.llm.tool.shell.background import get_shell_background_registry` |
+| `from zrb.llm.tool.stream_capture import StreamCapture` | `from zrb.llm.tool.shell.capture import StreamCapture` |
+| `from zrb.llm.tool.plan_mode import enter_plan_mode` | `from zrb.llm.tool.plan.mode import enter_plan_mode` |
+| `from zrb.llm.tool.worktree import enter_worktree` | `from zrb.llm.tool.delegate.worktree import enter_worktree` |
+| `from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS` | `from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS` |
 
 The single-module tools — `ask`, `git_visible`, `mcp`, `memory`, `multimodal_describe`, `skill`, `wrapper`, `zrb_task` — did not move.
 ### The speech backends and the small UI parts are packages
@@ -153,43 +153,43 @@ A facade with several parts is now a package, and its `__init__` re-exports the 
 
 | Before | After |
 |---|---|
-| `from zrb.llm.capabilities.lsp.manager import LSPManager, lsp_manager` | unchanged — it is the package now |
-| `from zrb.llm.capabilities.lsp.manager_lifecycle import LSPManagerLifecycle` | `from zrb.llm.capabilities.lsp.manager.lifecycle import LSPManagerLifecycle` |
-| `from zrb.llm.capabilities.lsp.manager_query import LSPManagerQuery` | `from zrb.llm.capabilities.lsp.manager.query import LSPManagerQuery` |
-| `from zrb.llm.capabilities.lsp.server import LSPServer, LSPServerConfig` | unchanged — it is the package now |
-| `from zrb.llm.capabilities.lsp.server_operations import LSPServerOperations` | `from zrb.llm.capabilities.lsp.server.operations import LSPServerOperations` |
+| `from zrb.llm.lsp.manager import LSPManager, lsp_manager` | unchanged — it is the package now |
+| `from zrb.llm.lsp.manager_lifecycle import LSPManagerLifecycle` | `from zrb.llm.lsp.manager.lifecycle import LSPManagerLifecycle` |
+| `from zrb.llm.lsp.manager_query import LSPManagerQuery` | `from zrb.llm.lsp.manager.query import LSPManagerQuery` |
+| `from zrb.llm.lsp.server import LSPServer, LSPServerConfig` | unchanged — it is the package now |
+| `from zrb.llm.lsp.server_operations import LSPServerOperations` | `from zrb.llm.lsp.server.operations import LSPServerOperations` |
 | `from zrb.llm.subagent.manager import SubAgentManager, sub_agent_manager` | unchanged — it is the package now |
 | `from zrb.llm.subagent.manager_loading import SubAgentManagerLoading` | `from zrb.llm.subagent.manager.loading import SubAgentManagerLoading` |
 | `from zrb.llm.subagent.manager_search import SubAgentManagerSearch` | `from zrb.llm.subagent.manager.search import SubAgentManagerSearch` |
-| `from zrb.llm.capabilities.prompt.live_context import render_live_context, render_carried_context, LIVE_CONTEXT_ANCHOR` | unchanged — it is the package now |
-| `from zrb.llm.capabilities.prompt.live_context_providers import LiveContextProviders, SimplePrompt` | `from zrb.llm.capabilities.prompt.live_context.providers import LiveContextProviders, SimplePrompt` |
+| `from zrb.llm.prompt.live_context import render_live_context, render_carried_context, LIVE_CONTEXT_ANCHOR` | unchanged — it is the package now |
+| `from zrb.llm.prompt.live_context_providers import LiveContextProviders, SimplePrompt` | `from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt` |
 
-The last row is the one path in this group that is gone rather than moved: `zrb.llm.capabilities.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.contracts.util.live_context_block`.
+The last row is the one path in this group that is gone rather than moved: `zrb.llm.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.contracts.util.live_context_block`.
 
 ### The hook machinery is now four packages
 
-`zrb.llm.capabilities.hook` was eighteen modules in one directory: the vocabulary, the parser, the subprocess plumbing, the two hooks zrb ships, and the manager. It is now four packages — `contracts` (the shapes a declaration and a call are made of), `execution` (building a hook and running it safely), `builtin` (the memory reviewer and the self-review gate) and `manager` (where hooks come from, which one applies, the stop rules) — plus the five single-job modules that stay at the root: `registry`, `hook_loader`, `skill_frontmatter`, `turn_evidence` and `agent_hook_registry`.
+`zrb.llm.hook` was eighteen modules in one directory: the vocabulary, the parser, the subprocess plumbing, the two hooks zrb ships, and the manager. It is now four packages — `contracts` (the shapes a declaration and a call are made of), `execution` (building a hook and running it safely), `builtin` (the memory reviewer and the self-review gate) and `manager` (where hooks come from, which one applies, the stop rules) — plus the five single-job modules that stay at the root: `registry`, `hook_loader`, `skill_frontmatter`, `turn_evidence` and `agent_hook_registry`.
 
-Nothing a user writes against breaks: `from zrb.llm.capabilities.hook import HookEvent, HookContext, HookConfig` and `from zrb.llm.capabilities.hook.manager import HookManager, hook_manager` are unchanged, because `hook/__init__.py` and `hook/manager/__init__.py` re-export what they always did. Only an import that named one of the modules directly moves.
+Nothing a user writes against breaks: `from zrb.llm.hook import HookEvent, HookContext, HookConfig` and `from zrb.llm.hook.manager import HookManager, hook_manager` are unchanged, because `hook/__init__.py` and `hook/manager/__init__.py` re-export what they always did. Only an import that named one of the modules directly moves.
 
 | Before | After |
 |---|---|
-| `from zrb.llm.capabilities.hook.manager import HookManager, hook_manager, get_run_hook_manager` | unchanged — it is the package now |
-| `from zrb.llm.capabilities.hook.manager_loading import HookManagerLoading` | `from zrb.llm.capabilities.hook.manager.loading import HookManagerLoading` |
-| `from zrb.llm.capabilities.hook.types import HookEvent, HookType, MatcherOperator` | `from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator` |
-| `from zrb.llm.capabilities.hook.interface import HookContext, HookResult, HookCallable` | `from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult, HookCallable` |
-| `from zrb.llm.capabilities.hook.schema import HookConfig, MatcherConfig` | `from zrb.llm.capabilities.hook.contracts.schema import HookConfig, MatcherConfig` |
-| `from zrb.llm.capabilities.hook.executor import ThreadPoolHookExecutor` | `from zrb.llm.capabilities.hook.execution.executor import ThreadPoolHookExecutor` |
-| `from zrb.llm.capabilities.hook.creator import create_command_hook, create_prompt_hook` | `from zrb.llm.capabilities.hook.execution.creator import ...` |
-| `from zrb.llm.capabilities.hook.matcher import evaluate_matchers` | `from zrb.llm.capabilities.hook.execution.matcher import evaluate_matchers` |
-| `from zrb.llm.capabilities.hook.process_io import read_hook_output` | `from zrb.llm.capabilities.hook.execution.process_io import read_hook_output` |
-| `from zrb.llm.capabilities.hook.process_kill import kill_process_tree` | `from zrb.llm.capabilities.hook.execution.process_kill import kill_process_tree` |
-| `from zrb.llm.capabilities.hook.memory_reviewer import register_memory_reviewer_hook` | `from zrb.llm.capabilities.hook.builtin.memory_reviewer import register_memory_reviewer_hook` |
-| `from zrb.llm.capabilities.hook.self_review import register_self_review_hook` | `from zrb.llm.capabilities.hook.builtin.self_review import register_self_review_hook` |
-| `from zrb.llm.capabilities.hook.registry import HookRegistry, hook_registry` | unchanged |
-| `from zrb.llm.capabilities.hook.agent_hook_registry import get_agent_hook_builder` | unchanged |
+| `from zrb.llm.hook.manager import HookManager, hook_manager, get_run_hook_manager` | unchanged — it is the package now |
+| `from zrb.llm.hook.manager_loading import HookManagerLoading` | `from zrb.llm.hook.manager.loading import HookManagerLoading` |
+| `from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator` | `from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator` |
+| `from zrb.llm.hook.interface import HookContext, HookResult, HookCallable` | `from zrb.llm.hook.contracts.interface import HookContext, HookResult, HookCallable` |
+| `from zrb.llm.hook.schema import HookConfig, MatcherConfig` | `from zrb.llm.hook.contracts.schema import HookConfig, MatcherConfig` |
+| `from zrb.llm.hook.executor import ThreadPoolHookExecutor` | `from zrb.llm.hook.execution.executor import ThreadPoolHookExecutor` |
+| `from zrb.llm.hook.creator import create_command_hook, create_prompt_hook` | `from zrb.llm.hook.execution.creator import ...` |
+| `from zrb.llm.hook.matcher import evaluate_matchers` | `from zrb.llm.hook.execution.matcher import evaluate_matchers` |
+| `from zrb.llm.hook.process_io import read_hook_output` | `from zrb.llm.hook.execution.process_io import read_hook_output` |
+| `from zrb.llm.hook.process_kill import kill_process_tree` | `from zrb.llm.hook.execution.process_kill import kill_process_tree` |
+| `from zrb.llm.hook.memory_reviewer import register_memory_reviewer_hook` | `from zrb.llm.hook.builtin.memory_reviewer import register_memory_reviewer_hook` |
+| `from zrb.llm.hook.self_review import register_self_review_hook` | `from zrb.llm.hook.builtin.self_review import register_self_review_hook` |
+| `from zrb.llm.hook.registry import HookRegistry, hook_registry` | unchanged |
+| `from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder` | unchanged |
 
-`zrb.llm.capabilities.hook.contracts`, `zrb.llm.capabilities.hook.execution` and `zrb.llm.capabilities.hook.builtin` each re-export the names of the package beside them, so they can be imported from as a whole. A hook you declare yourself — in `.claude/settings.json`, `.zrb/hooks.json` or a `.hook.py` file — is untouched: the formats, the events and the control rules are the same.
+`zrb.llm.hook.contracts`, `zrb.llm.hook.execution` and `zrb.llm.hook.builtin` each re-export the names of the package beside them, so they can be imported from as a whole. A hook you declare yourself — in `.claude/settings.json`, `.zrb/hooks.json` or a `.hook.py` file — is untouched: the formats, the events and the control rules are the same.
 
 ---
 
@@ -284,7 +284,7 @@ An agent hook, skill or prompt of yours that names a journal tool now resolves n
 | Before | After |
 |---|---|
 | `render_live_context(..., inject_journal_index=True)` | `render_live_context(..., inject_memory=True)`; the `first_message` argument is gone |
-| `render_journal_index(...)`, `render_journal_claims(...)`, `render_day_block()` | `render_memory_block()` and `render_memory_delta()` in `zrb.llm.capabilities.prompt.memory_context` |
+| `render_journal_index(...)`, `render_journal_claims(...)`, `render_day_block()` | `render_memory_block()` and `render_memory_delta()` in `zrb.llm.prompt.memory_context` |
 | `render_carried_context()` returned whichever store was on | It returns the memory block, always |
 | `zrb memory migrate-journal` | `zrb memory migrate` |
 | A `STOP` payload with `journal_due`, `count_user_turn`, `has_turn_logged_activity` | `memory_due`; `wrote_files`, `changed_paths` and `turn_states_preference` stay |
@@ -312,7 +312,7 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 
 | Old | New |
 |---|---|
-| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.capabilities.tool.multimodal_describe` |
+| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.tool.multimodal_describe` |
 
 ### Import path changes (lower layers)
 
@@ -321,11 +321,11 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 | `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
 | `from zrb.llm.subagent.manager.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
 | `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
-| `from zrb.llm.capabilities.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.contracts.util.live_context_block import append_live_context, split_live_context` |
+| `from zrb.llm.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.contracts.util.live_context_block import append_live_context, split_live_context` |
 
 `zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
 
-`split_live_context` is still importable from `zrb.llm.capabilities.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.contracts.util.live_context_block` now.
+`split_live_context` is still importable from `zrb.llm.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.contracts.util.live_context_block` now.
 
 ---
 
@@ -351,16 +351,16 @@ Top-level `zrb` exports are unchanged. A deep import of a module that moved to t
 | `zrb.util.git.*` | `zrb.git.*` |
 | `zrb.util.init_path` | `zrb.config.init_path` |
 | `zrb.util.ascii_art.banner` | `zrb.llm.ui.default.ascii_art.banner` |
-| `zrb.util.git.snapshot_store` / `snapshot_listing` / `snapshot_command` | `zrb.llm.capabilities.snapshot.store` / `listing` / `command` |
+| `zrb.util.git.snapshot_store` / `snapshot_listing` / `snapshot_command` | `zrb.llm.snapshot.store` / `listing` / `command` |
 | `zrb.llm.agent.subagent.*` | `zrb.llm.subagent.*` |
-| `zrb.llm.agent.activity`, `zrb.llm.capabilities.tool.ambient_state`, `zrb.llm.capabilities.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.capabilities.tool`) |
-| `zrb.llm.contracts.util.conversation_naming`, `zrb.llm.contracts.util.multimodal_describe` | `zrb.llm.capabilities.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
-| `zrb.llm.capabilities.tool_call.args` | now `zrb.llm.contracts.util.tool_args` |
-| `zrb.llm.capabilities.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
+| `zrb.llm.agent.activity`, `zrb.llm.tool.ambient_state`, `zrb.llm.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.tool`) |
+| `zrb.llm.contracts.util.conversation_naming`, `zrb.llm.contracts.util.multimodal_describe` | `zrb.llm.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
+| `zrb.llm.tool_call.args` | now `zrb.llm.contracts.util.tool_args` |
+| `zrb.llm.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
 | `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.contracts.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
 | `zrb.llm.ui.any_ui` | `zrb.llm.ui.any_ui` (the old path still re-exports it) |
 | `zrb.llm.ui.std_ui`, `zrb.llm.ui.state_defaults` | `zrb.llm.ui.fallback.std_ui`, `zrb.llm.ui.fallback.state_defaults` (the old paths still re-export them) |
-| `zrb.llm.capabilities.tool_call.choice_spec_format` | `zrb.llm.contracts.util.choice_spec_format` |
+| `zrb.llm.tool_call.choice_spec_format` | `zrb.llm.contracts.util.choice_spec_format` |
 
 ---
 
@@ -611,8 +611,8 @@ Both are now **ABCs** — a custom implementation must subclass them (an incompl
 
 | Before | After |
 |---|---|
-| `from zrb.llm.capabilities.tool_call.ui_protocol import UIProtocol` | `from zrb import AnyUI` |
-| `from zrb.llm.capabilities.approval.approval_channel import ApprovalChannel` | `from zrb.llm.capabilities.approval import AnyApprovalChannel` |
+| `from zrb.llm.tool_call.ui_protocol import UIProtocol` | `from zrb import AnyUI` |
+| `from zrb.llm.approval.approval_channel import ApprovalChannel` | `from zrb.llm.approval import AnyApprovalChannel` |
 | `class MyUI(UIProtocol):` | `class MyUI(AnyUI):` (or subclass `BaseUI`/`SimpleUI`/`EventDrivenUI`, which already do) |
 | `class MyChannel(ApprovalChannel):` | `class MyChannel(AnyApprovalChannel):` |
 

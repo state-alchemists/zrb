@@ -8,7 +8,7 @@ user turn after every tool call).
 a dict through as a native ``functionResponse`` but wraps a string, and
 multimodal parts are only extracted from a non-stringified value.
 
-Lives outside ``zrb.llm.agent`` because ``zrb.llm.capabilities.tool.wrapper`` needs it and
+Lives outside ``zrb.llm.engine.agent`` because ``zrb.llm.capabilities.tool.wrapper`` needs it and
 importing that package from there is circular (see
 ``test/architecture/test_circular_import_allowlist.py``).
 """
@@ -24,7 +24,7 @@ def tool_return(value: Any, **metadata: Any) -> Any:
     ``metadata`` is application-only (never sent to the model) and always a dict.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolReturn
+    from zrb.llm.engine.agent.types import ToolReturn
 
     return ToolReturn(return_value=value, metadata=metadata)
 
@@ -32,7 +32,7 @@ def tool_return(value: Any, **metadata: Any) -> Any:
 def has_multimodal(value: Any) -> bool:
     """True when *value* is, or contains, multimodal content."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import is_multi_modal_content
+    from zrb.llm.engine.agent.types import is_multi_modal_content
 
     if is_multi_modal_content(value):
         return True

@@ -5,16 +5,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.error_classifier import is_prompt_too_long_error
-from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
+from zrb.llm.engine.agent.run.error_classifier import is_prompt_too_long_error
+from zrb.llm.engine.agent.run.history_utils import close_dangling_tool_calls
 from zrb.llm.capabilities.history_manager.file_history_manager import default_history_manager
 from zrb.llm.task.shared_getters import resolve_conversation_name
 from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
-    from zrb.llm.agent.run.partial_run import PartialRunAccumulator
-    from zrb.llm.agent.types import ModelMessage, UserContent, UserPromptPart
+    from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
+    from zrb.llm.engine.agent.types import ModelMessage, UserContent, UserPromptPart
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
 
@@ -81,7 +81,7 @@ class LLMTaskHistory:
         next attempt longer and guarantee the same failure.
         """
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import ModelRequest, UserPromptPart
+        from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 
         new_history = getattr(error, "zrb_history", None)
         if new_history is None:
@@ -117,7 +117,7 @@ class LLMTaskHistory:
         """
         try:
             # lazy: zrb internal (heavy via transitive)
-            from zrb.llm.agent.types import (
+            from zrb.llm.engine.agent.types import (
                 ModelRequest,
                 ModelResponse,
                 TextPart,
@@ -166,7 +166,7 @@ class LLMTaskHistory:
 def _is_last_user_turn(user_message: str, message_history: list[ModelMessage]) -> bool:
     """Whether *user_message* is the latest non-"[SYSTEM]" user turn in history."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+    from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 
     for msg in reversed(message_history):
         if not isinstance(msg, ModelRequest):

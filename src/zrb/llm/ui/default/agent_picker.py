@@ -96,7 +96,7 @@ class UIAgentPicker:
         when nothing is trackable. Called from ``UIMessageEditing.handle_down_arrow``.
         """
         # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
         from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         sessions = live_subagent_session_registry.active(
@@ -195,7 +195,7 @@ class UIAgentPicker:
         if self._viewing_agent_id is None:
             return False
         # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
         from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         session_id = get_session_ownership_key(self._ui.conversation_session_name)
@@ -243,7 +243,7 @@ class UIAgentPicker:
 
     def _get_viewed_session(self, agent_id: str) -> "LiveSubAgentSession | None":
         # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
         from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         return live_subagent_session_registry.get(

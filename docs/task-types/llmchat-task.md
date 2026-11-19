@@ -267,7 +267,7 @@ An action may also:
 A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
 
 ```python
-from zrb.llm.agent.types import BinaryContent
+from zrb.llm.engine.agent.types import BinaryContent
 from zrb.llm.camera import AutoCameraBackend
 from zrb.llm.custom_command import ActionCommand
 

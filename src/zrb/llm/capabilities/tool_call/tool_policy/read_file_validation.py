@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
@@ -16,7 +16,7 @@ async def read_file_validation_policy(
 ) -> Any:
     """Deny a `Read` call whose file does not exist."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ToolDenied
+    from zrb.llm.engine.agent.types import ToolDenied
 
     if call.tool_name != "Read":
         return await next_handler(ui, call)

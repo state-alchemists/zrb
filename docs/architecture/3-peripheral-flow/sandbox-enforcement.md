@@ -68,7 +68,7 @@ flowchart TD
 | `SandboxPolicy` | `src/zrb/llm/capabilities/sandbox/policy.py` | The frozen policy: on or off, writable paths, deny-read paths, OS mode, fallback, whether escape is allowed |
 | `resolved_writable_roots`, `resolved_deny_read_roots` | `src/zrb/llm/capabilities/sandbox/policy.py` | Turning the policy into real paths. Automatic roots are the working directory plus the temp directory; the temp directory is always writable |
 | `get_effective_sandbox_policy` | `src/zrb/llm/capabilities/sandbox/state.py` | The policy in force: the one bound for this run, else the session's own `/sandbox` switch, else built from `CFG.LLM_SANDBOX_*` |
-| `sandbox_gate` | `src/zrb/llm/agent/gates.py` | The Python layer: picks the path arguments of a call and checks them |
+| `sandbox_gate` | `src/zrb/llm/engine/agent/gates.py` | The Python layer: picks the path arguments of a call and checks them |
 | `check_read`, `check_write`, `is_within` | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | Comparing a real path against the roots |
 | `build_sandboxed_argv` | `src/zrb/llm/capabilities/sandbox/os_sandbox.py` | The OS layer: prefixes a subprocess argv with the platform wrapper, or applies the fallback |
 | `build_bwrap_argv` | `src/zrb/llm/capabilities/sandbox/bwrap.py` | Linux bubblewrap arguments |
@@ -125,14 +125,14 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 | Worktree tools | `src/zrb/llm/capabilities/tool/delegate/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
 | Background shell | `src/zrb/llm/capabilities/tool/shell/background.py` | Same wrapper as `Shell`, applied when the process starts |
 | Sub-agent, or a live session resumed later | the run context; `AuthoritySnapshot` | A child inherits the parent's policy. A continuation that starts after the parent's run ended gets it passed explicitly ([ADR-0069](../../adr/adr-0069.md)) |
-| Oversized tool results | `src/zrb/llm/agent/spill.py` | The spill store checks its own directory with `check_read` and `check_write` |
+| Oversized tool results | `src/zrb/llm/engine/agent/spill.py` | The spill store checks its own directory with `check_read` and `check_write` |
 
 ### Change it here
 
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change the policy fields or defaults | `src/zrb/llm/capabilities/sandbox/policy.py`, `src/zrb/config/mixins/llm_sandbox.py` | `test/llm/capabilities/sandbox/test_policy.py` |
-| Change which arguments are checked | `src/zrb/llm/agent/gates.py` | `test/llm/capabilities/sandbox/test_gate.py` |
+| Change which arguments are checked | `src/zrb/llm/engine/agent/gates.py` | `test/llm/capabilities/sandbox/test_gate.py` |
 | Change the path comparison | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | `test/llm/capabilities/sandbox/test_fs_policy.py` |
 | Change platform dispatch or the fallback | `src/zrb/llm/capabilities/sandbox/os_sandbox.py` | `test/llm/capabilities/sandbox/test_os_sandbox.py` |
 | Change the Linux or macOS wrapper | `src/zrb/llm/capabilities/sandbox/bwrap.py`, `src/zrb/llm/capabilities/sandbox/seatbelt.py` | `test/llm/capabilities/sandbox/test_bwrap.py`, `test/llm/capabilities/sandbox/test_seatbelt.py`, then `test/llm/capabilities/sandbox/test_integration.py` on that platform |

@@ -25,7 +25,7 @@ from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
-    from zrb.llm.agent.types import BinaryContent, ToolFuncEither
+    from zrb.llm.engine.agent.types import BinaryContent, ToolFuncEither
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.base.ui import BaseUI
@@ -169,8 +169,8 @@ async def capture_screenshot(
 ) -> "BinaryContent | None":
     """A screenshot of *display*, scaled for a model, or ``None`` when the
     capture failed or the image is too large to decode safely."""
-    # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
-    from zrb.llm.agent.types import BinaryContent
+    # lazy: heavy transitive (pydantic_ai) via zrb.llm.engine.agent.types
+    from zrb.llm.engine.agent.types import BinaryContent
 
     image_bytes = await backend.capture(display)
     if image_bytes is None:

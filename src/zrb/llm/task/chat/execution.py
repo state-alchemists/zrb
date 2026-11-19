@@ -19,7 +19,7 @@ from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.permission import tool_capability
 from zrb.llm.capabilities.sandbox import coerce_sandbox
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
-from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.task.chat.persistence import (
     build_session_history_config,
     resolve_history_manager,
@@ -45,8 +45,8 @@ from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
-    from zrb.llm.agent import AnyToolConfirmation
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent import AnyToolConfirmation
+    from zrb.llm.engine.agent.types import (
         AbstractCapability,
         AbstractToolset,
         Model,

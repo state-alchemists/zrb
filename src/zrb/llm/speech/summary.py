@@ -45,7 +45,7 @@ def create_speech_summarizer_agent(
     """The summarizer, with the system prompt a project may override
     (`get_prompt("speech_summarizer")`). *model* defaults to the small model."""
     # lazy: heavy third-party — building an agent pulls in pydantic_ai.
-    from zrb.llm.agent.common import create_agent
+    from zrb.llm.engine.agent.common import create_agent
 
     return create_agent(
         model=resolve_configured_small_model(model),

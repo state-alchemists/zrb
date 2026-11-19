@@ -43,7 +43,7 @@ def _payload_occurrences(messages) -> int:
 async def test_tool_result_reaches_model_once_and_adds_no_user_turn():
     from pydantic_ai import Agent
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     captured: list = []
 
@@ -71,7 +71,7 @@ async def test_toolset_result_reaches_model_once_and_adds_no_user_turn():
     from pydantic_ai import Agent
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.agent.common import wrap_toolset
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     captured: list = []
 
@@ -100,7 +100,7 @@ async def test_tool_error_reaches_model_as_the_tool_result():
     """A failing tool reports through the tool result, not a null plus a user turn."""
     from pydantic_ai import Agent
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     captured: list = []
 
@@ -148,7 +148,7 @@ async def test_multimodal_result_survives_the_wrapper():
     from pydantic_ai import BinaryContent
     from pydantic_ai.messages import ToolReturnPart
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     image = BinaryContent(data=b"\x89PNG-BYTES", media_type="image/png")
 
@@ -169,7 +169,7 @@ async def test_multimodal_inside_a_list_survives_the_wrapper():
     from pydantic_ai import BinaryContent
     from pydantic_ai.messages import ToolReturnPart
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     image = BinaryContent(data=b"\x89PNG-BYTES", media_type="image/png")
 
@@ -193,7 +193,7 @@ async def test_structured_result_stays_structured_for_google():
     """
     from pydantic_ai.messages import ToolReturnPart
 
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     def lookup() -> dict:
         return {"result": "abc", "n": 1}
@@ -211,7 +211,7 @@ async def test_structured_result_stays_structured_for_google():
 async def test_oversized_result_is_flagged_but_not_rewritten():
     """The size cap never bounded what the model reads; removing the duplicate
     copy must not quietly change that."""
-    from zrb.llm.agent.common import create_safe_wrapper
+    from zrb.llm.engine.agent.common import create_safe_wrapper
 
     big = {"k": "z" * 200_000}
 

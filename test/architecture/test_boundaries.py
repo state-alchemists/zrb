@@ -30,7 +30,7 @@ enforced mechanically, repo-wide:
 Verified clean against the whole tree before being turned into a test: rule 1
 trips on exactly 3 legitimate patterns (`super()` delegation, the singleton
 `__new__` pattern that stashes state directly on `cls`, and one third-party
-monkeypatch in `llm/agent/run/openai_patch.py`), each handled below instead of
+monkeypatch in `llm/engine/agent/run/openai_patch.py`), each handled below instead of
 suppressed by a growing per-file allowlist. If a genuinely new exception shows
 up, extend `_PrivateAccessVisitor` or `MONKEYPATCH_EXCEPTIONS` — don't widen
 the private-name check itself, that's the whole point of the rule.
@@ -46,7 +46,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # One-off, by-name exceptions to rule 1 — see the module docstring. Keep this
 # short; if it grows, the visitor's pattern-matching is the better fix.
 MONKEYPATCH_EXCEPTIONS = {
-    "src/zrb/llm/agent/run/openai_patch.py",
+    "src/zrb/llm/engine/agent/run/openai_patch.py",
 }
 
 # Directories that ARE the presentation layer, exempt from rule 2.
@@ -64,7 +64,7 @@ EXTENSION_POINT_EXCEPTIONS = {
     # apply_common_tools's minimal duck-typed host requirement — no public
     # object exposes a "host: CommonToolHost" slot.
     "CommonToolHost",
-    # llm/agent/spill.py's payload store — only LocalFileStore implements it
+    # llm/engine/agent/spill.py's payload store — only LocalFileStore implements it
     # today, and default_spill_store is a hardcoded module singleton with no
     # public way to swap it yet (dead extensibility, like the old
     # LLMConfig.model_settings, which R12 found and deleted).

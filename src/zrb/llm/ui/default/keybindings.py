@@ -285,7 +285,7 @@ class UIKeybindings:
         img_bytes = await get_clipboard_image()
         if img_bytes is not None:
             # lazy: zrb internal (heavy via transitive)
-            from zrb.llm.agent.types import BinaryContent
+            from zrb.llm.engine.agent.types import BinaryContent
 
             scaled = scale_image_bytes(img_bytes, media_type="image/png")
             if scaled.rejected is not None:
@@ -480,7 +480,7 @@ class UIKeybindings:
 
             async def _send_to_sub_agent():
                 # lazy: transitively heavy via internal — live_session.py
-                # imports run_agent (zrb.llm.agent.run.runner), which pulls
+                # imports run_agent (zrb.llm.engine.agent.run.runner), which pulls
                 # in pydantic_ai.
                 from zrb.llm.subagent.live_session import (
                     live_subagent_session_registry,

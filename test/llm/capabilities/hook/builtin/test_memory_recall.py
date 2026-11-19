@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.hook_result_extractor import extract_additional_context
+from zrb.llm.engine.agent.run.hook_result_extractor import extract_additional_context
 from zrb.llm.capabilities.hook.builtin.memory_recall import (
     RECALL_LIMIT,
     build_recall_hook_config,

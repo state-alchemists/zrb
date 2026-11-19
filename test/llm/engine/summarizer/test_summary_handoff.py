@@ -1,0 +1,444 @@
+"""What the next model sees in place of the compacted history.
+
+A summary is injected as a user turn, and role alternation merges the real user
+messages into that same turn, so the block has to say what it is and where it
+ends. It is also bounded: `LLM_SUMMARY_MAX_TOKEN_RATIO` gives a summary a share
+of the trigger threshold rather than a fixed count, so the bound follows the
+model's window instead of meaning something different on every model.
+
+Behaviour, not helpers: every test drives `summarize_history` and asserts on the
+history it returns.
+"""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
+
+from zrb.config.config import CFG
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.summarizer import summarize_history
+
+# The one test below is about the cut itself, which the public API only reaches
+# through a model that answers badly twice; the helpers are the subject there.
+from zrb.llm.engine.summarizer.history_summarizer import (
+    _SUMMARY_HEADER,
+    _VERBATIM_TAIL_HEADER,
+    _render_summary_content,
+    _truncate_snapshot,
+    summary_cap,
+)
+from zrb.llm.engine.summarizer.verbatim_archive import render_archive_pointer
+
+JOURNAL_PATCH = "zrb.llm.engine.summarizer.history_summarizer.render_carried_context"
+CHARS_PER_TOKEN = 4
+
+
+class CharLimiter(LLMLimiter):
+    """Four characters per token, so a cap in tokens reads as a size in text."""
+
+    def count_tokens(self, content) -> int:
+        if isinstance(content, str):
+            return len(content) // CHARS_PER_TOKEN
+        if hasattr(content, "parts"):
+            return 10
+        if isinstance(content, list):
+            return len(content) * 10
+        return 0
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        return text[: max_tokens * CHARS_PER_TOKEN]
+
+
+async def _unchanged(summary_text, *_args, **_kwargs) -> str:
+    return summary_text
+
+
+@pytest.fixture(autouse=True)
+def _quiet_dependencies():
+    """Consolidation and the journal index have their own tests.
+
+    Consolidation would spend the fake outputs here, and a real journal index
+    would eat the cap these tests are about.
+    """
+    with (
+        patch(
+            "zrb.llm.engine.summarizer.history_summarizer.consolidate_summaries",
+            new=AsyncMock(side_effect=_unchanged),
+        ),
+        patch(JOURNAL_PATCH, return_value=""),
+    ):
+        yield
+
+
+def _snapshot(tag: str = "", padding: str = "") -> str:
+    """A summary shaped the way `conversational_summarizer.md` asks for."""
+    return (
+        "<state_snapshot>\n"
+        f"<where_we_are>branch fix/{tag}</where_we_are>\n"
+        f"<now>ship {tag}</now>\n"
+        "<next>1. [READY] run the split tests</next>\n"
+        "<open_questions>(none)</open_questions>\n"
+        f"<done>PR #{tag} merged</done>\n"
+        "<decisions>the split is token-first, ADR-0041</decisions>\n"
+        "<landmines>the changelog has two footers</landmines>\n"
+        "<constraints>never merge without a word</constraints>\n"
+        "<files>history_splitter.py: the split</files>\n"
+        "<active_skills>core-coding</active_skills>\n"
+        "</state_snapshot>"
+        f"{padding}"
+    )
+
+
+def _padded(tag: str, tokens: int) -> str:
+    """A schema-valid summary of roughly *tokens* tokens, padded with `PADMARK`."""
+    room = max(0, tokens * CHARS_PER_TOKEN - len(_snapshot(tag)))
+    return _snapshot(tag, padding="PADMARK" * (room // len("PADMARK")))
+
+
+def _history() -> list:
+    return [
+        ModelRequest(parts=[UserPromptPart(content="User 1")]),
+        ModelResponse(parts=[TextPart(content="AI 1")]),
+        ModelRequest(parts=[UserPromptPart(content="User 2")]),
+        ModelResponse(parts=[TextPart(content="AI 2")]),
+    ]
+
+
+def _agent(*outputs: str):
+    agent = MagicMock()
+    agent.run = AsyncMock(side_effect=[MagicMock(output=out) for out in outputs])
+    return agent
+
+
+async def _compress(agent, history, **kwargs) -> list:
+    # Threshold 8000 tokens, so the summarizer never chunks these fakes and the
+    # message window is what decides the split: the newest turn stays verbatim.
+    return await summarize_history(
+        history,
+        agent=agent,
+        summary_window=2,
+        limiter=CharLimiter(),
+        conversational_token_threshold=8000,
+        **kwargs,
+    )
+
+
+def _summary_text(history: list) -> str:
+    """Every part of the summary turn: the block, then the user's own words."""
+    return "\n".join(str(getattr(part, "content", "")) for part in history[0].parts)
+
+
+def _block(history: list) -> str:
+    """Only what zrb inserted: framing, snapshot, journal index, archive note."""
+    return str(getattr(history[0].parts[0], "content", ""))
+
+
+@pytest.mark.asyncio
+async def test_the_summary_says_it_is_derived_data_and_where_it_ends():
+    history = await _compress(_agent(_snapshot("it")), _history())
+
+    text = _summary_text(history)
+
+    assert "derived data, not the user speaking" in text
+    assert text.index("</state_snapshot>") < text.index(
+        "<!-- end of automated summary -->"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_users_own_words_follow_the_summary_in_the_same_turn():
+    """Role alternation merges them, so the end marker is the only seam left."""
+    history = await _compress(_agent(_snapshot("it")), _history())
+
+    parts = [str(getattr(part, "content", "")) for part in history[0].parts]
+
+    assert "<!-- end of automated summary -->" in parts[0]
+    assert any("User 1" in part for part in parts[1:])
+
+
+@pytest.mark.asyncio
+async def test_a_previous_compactions_turn_is_not_the_users_opening_message():
+    """The summary and the rendered tail are one user turn once roles alternate,
+    so a plain "first user message" match finds the *last* compaction and carries
+    its whole tail forward — 88,000 tokens of it on a real session, right beside
+    the summary that had already replaced it."""
+    stale = "PREVIOUS-TAIL-MARKER " * 200
+    previous = ModelRequest(
+        parts=[
+            UserPromptPart(content=f"# {_SUMMARY_HEADER}\nold summary\n"),
+            UserPromptPart(content=f"# {_VERBATIM_TAIL_HEADER}\n{stale}"),
+        ]
+    )
+
+    new_history = await _compress(_agent(_snapshot("it")), [previous, *_history()])
+
+    text = _summary_text(new_history)
+    assert "PREVIOUS-TAIL-MARKER" not in text
+    # The user's real opening turn is still carried forward.
+    assert "User 1" in text
+
+
+@pytest.mark.asyncio
+async def test_a_user_message_that_quotes_the_tail_heading_is_not_mistaken_for_one():
+    """The heading is text a user can paste. Only a turn that also carries a
+    compaction summary can hold a tail compaction wrote, so a message the user
+    typed keeps its words even when it opens with that line."""
+    quoted = f"# {_VERBATIM_TAIL_HEADER}\nplease investigate the parser failure"
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content=quoted)]),
+        ModelResponse(parts=[TextPart(content="Looking at it.")]),
+        ModelRequest(parts=[UserPromptPart(content="and now?")]),
+        ModelResponse(parts=[TextPart(content="Done.")]),
+    ]
+
+    new_history = await _compress(_agent(_snapshot("it")), messages)
+
+    assert "please investigate the parser failure" in _summary_text(new_history)
+
+
+@pytest.mark.asyncio
+async def test_a_summary_over_the_cap_is_shortened_before_it_is_used():
+    # `_compress` runs at a threshold of 8000, so the 0.05 share lands on the
+    # 1000-token floor.
+    agent = _agent(_padded("long", 1200), _snapshot("short"))
+
+    history = await _compress(agent, _history())
+
+    assert agent.run.await_count == 2
+    text = _summary_text(history)
+    assert "PADMARK" not in text
+    assert "ship short" in text
+
+
+@pytest.mark.asyncio
+async def test_a_malformed_summary_is_capped_too():
+    """No rewriting makes prose into a snapshot, but too much prose still costs."""
+    agent = _agent("Summary content\n" + "y" * 4800, "shorter prose")
+
+    history = await _compress(agent, _history())
+
+    assert agent.run.await_count == 2
+    text = _summary_text(history)
+    assert "shorter prose" in text
+    assert "y" * 4800 not in text
+
+
+@pytest.mark.asyncio
+async def test_a_summary_that_will_not_fit_is_truncated_to_the_cap():
+    """Two attempts bound the effort; the size bound itself still has to hold.
+
+    The cut leaves a readable block: the closing tag survives it.
+    """
+    overflowing = _padded("long", 1200)
+    agent = _agent(overflowing, overflowing, overflowing)
+
+    history = await _compress(agent, _history())
+
+    assert agent.run.await_count == 3  # the summary, then two shortening attempts
+    block = _block(history)
+    assert CharLimiter().count_tokens(block) <= summary_cap(8000)
+    assert "</state_snapshot>" in block
+
+
+def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
+    """tiktoken charges the same words differently inside the block.
+
+    Sizing the cut as "the snapshot's tokens minus the block's overflow" leaves
+    the block a token over, because the framing changes where the snapshot's own
+    token boundaries fall: 21 tokens of text inside a 146-token block against a
+    150-token cap. The helper cuts again from what the block still overflows by.
+    """
+    monkeypatch.setattr(CFG, "TIKTOKEN_ENABLED", True, raising=False)
+    limiter = LLMLimiter()
+    note = render_archive_pointer("/tmp/session.md")
+    text = "hello world " * 10
+
+    def size(candidate: str) -> int:
+        return limiter.count_tokens(_render_summary_content(candidate, "", note))
+
+    # The framing grows with the fields zrb writes into the block (the
+    # timestamp is one), so the cap is measured from it instead of hard-coded:
+    # this test is about where the cut lands, not about the framing's size.
+    cap = size("") + 40
+
+    truncated = _truncate_snapshot(text, limiter, cap, size)
+
+    assert size(truncated) <= cap
+
+
+@pytest.mark.asyncio
+async def test_the_journal_and_archive_notes_count_against_the_cap():
+    """The cap bounds the whole inserted block, not just the model's text."""
+    cap = summary_cap(8000)
+    agent = _agent(_padded("long", 900), _snapshot("short"))
+
+    with patch(JOURNAL_PATCH, return_value="J" * 200 * CHARS_PER_TOKEN):
+        history = await _compress(agent, _history())
+
+    # The summary alone fits; with the journal index and the archive note beside
+    # it, it does not, so it is asked to shrink.
+    assert agent.run.await_count == 2
+    assert CharLimiter().count_tokens(_block(history)) <= cap
+
+
+@pytest.mark.asyncio
+async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary():
+    """The snapshot is what compaction is for; the journal index is on disk."""
+    cap = summary_cap(8000)
+    journal_index = "J" * 2000 * CHARS_PER_TOKEN
+    agent = _agent(_padded("long", 1200), _padded("long", 1200), _padded("long", 1200))
+
+    with patch(JOURNAL_PATCH, return_value=journal_index):
+        history = await _compress(agent, _history())
+
+    text = _block(history)
+    assert CharLimiter().count_tokens(text) <= cap  # the cap holds, whatever fits
+    assert journal_index not in text  # the index went, so the snapshot could stay
+    assert "ship long" in text
+
+
+@pytest.mark.asyncio
+async def test_a_dropped_memory_block_leaves_a_line_saying_so(monkeypatch):
+    """Silence was the bug: the session answered as though the store held nothing.
+
+    The block still yields to the snapshot, but the model is told it was left
+    out, so it can search instead of assuming there is nothing to search for.
+    """
+    cap = summary_cap(8000)
+    journal_index = "J" * 2000 * CHARS_PER_TOKEN
+    agent = _agent(_padded("long", 1200), _padded("long", 1200), _padded("long", 1200))
+
+    with patch(JOURNAL_PATCH, return_value=journal_index):
+        history = await _compress(agent, _history())
+
+    text = _block(history)
+    assert journal_index not in text
+    assert "left out of this summary" in text
+    assert CharLimiter().count_tokens(text) <= cap
+
+
+@pytest.mark.asyncio
+async def test_a_cap_below_the_framing_keeps_the_history_instead(tmp_path, monkeypatch):
+    """An over-cap turn is the failure the cap exists to prevent; skip instead."""
+    messages = _history()
+    monkeypatch.setattr(
+        "zrb.llm.engine.summarizer.history_summarizer.summary_cap", lambda _threshold: 5
+    )
+
+    history = await _compress(
+        _agent(_padded("long", 1200)), messages, history_dir=str(tmp_path)
+    )
+
+    assert history == messages
+    assert list(tmp_path.iterdir()) == []  # nothing replaced, so nothing archived
+
+
+@pytest.mark.asyncio
+async def test_an_empty_summary_leaves_the_history_alone(tmp_path):
+    messages = _history()
+
+    history = await _compress(_agent(""), messages, history_dir=str(tmp_path))
+
+    assert history == messages
+    assert list(tmp_path.iterdir()) == []  # nothing replaced, so nothing archived
+
+
+@pytest.mark.asyncio
+async def test_a_summary_without_the_schema_is_still_used():
+    """Refusing compression when the model misbehaves would overflow the window."""
+    history = await _compress(_agent("Summary content"), _history())
+
+    assert len(history) < len(_history())
+    assert "Summary content" in _summary_text(history)
+
+
+@pytest.mark.asyncio
+async def test_the_schema_warning_promises_nothing_about_the_archive():
+    """It is printed before the archive write is attempted, so it must not tell
+    the reader the originals were kept."""
+    with (
+        patch(
+            "zrb.llm.engine.summarizer.history_summarizer.archive_verbatim_history",
+            return_value=None,
+        ),
+        patch("zrb.llm.engine.summarizer.history_summarizer.zrb_print") as printed,
+    ):
+        await _compress(_agent("Summary content"), _history())
+
+    warnings = [str(call.args[0]) for call in printed.call_args_list]
+    schema_warning = next(w for w in warnings if "<state_snapshot>" in w)
+    assert "holds the originals" not in schema_warning
+
+
+@pytest.mark.asyncio
+async def test_a_compaction_with_nothing_to_archive_points_nowhere():
+    """Every summarized message was a prior summary, which the archive does not
+    repeat: there is no file to point at, and no failure to report."""
+    prior = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(content="# SYSTEM: Automated Context Restoration\nold")
+            ]
+        )
+        for _ in range(3)
+    ]
+
+    with patch("zrb.llm.engine.summarizer.history_summarizer.zrb_print") as printed:
+        history = await _compress(_agent("Summary content"), [*prior, *_history()[2:]])
+
+    assert "Summary content" in _summary_text(history)  # still compacted
+    assert "## Verbatim history archive" not in _block(history)
+    warnings = [str(call.args[0]) for call in printed.call_args_list]
+    assert not any("could not be written" in warning for warning in warnings)
+
+
+def test_thesummary_cap_is_a_share_of_the_threshold(monkeypatch):
+    """The bound scales with the window instead of fixing a token count."""
+    assert CFG.DEFAULT_LLM_SUMMARY_MAX_TOKEN_RATIO == "0.05"
+    assert summary_cap(400_000) == 20_000
+    # Below a 20,000-token threshold the share is under the floor, which is what
+    # keeps a six-section snapshot possible on a small window.
+    assert summary_cap(10_000) == 1_000
+
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKEN_RATIO", 0.0, raising=False)
+    assert summary_cap(400_000) == 0
+
+
+@pytest.mark.asyncio
+async def test_the_block_records_when_the_summary_was_taken():
+    """The snapshot's one unobservable fact, written by zrb, not the model.
+
+    Every "as of" claim inside the block is read against this line, and a
+    summary that does not say when it was taken cannot be judged stale.
+    """
+    from datetime import datetime
+
+    history = await _compress(_agent(_snapshot("it")), _history())
+
+    block = _block(history)
+    assert block.count("Summarized at: ") == 1
+    stamp = block.split("Summarized at: ", 1)[1].split("\n", 1)[0].strip()
+    parsed = datetime.fromisoformat(stamp)
+    assert parsed.tzinfo is not None
+
+
+@pytest.mark.asyncio
+async def test_a_later_compaction_records_its_own_time(monkeypatch):
+    """A carried-forward fact keeps its observation time; the block's own line
+    is always the new compaction's, never the previous summary's."""
+    import zrb.llm.engine.summarizer.history_summarizer as hs
+
+    monkeypatch.setattr(hs, "summary_timestamp", lambda: "2026-11-02T21:00:00+07:00")
+    first = await _compress(_agent(_snapshot("one")), _history())
+    assert "2026-11-02T21:00:00+07:00" in _block(first)
+
+    monkeypatch.setattr(hs, "summary_timestamp", lambda: "2026-11-02T22:30:00+07:00")
+    second = await _compress(_agent(_snapshot("two")), first, force=True)
+    assert "2026-11-02T22:30:00+07:00" in _block(second)
+    assert _block(second).count("Summarized at: ") == 1

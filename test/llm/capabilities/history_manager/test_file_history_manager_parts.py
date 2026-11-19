@@ -337,7 +337,7 @@ def test_save_validation_error_does_not_save_file(temp_history_dir):
     ]
     manager.update("val-error-session", messages)
 
-    with patch("zrb.llm.agent.types.ModelMessagesTypeAdapter") as mock_adapter:
+    with patch("zrb.llm.engine.agent.types.ModelMessagesTypeAdapter") as mock_adapter:
         from pydantic_core import InitErrorDetails
 
         mock_adapter.dump_python.return_value = []

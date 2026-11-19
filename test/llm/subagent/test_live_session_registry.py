@@ -404,7 +404,7 @@ async def test_continue_live_session_uses_captured_authority_not_ambient(
     ambient inheritance alone would be wrong (ADR-0069's "spawn inside the
     still-bound scope" invariant does not hold here — see
     `authority_snapshot.py`)."""
-    from zrb.llm.agent.run.runner import current_yolo
+    from zrb.llm.engine.agent.run.runner import current_yolo
     from zrb.llm.capabilities.permission.policy import PermissionPolicy, Rule
     from zrb.llm.capabilities.permission.state import permission_policy
     from zrb.util.contextvar_scope import scoped

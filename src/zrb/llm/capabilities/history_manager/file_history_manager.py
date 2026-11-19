@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -170,7 +170,7 @@ class FileHistoryManager(AnyHistoryManager):
         # lazy: heavy third-party
         from pydantic import ValidationError
 
-        from zrb.llm.agent.types import ModelMessagesTypeAdapter
+        from zrb.llm.engine.agent.types import ModelMessagesTypeAdapter
 
         file_path, current_mtime = self._resolve_read_path(conversation_name)
 
@@ -258,7 +258,7 @@ class FileHistoryManager(AnyHistoryManager):
         # lazy: heavy third-party
         from pydantic import ValidationError
 
-        from zrb.llm.agent.types import ModelMessagesTypeAdapter
+        from zrb.llm.engine.agent.types import ModelMessagesTypeAdapter
 
         if conversation_name not in self._cache:
             return

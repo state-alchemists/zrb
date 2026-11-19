@@ -20,7 +20,7 @@ from zrb.config.config import CFG
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from zrb.llm.agent.types import UserContent
+    from zrb.llm.engine.agent.types import UserContent
 
 
 def steer_into_live_run(

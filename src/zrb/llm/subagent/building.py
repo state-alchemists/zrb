@@ -11,7 +11,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.agent.common import create_agent
+from zrb.llm.engine.agent.common import create_agent
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.capabilities.prompt.live_context.context import render_carried_context
 from zrb.llm.resumed_session import create_resumed_chat_task
@@ -27,7 +27,7 @@ from zrb.llm.contracts.shared.tool_resolver import (
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.subagent.yolo import make_yolo_inheritance_checker
-from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
 
 if TYPE_CHECKING:

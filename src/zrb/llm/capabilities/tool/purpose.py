@@ -24,7 +24,7 @@ Naming the tools one by one does not close it. A tool a user writes, or a
 plugin's, has never heard of the narrator, and the instruction it never read is
 still obeyed: `add_optional_purpose` gives every wrapped tool an optional
 `purpose` so that obeying it can never be wrong, and
-`zrb.llm.agent.common.create_safe_wrapper` applies it to every tool zrb builds —
+`zrb.llm.engine.agent.common.create_safe_wrapper` applies it to every tool zrb builds —
 which is why the four declarations above are a courtesy to readers of those
 files, not the fix.
 

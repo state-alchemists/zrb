@@ -10,7 +10,7 @@ from zrb.llm.contracts.util.tool_args import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import (
+    from zrb.llm.engine.agent.types import (
         AgentRunResultEvent,
         AgentStreamEvent,
         PartDeltaEvent,
@@ -369,7 +369,7 @@ class StreamEventHandler:
 
     async def __call__(self, event: "AgentStreamEvent"):
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import (
+        from zrb.llm.engine.agent.types import (
             AgentRunResultEvent,
             FinalResultEvent,
             PartDeltaEvent,
@@ -444,7 +444,7 @@ class StreamEventHandler:
 
     def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import TextPart, ToolCallPart
+        from zrb.llm.engine.agent.types import TextPart, ToolCallPart
 
         # A part boundary closes the previous part, except thinking-after-
         # thinking: some providers stream one thought as several ThinkingParts,
@@ -512,7 +512,7 @@ class StreamEventHandler:
 
     def handle_part_delta(self, event: "PartDeltaEvent"):
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.agent.types import (
+        from zrb.llm.engine.agent.types import (
             TextPartDelta,
             ThinkingPartDelta,
             ToolCallPartDelta,

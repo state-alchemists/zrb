@@ -15,7 +15,7 @@ from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.any_ui_display import AnyUIDisplay
     from zrb.llm.ui.base.message_queue import QueuedMessage

@@ -12,7 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.engine.agent.types import RequestUsage, RunUsage
     from zrb.llm.ui.any_ui_session import AnyUISession
 
 

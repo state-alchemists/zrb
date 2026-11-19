@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.any_agent import AnyAgent
+    from zrb.llm.engine.agent.any_agent import AnyAgent
     from zrb.llm.subagent.any_sub_agent_definition import AnySubAgentDefinition
 
 

@@ -113,7 +113,7 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
 
 
 async def _summarize(ctx, repo_dir, template, tag, previous, model):
-    from zrb.llm.agent import create_agent  # lazy: pydantic_ai is a heavy extra
+    from zrb.llm.engine.agent import create_agent  # lazy: pydantic_ai is a heavy extra
     from zrb.llm.contracts.shared.request_log import (
         REASON_CHANGELOG,
         record_standalone_requests,

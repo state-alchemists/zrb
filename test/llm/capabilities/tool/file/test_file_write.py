@@ -31,7 +31,7 @@ def _reset_observed_state():
 @pytest.fixture
 def run_scope():
     """Run the body under a named agent-run scope, restoring afterwards."""
-    from zrb.llm.agent.run.runner import current_agent_run_scope
+    from zrb.llm.engine.agent.run.runner import current_agent_run_scope
 
     def set_scope(name: str):
         return current_agent_run_scope.set(name)
@@ -58,7 +58,7 @@ def _no_real_lsp_server():
 
 
 def current_agent_run_scope_reset(token) -> None:
-    from zrb.llm.agent.run.runner import current_agent_run_scope
+    from zrb.llm.engine.agent.run.runner import current_agent_run_scope
 
     current_agent_run_scope.reset(token)
 
