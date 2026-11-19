@@ -1,0 +1,221 @@
+"""Verify inert defaults for `UIStateDefaultsMixin`."""
+
+import asyncio
+from unittest.mock import MagicMock
+
+import pytest
+
+from zrb.llm.presentation.ui.any_ui import AnyUI, AnyUIDisplay
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.presentation.ui.any_ui_session import AnyUISession
+from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
+from zrb.llm.presentation.ui.base.queue_delivery import DeliveryOutcome
+from zrb.llm.presentation.ui.fallback.defaults import (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
+from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
+
+ROLES = (AnyUIDisplay, AnyUIInput, AnyUIPicker, AnyUISession, AnyUITools)
+PARTS = (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
+# The role members no inert body can stand in for: the writer, the delegating
+# parent's writer, the two ways of asking the user, and the widget itself. A
+# host has to write these, so the mixin leaves them to it.
+HOST_ONLY = {
+    "append_to_output",
+    "stream_to_parent",
+    "ask_user",
+    "run_interactive_command",
+    "ask_user_choice",
+}
+
+
+class _MinimalUI(UIStateDefaultsMixin, AnyUI):
+    """A UI that implements the behavioral half and nothing else."""
+
+    async def ask_user(self, prompt, output_to_parent="", agent_id=None) -> str:
+        return ""
+
+    async def ask_user_choice(self, spec, agent_id=None) -> str:
+        return ""
+
+    def append_to_output(self, *values, **kwargs):
+        pass
+
+    def stream_to_parent(self, *values, **kwargs):
+        pass
+
+    async def run_interactive_command(self, cmd, shell=False):
+        return None
+
+    async def run_async(self):
+        return None
+
+
+def test_a_ui_implementing_only_the_behavioral_half_is_instantiable():
+    """The point of the mixin: `AnyUI`'s state members stop being six more
+    methods every custom UI has to write."""
+    assert isinstance(_MinimalUI(), AnyUI)
+
+
+def test_defaults_report_absence_rather_than_a_fake_value():
+    ui = _MinimalUI()
+    assert ui.is_thinking is False
+    assert ui.is_turn_running is False
+    assert ui.llm_task is None
+    assert ui.model is None
+    assert ui.multi_ui_parent is None
+    assert ui.tool_call_handler is None
+    assert ui.yolo is False
+    # The primary-child half: a UI keeping none of this reports absence
+    # honestly rather than raising, so MultiUI can read it unconditionally.
+    assert ui.small_model is None
+    assert ui.multimodal_model is None
+    assert ui.conversation_session_name == ""
+    assert ui.plan_mode_active is False
+    assert ui.last_output == ""
+    assert ui.snapshot_manager is None
+    assert ui.history_manager is None
+
+
+def test_the_writable_members_round_trip():
+    ui = _MinimalUI()
+    ui.is_thinking = True
+    ui.llm_task = "task"
+    ui.model = "openai:gpt-5.6-luna"
+    ui.multi_ui_parent = "parent"
+    ui.small_model = "openai:gpt-5.6-nano"
+    ui.multimodal_model = "openai:gpt-5.6-vision"
+    ui.conversation_session_name = "session"
+    ui.plan_mode_active = True
+    assert (ui.is_thinking, ui.llm_task, ui.model, ui.multi_ui_parent) == (
+        True,
+        "task",
+        "openai:gpt-5.6-luna",
+        "parent",
+    )
+    assert (
+        ui.small_model,
+        ui.multimodal_model,
+        ui.conversation_session_name,
+        ui.plan_mode_active,
+    ) == ("openai:gpt-5.6-nano", "openai:gpt-5.6-vision", "session", True)
+
+
+def test_the_read_only_members_reject_assignment():
+    """`last_output`, `snapshot_manager` and `history_manager` report what a UI
+    has; they are not how a caller installs one. `AnyUI` declares them
+    read-only, so a UI that tracks them for real declares its own setter."""
+    ui = _MinimalUI()
+    for name in ("last_output", "snapshot_manager", "history_manager"):
+        with pytest.raises(AttributeError):
+            setattr(ui, name, "x")
+
+
+def test_writes_do_not_leak_between_instances():
+    """The class-level defaults are shadowed per instance, not shared."""
+    first, second = _MinimalUI(), _MinimalUI()
+    first.is_thinking = True
+    first.model = "a-model"
+    assert second.is_thinking is False
+    assert second.model is None
+
+
+@pytest.mark.asyncio
+async def test_background_tasks_is_one_mutable_set_per_instance():
+    """Callers `.add()`/`.discard()` on the returned set (see
+    `default/lifecycle.py::_track_background`), so handing back a fresh set
+    each call would silently drop every task registered on it."""
+    ui = _MinimalUI()
+    task = asyncio.create_task(asyncio.sleep(0))
+
+    ui.background_tasks.add(task)
+    assert task in ui.background_tasks  # same set, not a copy
+
+    ui.background_tasks.discard(task)
+    assert task not in ui.background_tasks
+    await task
+
+    # ...and not shared with the next instance.
+    assert _MinimalUI().background_tasks == set()
+
+
+def test_the_side_effect_hooks_are_silent_no_ops():
+    """A UI with no live surface, no buffer and no pending confirmation has
+    nothing to do for any of these — that is the answer, not an error."""
+    ui = _MinimalUI()
+    assert ui.invalidate_ui() is None
+    assert ui.flush_to_parent() is None
+    assert ui.cancel_pending_confirmations() is None
+    assert ui.cancel_pending_confirmations(flush=False) is None
+    assert ui.set_status_badge("mic", "🎤 listening") is None
+
+
+def test_a_host_implementing_a_member_for_real_wins_over_the_default():
+    """MRO order matters: `BaseUI` and `MultiUI` mix this in for the members
+    they do not track, while their own definitions take precedence."""
+
+    class _RealThinking(_MinimalUI):
+        @property
+        def is_thinking(self) -> bool:
+            return True
+
+    assert _RealThinking().is_thinking is True
+
+
+def test_a_ui_without_a_queue_has_nothing_to_send():
+    """A UI that owns no queue answers with a report of nothing moved rather
+    than a fake success."""
+    report = _MinimalUI().send_queued_messages_now()
+
+    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert report.delivered == 0
+    assert report.held == 0
+
+
+def test_a_delivered_echo_is_redrawn_on_every_pane_that_holds_it():
+    """Each child of a `MultiUI` keeps its own copy of the echo, so the redraw
+    has to walk the tree; one that rewrote only itself would leave the other
+    panes showing a message the turn had already read."""
+    parent = MagicMock()
+    parent.input = parent.tools = parent
+    panes = [MagicMock(), MagicMock()]
+    for pane in panes:
+        pane.display = pane
+        pane.multi_ui_parent = parent
+    parent.children = panes
+    entry = MagicMock()
+
+    UIStateDefaultsMixin.redraw_echoes(panes[0], [entry])
+
+    for pane in panes:
+        pane.redraw_echo.assert_called_once_with(entry)
+
+
+def test_every_role_member_has_an_inert_default_unless_the_host_must_write_it():
+    """A member added to a role without a default raises on the first read of a
+    UI that keeps no state — the failure this mixin exists to close, and the one
+    that otherwise waits for a reviewer to notice by hand."""
+    supplied = set(UIStateDefaultsMixin.__dict__)
+    supplied.update(*(part.__dict__ for part in PARTS))
+    abstract = {role.__name__: set(role.__abstractmethods__) for role in ROLES}
+    assert HOST_ONLY <= set().union(*abstract.values()), (
+        "HOST_ONLY names something that is no longer a role member: "
+        f"{sorted(HOST_ONLY - set().union(*abstract.values()))}"
+    )
+    missing = {
+        name: sorted(members - HOST_ONLY - supplied)
+        for name, members in abstract.items()
+        if members - HOST_ONLY - supplied
+    }
+    assert not missing, f"a role member has no inert default: {missing}"

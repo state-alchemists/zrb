@@ -11,7 +11,7 @@ from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 

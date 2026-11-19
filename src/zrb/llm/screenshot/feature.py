@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from zrb.llm.engine.agent.types import BinaryContent, ToolFuncEither
     from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
-    from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.presentation.ui.base.ui import BaseUI
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.history_config import HistoryConfig
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 def resolve_history_manager(task: "LLMChatTask") -> "AnyHistoryManager":

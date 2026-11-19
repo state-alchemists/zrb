@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.orchestration.subagent.live_session import LiveSubAgentSessionRegistry
-from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 
 
 @pytest.fixture

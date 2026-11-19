@@ -88,7 +88,7 @@ Some modules create their own named loggers via `logging.getLogger(__name__)`. T
 | `zrb.util.owner_only` | `src/zrb/util/owner_only.py` |
 | `zrb.llm.capabilities.hook.*` | Hook system (loader, executor, manager, matcher) |
 | `zrb.llm.capabilities.snapshot.manager` | Snapshot system |
-| `zrb.llm.ui.*` | UI implementations |
+| `zrb.llm.presentation.ui.*` | UI implementations |
 
 ### Common Debugging Usage
 

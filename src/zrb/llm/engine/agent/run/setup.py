@@ -26,11 +26,11 @@ from zrb.llm.contracts.shared.agent_state import (
     current_ui,
     current_yolo,
 )
-from zrb.llm.ui.fallback.resolution import get_main_ui, resolve_ui
+from zrb.llm.presentation.ui.fallback.resolution import get_main_ui, resolve_ui
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:

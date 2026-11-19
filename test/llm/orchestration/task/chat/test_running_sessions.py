@@ -4,7 +4,7 @@ import pytest
 
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.orchestration.task.chat.running import ChatRunning
-from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 from zrb.util.cli.markdown import render_markdown
 
 
@@ -295,7 +295,7 @@ async def test_run_interactive_session_basic(runner):
 
     mock_ui = SimpleMockUI()
 
-    with patch("zrb.llm.ui.default.ui.UI", return_value=mock_ui):
+    with patch("zrb.llm.presentation.ui.default.ui.UI", return_value=mock_ui):
         res = await runner.run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
@@ -349,7 +349,7 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
     mock_multi.last_output = "MultiResult"
 
     with (
-        patch("zrb.llm.ui.multi.multi_ui.MultiUI", return_value=mock_multi),
+        patch("zrb.llm.presentation.ui.multi.multi_ui.MultiUI", return_value=mock_multi),
         patch("zrb.llm.capabilities.approval.multiplex_approval_channel.MultiplexApprovalChannel"),
     ):
         res = await runner.run_interactive_session(
@@ -388,7 +388,7 @@ async def test_run_interactive_session_resolves_custom_command_initial_message(
 
     mock_ui = SimpleMockUI()
 
-    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
 
         res = await runner.run_interactive_session(
@@ -427,7 +427,7 @@ async def test_run_interactive_session_leaves_plain_message_unchanged(
 
     mock_ui = SimpleMockUI()
 
-    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+    with patch("zrb.llm.presentation.ui.default.ui.UI") as MockUI:
         MockUI.return_value = mock_ui
 
         res = await runner.run_interactive_session(

@@ -58,7 +58,7 @@ For non-LLM tasks, the lifecycle ends here. For an `LLMChatTask`, the action han
 flowchart TD
     Exec["src/zrb/llm/orchestration/task/chat/execution.py :: ChatExecution.exec_action()"]
     Exec -->|builds the inner LLMTask inline| Build["inner LLMTask — tools, toolsets, system prompt, capabilities"]
-    Exec -->|resolves| Running["src/zrb/llm/orchestration/task/chat/running.py → src/zrb/llm/ui/session.py — resolve UIs, triggers, commands"]
+    Exec -->|resolves| Running["src/zrb/llm/orchestration/task/chat/running.py → src/zrb/llm/presentation/ui/session.py — resolve UIs, triggers, commands"]
 ```
 
 `LLMChatTask` (`src/zrb/llm/orchestration/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves triggers and commands and hands an interactive run to `run_interactive_session` (`ui/session.py`). Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
@@ -66,7 +66,7 @@ flowchart TD
 Three things happen here:
 
 1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.capabilities.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.capabilities.skill.SkillManager`, `zrb.llm.capabilities.hook.HookManager`, and `zrb.llm.orchestration.subagent.sub_agent_manager` contribute their respective pieces.
-2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
+2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/presentation/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
 The chat task then calls into the inner `LLMTask` execution path.
@@ -135,7 +135,7 @@ Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approv
 - When the approval channel or the terminal prompt produces an answer, the observe-only `PermissionResolved` hook fires.
 - Otherwise the call goes to `current_approval_channel` if one is set, else to `current_tool_confirmation` (the terminal prompt). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
-UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
+UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/presentation/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 
 Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, PERMISSION_REQUEST, PERMISSION_RESOLVED, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 
@@ -190,7 +190,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | OpenAI serializer patch | `src/zrb/llm/engine/agent/run/openai_patch.py` |
 | Retry / error classification | `src/zrb/llm/engine/agent/run/{retry_loop,error_classifier}.py` |
 | Compression / summarisation | `src/zrb/llm/engine/summarizer/history_summarizer.py` |
-| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
+| Default TUI | `src/zrb/llm/presentation/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/capabilities/hook/manager/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `memory_reviewer.py` |
 | Sub-agents | `src/zrb/llm/orchestration/subagent/` |

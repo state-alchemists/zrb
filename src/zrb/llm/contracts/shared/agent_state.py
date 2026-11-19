@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from zrb.llm.contracts.config.limiter import LLMLimiter
     from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     AnyToolConfirmation: TypeAlias = (
         Callable[

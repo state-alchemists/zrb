@@ -19,7 +19,7 @@ import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
-MULTI_UI_DIR = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi"
+MULTI_UI_DIR = REPO_ROOT / "src" / "zrb" / "llm" / "presentation" / "ui" / "multi"
 CUSTOM_UI_DOC = REPO_ROOT / "docs" / "llm" / "llm-custom-ui.md"
 
 
@@ -118,11 +118,11 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 
 
 def test_every_declared_hook_is_declared_on_any_ui():
-    from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.any_ui_display import AnyUIDisplay
+    from zrb.llm.presentation.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
-    from zrb.llm.ui.any_ui_session import AnyUISession
-    from zrb.llm.ui.any_ui_tools import AnyUITools
+    from zrb.llm.presentation.ui.any_ui_session import AnyUISession
+    from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 
     # A hook is declared on the whole object or on the role MultiUI reaches it
     # through: `child.display`, `child.input`, `child.session`, `child.tools`.
@@ -139,7 +139,7 @@ def test_the_offered_hooks_stay_undeclared():
     """Declaring one would make a UI without it look like it has it: the stream
     would stop printing its own prepare line and the shell tool would stop
     printing a command's output live."""
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
     declared = sorted(name for name in OFFERED_HOOKS if hasattr(AnyUI, name))
     assert not declared
@@ -148,7 +148,7 @@ def test_the_offered_hooks_stay_undeclared():
 def test_every_hook_exists_on_the_default_ui():
     """The default TUI implements the full optional surface -- it is what the
     hooks were written for, so a typo shows up as a name it lacks."""
-    from zrb.llm.ui.default.ui import UI
+    from zrb.llm.presentation.ui.default.ui import UI
 
     missing = sorted(
         name for name in DECLARED_HOOKS | OFFERED_HOOKS if not hasattr(UI, name)

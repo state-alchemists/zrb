@@ -27,7 +27,7 @@ from zrb.llm.contracts.shared.usage_log import (
     record_usage,
     usage_store_path,
 )
-from zrb.llm.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 from zrb.util.string.name import get_conversation_key, get_random_name
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)

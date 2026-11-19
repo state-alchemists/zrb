@@ -39,7 +39,7 @@ from zrb.llm.orchestration.task.shared_getters import (
 )
 from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
-from zrb.llm.ui.fallback.resolution import resolve_ui
+from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.sandbox import SandboxPolicy
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.history_config import HistoryConfig
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
 def parse_yolo_value(value: object) -> "bool | frozenset[str]":

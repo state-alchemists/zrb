@@ -6,8 +6,8 @@ from zrb.llm.contracts.shared.agent_activity import HasActivityTracking
 from zrb.llm.orchestration.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.orchestration.subagent.parent_message import send_message_to_parent
 from zrb.llm.capabilities.tool.delegate.message import create_send_message_to_subagent_tool
-from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 
 SESSION = "sess"
 

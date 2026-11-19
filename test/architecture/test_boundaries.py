@@ -5,7 +5,7 @@ enforced mechanically, repo-wide:
    method — never a raw `_private` attribute on another object (AGENTS.md's
    part-boundary rule).
 2. Business logic (everything outside the presentation layer) stays free of
-   web/TUI framework imports — `llm/ui`, `llm/app`, `runner`, and `input` are
+   web/TUI framework imports — `llm/presentation/ui`, `llm/app`, `runner`, and `input` are
    the presentation layer and are exempt; everything else (task engine, LLM
    agent/tool/permission/history/hook machinery, builtins, ...) is consumed
    by both the CLI and the web runner, so it cannot depend on either's
@@ -50,7 +50,7 @@ MONKEYPATCH_EXCEPTIONS = {
 }
 
 # Directories that ARE the presentation layer, exempt from rule 2.
-FRAMEWORK_EXEMPT_DIRS = ("llm/ui", "llm/app", "runner", "input")
+FRAMEWORK_EXEMPT_DIRS = ("llm/presentation/ui", "llm/app", "runner", "input")
 FORBIDDEN_IMPORT_PREFIXES = ("fastapi", "starlette", "prompt_toolkit")
 
 # One-off, by-name exceptions to rule 3 (R9) — see
@@ -175,7 +175,7 @@ def test_no_part_reaches_another_objects_private_state():
 
 def test_business_logic_stays_free_of_presentation_frameworks():
     """fastapi/starlette belong to `runner/`; prompt_toolkit belongs to
-    `llm/ui/` and `llm/app/` (and `input/`, for its own CLI prompting) — not
+    `llm/presentation/ui/` and `llm/app/` (and `input/`, for its own CLI prompting) — not
     the engine, agent, tool, or permission code both the CLI and the web
     runner drive.
     """

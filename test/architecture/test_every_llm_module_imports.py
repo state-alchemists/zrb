@@ -4,7 +4,7 @@ The 4.0 move rewrites 250 module paths, and the nets over it prove different
 things. pyright reads a syntactic import. `test_public_api_contract.py` resolves
 every name in `zrb.__all__` through the lazy-export table. Neither sees a path
 typed as a *string* — a lazy export nobody re-exported, an
-`importlib.import_module("zrb.llm.ui.session")`, a name in a factory table — and
+`importlib.import_module("zrb.llm.presentation.ui.session")`, a name in a factory table — and
 after a move such a string stops resolving to anything the layering ratchet can
 score: a silent pass, which is the one failure mode this tree has no net for.
 

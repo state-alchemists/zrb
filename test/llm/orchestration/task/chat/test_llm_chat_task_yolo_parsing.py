@@ -10,7 +10,7 @@ from zrb.llm.capabilities.prompt.manager import PromptManager
 from zrb.llm.capabilities.prompt.registry import PromptRegistry
 from zrb.llm.orchestration.task.chat.execution import parse_yolo_value
 from zrb.llm.orchestration.task.chat.task import LLMChatTask
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.presentation.ui.any_ui import AnyUI
 from zrb.session.session import Session
 
 ORDERED_COLLECTION_STEMS = [
@@ -145,18 +145,18 @@ async def test_llm_chat_task_non_interactive_run():
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason=(
-        "LLMChatTask(interactive=True) constructs a real zrb.llm.ui.default.ui.UI, "
+        "LLMChatTask(interactive=True) constructs a real zrb.llm.presentation.ui.default.ui.UI, "
         "whose __init__ unconditionally builds a prompt_toolkit Application "
         "(create_output) requiring a genuine Win32 console screen buffer -- "
         "not provided by the CI runner's Git-Bash shell. Same root cause as "
-        "test/llm/ui/test_ui_base.py's skip."
+        "test/llm/presentation/ui/test_ui_base.py's skip."
     ),
 )
 async def test_llm_chat_task_interactive_ui_trigger():
     """Test that LLMChatTask triggers UI in interactive mode."""
     # We mock UI.run_async to avoid launching the actual terminal app
     with patch(
-        "zrb.llm.ui.default.ui.UI.run_async", new_callable=AsyncMock
+        "zrb.llm.presentation.ui.default.ui.UI.run_async", new_callable=AsyncMock
     ) as mock_ui_run:
         task = LLMChatTask(name="interactive-task", interactive=True)
 

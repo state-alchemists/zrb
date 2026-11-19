@@ -62,7 +62,7 @@ if TYPE_CHECKING:
         SessionRunArgs,
         UIFactory,
     )
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
 
 #: Builds pydantic-ai capabilities for one run from the task context; an
 #: empty list adds none.

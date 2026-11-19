@@ -108,7 +108,7 @@ REQUIRED_SECTIONS = (
     "### How it runs",
 )
 # A runnable test target in a table cell: a backticked `test/...` path, naming
-# either a directory (`test/llm/ui/`) or one test (`test/x.py::test_y`).
+# either a directory (`test/llm/presentation/ui/`) or one test (`test/x.py::test_y`).
 TEST_PATH = re.compile(r"`test/")
 
 

@@ -30,8 +30,8 @@ from zrb.llm.contracts.shared.ambient_state import (
 )
 from zrb.llm.contracts.shared.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.capabilities.tool.purpose import Purpose
-from zrb.llm.ui.buffered.ui import BufferedUI
-from zrb.llm.ui.fallback.resolution import resolve_ui
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name
 

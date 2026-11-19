@@ -26,7 +26,7 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
 

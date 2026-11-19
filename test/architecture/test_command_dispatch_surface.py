@@ -21,7 +21,7 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.ui import SimpleUI, UIConfig
+from zrb.llm.presentation.ui import SimpleUI, UIConfig
 
 
 class _ProbeUI(SimpleUI):

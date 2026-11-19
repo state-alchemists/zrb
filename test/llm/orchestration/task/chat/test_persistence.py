@@ -10,7 +10,7 @@ from zrb.llm.orchestration.task.chat.persistence import (
     resolve_history_manager,
 )
 from zrb.llm.orchestration.task.history_config import HistoryConfig
-from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.presentation.ui.fallback.std_ui import StdUI
 
 
 class _RecordingUI(StdUI):

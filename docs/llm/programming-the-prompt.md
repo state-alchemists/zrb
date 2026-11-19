@@ -158,7 +158,7 @@ For an interactive `LLMChatTask`, the system prompt is where you put data the us
 
 ```python
 from zrb import cli, CmdTask, LLMChatTask
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 status = cli.add_task(CmdTask(name="git-status", cmd="git status && git log --oneline -20"))
 

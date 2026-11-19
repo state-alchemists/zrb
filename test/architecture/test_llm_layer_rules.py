@@ -38,20 +38,21 @@ def test_an_unmoved_unit_still_reads_the_table():
     """Half-moved is legal: a unit still in the old layout scores as it did before.
 
     L0–L3 have no line left: the contracts, the capabilities, the engine and the
-    orchestration units all moved, so only L4 still answers from the table.
+    orchestration units all moved, and the UI went with them, so only the six
+    media units still answer from the table.
     """
-    assert _layer("ui/default.py") == 4
     assert _layer("camera/feature.py") == 4
+    assert LAYER_OF_UNIT.get("ui") is None
     assert LAYER_OF_UNIT.get("task") is None
 
 
 def test_the_directory_wins_over_the_table():
     """The same name exists in both layouts mid-move, and the path decides."""
     assert _layer("capabilities/prompt/manager.py") == 1
-    # The floors keep their old rule while they are still in `ui/`, and score L0
-    # from the directory once they have moved under `contracts/`.
-    assert _layer("ui/fallback/defaults/display.py") == 0
-    assert _layer("contracts/ui_fallback/defaults/display.py") == 0
+    # A floor is scored by its prefix wherever its package sits, so the one under
+    # `presentation/ui/` still reads L0 while the rest of that package reads L4.
+    assert _layer("presentation/ui/fallback/defaults/display.py") == 0
+    assert _layer("presentation/ui/defaults/display.py") == 4
 
 
 def test_a_contract_is_scored_where_it_lives():
@@ -62,7 +63,7 @@ def test_a_contract_is_scored_where_it_lives():
     contracts a lower layer must name have moved under `contracts/` instead, so
     these are the paths as the tree holds them.
     """
-    assert _layer("ui/any_ui.py") == 4
+    assert _layer("presentation/ui/any_ui.py") == 4
     assert _layer("engine/agent/any_agent.py") == 2
     assert _layer("orchestration/subagent/any_sub_agent_manager.py") == 3
     # The one exemption left: the framework's own types, handed around by name.
@@ -87,7 +88,7 @@ def test_a_contract_exemption_names_a_path_the_tree_has_or_will():
 
 
 def test_a_floor_importing_its_own_package_contract_is_not_an_edge():
-    """`ui/fallback` reaching `ui/any_ui.py` is one unit talking to itself.
+    """`presentation/ui/fallback` reaching `presentation/ui/any_ui.py` is one unit.
 
     The floor scores L0 and the contract it builds with scores L4, so the two
     layers say the pair is upward — and the ratchet never reports it, because
@@ -95,16 +96,20 @@ def test_a_floor_importing_its_own_package_contract_is_not_an_edge():
     here so a reader who finds `_is_upward` returning True does not go "fix" a
     rule that is working.
     """
-    assert _unit("ui/fallback/echo_broadcast.py") == _unit("ui/any_ui.py") == "ui"
-    assert _layer("ui/fallback/echo_broadcast.py") == 0
-    assert _layer("ui/any_ui.py") == 4
+    assert (
+        _unit("presentation/ui/fallback/echo_broadcast.py")
+        == _unit("presentation/ui/any_ui.py")
+        == "presentation/ui"
+    )
+    assert _layer("presentation/ui/fallback/echo_broadcast.py") == 0
+    assert _layer("presentation/ui/any_ui.py") == 4
 
 
 def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
     assert _is_upward("capabilities/tool/x.py", "engine/agent/y.py")
-    assert _is_upward("ui/fallback/x.py", "camera/y.py")
+    assert _is_upward("presentation/ui/fallback/x.py", "camera/y.py")
     assert _is_upward("contracts/config/x.py", "orchestration/subagent/y.py")
     assert not _is_upward("presentation/ui/y.py", "contracts/config/x.py")
     assert not _is_upward("contracts/config/x.py", "contracts/shared/y.py")
@@ -139,7 +144,7 @@ def test_no_layer_names_a_unit_that_moved_away():
 
 def test_every_unit_has_a_destination():
     """A unit with no destination is one the codemod would leave behind."""
-    expected = set(LAYER_OF_UNIT) | {"ui/fallback", "ui/buffered"}
+    expected = set(LAYER_OF_UNIT)
     missing = sorted(expected - set(_UNIT_DESTINATIONS))
     extra = sorted(set(_UNIT_DESTINATIONS) - expected)
     assert not missing and not extra, (

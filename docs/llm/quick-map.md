@@ -29,7 +29,7 @@ Change map (do this → open this)
 - Change the agent loop: `src/zrb/llm/engine/agent/run/runner.py`.
 - Change the prompt: `src/zrb/llm/capabilities/prompt/manager.py`.
 - Persist/compact history: `src/zrb/llm/capabilities/history_manager/*`.
-- UI behaviour: `src/zrb/llm/ui/*` and `src/zrb/llm/ui/fallback/*`.
+- UI behaviour: `src/zrb/llm/presentation/ui/*` and `src/zrb/llm/presentation/ui/fallback/*`.
 
 Guards and tests
 

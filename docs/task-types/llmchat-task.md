@@ -138,7 +138,7 @@ Every component a task may hold exactly one of is a settable property (R8) — t
 ```python
 from zrb.builtin import llm_chat
 from zrb.llm.capabilities.prompt.manager import PromptManager
-from zrb.llm.ui import UIConfig
+from zrb.llm.presentation.ui import UIConfig
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
@@ -301,7 +301,7 @@ A trigger yields items, and each item becomes a user turn. An item may be:
 | `TriggerInput(text, attachments, source)` | The same, plus the turn's [input provenance](../llm/llm-custom-ui.md#input-provenance), shown to the model in its live context |
 | `TriggerReply(...)` | An answer to the pending prompt (below) |
 
-`TriggerMessage` and `TriggerReply` are exported from `zrb`; all four come from `zrb.llm.ui`. An item with neither text nor attachments is skipped, and a malformed item is reported while the trigger carries on.
+`TriggerMessage` and `TriggerReply` are exported from `zrb`; all four come from `zrb.llm.presentation.ui`. An item with neither text nor attachments is skipped, and a malformed item is reported while the trigger carries on.
 
 ```python
 import asyncio

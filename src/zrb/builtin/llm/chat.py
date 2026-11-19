@@ -46,7 +46,7 @@ from zrb.llm.capabilities.tool_call import (
 from zrb.llm.capabilities.tool_call.tool_policy.replace_in_file_validation import (
     replace_in_file_validation_policy,
 )
-from zrb.llm.ui.session import run_interactive_session
+from zrb.llm.presentation.ui.session import run_interactive_session
 from zrb.runner.cli import cli
 
 

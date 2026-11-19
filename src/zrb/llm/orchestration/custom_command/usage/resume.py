@@ -30,8 +30,8 @@ from zrb.config.config import CFG
 from zrb.llm.contracts.config.limiter import get_run_llm_limiter
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
-    from zrb.llm.ui.any_ui_session import AnyUISession
+    from zrb.llm.presentation.ui.any_ui import AnyUI
+    from zrb.llm.presentation.ui.any_ui_session import AnyUISession
 
 FRESH_SESSION_TOKENS = 20_000
 """What a new session costs before the user has said anything.

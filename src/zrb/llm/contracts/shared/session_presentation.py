@@ -5,7 +5,7 @@ A chat session is driven two ways. One-shot (`run_non_interactive_session` in
 and runs the inner task once. Interactive builds a UI from the task's own
 values, replays the stored conversation onto it, runs its loop and reads its
 display back: that is presentation work, so it lives in
-`zrb.llm.ui.session`, and the task asks this module for it instead of
+`zrb.llm.presentation.ui.session`, and the task asks this module for it instead of
 importing `ui/`.
 
 `builtin/llm/chat.py` — the command that offers an interactive chat — is what
