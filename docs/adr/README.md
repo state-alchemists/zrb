@@ -116,6 +116,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0130** — [Compaction hands over a briefing, and the tail is a handover too](adr-0130.md)
 - **ADR-0131** — [Speech's player defaults meet the measured machine, and its threads ask to be scheduled above the work that starved them](adr-0131.md)
 - **ADR-0142** — [A usage line names the call that spent it](adr-0142.md)
+- **ADR-0143** — [One usage line per request, with its reason and a digest of its prompt](adr-0143.md)
 
 ### Prompt
 

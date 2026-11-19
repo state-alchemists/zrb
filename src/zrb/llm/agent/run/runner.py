@@ -42,6 +42,13 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
+from zrb.llm.agent.run.request_log import (
+    REASON_CONTINUE,
+    REASON_OPENING,
+    REASON_RESUME,
+    REASON_RETRY,
+    record_round_requests,
+)
 from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
 from zrb.llm.agent.run.session_extension import (
     ExtensionState,
@@ -742,6 +749,11 @@ async def _execution_loop(
 
     try:
         await _take_turn_snapshot(cursor.snapshot)
+        # What opened the next round. The turn opens on the prepared request;
+        # every round after it opens on whatever sent the loop back — a failed
+        # stream, an approval that arrived, or an extension that kept the turn
+        # going — and says so on the request rows it writes.
+        reason = REASON_OPENING
         while True:
             cursor.begin_round(
                 sanitize_history(
@@ -757,6 +769,7 @@ async def _execution_loop(
                 effective_event_handler,
                 checkpoint_writer,
                 sandbox_deps,
+                reason=reason,
             )
 
             if stream_error is not None:
@@ -768,6 +781,7 @@ async def _execution_loop(
                     print_fn,
                     effective_hook_manager,
                 )
+                reason = REASON_RETRY
                 continue
 
             if isinstance(cursor.output, DeferredToolRequests):
@@ -781,12 +795,14 @@ async def _execution_loop(
                     # Approval pending out-of-band: the turn suspends (no
                     # STOP/SESSION_END) and resumes when the approval arrives.
                     return cursor.output, cursor.run_history
+                reason = REASON_RESUME
                 continue
 
             # Weak or overloaded providers sometimes return no text and no
             # tool call; regenerate a bounded number of times.
             if is_empty_completion(cursor.output):
                 _retry_empty_completion(retry_state, cursor, print_fn)
+                reason = REASON_RETRY
                 continue
 
             cursor.commit_round()
@@ -795,6 +811,7 @@ async def _execution_loop(
             )
             if finished is not None:
                 return finished
+            reason = REASON_CONTINUE
     except asyncio.CancelledError as ce:
         partial_run.is_interrupted = True
         setattr(ce, "zrb_partial_run", partial_run)
@@ -828,8 +845,14 @@ async def _stream_one_round(
     effective_event_handler: StreamEventHandler | None,
     checkpoint_writer: "CheckpointWriter | None",
     sandbox_deps: "SandboxPolicy | None",
+    *,
+    reason: str,
 ) -> Exception | None:
     """Run the agent once, recording its output on `cursor`.
+
+    *reason* says what opened this round, and is filed on the request rows the
+    round writes — the opening of a turn, a retry, a resume, or an extension
+    keeping the turn going.
 
     Returns the exception the stream raised, for the caller's retry decision,
     or `None` when the round produced a result.
@@ -864,7 +887,11 @@ async def _stream_one_round(
             # Taken, not read: only the round that sends the prepared request
             # describes it, and this is that round the first time round.
             composition=cursor.take_composition(),
+            turn=cursor.turn_id,
         )
+        # After the sum, so a reader who has the turn's line can find the
+        # requests that made it. The round's own messages are what it sent.
+        record_round_requests(cursor, result.new_messages(), reason)
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
         return None
@@ -881,6 +908,7 @@ def _record_run_usage(
     started_at: float,
     new_messages: History | None = None,
     composition: "ContextComposition | None" = None,
+    turn: str = "",
 ) -> None:
     """Write one usage-log line for the round that just finished.
 
@@ -890,6 +918,9 @@ def _record_run_usage(
 
     *composition* is where this request's input went. Only the round that sends
     the prepared request has one; the others omit it rather than repeat it.
+
+    *turn* is the id every round of one turn shares, so the per-request rows
+    written underneath this line can be read against the sum it carries.
 
     The session name is the UI's, because that is where a conversation's
     identity lives; a headless run records an empty one and `/usage` still sees
@@ -909,6 +940,7 @@ def _record_run_usage(
         tool_counts=calls,
         tool_errors=errors,
         context=composition,
+        turn=turn,
     )
 
 
