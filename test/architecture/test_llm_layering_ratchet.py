@@ -1,7 +1,8 @@
 """Ratchet the import direction inside ``zrb.llm`` downward.
 
-Every ``llm/`` unit (a subpackage, or a loose top-level module) sits in one
-layer, and a layer imports only from itself and the layers below:
+Every ``llm/`` unit — a package inside one of the five directories, or the
+directory itself — sits in one layer, and a layer imports only from itself and
+the layers below:
 
     L0 contracts      protocols, shared types, ambient state, leaf helpers
     L1 capabilities   tools, hooks, permissions, prompt, skills, LSP, snapshots
@@ -16,16 +17,16 @@ where that layer can reach it — under `contracts/` — rather than scored L0 b
 its filename, because a rank granted by a name is invisible in the path. A
 package may also hold a floor beneath its own layer — see `_FLOOR_PREFIXES`.
 
-A unit's layer comes from one of two places while the tree is being sorted into
-five directories: the directory it sits in (``_LAYERS``), or the table below for
-a unit that has not moved yet. Both are legal at once, so a half-moved tree
-still gets judged — and the directory wins where the two disagree.
+A unit's layer comes from the directory it sits in (``_LAYERS``): the five
+directories are the five layers, and `llm/` holds nothing else. The table that
+scored a unit which had not moved yet is gone with the move that emptied it, so
+there is one place a layer can come from and a path says which.
 
-The two allowlists below are today's debt. They may only shrink: remove a
-line when you fix it, and never add one to admit new code. To fix an upward
-edge, move the shared piece down to L0, or put a Protocol in L0 and let the
-upper layer register the implementation (``agent_state.get_current_ui`` is the
-pattern). Only runtime imports count; ``if TYPE_CHECKING`` blocks do not.
+The two allowlists below are today's debt — and both are empty. They may only
+shrink: remove a line when you fix it, and never add one to admit new code. To
+fix an upward edge, move the shared piece down to L0, or put a Protocol in L0
+and let the upper layer register the implementation (``agent_state.get_current_ui``
+is the pattern). Only runtime imports count; ``if TYPE_CHECKING`` blocks do not.
 """
 
 import ast
