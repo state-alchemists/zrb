@@ -36,7 +36,7 @@ _UNITS_BY_LAYER = {
         "snapshot tool tool_call"
     ),
     2: "agent summarizer",
-    3: "common_tools custom_command subagent task",
+    3: "common_tools custom_command resumed_session subagent task",
     4: "camera dictation emotion screenshot speech ui voice",
 }
 LAYER_OF_UNIT = {
@@ -63,10 +63,12 @@ _FLOOR_PREFIXES = {"ui/fallback/": 0, "ui/buffered/": 0}
 # upward import fails the ratchet instead of joining a list.
 KNOWN_UPWARD_EDGES: set[str] = set()
 
-# Mutual dependencies between two units of the same layer, as "a <-> b".
-KNOWN_SAME_LAYER_CYCLES: set[str] = {
-    "subagent <-> task",
-}
+# Mutual dependencies between two units of the same layer, as "a <-> b". The
+# same rule as above: empty is where this ends, and the two lists are now empty.
+# `subagent <-> task` was the last one — the sub-agent manager builds the chat
+# task a resumed session runs as, and the chat task reaches the manager for its
+# roster, so each asked the other to build what it needed.
+KNOWN_SAME_LAYER_CYCLES: set[str] = set()
 
 
 def _is_contract(path: str) -> bool:

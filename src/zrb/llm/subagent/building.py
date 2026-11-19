@@ -5,10 +5,8 @@ resolver, not a roster-plus-factory.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
@@ -16,8 +14,10 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.live_context.context import render_carried_context
+from zrb.llm.resumed_session import create_resumed_chat_task
 from zrb.llm.shared.ambient_state import get_current_tool_session
 from zrb.llm.shared.factory_resolver import resolve_factory_items
+from zrb.llm.shared.sub_agent_build import SubAgentBuild
 from zrb.llm.shared.tool_registry import tool_registry
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.parent_message import send_message_to_parent
@@ -39,17 +39,6 @@ if TYPE_CHECKING:
 
     from zrb.llm.subagent.manager.manager import SubAgentManager
     from zrb.llm.task.chat.task import LLMChatTask
-
-
-@dataclass
-class _ResolvedAgentBuild:
-    """Shared build inputs for `create_agent`/`create_llm_chat_task`."""
-
-    model: Any
-    system_prompt: str
-    tools: list
-    toolsets: list
-    yolo: "bool | Callable[..., bool]"
 
 
 def _subagent_archive_name(name: str) -> "Callable[[], str | None]":
@@ -145,28 +134,13 @@ class SubAgentBuilding:
 
         resolved = self.resolve_agent_build(definition, ctx, yolo=None)
 
-        # lazy: zrb.llm.task.chat.task transitively loads pydantic_ai,
-        # prompt_toolkit and the full chat-task machinery.
-        from zrb.llm.task.chat.task import LLMChatTask
-
-        return LLMChatTask(
-            name=f"resumed-{definition.name}",
-            description=definition.description,
-            system_prompt=resolved.system_prompt,
-            tools=resolved.tools,
-            toolsets=resolved.toolsets,
-            # Already final: resolve_configured_model ran above.
-            model=resolved.model,
-            # The chat task's core appends the summarizer, keyed by the
-            # delegated session name; adding one here would summarize twice.
-            # Mirrors builtin/llm/chat.py: the web chat runner passes these
-            # per message via ctx.input.
-            message=Tpl("{ctx.input.message}"),
-            conversation_name=Tpl("{ctx.input.session}"),
-            attachment=lambda ctx: [
-                path.strip() for path in ctx.input.attach.split(",") if path.strip()
-            ],
-            interactive=Tpl("{ctx.input.interactive}"),
+        # `resumed_session.py` is the third unit of this layer: it names the
+        # chat task, this package names it, and `task/` names neither back —
+        # importing the task here would close the `subagent <-> task` cycle,
+        # since the chat task reaches this manager for its roster and its
+        # `@mentions`.
+        return create_resumed_chat_task(
+            resolved, definition.name, definition.description
         )
 
     def resolve_agent_build(
@@ -174,7 +148,7 @@ class SubAgentBuilding:
         definition: SubAgentDefinition,
         ctx: AnyContext | None,
         yolo: bool | None,
-    ) -> "_ResolvedAgentBuild":
+    ) -> "SubAgentBuild":
         """Resolve tools, toolsets, model, and system prompt for a definition."""
         if ctx is None:
             ctx = Context(
@@ -228,7 +202,7 @@ class SubAgentBuilding:
             parts.append(definition.system_prompt)
         effective_system_prompt = "\n\n".join(parts).strip()
 
-        return _ResolvedAgentBuild(
+        return SubAgentBuild(
             model=final_model,
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
