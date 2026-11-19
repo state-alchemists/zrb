@@ -12,8 +12,11 @@ every import in the tree.
 
 from llm_layers import (
     LAYER_OF_UNIT,
+    _LAYERS,
+    _UNIT_DESTINATIONS,
     _is_upward,
     _layer,
+    _path_in,
     _present_units,
     _unit,
 )
@@ -81,3 +84,47 @@ def test_no_layer_names_a_unit_that_moved_away():
         "by a move scores nothing and hides the unit that replaced it — delete "
         "the line, and give the package it moved into a layer if it has none."
     )
+
+
+def test_every_unit_has_a_destination():
+    """A unit with no destination is one the codemod would leave behind."""
+    expected = set(LAYER_OF_UNIT) | {"ui/fallback", "ui/buffered"}
+    missing = sorted(expected - set(_UNIT_DESTINATIONS))
+    extra = sorted(set(_UNIT_DESTINATIONS) - expected)
+    assert not missing and not extra, (
+        f"undestined: {missing}; mapped but not a unit: {extra}"
+    )
+
+
+def test_each_destination_sits_in_a_layer_directory():
+    unknown = sorted(
+        destination
+        for destination in _UNIT_DESTINATIONS.values()
+        if destination.split("/")[0] not in _LAYERS
+    )
+    assert not unknown, f"these land outside the five directories: {unknown}"
+
+
+def test_a_move_does_not_change_a_units_layer():
+    """The move is a move: same code, same layer, a path that says which.
+
+    This is the check the codemod is audited by — a destination in the wrong
+    directory would quietly re-file a unit into another layer, and 250 rewritten
+    module paths are exactly where a human stops noticing.
+    """
+    changed = {
+        unit: (destination, _layer(_path_in(unit)), _layer(_path_in(destination)))
+        for unit, destination in _UNIT_DESTINATIONS.items()
+        if _layer(_path_in(unit)) != _layer(_path_in(destination))
+    }
+    assert not changed, f"unit: (destination, from, to) — {changed}"
+
+
+def test_two_units_do_not_land_on_one_path():
+    landing: dict[str, list[str]] = {}
+    for unit, destination in _UNIT_DESTINATIONS.items():
+        landing.setdefault(destination, []).append(unit)
+    shared = {
+        destination: units for destination, units in landing.items() if len(units) > 1
+    }
+    assert not shared, f"two units on one path: {shared}"
