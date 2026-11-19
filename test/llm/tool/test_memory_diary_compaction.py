@@ -76,6 +76,38 @@ def test_a_rewrite_from_a_full_page_has_to_land_under_the_point(store_dir):
     assert "freed nothing" in message
 
 
+def test_a_handover_alone_is_written_on_a_full_page(store_dir):
+    """A metadata update asks for no rewrite, so there is nothing to free.
+
+    This is the reviewer's own path: the day is past the point, the state of play
+    has changed, and the write carries a handover and no body. Judging it as a
+    rewrite compared the stored body with itself — over the threshold and over
+    it — and refused a write that never touched the page.
+    """
+    body = "x" * (_COMPACT_AT + 50)
+    remember("2026-11-07", "A day.", kind="diary", body=body)
+
+    message = remember("2026-11-07", None, kind="diary", handover="At chapter two.")
+
+    entry = store.load_diary("2026-11-07")
+    assert entry is not None and entry.body == body
+    assert entry.handover == "At chapter two."
+    assert "Nothing was written" not in message
+
+
+def test_a_claim_alone_is_written_on_a_full_page(store_dir):
+    """The same rule for the other metadata: a claim is not a body either."""
+    body = "x" * (_COMPACT_AT + 50)
+    remember("2026-11-07", "A day.", kind="diary", body=body)
+
+    message = remember("2026-11-07", "Another day.", kind="diary")
+
+    entry = store.load_diary("2026-11-07")
+    assert entry is not None and entry.body == body
+    assert entry.claim == "Another day."
+    assert "Nothing was written" not in message
+
+
 def test_the_rewrite_that_answers_the_refusal_is_written(store_dir):
     """One number, one answer: cut below the point and the write lands."""
     body = "x" * 700

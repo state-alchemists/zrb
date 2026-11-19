@@ -765,11 +765,16 @@ def _remember_diary_locked(
     problem = body_overflow(body_text) if append else None
     if problem:
         return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
-    refused = (
-        _append_to_a_full_page(old, body_text)
-        if append
-        else _rewrite_that_frees_nothing(old, body_text)
-    )
+    # An append has to fit the page it joins, and a rewrite has to free something.
+    # A write that supplies no body is neither: the claim, the handover or the
+    # source changed and the body is carried over as it was, so there is nothing
+    # to measure and nothing to free.
+    if append:
+        refused = _append_to_a_full_page(old, body_text)
+    elif body is None:
+        refused = None
+    else:
+        refused = _rewrite_that_frees_nothing(old, body_text)
     if refused:
         return refused
     entry = _diary_entry_after(old, day, claim, handover, source, body_text)
