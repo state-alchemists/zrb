@@ -25,7 +25,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.memory import paths, store
-from zrb.llm.memory.model import Diary, digest_body
+from zrb.llm.memory.model import KIND_DIARY, Diary, compact_at, digest_body
 
 
 @pytest.fixture
@@ -427,15 +427,32 @@ def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
 def test_a_day_at_exactly_the_reserve_is_handed_over(store_dir):
     """A paragraph can outrun the reserve, so the boundary gives the page away.
 
-    At exactly 600 characters of room a 601-character paragraph is valid and
-    cannot fit; the note used to stop one character short of handing the day over,
-    and the reviewer was left with a refusal and no page to shorten.
+    At exactly 600 characters below the point where the day is compacted, a
+    601-character paragraph would cross it and be refused; the note used to stop
+    one character short of handing the day over, and the reviewer was left with a
+    refusal and no page to shorten.
     """
-    limit = CFG.LLM_MEMORY_DIARY_MAX_CHARS
-    body = "x" * (limit - _DAY_APPEND_RESERVE)
+    body = "x" * (compact_at(KIND_DIARY) - _DAY_APPEND_RESERVE)
     store.save_diary(Diary(id=store.today(), claim="A long day.", body=body))
 
     assert body in _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+
+def test_the_note_names_the_point_the_day_is_compacted_from(store_dir):
+    """The reviewer fits the page to a number, so it has to be the right one.
+
+    Told to fit "under 8,000 characters", a rewrite landed at 7,980 and freed
+    nothing: the append it was making room for was refused against the same wall,
+    hour after hour. The note states the threshold the tool actually enforces, so
+    the number the reviewer writes to and the number that refuses it agree.
+    """
+    at = compact_at(KIND_DIARY)
+    store.save_diary(Diary(id=store.today(), claim="A day.", body="x" * (at - 600)))
+
+    note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
+
+    assert f"compacted from {at}" in note
+    assert f"under {at} characters" in note
 
 
 def test_a_day_with_no_entry_names_the_date_so_one_can_be_created(store_dir):

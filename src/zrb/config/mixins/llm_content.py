@@ -62,6 +62,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
         self.DEFAULT_LLM_MEMORY_DIARY_MAX_CHARS: str = "8000"
+        self.DEFAULT_LLM_MEMORY_DIARY_COMPACT_AT: str = "6000"
         self.DEFAULT_LLM_MEMORY_HANDOVER_MAX_CHARS: str = "700"
         self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
         self.DEFAULT_LLM_MEMORY_RECENT_LOG_LINES: str = "4"
@@ -244,6 +245,20 @@ class LLMContentMixin:
             "injected, so raising it costs nothing until someone reads the day. A "
             "write is refused above it, and the refusal names the whole it would "
             "become."
+        ),
+    )
+
+    LLM_MEMORY_DIARY_COMPACT_AT = EnvField(
+        int,
+        doc=(
+            "Characters at which a diary page is compacted rather than grown: a "
+            "paragraph that would carry the day past it is refused, and so is a "
+            "rewrite that starts past it and lands past it. Without a threshold "
+            "the day only ever rewrites to its own ceiling — today's page sat at "
+            "7,980 of 8,000 for two hours, compacting every turn and freeing "
+            "nothing — so the writer that arrives next is the one refused. Clamped "
+            "to `LLM_MEMORY_DIARY_MAX_CHARS`: set at or above the cap it leaves "
+            "only the cap."
         ),
     )
 
