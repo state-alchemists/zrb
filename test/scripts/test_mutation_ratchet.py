@@ -130,6 +130,56 @@ def test_every_floor_names_a_real_package_with_mirrored_tests():
         assert mutation_ratchet.test_target_for(package) is not None, package
 
 
+def test_every_sample_size_names_a_floored_package():
+    """A wider sample for a package nobody floors is a number nothing holds."""
+    for package in mutation_ratchet.SAMPLE_SIZES:
+        assert package in mutation_ratchet.FLOORS, package
+        assert mutation_ratchet.SAMPLE_SIZES[package] > (
+            mutation_ratchet.DEFAULT_MUTANTS_PER_PACKAGE
+        ), package
+
+
+@posix_only
+def test_a_package_is_scored_at_its_own_sample_size(monkeypatch):
+    """A floor justified by a wider sample must be checked against that sample.
+
+    Otherwise the plain command draws a different, smaller set of mutants and
+    can fail a floor nobody measured it against.
+    """
+    scored: list[tuple[str, int]] = []
+
+    def record(package, sample_size, verbose):
+        scored.append((package, sample_size))
+        return 1, 1
+
+    monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
+    monkeypatch.setattr(mutation_ratchet, "score_package", record)
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "cmd", "llm/skill"])
+
+    assert mutation_ratchet.main() == 0
+    assert scored == [
+        ("cmd", mutation_ratchet.SAMPLE_SIZES["cmd"]),
+        ("llm/skill", mutation_ratchet.DEFAULT_MUTANTS_PER_PACKAGE),
+    ]
+
+
+@posix_only
+def test_an_explicit_sample_size_overrides_every_package(monkeypatch):
+    """`--mutants` is the wider look; it is not silently narrowed per package."""
+    scored: list[tuple[str, int]] = []
+
+    def record(package, sample_size, verbose):
+        scored.append((package, sample_size))
+        return 1, 1
+
+    monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
+    monkeypatch.setattr(mutation_ratchet, "score_package", record)
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "cmd", "--mutants", "7"])
+
+    assert mutation_ratchet.main() == 0
+    assert scored == [("cmd", 7)]
+
+
 def test_a_chained_comparison_keeps_the_rest_of_the_chain():
     """Mutation keeps trailing comparators in chained comparisons."""
     mutated, _ = mutation_ratchet.apply_mutation(
