@@ -16,7 +16,7 @@ from zrb.llm.contracts.shared.output_chunk import CollapsibleBlockSource, merge_
 from zrb.llm.contracts.shared.tracked_spans import TrackedSpans
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
-from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 

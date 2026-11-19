@@ -11,7 +11,7 @@ from zrb.config.config import CFG
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
 async def edit_content_via_editor(

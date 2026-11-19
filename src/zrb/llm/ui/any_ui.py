@@ -44,8 +44,8 @@ from abc import ABC, abstractmethod
 from typing import Any, TextIO
 
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
-from zrb.llm.ui.any_ui_input import AnyUIInput
-from zrb.llm.ui.any_ui_picker import AnyUIPicker, ChoiceOption, ChoiceSpec
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker, ChoiceOption, ChoiceSpec
 from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.any_ui_tools import AnyUITools
 

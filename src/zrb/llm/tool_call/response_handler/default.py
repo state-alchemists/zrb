@@ -10,7 +10,7 @@ from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
 async def default_response_handler(

@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
-from zrb.llm.ui.any_ui_input import AnyUIInput
-from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.any_ui_tools import AnyUITools
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome

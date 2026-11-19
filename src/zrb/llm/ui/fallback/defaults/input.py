@@ -16,7 +16,7 @@ from zrb.llm.contracts.util.delivery_report import DeliveryOutcome, DeliveryRepo
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
     from zrb.llm.contracts.shared.input_source import InputProvenance
-    from zrb.llm.ui.any_ui_input import AnyUIInput
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
 
 
 class UIInputDefaults:

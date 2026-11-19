@@ -7,7 +7,7 @@ from zrb.util.string.fuzzy_match import find_fuzzy_match
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
 
 
 async def replace_in_file_validation_policy(
