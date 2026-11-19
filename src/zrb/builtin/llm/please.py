@@ -48,12 +48,17 @@ async def please(ctx: AnyContext) -> str:
     # and a run that never calls it should not carry the agent stack.
     from zrb.llm.agent import create_agent
     from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
+    from zrb.llm.contracts.shared.request_log import (
+        REASON_PLEASE,
+        record_standalone_requests,
+    )
     from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 
     model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)
     result = await agent.run(build_user_message(str(ctx.input.message)))
     record_agent_usage(result, component=COMPONENT_OTHER)
+    record_standalone_requests(result, REASON_PLEASE, component=COMPONENT_OTHER)
     command = strip_code_fences(str(result.output))
     if command == "":
         ctx.print(stylize_red("❌ Could not generate a command"))

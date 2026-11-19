@@ -7,6 +7,12 @@ it. This is the same shape as `test/builtin/test_registration_completeness.py`:
 the thing that must not be forgotten is found by walking the tree, so forgetting
 it fails a test instead of hiding.
 
+A row is the second half of that promise. The summed line says what a run cost;
+`request-YYYY-MM.jsonl` says what the run was made of. A site that writes the
+first and not the second leaves the two logs disagreeing about the same call,
+which is how the summarizer's chunks and the changelog were found unwired — each
+one in review, each one a file nobody had looked at twice.
+
 `KNOWN_UNATTRIBUTED` is a debt register, not an allowlist to append to. An entry
 leaves it when the site records, and a new site never enters it.
 """
@@ -22,6 +28,17 @@ _RUNS = re.compile(r"await agent\.run\(|= await run_agent\(|await sub_agent\.run
 # What makes such a site attributable: the line writer, or the ambient tag that
 # makes the run's own lines inherit a component.
 _ATTRIBUTES = re.compile(r"record_agent_usage\(|usage_component\(")
+# The writers that make a site answerable at request level too: its own rows, or
+# the turn loop's, which are the cursor's and are written once per round.
+_ROWS = re.compile(r"record_standalone_requests\(|record_round_requests\(")
+# The modules that define the writers rather than call them.
+_WRITER_MODULES = {
+    "llm/contracts/shared/request_log.py",
+    "llm/contracts/shared/usage_log.py",
+}
+# A wrapper that hands its run to the turn loop: its rows are the cursor's, and
+# the line here only names the component the run inherits.
+_ROWS_COME_FROM_THE_RUN = {"llm/contracts/shared/subagent_turn.py"}
 
 # Path -> why this site does not attribute its run today.
 KNOWN_UNATTRIBUTED = {
@@ -88,3 +105,50 @@ def test_the_debt_register_does_not_keep_what_was_fixed():
         "These modules now attribute their run (or no longer run one), so their "
         f"entries in KNOWN_UNATTRIBUTED are stale: {fixed}"
     )
+
+
+def test_every_summed_line_also_writes_its_request_rows():
+    """A site that says what a run cost must say what the run was made of.
+
+    The turn loop is answered for by `record_round_requests`, written once per
+    round from the cursor; every other site that writes a line of its own writes
+    its rows through `record_standalone_requests`. A site that does neither
+    leaves the two logs disagreeing about the same call, which is how the
+    summarizer's chunks and the changelog were found unwired.
+    """
+    missing: list[str] = []
+    for path in SRC.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if _ATTRIBUTES.search(text) is None:
+            continue
+        if _relative(path) in _WRITER_MODULES | _ROWS_COME_FROM_THE_RUN:
+            continue
+        if _ROWS.search(text) is None:
+            missing.append(_relative(path))
+
+    assert missing == [], (
+        "These modules write a usage line without request rows. Add "
+        "`record_standalone_requests(result, reason, component=...)` after the "
+        f"run, with the same component the line carries: {sorted(missing)}"
+    )
+
+
+def test_every_reason_names_a_call_site():
+    """A reason defined and never passed is the fingerprint of a missed site.
+
+    `REASON_SUMMARIZER` was written with the vocabulary and never reached a call
+    site, and the compaction's requests went unrecorded until a review found them.
+    A name has to appear at least twice: where it is defined, and where it is
+    used.
+    """
+    sources = [path.read_text(encoding="utf-8") for path in SRC.rglob("*.py")]
+    definitions = (SRC / "llm/contracts/shared/request_log.py").read_text(
+        encoding="utf-8"
+    )
+    unused = [
+        name
+        for name in re.findall(r"^(REASON_[A-Z_]+) = ", definitions, re.M)
+        if sum(text.count(name) for text in sources) < 2
+    ]
+
+    assert unused == [], f"These reasons name no call site: {unused}"

@@ -40,6 +40,7 @@ import dataclasses
 import hashlib
 import json
 import os
+import uuid
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -121,6 +122,38 @@ REASON_RESUME = "resume"
 """A round that continues the turn after a deferred approval."""
 REASON_CONTINUE = "continue"
 """A round an extension kept going after the turn had answered."""
+# The call sites that run an agent themselves and never enter the turn loop.
+# Their spend is one summed line in `usage_log`, which answers the bill and
+# cannot say which of them spent it; a reason on the row is what says it. These
+# are named after the site, not after the component, because the components
+# overlap — a hook, the judge and the namer all run under a name of their own
+# only sometimes.
+REASON_HOOK = "hook"
+"""One of the hooks `hook_agent.py` builds as a real sub-agent turn.
+
+Four of them call a model — memory recall, memory review, self review, the
+weekly write — and they share this reason: all four spend under the same
+component too. Splitting it is step 2 of board 0003 §4, and it needs the hook
+read before the name is worth splitting.
+"""
+REASON_MEMORY_WEEK = "memory_week"
+"""The weekly diary write, which runs on a schedule rather than in a turn."""
+REASON_SHELL_JUDGE = "shell_judge"
+"""The judge that reads a shell command before the run is allowed to send it."""
+REASON_NAMER = "namer"
+"""The suggestion for a conversation's name, asked on the opening turn."""
+REASON_SUMMARIZER = "summarizer"
+"""A conversation, or a day of one, read down to a summary."""
+REASON_SIDE_QUESTION = "side_question"
+"""A question asked beside the conversation instead of as a turn of it."""
+REASON_DICTATION_JUDGE = "dictation_judge"
+"""The judge that decides whether spoken words interrupt the run."""
+REASON_SPEECH = "speech"
+"""An answer's text read down to the part worth saying out loud."""
+REASON_PLEASE = "please"
+"""`zrb llm please`: a sentence read into one command line."""
+REASON_CHANGELOG = "changelog"
+"""A changelog draft, written from the commits since the previous tag."""
 
 
 @dataclass(frozen=True)
@@ -200,19 +233,109 @@ def record_round_requests(
     """
     if not isinstance(new_messages, list):
         return
+    rows = _rows_for(
+        history=cursor.history,
+        new_messages=new_messages,
+        turn=cursor.turn_id,
+        first_index=cursor.requests,
+        reason=reason,
+    )
+    cursor.requests += len(rows)
+    record_requests(rows)
+
+
+def record_standalone_requests(
+    result: object,
+    reason: str,
+    *,
+    component: str,
+    history: History | None = None,
+) -> list[RequestRecord]:
+    """Write a row for every request a run outside the turn loop sent.
+
+    The auxiliary call sites — the hooks, the shell judge, the namer, the
+    summarizer, a side question, dictation's judge, speech — run an agent
+    themselves and never enter the turn loop, so `record_round_requests` never
+    sees them. Each of them writes one summed line through `record_agent_usage`,
+    which answers the bill and cannot say which of them spent it; these rows say
+    that, and carry the digest that says whether the prompt was paid again.
+
+    *reason* names the call site. Such a run has no turn of its own, so one is
+    minted here: a call's rows join on it, and it joins nothing else. A later
+    request inside the same run is filed as a follow-up, the same way a round's
+    are.
+
+    *component* is the name the site also gives `record_agent_usage`, and it is
+    required because these calls run *beside* a turn rather than inside it: the
+    ambient component is whatever the turn set, so reading it here would file a
+    hook's tokens under the main agent and leave the request row disagreeing
+    with the summed line it is meant to explain. Both writers are handed the
+    same constant, which is the one way the two cannot drift.
+
+    *history* is what the run was handed as `message_history`, when it was
+    handed one: a side question reads the conversation so far and sends it with
+    the question, so a row that folded an empty history would report a prompt of
+    one message for a prompt that carried the conversation. Only the run's own
+    requests get rows — the history is folded into the count and the digest
+    without being yielded, the way a turn's earlier rounds are.
+
+    A result that cannot give its messages writes no rows rather than a guessed
+    one, the same rule the turn's writer follows.
+    """
+    messages = _messages_of(result)
+    if not messages:
+        return []
+    return record_requests(
+        _rows_for(
+            history=history if history is not None else [],
+            new_messages=messages,
+            turn=uuid.uuid4().hex,
+            first_index=0,
+            reason=reason,
+            component=component,
+        )
+    )
+
+
+def _messages_of(result: object) -> History:
+    """The messages a finished run produced, or nothing when it cannot say."""
+    new_messages = getattr(result, "new_messages", None)
+    if not callable(new_messages):
+        return []
+    produced = new_messages()
+    return produced if isinstance(produced, list) else []
+
+
+def _rows_for(
+    *,
+    history: History,
+    new_messages: History,
+    turn: str,
+    first_index: int,
+    reason: str,
+    component: str | None = None,
+) -> list[RequestRecord]:
+    """The rows one run's requests make, numbered from *first_index*.
+
+    Shared by the turn's writer and the standalone one so the two cannot drift
+    on what a row says; the only difference between them is where the turn id,
+    the starting index and the component come from. *component* left out is the
+    ambient one, which is right for a round: the turn loop binds it, so a
+    round's rows are filed under the component that ran it.
+    """
     session = current_conversation_name()
-    component = current_component()
+    row_component = current_component() if component is None else component
     rows: list[RequestRecord] = []
-    index = cursor.requests
-    for digest, prompt_messages, response in _requests_sent(cursor.history, new_messages):
+    index = first_index
+    for digest, prompt_messages, response in _requests_sent(history, new_messages):
         rows.append(
             RequestRecord(
                 timestamp=_stamp(response),
                 model=_model_of(response),
                 session=session,
-                component=component,
-                reason=reason if index == cursor.requests else REASON_FOLLOW_UP,
-                turn=cursor.turn_id,
+                component=row_component,
+                reason=reason if index == first_index else REASON_FOLLOW_UP,
+                turn=turn,
                 index=index,
                 prompt_hash=digest,
                 prompt_messages=prompt_messages,
@@ -221,8 +344,7 @@ def record_round_requests(
             )
         )
         index += 1
-    cursor.requests = index
-    record_requests(rows)
+    return rows
 
 
 def record_requests(records: Iterable[RequestRecord]) -> list[RequestRecord]:

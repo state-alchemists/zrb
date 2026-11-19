@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.shared.request_log import (
+    REASON_SPEECH,
+    record_standalone_requests,
+)
 from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
 from zrb.llm.speech.text import clean_for_speech
 
@@ -81,6 +85,7 @@ async def _run(text: str, model: "str | Model | None") -> str:
     agent = create_speech_summarizer_agent(model)
     result = await agent.run(text)
     record_agent_usage(result, component=COMPONENT_OTHER)
+    record_standalone_requests(result, REASON_SPEECH, component=COMPONENT_OTHER)
     return str(result.output or "")
 
 

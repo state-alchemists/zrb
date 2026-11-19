@@ -8,7 +8,11 @@ from zrb.llm.agent.run.error_classifier import (
     is_retryable_error,
 )
 from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.contracts.shared.usage_log import UsageTotals
+from zrb.llm.contracts.shared.request_log import (
+    REASON_SUMMARIZER,
+    record_standalone_requests,
+)
+from zrb.llm.contracts.shared.usage_log import COMPONENT_SUMMARIZER, UsageTotals
 from zrb.util.cli.style import stylize_error
 
 
@@ -42,6 +46,12 @@ async def _run_agent_with_retry(
                 continue
             raise
         _add_spend(spent, result)
+        # The compaction's own line is a total, which says what replacing a
+        # history cost and not what it paid for. A chunk that resent a rewritten
+        # prefix is visible in the request rows and invisible in that total.
+        record_standalone_requests(
+            result, REASON_SUMMARIZER, component=COMPONENT_SUMMARIZER
+        )
         return result
     # Reached only when max_retries < 0, so last_error is None.
     raise last_error or RuntimeError("Summarization failed without an error")

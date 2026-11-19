@@ -42,7 +42,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
 from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
-from zrb.llm.agent.run.request_log import (
+from zrb.llm.contracts.shared.request_log import (
     REASON_CONTINUE,
     REASON_OPENING,
     REASON_RESUME,
