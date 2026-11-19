@@ -2,9 +2,9 @@
 
 import pytest
 
-from zrb.llm.engine.agent.run.setup import resolve_context_dependencies
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.contracts.shared.agent_state import current_hook_manager, current_yolo
+from zrb.llm.engine.agent.run.setup import resolve_context_dependencies
 
 
 def test_yolo_none_inherits_parent_context():

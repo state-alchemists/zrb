@@ -5,8 +5,8 @@ import os
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.memory import paths, store
 from zrb.llm.capabilities.tool.memory import forget, remember, search_memory
+from zrb.llm.contracts.memory import paths, store
 
 
 @pytest.fixture

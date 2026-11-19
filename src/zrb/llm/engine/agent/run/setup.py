@@ -15,8 +15,12 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.approval.approval_channel import current_approval_channel
-from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
-from zrb.llm.capabilities.approval.terminal_approval_channel import TerminalApprovalChannel
+from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+    MultiplexApprovalChannel,
+)
+from zrb.llm.capabilities.approval.terminal_approval_channel import (
+    TerminalApprovalChannel,
+)
 from zrb.llm.capabilities.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.contracts.shared.agent_state import (
     current_hook_manager,

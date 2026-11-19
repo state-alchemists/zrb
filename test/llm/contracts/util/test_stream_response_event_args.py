@@ -77,7 +77,9 @@ class TestStreamEventHandlerSpinnerThrottle:
         event = MagicMock()
         event.delta = ToolCallPartDelta(args_delta='{"a":')
 
-        with patch("zrb.llm.contracts.util.stream_response.time.monotonic", return_value=100.0):
+        with patch(
+            "zrb.llm.contracts.util.stream_response.time.monotonic", return_value=100.0
+        ):
             for _ in range(50):
                 handler.handle_part_delta(event)
 
@@ -94,7 +96,9 @@ class TestStreamEventHandlerSpinnerThrottle:
         event.delta = ToolCallPartDelta(args_delta="x")
 
         times = [100.0, 100.05, 100.5, 100.55]
-        with patch("zrb.llm.contracts.util.stream_response.time.monotonic", side_effect=times):
+        with patch(
+            "zrb.llm.contracts.util.stream_response.time.monotonic", side_effect=times
+        ):
             for _ in range(4):
                 handler.handle_part_delta(event)
 

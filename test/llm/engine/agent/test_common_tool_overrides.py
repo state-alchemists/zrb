@@ -43,8 +43,8 @@ async def test_call_tool_override_note_is_one_shot_and_reaches_error_results():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.tool_call.override_registry import record_override
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     record_override("edited-call-2", {"path": "a.txt"}, {"path": "b.txt"})
@@ -76,13 +76,16 @@ async def test_call_tool_passes_claude_tool_identity_fields():
     tool_response on Post) so tool-name matchers and stdin reads work."""
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     with (
-        patch("zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
+            execute,
+        ),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
         ) as mock_super,
@@ -108,13 +111,16 @@ async def test_posttooluse_failure_passes_claude_tool_identity_fields():
     """PostToolUseFailure carries tool_name/tool_input too."""
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     with (
-        patch("zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
+            execute,
+        ),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool",
             side_effect=ValueError("boom"),

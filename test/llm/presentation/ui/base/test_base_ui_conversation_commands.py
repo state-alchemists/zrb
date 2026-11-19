@@ -13,9 +13,9 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.capabilities.snapshot import RestoreOutcome
 from zrb.llm.capabilities.snapshot.manager import Snapshot
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.presentation.ui.base.ui import BaseUI
 
 _COMMANDS = dict(
@@ -327,7 +327,8 @@ def test_copy_command_copies_full_transcript(conv_ui):
     conv_ui.history_manager.load.return_value = ["m1"]
     with (
         patch(
-            "zrb.llm.contracts.util.history_formatter.format_history_as_text", return_value="text"
+            "zrb.llm.contracts.util.history_formatter.format_history_as_text",
+            return_value="text",
         ),
         patch("zrb.util.clipboard.copy_text", return_value=True),
     ):
@@ -349,7 +350,8 @@ def test_copy_command_writes_transcript_to_file(conv_ui, tmp_path):
     conv_ui.history_manager.load.return_value = ["m1"]
     target = tmp_path / "transcript.txt"
     with patch(
-        "zrb.llm.contracts.util.history_formatter.format_history_as_text", return_value="text"
+        "zrb.llm.contracts.util.history_formatter.format_history_as_text",
+        return_value="text",
     ):
         assert conv_ui.handle_copy_command(f"copy {target}") is True
     assert target.read_text() == "text"

@@ -14,7 +14,11 @@ from typing import TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.approval.approval_channel import current_approval_channel
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.contracts.shared.agent_state import current_tool_confirmation, current_ui
 
 logger = logging.getLogger(__name__)

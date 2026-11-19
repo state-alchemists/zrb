@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 from zrb.llm.contracts.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 
 async def read_file_validation_policy(

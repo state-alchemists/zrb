@@ -10,10 +10,10 @@ from zrb.config.helper import (
     get_max_token_threshold,
 )
 from zrb.context.any_context import zrb_print
-from zrb.llm.engine.agent.summarizer import create_conversational_summarizer_agent
+from zrb.llm.capabilities.prompt.live_context.context import render_carried_context
+from zrb.llm.capabilities.skill.reattach import build_reattach_message
 from zrb.llm.contracts.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.capabilities.prompt.live_context.context import render_carried_context
 from zrb.llm.contracts.shared.agent_state import get_current_model, get_current_ui
 from zrb.llm.contracts.shared.message import (
     ensure_alternating_roles,
@@ -32,7 +32,7 @@ from zrb.llm.contracts.shared.usage_log import (
     UsageTotals,
     record_totals,
 )
-from zrb.llm.capabilities.skill.reattach import build_reattach_message
+from zrb.llm.engine.agent.summarizer import create_conversational_summarizer_agent
 from zrb.llm.engine.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -43,7 +43,9 @@ from zrb.llm.engine.summarizer.history_splitter import (
     split_history,
     tail_budgets,
 )
-from zrb.llm.engine.summarizer.message_processor import process_message_for_summarization
+from zrb.llm.engine.summarizer.message_processor import (
+    process_message_for_summarization,
+)
 from zrb.llm.engine.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.engine.summarizer.verbatim_archive import (
     archive_verbatim_history,

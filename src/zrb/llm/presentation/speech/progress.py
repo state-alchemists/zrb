@@ -21,9 +21,9 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.util.tool_args import read_purpose
 from zrb.llm.presentation.speech.player import IsStale
 from zrb.llm.presentation.speech.text import match_tool_phrase
-from zrb.llm.contracts.util.tool_args import read_purpose
 
 
 def describe_purpose(args: object) -> str | None:

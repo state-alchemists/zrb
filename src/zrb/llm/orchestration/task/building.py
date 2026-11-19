@@ -23,6 +23,12 @@ from zrb.util.attr import get_attr
 if TYPE_CHECKING:
     from zrb.attr.type import BoolAttr, StrListAttr
     from zrb.context.any_context import AnyContext
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import (
+        AnyHistoryManager,
+    )
+    from zrb.llm.capabilities.permission import PermissionPolicyInput
+    from zrb.llm.capabilities.sandbox import SandboxInput
     from zrb.llm.engine.agent import AnyToolConfirmation
     from zrb.llm.engine.agent.common import HistoryProcessor
     from zrb.llm.engine.agent.types import (
@@ -32,10 +38,6 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.capabilities.permission import PermissionPolicyInput
-    from zrb.llm.capabilities.sandbox import SandboxInput
     from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.presentation.ui.any_ui import AnyUI
 

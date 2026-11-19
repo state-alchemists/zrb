@@ -4,7 +4,10 @@ from typing import BinaryIO
 
 from zrb.config.config import CFG
 from zrb.llm.presentation.speech.backend.any_speech_backend import AnySpeechBackend
-from zrb.llm.presentation.speech.backend.audio import SpeechAudio, create_streamed_wav_audio
+from zrb.llm.presentation.speech.backend.audio import (
+    SpeechAudio,
+    create_streamed_wav_audio,
+)
 from zrb.llm.presentation.speech.backend.http import get_required_env, open_post_json
 from zrb.llm.presentation.speech.backend.utterance import (
     Utterance,

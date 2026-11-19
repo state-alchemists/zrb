@@ -6,9 +6,9 @@ import pytest
 from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 
+from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.presentation.ui.default.app.completion import InputCompleter
 
 
@@ -230,7 +230,9 @@ def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(
 ):
     """When the recursive walk hits the file cap, completion defers to
     PathCompleter instead of fuzzy matching."""
-    from zrb.llm.presentation.ui.default.app.completion import completer as completer_mod
+    from zrb.llm.presentation.ui.default.app.completion import (
+        completer as completer_mod,
+    )
 
     (tmp_path / "gamma.txt").write_text("x")
     monkeypatch.chdir(tmp_path)
@@ -382,7 +384,9 @@ class TestCaches:
     """Test cache-bearing IO helpers used by InputCompleter."""
 
     def test_load_cmd_history_zsh_format(self, tmp_path):
-        from zrb.llm.presentation.ui.default.app.completion.caches import load_cmd_history
+        from zrb.llm.presentation.ui.default.app.completion.caches import (
+            load_cmd_history,
+        )
 
         zsh_hist = tmp_path / ".zsh_history"
         zsh_hist.write_text(": 1612345678:0;ls -la\n: 1612345679:0;echo 'hello'")
@@ -393,7 +397,9 @@ class TestCaches:
             assert "echo 'hello'" in history
 
     def test_load_cmd_history_exception(self):
-        from zrb.llm.presentation.ui.default.app.completion.caches import load_cmd_history
+        from zrb.llm.presentation.ui.default.app.completion.caches import (
+            load_cmd_history,
+        )
 
         with (
             patch("os.path.exists", return_value=True),
@@ -405,7 +411,9 @@ class TestCaches:
     def test_load_ollama_models_exception(self):
         import subprocess
 
-        from zrb.llm.presentation.ui.default.app.completion.caches import load_ollama_models
+        from zrb.llm.presentation.ui.default.app.completion.caches import (
+            load_ollama_models,
+        )
 
         cache = {}
         with patch("subprocess.run", side_effect=subprocess.SubprocessError("Failed")):
@@ -413,7 +421,9 @@ class TestCaches:
             assert models == []
 
     def test_walk_recursive_files_limit_dirs(self, tmp_path):
-        from zrb.llm.presentation.ui.default.app.completion.caches import walk_recursive_files
+        from zrb.llm.presentation.ui.default.app.completion.caches import (
+            walk_recursive_files,
+        )
 
         d = tmp_path / "test_dir"
         d.mkdir()
@@ -426,7 +436,9 @@ class TestCaches:
         assert len(files) == 1
 
     def test_walk_recursive_files_exception(self, tmp_path):
-        from zrb.llm.presentation.ui.default.app.completion.caches import walk_recursive_files
+        from zrb.llm.presentation.ui.default.app.completion.caches import (
+            walk_recursive_files,
+        )
 
         cache = {}
         with patch("os.walk", side_effect=Exception("Walk error")):

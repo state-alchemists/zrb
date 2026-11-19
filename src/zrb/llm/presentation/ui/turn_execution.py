@@ -29,8 +29,8 @@ from zrb.llm.capabilities.permission.state import (
     get_current_agent_mode,
     set_current_agent_mode,
 )
-from zrb.llm.presentation.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.contracts.util.spoken import shown_text
+from zrb.llm.presentation.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.session.session import Session
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary

@@ -15,7 +15,11 @@ from zrb.llm.capabilities.hook.contracts.schema import (
     MatcherConfig,
     PromptHookConfig,
 )
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
 from zrb.llm.capabilities.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
 from zrb.llm.capabilities.hook.hook_loader import get_plugin_root_for_path
 from zrb.util.asset_scanner import scan_files

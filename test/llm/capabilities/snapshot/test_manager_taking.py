@@ -285,7 +285,10 @@ async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
             release.wait(5)
         return _real_subprocess_run(cmd, *args, **kwargs)
 
-    with patch("zrb.llm.capabilities.snapshot.store.subprocess.run", side_effect=slow_commit_tree):
+    with patch(
+        "zrb.llm.capabilities.snapshot.store.subprocess.run",
+        side_effect=slow_commit_tree,
+    ):
         task = asyncio.create_task(manager.take_snapshot("late", message_count=2))
         await asyncio.to_thread(in_commit.wait, 5)
         task.cancel()

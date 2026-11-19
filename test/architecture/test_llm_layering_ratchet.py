@@ -189,7 +189,9 @@ def test_an_import_spelled_as_a_call_is_an_edge():
     an upward import the ratchet cannot see — and a deferred import upward is
     an import upward however it is spelled.
     """
-    names = _runtime_imports(ast.parse('importlib.import_module("zrb.llm.presentation.ui.session")'))
+    names = _runtime_imports(
+        ast.parse('importlib.import_module("zrb.llm.presentation.ui.session")')
+    )
     assert "zrb.llm.presentation.ui.session" in names
 
 
@@ -330,7 +332,12 @@ def test_the_runner_guard_sees_every_spelling():
     assert _runner_reaches_in("importlib.import_module('zrb.runner.cli')") == [
         "zrb.runner.cli"
     ]
-    assert _runner_reaches_in("from zrb.llm.capabilities.tool.shell import run_shell_command") == []
+    assert (
+        _runner_reaches_in(
+            "from zrb.llm.capabilities.tool.shell import run_shell_command"
+        )
+        == []
+    )
     assert _runner_reaches_in("from typing import TYPE_CHECKING\n") == []
     assert (
         _runner_reaches_in("if TYPE_CHECKING:\n    from zrb.runner.cli import cli\n")

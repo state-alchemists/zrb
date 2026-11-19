@@ -6,8 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.run.deferred_calls import _apply_shell_judge, _resolve_approval
-from zrb.llm.engine.agent.shell_judge import ShellVerdict
 from zrb.llm.capabilities.permission import ALLOW, ASK
 from zrb.llm.capabilities.tool_call.judge_note import (
     JUDGE_CAUTION,
@@ -18,6 +16,11 @@ from zrb.llm.capabilities.tool_call.judge_note import (
     format_judge_line,
     read_judge_note,
 )
+from zrb.llm.engine.agent.run.deferred_calls import (
+    _apply_shell_judge,
+    _resolve_approval,
+)
+from zrb.llm.engine.agent.shell_judge import ShellVerdict
 
 # The note registry is process-global and keyed by call id, so every test here
 # names its own call: an id another module uses would be a line this file reads.
@@ -182,8 +185,8 @@ async def test_a_cancelled_approval_does_not_leave_the_line_behind(monkeypatch):
 
     from pydantic_ai import DeferredToolRequests
 
-    from zrb.llm.engine.agent.run import deferred_calls
     from zrb.llm.capabilities.tool_call.judge_note import record_judge_note
+    from zrb.llm.engine.agent.run import deferred_calls
 
     async def _cancel(*args, **kwargs):
         record_judge_note(_CALL_ID, JUDGE_CAUTION, "why it would matter")
@@ -221,9 +224,12 @@ async def test_the_judge_is_the_last_stage_before_the_prompt(monkeypatch):
         _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
         _is_shell(),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
     ):
         verdict = await _resolve_approval(
             _call(), MagicMock(), None, channel, None, force_ask=False
@@ -259,9 +265,12 @@ async def test_the_hook_is_not_told_about_a_prompt_the_judge_skips(monkeypatch):
         _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
         _is_shell(),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
     ):
         verdict = await _resolve_approval(
             _call(), MagicMock(), None, None, hook_manager, force_ask=False
@@ -283,9 +292,12 @@ async def test_the_hook_hears_about_a_prompt_that_will_happen(monkeypatch):
         _judging(ShellVerdict(JUDGE_SAFE, "read-only")),
         _is_shell(),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
     ):
         await _resolve_approval(
             _call(), MagicMock(), None, channel, hook_manager, force_ask=False

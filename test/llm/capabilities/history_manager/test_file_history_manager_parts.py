@@ -243,7 +243,9 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
         f.write("{}")
 
     manager.update("test-session", messages)
-    with patch("zrb.llm.capabilities.history_manager.file_history_manager.datetime") as mock_dt:
+    with patch(
+        "zrb.llm.capabilities.history_manager.file_history_manager.datetime"
+    ) as mock_dt:
         mock_dt.now.return_value = frozen_time
         manager.save("test-session")
 

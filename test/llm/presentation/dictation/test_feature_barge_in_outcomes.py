@@ -3,8 +3,8 @@ carries on, or a request, and which of them waits on the judge."""
 
 import pytest
 
-from zrb.llm.presentation.dictation.interrupt_judge import BargeInVerdict
 from zrb.llm.contracts.shared.feature_config import set_session_ui
+from zrb.llm.presentation.dictation.interrupt_judge import BargeInVerdict
 
 from .barge_in_support import (
     FakeUI,
@@ -26,7 +26,9 @@ def _spy_judge(monkeypatch):
         asked.append(command)
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy
+    )
     return asked
 
 
@@ -109,7 +111,9 @@ async def test_the_judge_reading_a_hush_quiets_zrb_without_sending(monkeypatch, 
             return BargeInVerdict(intent="hush", reason="understood")
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_hush)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_hush
+    )
     ui = FakeUI()
     set_session_ui(ui)
     _listen(monkeypatch, "yes yes I know", "go on")
@@ -126,7 +130,9 @@ async def test_the_judge_is_given_the_configured_timeout(monkeypatch, speech):
         seen.append(timeout)
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy
+    )
     _listen(monkeypatch, "go on")
 
     assert await _replies(_session(interrupt_judge_timeout=7.5), 1) == ["go on"]

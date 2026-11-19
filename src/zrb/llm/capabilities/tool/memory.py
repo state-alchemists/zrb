@@ -22,6 +22,8 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.contracts.memory import paths, render, search, store
 from zrb.llm.contracts.memory.model import (
     BODY_APPEND,
@@ -49,8 +51,6 @@ from zrb.llm.contracts.memory.model import (
     reason_error,
     rewrite_not_compacted,
 )
-from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.util.file_lock import FileLockTimeout
 
 _NOT_A_KIND = (
@@ -702,7 +702,7 @@ def _compaction_refusal(old: "Diary", problem: str, next_step: str) -> str:
     at = compact_at(KIND_DIARY)
     return (
         f"{problem} Nothing was written. The day reads:\n\n{old.body}\n\n"
-        f"[SYSTEM SUGGESTION]: {next_step} Send it as `Remember(id=\"{old.id}\", "
+        f'[SYSTEM SUGGESTION]: {next_step} Send it as `Remember(id="{old.id}", '
         f'kind="diary", body_mode="w", body_digest="{digest_body(old.body)}", '
         f'body="…")` with the whole under {at} characters, keeping every quoted '
         "moment and the reason behind a decision."

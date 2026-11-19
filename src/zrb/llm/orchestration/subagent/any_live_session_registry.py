@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from zrb.llm.orchestration.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
+from zrb.llm.orchestration.subagent.any_live_sub_agent_session import (
+    AnyLiveSubAgentSession,
+)
 from zrb.llm.orchestration.subagent.any_sub_agent_manager import AnySubAgentManager
 
 

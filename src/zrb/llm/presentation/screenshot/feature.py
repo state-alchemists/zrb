@@ -14,13 +14,15 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
 
-from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.capabilities.permission.capability import Capability, tag
-from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.presentation.screenshot.backend.builtin import get_screenshot_backend
-from zrb.llm.presentation.screenshot.config import ScreenshotConfig
 from zrb.llm.contracts.shared.feature_config import replace_registration
 from zrb.llm.contracts.util.image_scale import scale_image_bytes
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
+from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import (
+    AnyScreenshotBackend,
+)
+from zrb.llm.presentation.screenshot.backend.builtin import get_screenshot_backend
+from zrb.llm.presentation.screenshot.config import ScreenshotConfig
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -142,7 +144,9 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
         may show private things; the user approves each capture.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.capabilities.tool.multimodal_describe import create_image_tool_return
+        from zrb.llm.capabilities.tool.multimodal_describe import (
+            create_image_tool_return,
+        )
 
         # TakeScreenshot is opt-in and every call is approved by the user
         # (Capability.EXECUTE), so an explicitly approved remote capture is

@@ -5,10 +5,10 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.contracts.shared.usage_log import UsageTotals
+from zrb.llm.contracts.util.capabilities import model_capabilities
 from zrb.llm.engine.summarizer.message_converter import message_to_text
 from zrb.llm.engine.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.engine.summarizer.tool_result_pruner import clip_text_both_ends
-from zrb.llm.contracts.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
 SUMMARY_TOOL_OUTPUT_LIMIT = 2_000

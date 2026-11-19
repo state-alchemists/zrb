@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from zrb.llm.contracts.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
 from zrb.llm.capabilities.tool.shell import run_shell_command
 from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
+from zrb.llm.contracts.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
 
 _PYTHON = shlex.quote(Path(sys.executable).as_posix())
 

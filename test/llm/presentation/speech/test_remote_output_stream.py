@@ -19,7 +19,10 @@ from zrb.config.config import CFG
 from zrb.llm.presentation.speech import pcm_player, remote_output_stream
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
 from zrb.llm.presentation.speech.pcm_player import PcmUtterance
-from zrb.llm.presentation.speech.remote_output_stream import RemoteOutputStream, open_say
+from zrb.llm.presentation.speech.remote_output_stream import (
+    RemoteOutputStream,
+    open_say,
+)
 
 np = pytest.importorskip("numpy")
 

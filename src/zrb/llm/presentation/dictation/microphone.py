@@ -22,15 +22,15 @@ from types import ModuleType
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
+from zrb.llm.contracts.util.portaudio_exit import guard_portaudio_exit
+from zrb.llm.contracts.util.teardown import close_quietly
 from zrb.llm.presentation.dictation.config import DictationConfig
 from zrb.llm.presentation.dictation.echo_cancel import (
     EchoCancelledMicrophone,
     get_unavailable_reason,
 )
 from zrb.llm.presentation.dictation.remote_microphone import RemoteMicrophone
-from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
-from zrb.llm.contracts.util.portaudio_exit import guard_portaudio_exit
-from zrb.llm.contracts.util.teardown import close_quietly
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)

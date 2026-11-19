@@ -11,7 +11,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.capabilities.prompt.claude import _read_instruction_bytes, create_project_context_prompt
+from zrb.llm.capabilities.prompt.claude import (
+    _read_instruction_bytes,
+    create_project_context_prompt,
+)
 from zrb.llm.contracts.util.prompt import expand_prompt
 
 
@@ -33,7 +36,10 @@ def test_create_project_context_prompt_inlines_instructions_by_default(tmp_path)
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "### Workspace Instructions" in result
@@ -50,7 +56,10 @@ def test_create_project_context_prompt_injection_can_be_turned_off(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         with patch("zrb.llm.capabilities.prompt.claude.CFG") as cfg:
             cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = False
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
@@ -68,7 +77,10 @@ def test_create_project_context_prompt_readme_is_never_inlined(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "Agent content" in result
@@ -194,7 +206,10 @@ def test_include_only_file_does_not_pay_for_its_target_twice(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert result.count("PROJECT RULES") == 1
@@ -224,7 +239,8 @@ def test_a_pointer_in_a_subdirectory_is_skipped_too(tmp_path):
     ctx = _make_ctx()
 
     with patch(
-        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[root, app]
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[root, app],
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
@@ -273,7 +289,10 @@ def test_include_carrying_prose_of_its_own_is_still_inlined(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "Also: prefer ruff." in result
@@ -289,7 +308,10 @@ def test_include_of_a_file_outside_the_instruction_set_is_kept(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "docs/rules.md" in result
@@ -311,7 +333,10 @@ def test_a_reference_inside_inlined_rules_is_never_expanded(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     expanded = expand_prompt(result)
@@ -334,7 +359,10 @@ def test_a_chain_of_pointers_names_the_file_the_prompt_holds(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert result.count("ROOT RULES") == 1
@@ -349,7 +377,10 @@ def test_pointers_that_circle_each_other_name_no_file(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "— a pointer to" not in result
@@ -377,7 +408,10 @@ def test_a_path_with_an_at_sign_is_not_a_second_reference(tmp_path, monkeypatch)
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[project]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[project],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     expanded = expand_prompt(result)
@@ -405,7 +439,10 @@ def test_a_hardlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[project]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[project],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "PRIVATE KEY MATERIAL" not in result
@@ -432,7 +469,10 @@ def test_a_symlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[project]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[project],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "PRIVATE KEY MATERIAL" not in result

@@ -331,7 +331,9 @@ def test_rewrap_output_preserves_toggle_block_expanded_state():
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+        with patch(
+            "zrb.llm.presentation.ui.default.output.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value.columns = 60
             ui.append_toggle_block("short", "much longer full text")
             ui.output_field.buffer.cursor_position = len(ui.output_field.text)
@@ -437,7 +439,9 @@ def test_format_elapsed():
 def test_status_bar_includes_current_working_duration():
     ui = MockOutputUI()
     ui.set_thinking(True)
-    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=754.0):
+    with patch(
+        "zrb.llm.presentation.ui.default.output.time.monotonic", return_value=754.0
+    ):
         ui.working_started_at = 0.0
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
@@ -457,7 +461,9 @@ def test_status_bar_resets_working_duration_when_idle():
 def test_status_bar_includes_running_tool_duration():
     ui = MockOutputUI()
     ui.set_thinking(True)
-    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0):
+    with patch(
+        "zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0
+    ):
         ui.running_tool = RunningTool("Shell", "call_1", 995.0)
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
@@ -469,7 +475,9 @@ def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED", False, raising=False)
     ui = MockOutputUI()
     ui.set_thinking(True)
-    with patch("zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0):
+    with patch(
+        "zrb.llm.presentation.ui.default.output.time.monotonic", return_value=1000.0
+    ):
         ui.working_started_at = 0.0
         ui.running_tool = RunningTool("Shell", "call_1", 995.0)
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())

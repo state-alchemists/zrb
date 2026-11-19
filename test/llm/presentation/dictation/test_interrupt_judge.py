@@ -13,7 +13,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from zrb.llm.presentation.dictation.interrupt_judge import BargeInVerdict, judge_barge_in
+from zrb.llm.presentation.dictation.interrupt_judge import (
+    BargeInVerdict,
+    judge_barge_in,
+)
 
 
 class _HangingAgent:
@@ -65,7 +68,8 @@ async def test_an_unexpected_failure_leaves_no_verdict(monkeypatch):
         raise TypeError("argument of type 'object' is not a container or iterable")
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.dictation.interrupt_judge.create_interrupt_judge_agent", explode
+        "zrb.llm.presentation.dictation.interrupt_judge.create_interrupt_judge_agent",
+        explode,
     )
 
     assert await judge_barge_in("please stop", "not-a-model") is None
@@ -116,7 +120,8 @@ async def test_a_longer_timeout_lets_a_slow_judge_answer(monkeypatch):
             return SimpleNamespace(output=BargeInVerdict(intent="stop"))
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.dictation.interrupt_judge.DEFAULT_JUDGE_TIMEOUT_SECONDS", 0.001
+        "zrb.llm.presentation.dictation.interrupt_judge.DEFAULT_JUDGE_TIMEOUT_SECONDS",
+        0.001,
     )
     monkeypatch.setattr(
         "zrb.llm.presentation.dictation.interrupt_judge.create_interrupt_judge_agent",

@@ -4,7 +4,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.capabilities.approval import (
+    AnyApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+)
 
 
 class TestMultiplexApprovalChannel:
@@ -35,7 +39,9 @@ class TestMultiplexApprovalChannel:
         self, mock_channel, deny_channel
     ):
         """Test that MultiplexApprovalChannel returns first response."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         channel = MultiplexApprovalChannel([mock_channel, deny_channel])
         context = ApprovalContext(
@@ -55,7 +61,9 @@ class TestMultiplexApprovalChannel:
         """Test that channels race concurrently."""
         import asyncio
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         call_times = []
 
@@ -88,7 +96,9 @@ class TestMultiplexApprovalChannel:
         """Test that pending channels are cancelled when one responds."""
         import asyncio
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         slow_task = None
 
@@ -121,7 +131,9 @@ class TestMultiplexApprovalChannel:
     async def test_multiplex_channel_empty_list_denies(self):
         """An empty channel list has nothing to ask, so it must deny rather
         than fail open and auto-approve."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         channel = MultiplexApprovalChannel([])
         context = ApprovalContext(
@@ -138,7 +150,9 @@ class TestMultiplexApprovalChannel:
     @pytest.mark.asyncio
     async def test_multiplex_channel_handles_exception(self):
         """Test that exceptions in channels don't crash the multiplex."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         async def failing_channel(ctx):
             raise Exception("Channel error")
@@ -172,7 +186,9 @@ class TestMultiplexApprovalChannel:
         (human) channel gets to answer."""
         import asyncio
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         async def broken_channel(ctx):
             raise Exception("bad token")
@@ -201,7 +217,9 @@ class TestMultiplexApprovalChannel:
     @pytest.mark.asyncio
     async def test_multiplex_denies_only_when_all_channels_fail(self):
         """When every channel errors, the request resolves to a denial."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         async def broken_channel(ctx):
             raise Exception("bad token")
@@ -226,7 +244,9 @@ class TestMultiplexApprovalChannel:
     @pytest.mark.asyncio
     async def test_multiplex_notify_broadcasts(self, mock_channel, deny_channel):
         """Test that notify broadcasts to all channels."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         channel = MultiplexApprovalChannel([mock_channel, deny_channel])
         context = ApprovalContext(
@@ -243,7 +263,9 @@ class TestMultiplexApprovalChannel:
     @pytest.mark.asyncio
     async def test_multiplex_notify_handles_exception(self, mock_channel):
         """Test that notify handles exceptions gracefully."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         async def failing_notify(msg, ctx):
             raise Exception("Notify failed")
@@ -271,7 +293,9 @@ class TestMultiplexApprovalChannel:
         """Test that request_approval returns denied on shutdown."""
         import sys
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:
@@ -302,7 +326,9 @@ class TestMultiplexApprovalChannel:
         """Test that notify returns early on shutdown."""
         import sys
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:
@@ -327,7 +353,9 @@ class TestMultiplexApprovalChannel:
     @pytest.mark.asyncio
     async def test_multiplex_notify_without_context(self, mock_channel):
         """Test that notify works without context parameter."""
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         channel = MultiplexApprovalChannel([mock_channel])
 
@@ -340,7 +368,9 @@ class TestMultiplexApprovalChannel:
         """Test that external cancellation propagates correctly."""
         import asyncio
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+        )
 
         started = asyncio.Event()
         cancelled = asyncio.Event()
@@ -380,7 +410,9 @@ class TestMultiplexApprovalChannel:
         """Test the is_shutdown_requested utility function."""
         import sys
 
-        from zrb.llm.capabilities.approval.multiplex_approval_channel import is_shutdown_requested
+        from zrb.llm.capabilities.approval.multiplex_approval_channel import (
+            is_shutdown_requested,
+        )
 
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:

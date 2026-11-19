@@ -16,7 +16,6 @@ from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.shared.ambient_state import get_current_reply_emotion
@@ -27,6 +26,8 @@ from zrb.llm.contracts.shared.feature_config import (
     replace_registration,
 )
 from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.contracts.util.spoken import split_spoken
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.presentation.speech.config import SpeechConfig
 from zrb.llm.presentation.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.presentation.speech.progress import (
@@ -43,11 +44,10 @@ from zrb.llm.presentation.speech.text import (
     needs_spoken_block,
     without_blockquotes,
 )
-from zrb.llm.contracts.util.spoken import split_spoken
 
 if TYPE_CHECKING:
-    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.capabilities.hook.manager import HookManager
+    from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.presentation.ui.any_ui import AnyUI

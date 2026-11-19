@@ -15,10 +15,10 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
+from zrb.llm.contracts.util.stream_response import create_event_handler
 from zrb.llm.engine.agent.run.setup import setup_print_and_events
 from zrb.llm.presentation.ui.any_ui import AnyUI
 from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.contracts.util.stream_response import create_event_handler
 
 
 class _BareUI(UIStateDefaultsMixin, AnyUI):

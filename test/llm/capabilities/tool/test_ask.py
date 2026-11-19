@@ -8,8 +8,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.contracts.shared.ambient_state import get_interactive_mode, set_interactive_mode
 from zrb.llm.capabilities.tool.ask import ask_user_question, build_choice_spec
+from zrb.llm.contracts.shared.ambient_state import (
+    get_interactive_mode,
+    set_interactive_mode,
+)
 from zrb.llm.contracts.util.choice_spec_format import format_choice_spec
 
 

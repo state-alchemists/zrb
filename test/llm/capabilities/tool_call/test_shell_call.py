@@ -8,23 +8,17 @@ answered in one place and pinned here.
 import re
 from pathlib import Path
 
-from zrb.llm.engine.agent.types import ToolCallPart
 from zrb.llm.capabilities.tool_call.shell_call import (
     is_sandbox_off,
     is_shell_call,
     shell_command,
     shell_command_args,
 )
+from zrb.llm.engine.agent.types import ToolCallPart
 
 _REPO_ROOT = Path(__file__).parents[4]
 _SHELL_CALL = (
-    _REPO_ROOT
-    / "src"
-    / "zrb"
-    / "llm"
-    / "capabilities"
-    / "tool_call"
-    / "shell_call.py"
+    _REPO_ROOT / "src" / "zrb" / "llm" / "capabilities" / "tool_call" / "shell_call.py"
 )
 #: The argument name as a quoted token — a reader of the shape, not the
 #: identifier a signature declares or a sentence that mentions it.
@@ -91,5 +85,6 @@ def test_the_sandbox_flag_name_is_not_typed_anywhere_else():
     )
     assert offenders == [], (
         "Read the sandbox-escape argument through `is_sandbox_off` "
-        "(`zrb.llm.capabilities.tool_call.shell_call`), not by name: " + ", ".join(offenders)
+        "(`zrb.llm.capabilities.tool_call.shell_call`), not by name: "
+        + ", ".join(offenders)
     )

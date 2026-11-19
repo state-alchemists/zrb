@@ -170,7 +170,8 @@ async def test_an_archive_the_summary_cannot_name_is_not_written(tmp_path, monke
     """
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
     monkeypatch.setattr(
-        "zrb.llm.engine.summarizer.history_summarizer.summary_cap", lambda threshold: 150
+        "zrb.llm.engine.summarizer.history_summarizer.summary_cap",
+        lambda threshold: 150,
     )
     agent = MagicMock()
     agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
@@ -264,7 +265,9 @@ def test_an_attachment_is_named_not_copied(tmp_path):
 def test_the_archive_follows_the_history_manager_directory(tmp_path):
     """A custom history directory gets its own archive, beside its files."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
+    from zrb.llm.capabilities.history_manager.file_history_manager import (
+        FileHistoryManager,
+    )
 
     manager = FileHistoryManager(str(tmp_path / "custom-history"))
 

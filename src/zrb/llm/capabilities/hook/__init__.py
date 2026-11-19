@@ -9,7 +9,11 @@ because each is one job with no parts. The names below are the surface
 `zrb.llm.capabilities.hook` has always had.
 """
 
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.capabilities.hook.contracts.schema import (
     AgentHookConfig,
     CommandHookConfig,
@@ -17,7 +21,11 @@ from zrb.llm.capabilities.hook.contracts.schema import (
     MatcherConfig,
     PromptHookConfig,
 )
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
 from zrb.llm.capabilities.hook.execution.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,

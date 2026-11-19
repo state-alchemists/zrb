@@ -4,7 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.tool.web import normalize_search_result, open_web_page, search_internet
+from zrb.llm.capabilities.tool.web import (
+    normalize_search_result,
+    open_web_page,
+    search_internet,
+)
 
 
 @pytest.fixture
@@ -27,7 +31,9 @@ def mock_searxng():
 
 @pytest.fixture
 def mock_google_rss():
-    with patch("zrb.llm.capabilities.tool.web.search.google_rss.search_internet") as mock:
+    with patch(
+        "zrb.llm.capabilities.tool.web.search.google_rss.search_internet"
+    ) as mock:
         yield mock
 
 

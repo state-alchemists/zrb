@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from zrb.llm.contracts.shared.ambient_state import set_current_session  # the shorter alias
+from zrb.llm.contracts.shared.ambient_state import (
+    set_current_session,  # the shorter alias
+)
 from zrb.llm.contracts.shared.ambient_state import (
     active_worktree,
     current_chat_session_id,

@@ -44,7 +44,9 @@ def test_a_pointer_chain_deeper_than_the_limit_is_not_followed(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=dirs):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=dirs
+    ):
         with patch("zrb.llm.capabilities.prompt.claude.CFG") as cfg:
             cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
@@ -80,7 +82,9 @@ def test_a_pointer_with_a_deep_branch_is_not_skipped_for_its_shallow_one(tmp_pat
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=dirs):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=dirs
+    ):
         with patch("zrb.llm.capabilities.prompt.claude.CFG") as cfg:
             cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
@@ -112,7 +116,8 @@ def test_a_pointer_does_not_promise_a_target_the_walk_dropped(tmp_path):
     ctx = _make_ctx()
 
     with patch(
-        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[root, app, sub]
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[root, app, sub],
     ):
         with patch("zrb.llm.capabilities.prompt.claude.CFG") as cfg:
             cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
@@ -143,7 +148,8 @@ def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
     ctx = _make_ctx()
 
     with patch(
-        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[root, app]
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[root, app],
     ):
         with patch("zrb.llm.capabilities.prompt.claude.CFG") as cfg:
             cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True

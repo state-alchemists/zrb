@@ -9,7 +9,9 @@ from zrb.llm.capabilities.tool.file.search import search_files
 
 def _no_ripgrep():
     """Force the os.walk fallback by making ripgrep look unavailable."""
-    return patch("zrb.llm.capabilities.tool.file.search.shutil.which", return_value=None)
+    return patch(
+        "zrb.llm.capabilities.tool.file.search.shutil.which", return_value=None
+    )
 
 
 def test_os_walk_skips_hidden_excluded_and_nonmatching(tmp_path):
@@ -80,8 +82,13 @@ def test_ripgrep_returncode_2_falls_back_to_os_walk(tmp_path):
     proc = MagicMock(returncode=2, stdout="")
 
     with (
-        patch("zrb.llm.capabilities.tool.file.search.shutil.which", return_value="/usr/bin/rg"),
-        patch("zrb.llm.capabilities.tool.file.search.subprocess.run", return_value=proc),
+        patch(
+            "zrb.llm.capabilities.tool.file.search.shutil.which",
+            return_value="/usr/bin/rg",
+        ),
+        patch(
+            "zrb.llm.capabilities.tool.file.search.subprocess.run", return_value=proc
+        ),
     ):
         result = search_files("needle", path=str(tmp_path))
 
@@ -96,8 +103,13 @@ def test_ripgrep_skips_unreadable_file_and_warns(tmp_path):
     proc = MagicMock(returncode=0, stdout="/does/not/exist/ghost.txt\n")
 
     with (
-        patch("zrb.llm.capabilities.tool.file.search.shutil.which", return_value="/usr/bin/rg"),
-        patch("zrb.llm.capabilities.tool.file.search.subprocess.run", return_value=proc),
+        patch(
+            "zrb.llm.capabilities.tool.file.search.shutil.which",
+            return_value="/usr/bin/rg",
+        ),
+        patch(
+            "zrb.llm.capabilities.tool.file.search.subprocess.run", return_value=proc
+        ),
     ):
         result = search_files("needle", path=str(tmp_path), files_only=True)
 

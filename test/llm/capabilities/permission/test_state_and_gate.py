@@ -43,7 +43,10 @@ def test_public_setters_and_getters_round_trip():
 
 def test_permission_policy_resets_on_exception():
     """An exception mid-block must not leak the policy."""
-    from zrb.llm.capabilities.permission import get_current_permission_policy, permission_policy
+    from zrb.llm.capabilities.permission import (
+        get_current_permission_policy,
+        permission_policy,
+    )
 
     policy = PermissionPolicy((Rule("*", "deny"),))
     with pytest.raises(RuntimeError):

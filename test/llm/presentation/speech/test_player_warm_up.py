@@ -18,7 +18,9 @@ def lock_file(tmp_path):
 @pytest.fixture(autouse=True)
 def in_process(monkeypatch):
     """Play in process, as a machine with an audio device does."""
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.is_in_process_available", lambda: True)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.is_in_process_available", lambda: True
+    )
 
 
 def _config(backend, lock_file, player="auto"):

@@ -2,15 +2,22 @@
 
 import pytest
 
-from zrb.llm.presentation.emotion import EmotionConfig, enable_emotion
-from zrb.llm.presentation.emotion.feature import EmotionSession
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.prompt.manager import PromptManager
-from zrb.llm.contracts.shared.ambient_state import current_reply_emotion, input_provenance
+from zrb.llm.contracts.shared.ambient_state import (
+    current_reply_emotion,
+    input_provenance,
+)
 from zrb.llm.contracts.shared.feature_config import close_feature_sessions
-from zrb.llm.contracts.shared.input_source import DICTATION_INPUT, KEYBOARD_INPUT, InputProvenance
+from zrb.llm.contracts.shared.input_source import (
+    DICTATION_INPUT,
+    KEYBOARD_INPUT,
+    InputProvenance,
+)
+from zrb.llm.presentation.emotion import EmotionConfig, enable_emotion
+from zrb.llm.presentation.emotion.feature import EmotionSession
 
 
 class PersistentHookTask:
@@ -58,7 +65,9 @@ def fired(monkeypatch):
         return HookResult()
 
     manager.add_hook(record, events=[HookEvent.EMOTION])
-    monkeypatch.setattr("zrb.llm.presentation.emotion.feature.get_run_hook_manager", lambda: manager)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.emotion.feature.get_run_hook_manager", lambda: manager
+    )
     return contexts
 
 

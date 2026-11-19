@@ -13,13 +13,13 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.util.priority import raise_priority
+from zrb.llm.contracts.util.teardown import cancel_and_wait, close_quietly
 from zrb.llm.presentation.speech.backend.any_speech_backend import (
     SpeechMadeNoAudio,
     SpeechServiceStopped,
 )
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
-from zrb.llm.contracts.util.priority import raise_priority
-from zrb.llm.contracts.util.teardown import cancel_and_wait, close_quietly
 from zrb.llm.presentation.voice.worker import create_worker_stopped_handler
 
 if TYPE_CHECKING:

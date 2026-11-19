@@ -5,9 +5,6 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
-from zrb.llm.presentation.camera.config import CameraConfig
-from zrb.llm.presentation.dictation.config import DictationConfig
-from zrb.llm.presentation.screenshot.config import ScreenshotConfig
 from zrb.llm.contracts.shared import feature_config
 from zrb.llm.contracts.shared.feature_config import (
     FeatureSessions,
@@ -21,6 +18,9 @@ from zrb.llm.contracts.shared.feature_config import (
     resolve_from_cfg,
     set_session_ui,
 )
+from zrb.llm.presentation.camera.config import CameraConfig
+from zrb.llm.presentation.dictation.config import DictationConfig
+from zrb.llm.presentation.screenshot.config import ScreenshotConfig
 from zrb.llm.presentation.speech.config import SpeechConfig
 
 

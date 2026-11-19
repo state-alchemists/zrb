@@ -22,8 +22,8 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from zrb.llm.presentation.speech.chunker import SpeechChunker
 from zrb.llm.contracts.util.spoken import SpokenSplitter
+from zrb.llm.presentation.speech.chunker import SpeechChunker
 
 
 class StreamedReply:

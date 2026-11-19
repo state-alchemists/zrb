@@ -108,7 +108,10 @@ async def test_llm_chat_task_judges_an_arg_pattern_rule_with_the_calls_arguments
         return MagicMock()
 
     with (
-        patch("zrb.llm.orchestration.task.llm_task.create_agent", side_effect=capture_create_agent),
+        patch(
+            "zrb.llm.orchestration.task.llm_task.create_agent",
+            side_effect=capture_create_agent,
+        ),
         patch(
             "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,

@@ -4,7 +4,9 @@ import io
 import os
 
 from zrb.config.config import CFG
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
 from zrb.llm.presentation.dictation.backend.wav import pcm16_to_wav_bytes
 
 

@@ -106,8 +106,12 @@ def model_request_to_text(
     msg: ModelRequest, tool_output_limit: int | None = None
 ) -> str:
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.engine.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
     from zrb.llm.contracts.util.history_formatter import format_multimodal_item
+    from zrb.llm.engine.agent.types import (
+        SystemPromptPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
 
     parts = []
     for p in getattr(msg, "parts", []):
@@ -141,7 +145,12 @@ def model_response_to_text(
     msg: ModelResponse, tool_output_limit: int | None = None
 ) -> str:
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.engine.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
+    from zrb.llm.engine.agent.types import (
+        FilePart,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+    )
 
     parts = []
     for p in getattr(msg, "parts", []):

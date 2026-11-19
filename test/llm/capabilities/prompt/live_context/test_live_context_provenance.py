@@ -101,7 +101,8 @@ def test_live_context_includes_active_worktrees(tmp_path):
     )
     ctx = MagicMock(spec=AnyContext)
     with patch(
-        "zrb.llm.capabilities.prompt.live_context.context.os.getcwd", return_value=str(current)
+        "zrb.llm.capabilities.prompt.live_context.context.os.getcwd",
+        return_value=str(current),
     ):
         with patch("zrb.llm.contracts.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:

@@ -63,7 +63,9 @@ class TestChatSessionManagerCleanup:
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_live_subagent_session_bucket(self):
         """Removing a session drops its live sub-agent session bucket."""
-        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.live_session import (
+            live_subagent_session_registry,
+        )
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()
@@ -83,9 +85,11 @@ class TestChatSessionManagerCleanup:
         self, tmp_path
     ):
         """A background shell process does not outlive session removal."""
-        from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
         from zrb.llm.capabilities.tool.shell import run_shell_command
-        from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
+        from zrb.llm.capabilities.tool.shell.background import (
+            get_shell_background_registry,
+        )
+        from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
         from zrb.util.contextvar_scope import scoped
 
@@ -108,9 +112,11 @@ class TestChatSessionManagerCleanup:
         self, tmp_path
     ):
         """Cleanup keys off session_id, since `session_name` is not unique."""
-        from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
         from zrb.llm.capabilities.tool.shell import run_shell_command
-        from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
+        from zrb.llm.capabilities.tool.shell.background import (
+            get_shell_background_registry,
+        )
+        from zrb.llm.contracts.shared.ambient_state import current_chat_session_id
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
         from zrb.util.contextvar_scope import scoped
 

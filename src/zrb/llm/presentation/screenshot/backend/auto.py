@@ -17,7 +17,10 @@ from __future__ import annotations
 import os
 import sys
 
-from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
+from zrb.llm.contracts.util.deadline import create_deadline
+from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import (
+    AnyScreenshotBackend,
+)
 from zrb.llm.presentation.screenshot.backend.pillow import PillowScreenshotBackend
 from zrb.llm.presentation.screenshot.backend.tool import (
     GNOME_SCREENSHOT,
@@ -31,7 +34,6 @@ from zrb.llm.presentation.screenshot.backend.tool import (
     ScreenshotTool,
     ScreenshotToolBackend,
 )
-from zrb.llm.contracts.util.deadline import create_deadline
 from zrb.util.platform import is_termux, is_wsl
 
 ChainBackend = PillowScreenshotBackend | ScreenshotToolBackend

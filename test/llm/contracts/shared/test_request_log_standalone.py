@@ -92,8 +92,7 @@ def test_a_standalone_call_folds_the_history_it_was_given(usage_dir):
     its own, the way a turn's earlier rounds are.
     """
     history = [
-        ModelRequest(parts=[UserPromptPart(content=f"earlier {n}")])
-        for n in range(3)
+        ModelRequest(parts=[UserPromptPart(content=f"earlier {n}")]) for n in range(3)
     ]
 
     with_history = record_standalone_requests(
@@ -156,9 +155,7 @@ def test_the_rows_are_appended_where_the_read_finds_them(usage_dir):
 
 @pytest.mark.parametrize("result", [object(), None])
 def test_a_result_that_cannot_give_its_messages_writes_nothing(usage_dir, result):
-    rows = record_standalone_requests(
-        result, REASON_HOOK, component=COMPONENT_HOOK
-    )
+    rows = record_standalone_requests(result, REASON_HOOK, component=COMPONENT_HOOK)
 
     assert rows == []
     assert read_requests() == []

@@ -172,7 +172,8 @@ def test_redraw_echo_returns_to_raw_text_when_an_edit_drops_the_markdown(editing
     entry.echo_spans[editing_ui] = EchoSpan(0, len(echo), echo)
 
     with patch(
-        "zrb.llm.presentation.ui.default.output.render_markdown", return_value="HELLO\n- ITEM"
+        "zrb.llm.presentation.ui.default.output.render_markdown",
+        return_value="HELLO\n- ITEM",
     ):
         editing_ui.redraw_echo(entry)
     entry.text = "just words"

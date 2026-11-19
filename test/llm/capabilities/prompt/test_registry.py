@@ -28,7 +28,9 @@ def test_defaults_to_fresh_isolated_registry():
 def test_manager_defaults_to_global_registry(monkeypatch):
     reg = PromptRegistry()
     reg.append_prompt("Global Default")
-    monkeypatch.setattr("zrb.llm.capabilities.prompt.manager.default_prompt_registry", reg)
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.prompt.manager.default_prompt_registry", reg
+    )
     manager = PromptManager(include_sections=[], skill_manager=None)
     assert manager.prompts == ["Global Default"]
 

@@ -7,8 +7,15 @@ import os
 from zrb.config.config import CFG
 from zrb.llm.presentation.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
-from zrb.llm.presentation.speech.backend.http import get_required_env, pcm_to_wav, post_json
-from zrb.llm.presentation.speech.backend.utterance import Utterance, create_wav_utterance
+from zrb.llm.presentation.speech.backend.http import (
+    get_required_env,
+    pcm_to_wav,
+    post_json,
+)
+from zrb.llm.presentation.speech.backend.utterance import (
+    Utterance,
+    create_wav_utterance,
+)
 from zrb.llm.presentation.speech.text import fill_template
 
 _SAMPLE_RATE = 24000

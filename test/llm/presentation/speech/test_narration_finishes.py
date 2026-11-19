@@ -15,7 +15,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.feature import SpeechSession
 
 
@@ -113,7 +118,9 @@ def test_a_tool_call_narration_is_queued_to_finish_its_sentence(monkeypatch):
     and makes this test depend on what ran before it — a speech still playing
     in another test's thread, or another zrb process talking.
     """
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False
+    )
     session = SpeechSession(
         SpeechConfig(enabled=True, events=["progress"], progress_interval=1).resolve()
     )

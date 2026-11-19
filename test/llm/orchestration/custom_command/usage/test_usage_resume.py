@@ -12,14 +12,17 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserProm
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.orchestration.custom_command.usage.command import _idle, create_usage_commands
+from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, record_usage
+from zrb.llm.orchestration.custom_command.usage.command import (
+    _idle,
+    create_usage_commands,
+)
 from zrb.llm.orchestration.custom_command.usage.resume import (
     FRESH_SESSION_TOKENS,
     _to_datetime,
     read_resume,
 )
-from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, record_usage
 
 # A history well over the default `LLM_UI_USAGE_RESUME_HISTORY_TOKENS`: both of
 # the limiter's counters (char/4, and tiktoken when it is on) put this above

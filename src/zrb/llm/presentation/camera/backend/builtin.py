@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
 from zrb.llm.presentation.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.presentation.camera.backend.auto import AutoCameraBackend
 from zrb.llm.presentation.camera.backend.ffmpeg import FfmpegCameraBackend
 from zrb.llm.presentation.camera.backend.remote import RemoteCameraBackend
 from zrb.llm.presentation.camera.backend.termux import TermuxCameraBackend
-from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
 
 if TYPE_CHECKING:
     from zrb.llm.presentation.camera.config import CameraConfig

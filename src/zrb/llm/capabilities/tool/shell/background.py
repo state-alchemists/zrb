@@ -24,13 +24,16 @@ from zrb.cmd.command import (
 )
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.capabilities.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+from zrb.llm.capabilities.sandbox import (
+    build_sandboxed_argv,
+    get_effective_sandbox_policy,
+)
+from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
+from zrb.llm.capabilities.tool.shell.capture import StreamCapture
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.llm.contracts.shared.ambient_state import get_current_chat_session_id
 from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT
 from zrb.llm.contracts.shared.shell_cut import interrupted_notice, is_cut_while_waiting
-from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
-from zrb.llm.capabilities.tool.shell.capture import StreamCapture
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:

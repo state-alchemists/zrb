@@ -2,8 +2,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 @pytest.fixture
@@ -30,14 +33,16 @@ async def test_isolate_worktree_enters_and_cleans_up_when_clean(mock_sub_agent_m
             "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree",
+            new_callable=AsyncMock,
         ) as mock_enter,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree",
+            new_callable=AsyncMock,
         ) as mock_exit,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.worktree_has_changes",
@@ -87,14 +92,16 @@ async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
             "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree",
+            new_callable=AsyncMock,
         ) as mock_enter,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree",
+            new_callable=AsyncMock,
         ) as mock_exit,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.worktree_has_changes",
@@ -143,14 +150,16 @@ async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branc
             "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree",
+            new_callable=AsyncMock,
         ) as mock_enter,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree",
+            new_callable=AsyncMock,
         ) as mock_exit,
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.worktree_has_changes",

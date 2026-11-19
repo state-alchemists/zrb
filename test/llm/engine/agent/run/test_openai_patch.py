@@ -10,7 +10,9 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import patch
 
-from zrb.llm.engine.agent.run.openai_patch import patch_openai_model_response_serialization
+from zrb.llm.engine.agent.run.openai_patch import (
+    patch_openai_model_response_serialization,
+)
 
 
 @dataclass

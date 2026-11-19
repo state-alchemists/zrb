@@ -178,9 +178,11 @@ class BaseUIConversationCommands:
         if parse_delegated_session(name) is not None:
             return 0
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
-        from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
         from zrb.llm.capabilities.tool.delegate import persist_subagent_history
+        from zrb.llm.orchestration.subagent.live_session import (
+            live_subagent_session_registry,
+        )
+        from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
         from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 
         ui = self._base_ui

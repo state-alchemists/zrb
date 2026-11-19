@@ -21,9 +21,9 @@ async def test_call_tool_pretooluse_deny_blocks():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     deny = HookExecutionResult(
@@ -52,9 +52,9 @@ async def test_call_tool_pretooluse_updated_input_rewrites_args():
     underlying tool."""
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     rewrite = HookExecutionResult(success=True, updated_input={"a": 99})
@@ -81,14 +81,17 @@ async def test_call_tool_pretooluse_skipped_when_approved():
 
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     ctx = SimpleNamespace(tool_call_approved=True, tool_call_id="c1")
     with (
-        patch("zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
+            execute,
+        ),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
         ) as mock_super,
@@ -107,9 +110,9 @@ async def test_call_tool_posttooluse_block():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     block = HookExecutionResult(success=True, decision="block", reason="bad output")
@@ -136,9 +139,9 @@ async def test_call_tool_posttooluse_updated_output_replaces_content():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(
@@ -168,9 +171,9 @@ async def test_call_tool_posttooluse_additional_context_appended():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     add_ctx = HookExecutionResult(
@@ -201,13 +204,16 @@ async def test_call_tool_posttooluse_failure_fires_on_exception():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     with (
-        patch("zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks", execute),
+        patch(
+            "zrb.llm.capabilities.hook.manager.manager.hook_manager.execute_hooks",
+            execute,
+        ),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool",
             side_effect=ValueError("boom"),
@@ -230,8 +236,8 @@ async def test_call_tool_appends_override_note_when_args_were_edited():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.tool_call.override_registry import record_override
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     record_override("edited-call", {"path": "a.txt"}, {"path": "b.txt"})
@@ -256,10 +262,10 @@ async def test_call_tool_pretooluse_fires_on_the_run_hook_manager():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
     from zrb.llm.contracts.shared.agent_state import current_hook_manager
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     deny = HookExecutionResult(

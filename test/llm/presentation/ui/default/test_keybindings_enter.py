@@ -263,7 +263,10 @@ async def test_enter_while_viewing_sends_message_to_sub_agent(mock_ui, setup_bin
     mock_ui.viewing_agent_id = "abc123"
     fake = _FakeLiveRegistry()
 
-    with patch("zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry", fake):
+    with patch(
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
+        fake,
+    ):
         trigger_binding(setup_bindings, "c-m", event)
         for task in list(mock_ui.background_tasks):
             await task
@@ -288,7 +291,10 @@ async def test_enter_while_viewing_sends_slash_command_as_message(
     mock_ui.viewing_agent_id = "abc123"
     fake = _FakeLiveRegistry()
 
-    with patch("zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry", fake):
+    with patch(
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
+        fake,
+    ):
         trigger_binding(setup_bindings, "c-m", event)
         for task in list(mock_ui.background_tasks):
             await task
@@ -322,7 +328,10 @@ async def test_a_mid_turn_command_runs_while_viewing_a_sub_agent(
     mock_ui.classify_input.return_value = "thinking_command"
     fake = _FakeLiveRegistry()
 
-    with patch("zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry", fake):
+    with patch(
+        "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
+        fake,
+    ):
         trigger_binding(setup_bindings, "c-m", event)
         for task in list(mock_ui.background_tasks):
             await task

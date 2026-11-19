@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _agent_that_observes(observe):

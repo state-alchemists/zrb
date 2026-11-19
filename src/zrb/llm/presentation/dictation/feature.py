@@ -19,8 +19,18 @@ from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.shared.feature_config import (
+    current_session_key,
+    get_session_ui,
+    replace_feature_sessions,
+    replace_registration,
+)
+from zrb.llm.contracts.shared.input_source import DICTATION_INPUT
+from zrb.llm.contracts.util.teardown import close_quietly
 from zrb.llm.orchestration.custom_command.action_command import ActionCommand
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
 from zrb.llm.presentation.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.presentation.dictation.config import DictationConfig
 from zrb.llm.presentation.dictation.emotion import EmotionDetector, Tone
@@ -38,22 +48,18 @@ from zrb.llm.presentation.dictation.words import (
     strip_wake_word,
     to_answer,
 )
-from zrb.llm.contracts.shared.feature_config import (
-    current_session_key,
-    get_session_ui,
-    replace_feature_sessions,
-    replace_registration,
+from zrb.llm.presentation.speech.feature import (
+    interrupt_speech,
+    pause_speech,
+    resume_speech,
 )
-from zrb.llm.contracts.shared.input_source import DICTATION_INPUT
-from zrb.llm.presentation.speech.feature import interrupt_speech, pause_speech, resume_speech
 from zrb.llm.presentation.ui.trigger import TriggerReply
-from zrb.llm.contracts.util.teardown import close_quietly
 
 if TYPE_CHECKING:
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.presentation.ui.any_ui import AnyUI
-    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.presentation.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)

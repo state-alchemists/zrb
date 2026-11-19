@@ -9,7 +9,10 @@ from html import escape
 from pathlib import Path
 
 from zrb.llm.capabilities.skill.manager import Skill
-from zrb.llm.capabilities.skill.util import discover_companion_files, format_companion_file_lines
+from zrb.llm.capabilities.skill.util import (
+    discover_companion_files,
+    format_companion_file_lines,
+)
 
 _DELIMITERS = ("<ACTIVATED_SKILL", "</ACTIVATED_SKILL>")
 

@@ -109,7 +109,9 @@ def test_load_restores_the_conversations_sub_agent_sessions(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", manager),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", manager
+        ),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -121,7 +123,9 @@ def test_load_restores_the_conversations_sub_agent_sessions(conv_ui):
 
 @pytest.mark.asyncio
 async def test_a_failed_naming_keeps_the_generated_name(conv_ui):
-    from zrb.llm.capabilities.history_manager.conversation_naming import ConversationNamingError
+    from zrb.llm.capabilities.history_manager.conversation_naming import (
+        ConversationNamingError,
+    )
 
     conv_ui.conversation_session_name = "bold-arch-1234"
     conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
@@ -146,7 +150,9 @@ async def test_a_rename_waits_for_the_running_turn_and_uses_the_first_message(co
         return "first-topic"
 
     suggest = AsyncMock(side_effect=slow_slug)
-    with patch("zrb.llm.presentation.ui.base.conversation_commands.suggest_slug", suggest):
+    with patch(
+        "zrb.llm.presentation.ui.base.conversation_commands.suggest_slug", suggest
+    ):
         await conv_ui.stream_ai_response(conv_ui.llm_task, "first message")
         conv_ui.is_thinking = True  # a second turn starts while naming is pending
         release.set()
@@ -170,7 +176,10 @@ def test_load_restores_sub_agents_of_a_name_that_needed_sanitizing(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", MagicMock()),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager",
+            MagicMock(),
+        ),
     ):
         conv_ui.handle_load_command("load customer/acme")
 
@@ -192,7 +201,10 @@ def test_a_failed_load_leaves_no_half_restored_sub_agent_sessions(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", MagicMock()),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager",
+            MagicMock(),
+        ),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -213,7 +225,10 @@ def test_a_transcript_found_twice_is_restored_once(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", MagicMock()),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager",
+            MagicMock(),
+        ),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -253,7 +268,10 @@ def test_a_transcript_that_loads_empty_is_not_restored(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", MagicMock()),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager",
+            MagicMock(),
+        ),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -274,7 +292,10 @@ def test_load_by_the_topic_name_restores_the_sub_agents_of_its_key(conv_ui):
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager", MagicMock()),
+        patch(
+            "zrb.llm.orchestration.subagent.manager.manager.sub_agent_manager",
+            MagicMock(),
+        ),
     ):
         conv_ui.handle_load_command("load bold-arch-1234-greetings")
 

@@ -38,8 +38,6 @@ def seed_default_tools() -> ToolSeed:
     # Imported from source modules, not the ``zrb.llm.capabilities.tool`` re-export: that
     # loads ``delegate.py`` -> ``SubAgentManager``, which re-enters this function.
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.engine.agent.types import Tool
-
     # lazy: zrb internal (heavy via transitive) — the LSP client stack
     from zrb.llm.capabilities.lsp.configs import detect_available_lsp_servers
     from zrb.llm.capabilities.lsp.tools import create_lsp_tools
@@ -65,6 +63,7 @@ def seed_default_tools() -> ToolSeed:
     from zrb.llm.capabilities.tool.plan import get_todos, write_todos
     from zrb.llm.capabilities.tool.shell import run_shell_command
     from zrb.llm.capabilities.tool.web import open_web_page, search_internet
+    from zrb.llm.engine.agent.types import Tool
 
     # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
@@ -104,20 +103,22 @@ def seed_default_tools() -> ToolSeed:
 def seed_tool_factories() -> tuple[list, list]:
     """The per-run tool factories + toolset factories of the built-in seed."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.engine.agent.spill import read_tool_result
-    from zrb.llm.engine.agent.types import Tool
-
     # lazy: zrb.llm.capabilities.tool.* transitively load pydantic_ai
     from zrb.llm.capabilities.tool.ask import ask_user_question
     from zrb.llm.capabilities.tool.mcp import load_mcp_config
     from zrb.llm.capabilities.tool.memory import forget, remember, search_memory
     from zrb.llm.capabilities.tool.plan.mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.capabilities.tool.shell.background import create_monitor_process_tool
-    from zrb.llm.capabilities.tool.skill import create_activate_skill_tool, create_search_skill_tool
+    from zrb.llm.capabilities.tool.skill import (
+        create_activate_skill_tool,
+        create_search_skill_tool,
+    )
     from zrb.llm.capabilities.tool.zrb_task import (
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )
+    from zrb.llm.engine.agent.spill import read_tool_result
+    from zrb.llm.engine.agent.types import Tool
 
     factories: list["Callable[[AnyContext], Any]"] = [
         # Plan-mode and AskUserQuestion need a human: interactive sessions only.

@@ -17,8 +17,8 @@ from zrb.llm.engine.agent.run.hook_result_extractor import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.run.typing_aliases import History, PrintFn, PromptMessage
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.run.typing_aliases import History, PrintFn, PromptMessage
 
 # Mirrors Claude Code's CLAUDE_CODE_STOP_HOOK_BLOCK_CAP: after this many
 # consecutive Stop-hook blocks without the turn ending, allow the stop so a

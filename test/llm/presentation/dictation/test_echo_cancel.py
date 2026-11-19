@@ -130,7 +130,10 @@ def _start(avf, blocksize=1600):
     microphone = EchoCancelledMicrophone(
         np, lambda data, frames, t, s: blocks.append(data), 16000, blocksize
     )
-    with patch("zrb.llm.presentation.dictation.echo_cancel.import_avfoundation", return_value=avf):
+    with patch(
+        "zrb.llm.presentation.dictation.echo_cancel.import_avfoundation",
+        return_value=avf,
+    ):
         microphone.start()
     return microphone, blocks
 

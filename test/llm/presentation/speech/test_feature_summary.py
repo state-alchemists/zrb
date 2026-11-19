@@ -70,7 +70,9 @@ def summarizer(monkeypatch):
         calls.append((text, model, timeout))
         return "Three modules changed."
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.summary.summarize_for_speech", summarize)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.summary.summarize_for_speech", summarize
+    )
     return calls
 
 
@@ -145,7 +147,9 @@ async def test_a_failed_summary_leaves_the_reply_read_whole(monkeypatch):
     async def fail(text, model, timeout):
         raise SpeechSummaryError("down")
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.summary.summarize_for_speech", fail)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.summary.summarize_for_speech", fail
+    )
     session = _session(stream=False, summarize_above_chars=100)
 
     await session.handle_stop(_stop(LONG))
@@ -254,7 +258,9 @@ async def test_a_stuck_model_call_reads_each_reply_whole_without_new_threads(
         release.wait(5)
         return "late"
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.summary.summarize_for_speech", stuck)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.summary.summarize_for_speech", stuck
+    )
     session = _session(stream=False, summarize_above_chars=100, summary_timeout=0.1)
     try:
         for count in (1, 2, 3):

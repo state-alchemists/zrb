@@ -18,7 +18,9 @@ from zrb.llm.presentation.speech.backend.any_speech_backend import (  # noqa: E4
     SpeechMadeNoAudio,
     SpeechServiceStopped,
 )
-from zrb.llm.presentation.speech.backend.pipecat.backend import PipecatSpeechBackend  # noqa: E402
+from zrb.llm.presentation.speech.backend.pipecat.backend import (  # noqa: E402
+    PipecatSpeechBackend,
+)
 from zrb.llm.presentation.voice.builtin import TTS_SERVICE_SPECS  # noqa: E402
 from zrb.llm.presentation.voice.registry import TTSServiceRegistry  # noqa: E402
 from zrb.llm.presentation.voice.spec import TTSServiceSpec  # noqa: E402
@@ -66,7 +68,8 @@ def factory(monkeypatch) -> FakeTTSServiceFactory:
     """Build a fake service where the manager would build one."""
     factory = FakeTTSServiceFactory()
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.backend.pipecat.backend.tts_manager.create_service", factory
+        "zrb.llm.presentation.speech.backend.pipecat.backend.tts_manager.create_service",
+        factory,
     )
     return factory
 
@@ -137,7 +140,8 @@ def test_a_start_that_never_returns_is_given_up_on(monkeypatch):
         create_service,
     )
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.backend.pipecat.backend.PIPELINE_START_TIMEOUT_SECONDS", 0.2
+        "zrb.llm.presentation.speech.backend.pipecat.backend.PIPELINE_START_TIMEOUT_SECONDS",
+        0.2,
     )
     backend = PipecatSpeechBackend("piper", SpeechConfig().resolve())
     starter = threading.Thread(target=_drain, args=(backend,), daemon=True)
@@ -289,7 +293,9 @@ def test_a_closed_backend_starts_no_second_pipeline(factory):
 def test_the_backend_is_local_as_its_registered_service_is(monkeypatch):
     registry = TTSServiceRegistry(TTS_SERVICE_SPECS)
     registry.register("remote", TTSServiceSpec(name="remote", is_local=False))
-    monkeypatch.setattr("zrb.llm.presentation.speech.backend.pipecat.backend.tts_registry", registry)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.backend.pipecat.backend.tts_registry", registry
+    )
     config = SpeechConfig().resolve()
 
     assert PipecatSpeechBackend("kokoro", config).is_local

@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 
 ResponseHandler = Callable[

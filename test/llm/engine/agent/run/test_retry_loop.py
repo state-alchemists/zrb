@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.engine.agent.run.retry_loop import RetryOutcome, RetryState, handle_stream_error
+from zrb.llm.engine.agent.run.retry_loop import (
+    RetryOutcome,
+    RetryState,
+    handle_stream_error,
+)
 
 
 @pytest.mark.asyncio
@@ -40,7 +44,8 @@ async def test_handle_stream_error_prompt_too_long():
     print_fn = MagicMock()
 
     with patch(
-        "zrb.llm.engine.agent.run.retry_loop.drop_oldest_turn", return_value=["turn2_user"]
+        "zrb.llm.engine.agent.run.retry_loop.drop_oldest_turn",
+        return_value=["turn2_user"],
     ) as mock_drop:
         outcome = await handle_stream_error(
             state, exc, current_history, current_message, run_history, print_fn
@@ -67,7 +72,8 @@ async def test_prompt_too_long_does_not_reset_transient_counter():
     print_fn = MagicMock()
 
     with patch(
-        "zrb.llm.engine.agent.run.retry_loop.drop_oldest_turn", return_value=["turn2_user"]
+        "zrb.llm.engine.agent.run.retry_loop.drop_oldest_turn",
+        return_value=["turn2_user"],
     ):
         outcome = await handle_stream_error(
             state, exc, ["a", "b"], "hello", [], print_fn

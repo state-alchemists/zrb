@@ -10,13 +10,13 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from zrb.llm.contracts.shared.message import TOOL_CALL_PLACEHOLDER
 from zrb.llm.engine.agent.run.history_utils import (
     close_dangling_tool_calls,
     sanitize_history,
     strip_thinking_parts,
     strip_to_text_only,
 )
-from zrb.llm.contracts.shared.message import TOOL_CALL_PLACEHOLDER
 
 
 class UnknownMessage:

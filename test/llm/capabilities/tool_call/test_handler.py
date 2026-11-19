@@ -258,7 +258,9 @@ async def test_the_prompt_shows_the_purpose_the_call_carries():
 async def test_a_body_that_replaces_the_arguments_keeps_the_purpose():
     """`Shell` shows its command in place of the arguments; the line survives."""
     from zrb.llm.capabilities.tool_call import ToolCallHandler
-    from zrb.llm.capabilities.tool_call.argument_formatter.shell_formatter import shell_formatter
+    from zrb.llm.capabilities.tool_call.argument_formatter.shell_formatter import (
+        shell_formatter,
+    )
 
     handler = ToolCallHandler(argument_formatters=[shell_formatter])
     message = await handler.format_approval_message(
@@ -304,7 +306,10 @@ def test_a_purpose_stays_on_one_line_and_keeps_no_control_characters():
 
 
 def test_a_purpose_that_is_a_paragraph_is_cut():
-    from zrb.llm.capabilities.tool_call.handler import MAX_PURPOSE_CHARS, format_purpose_line
+    from zrb.llm.capabilities.tool_call.handler import (
+        MAX_PURPOSE_CHARS,
+        format_purpose_line,
+    )
 
     line = format_purpose_line("x" * (MAX_PURPOSE_CHARS + 50))
 

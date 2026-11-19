@@ -24,18 +24,20 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from zrb.llm.contracts.config.ui_config import UIConfig  # noqa: F401
-    from zrb.llm.presentation.ui.any_ui import AnyUI  # noqa: F401
-    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay  # noqa: F401
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput  # noqa: F401
     from zrb.llm.contracts.ui.any_ui_picker import (  # noqa: F401
         AnyUIPicker,
         ChoiceOption,
         ChoiceSpec,
     )
+    from zrb.llm.presentation.ui.any_ui import AnyUI  # noqa: F401
+    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay  # noqa: F401
     from zrb.llm.presentation.ui.any_ui_session import AnyUISession  # noqa: F401
     from zrb.llm.presentation.ui.any_ui_tools import AnyUITools  # noqa: F401
     from zrb.llm.presentation.ui.base.ui import BaseUI  # noqa: F401
-    from zrb.llm.presentation.ui.buffered.output import BufferedOutputMixin  # noqa: F401
+    from zrb.llm.presentation.ui.buffered.output import (  # noqa: F401
+        BufferedOutputMixin,
+    )
     from zrb.llm.presentation.ui.buffered.ui import BufferedUI  # noqa: F401
     from zrb.llm.presentation.ui.default.ui import UI  # noqa: F401
     from zrb.llm.presentation.ui.event_driven.ui import EventDrivenUI  # noqa: F401

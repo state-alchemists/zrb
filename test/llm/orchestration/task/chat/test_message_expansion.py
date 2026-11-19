@@ -2,7 +2,10 @@
 
 from unittest.mock import MagicMock
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 from zrb.llm.orchestration.task.chat.message_expansion import (
     expand_message,
     is_action_command,
@@ -93,8 +96,12 @@ def test_a_command_wins_over_a_mention_and_an_unknown_command_reaches_the_mentio
 
     outcome = MagicMock(prompt="PROMPT", reply="REPLY")
     with (
-        patch("zrb.llm.orchestration.task.chat.message_expansion.run_custom_command") as run,
-        patch("zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention") as mention,
+        patch(
+            "zrb.llm.orchestration.task.chat.message_expansion.run_custom_command"
+        ) as run,
+        patch(
+            "zrb.llm.orchestration.task.chat.message_expansion.resolve_agent_mention"
+        ) as mention,
     ):
         run.return_value = outcome
         assert expand_message("/cmd hi @researcher", []) == ("PROMPT", "REPLY")

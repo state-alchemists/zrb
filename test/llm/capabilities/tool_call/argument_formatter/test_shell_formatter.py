@@ -6,7 +6,9 @@ import pytest
 from pydantic_ai.messages import ToolCallPart
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.tool_call.argument_formatter.shell_formatter import shell_formatter
+from zrb.llm.capabilities.tool_call.argument_formatter.shell_formatter import (
+    shell_formatter,
+)
 from zrb.util.cli.ansi import strip_ansi
 
 

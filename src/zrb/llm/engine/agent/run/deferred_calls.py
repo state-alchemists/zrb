@@ -12,12 +12,6 @@ import json
 from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.run.hook_result_extractor import (
-    PreToolDecision,
-    extract_permission_decision,
-    extract_pre_tool_decision,
-)
-from zrb.llm.engine.agent.shell_judge import judge_or_unknown
 from zrb.llm.capabilities.approval.any_approval_channel import ApprovalContext
 from zrb.llm.capabilities.approval.judge_state import (
     is_shell_judge_auto_approve_enabled,
@@ -26,20 +20,32 @@ from zrb.llm.capabilities.approval.judge_state import (
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.permission import ASK
-from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
 from zrb.llm.capabilities.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
 )
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
-from zrb.llm.capabilities.tool_call.judge_note import discard_judge_note, record_judge_note
-from zrb.llm.capabilities.tool_call.override_registry import discard_override, record_override
+from zrb.llm.capabilities.tool_call.judge_note import (
+    discard_judge_note,
+    record_judge_note,
+)
+from zrb.llm.capabilities.tool_call.override_registry import (
+    discard_override,
+    record_override,
+)
 from zrb.llm.capabilities.tool_call.shell_call import (
     is_sandbox_off,
     shell_command,
     shell_command_args,
 )
+from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
 from zrb.llm.contracts.util.tool_args import parse_tool_args
+from zrb.llm.engine.agent.run.hook_result_extractor import (
+    PreToolDecision,
+    extract_permission_decision,
+    extract_pre_tool_decision,
+)
+from zrb.llm.engine.agent.shell_judge import judge_or_unknown
 
 if TYPE_CHECKING:
     from pydantic_ai import (
@@ -327,7 +333,12 @@ def _apply_permission_policy(
     Returns the raw decision too: an ASK stops YOLO further down.
     """
     # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy and .tool_capability; hoisting bypasses the mock
-    from zrb.llm.capabilities.permission import ALLOW, DENY, get_effective_policy, tool_capability
+    from zrb.llm.capabilities.permission import (
+        ALLOW,
+        DENY,
+        get_effective_policy,
+        tool_capability,
+    )
     from zrb.llm.capabilities.permission.observability import record_policy_decision
 
     policy = get_effective_policy()

@@ -5,12 +5,12 @@ import pytest
 from pydantic_ai import AgentRunResultEvent
 
 from zrb.contextvars import current_agent_run_scope
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.snapshot.store import Snapshot
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):
@@ -277,7 +277,8 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
     )
     # Only the payload is under test here, not the gate that reads it.
     monkeypatch.setattr(
-        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook", lambda manager: None
+        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook",
+        lambda manager: None,
     )
     manager = HookManager(search_dirs=[])
     manager.add_hook(record, events=[HookEvent.STOP])
@@ -440,7 +441,8 @@ async def test_an_explicit_nested_flag_wins_over_the_bound_scope(monkeypatch):
         return HookResult(success=True)
 
     monkeypatch.setattr(
-        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook", lambda manager: None
+        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook",
+        lambda manager: None,
     )
     manager = HookManager(search_dirs=[])
     manager.add_hook(record, events=[HookEvent.STOP])

@@ -10,28 +10,43 @@ from typing import cast
 from zrb.config.config import CFG
 from zrb.llm.capabilities.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.capabilities.hook.builtin.memory_recall import register_recall_hook
-from zrb.llm.capabilities.hook.builtin.memory_reviewer import register_memory_reviewer_hook
+from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
+    register_memory_reviewer_hook,
+)
 from zrb.llm.capabilities.hook.builtin.memory_week import register_week_note_hook
 from zrb.llm.capabilities.hook.builtin.self_review import register_self_review_hook
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.capabilities.hook.contracts.schema import (
     AgentHookConfig,
     CommandHookConfig,
     HookConfig,
     PromptHookConfig,
 )
-from zrb.llm.capabilities.hook.contracts.types import BLOCKING_EVENTS, HookEvent, HookType
+from zrb.llm.capabilities.hook.contracts.types import (
+    BLOCKING_EVENTS,
+    HookEvent,
+    HookType,
+)
 from zrb.llm.capabilities.hook.execution.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
     get_hook_executor,
 )
 from zrb.llm.capabilities.hook.execution.matcher import evaluate_matchers
-from zrb.llm.capabilities.hook.hook_loader import get_search_directories as _get_search_directories
+from zrb.llm.capabilities.hook.hook_loader import (
+    get_search_directories as _get_search_directories,
+)
 from zrb.llm.capabilities.hook.manager.loading import HookManagerLoading
 from zrb.llm.capabilities.hook.registry import HookRegistry, hook_registry
 from zrb.llm.capabilities.hook.skill_frontmatter import register_skill_frontmatter_hooks
-from zrb.llm.contracts.shared.agent_state import get_current_hook_manager, is_current_run_nested
+from zrb.llm.contracts.shared.agent_state import (
+    get_current_hook_manager,
+    is_current_run_nested,
+)
 
 logger = logging.getLogger(__name__)
 

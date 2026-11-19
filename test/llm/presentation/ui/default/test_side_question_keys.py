@@ -12,7 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.presentation.ui.default.side_question import PANEL_PAGE_ROWS, UISideQuestion
+from zrb.llm.presentation.ui.default.side_question import (
+    PANEL_PAGE_ROWS,
+    UISideQuestion,
+)
 
 
 class _FakeUI:
@@ -293,7 +296,9 @@ def test_the_default_ui_hands_the_focus_to_its_own_panel(mock_ui_deps):
         app = ui.application
     with (
         set_app(app),
-        patch("zrb.llm.presentation.ui.default.side_question.focus_widget", focus_widget),
+        patch(
+            "zrb.llm.presentation.ui.default.side_question.focus_widget", focus_widget
+        ),
     ):
         ui.begin_side_question("why is the sky blue?")
 
@@ -369,7 +374,10 @@ async def _drive_live_application() -> None:
             app = Application(layout=layout, key_bindings=app_keybindings)
             with (
                 set_app(app),
-                patch("zrb.llm.presentation.ui.default.side_question.focus_widget", focus_widget),
+                patch(
+                    "zrb.llm.presentation.ui.default.side_question.focus_widget",
+                    focus_widget,
+                ),
             ):
                 panel.begin("why?")
                 panel.end(LONG_ANSWER)

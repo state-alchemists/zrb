@@ -6,7 +6,6 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.orchestration.custom_command.usage.command import create_usage_commands, render_usage
 from zrb.llm.contracts.memory.model import Diary, Fact
 from zrb.llm.contracts.shared.usage_log import (
     COMPACTION_FORCED,
@@ -20,6 +19,10 @@ from zrb.llm.contracts.shared.usage_log import (
     UsageTotals,
     record_totals,
     record_usage,
+)
+from zrb.llm.orchestration.custom_command.usage.command import (
+    create_usage_commands,
+    render_usage,
 )
 
 

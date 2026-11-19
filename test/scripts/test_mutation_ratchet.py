@@ -154,7 +154,9 @@ def test_a_package_is_scored_at_its_own_sample_size(monkeypatch):
 
     monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
     monkeypatch.setattr(mutation_ratchet, "score_package", record)
-    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "cmd", "llm/capabilities/skill"])
+    monkeypatch.setattr(
+        sys, "argv", ["mutation_ratchet.py", "cmd", "llm/capabilities/skill"]
+    )
 
     assert mutation_ratchet.main() == 0
     assert scored == [
@@ -253,9 +255,7 @@ def test_uncommitted_mirrored_tests_count_as_dirty(tmp_path, monkeypatch):
     """The tests are what the score is measured against, so an uncommitted
     assertion raises the rate for work that is not in the tree yet."""
     repo = tmp_path / "repo"
-    probe = (
-        repo / "test" / "llm" / "capabilities" / "skill" / "ratchet_dirty_probe.txt"
-    )
+    probe = repo / "test" / "llm" / "capabilities" / "skill" / "ratchet_dirty_probe.txt"
     probe.parent.mkdir(parents=True)
     probe.write_text("")
     (repo / "src" / "zrb" / "llm" / "capabilities" / "skill").mkdir(parents=True)

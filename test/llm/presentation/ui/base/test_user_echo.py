@@ -1,6 +1,9 @@
 """Tests for the shared live/replay user-message echo."""
 
-from zrb.llm.presentation.ui.base.user_echo import echo_user_message, should_render_user_markdown
+from zrb.llm.presentation.ui.base.user_echo import (
+    echo_user_message,
+    should_render_user_markdown,
+)
 
 
 def test_should_render_user_markdown_detects_markdownish_text():

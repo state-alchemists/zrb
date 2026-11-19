@@ -17,9 +17,9 @@ from zrb.llm.capabilities.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.contracts.shared.ambient_state import active_worktree
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.capabilities.tool.shell import start_process
+from zrb.llm.contracts.shared.ambient_state import active_worktree
 
 _MAIN_WORKTREE_ERROR = (
     "Error: The main working tree cannot be resumed as a linked worktree. "

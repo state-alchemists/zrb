@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, TypeGuard, cast
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
-from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 from zrb.llm.contracts.util.attachment import check_attachment_bytes, get_media_type
+from zrb.llm.orchestration.subagent.manager.manager import sub_agent_manager
 from zrb.runner.chat.chat_session_manager import (
     ChatSessionManager,
     parse_delegated_session,

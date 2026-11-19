@@ -27,9 +27,9 @@ from zrb.llm.contracts.shared.usage_log import COMPONENT_SUBAGENT, usage_compone
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
+    from zrb.llm.contracts.config.limiter import LLMLimiter
     from zrb.llm.engine.agent.run.authority_snapshot import AuthoritySnapshot
     from zrb.llm.engine.agent.types import ModelMessage
-    from zrb.llm.contracts.config.limiter import LLMLimiter
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
 # The five settings a captured delegation carries, and the argument each one

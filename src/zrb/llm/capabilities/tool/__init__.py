@@ -18,7 +18,6 @@ to its schema name (`Read`, `Write`, ...).
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_name, tool_registry
     from zrb.llm.capabilities.tool.file import (
         analyze_file,
         glob_files,
@@ -34,11 +33,19 @@ if TYPE_CHECKING:
     from zrb.llm.capabilities.tool.plan import create_plan_tools, get_todos, write_todos
     from zrb.llm.capabilities.tool.shell import run_shell_command
     from zrb.llm.capabilities.tool.shell.background import create_monitor_process_tool
-    from zrb.llm.capabilities.tool.skill import create_activate_skill_tool, create_search_skill_tool
+    from zrb.llm.capabilities.tool.skill import (
+        create_activate_skill_tool,
+        create_search_skill_tool,
+    )
     from zrb.llm.capabilities.tool.web import open_web_page, search_internet
     from zrb.llm.capabilities.tool.zrb_task import (
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
+    )
+    from zrb.llm.contracts.shared.tool_registry import (
+        ToolRegistry,
+        tool_name,
+        tool_registry,
     )
 
 __all__ = [

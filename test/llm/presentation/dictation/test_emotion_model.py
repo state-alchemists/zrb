@@ -14,9 +14,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from zrb.llm.contracts.util.model_load import heavy_model_load
 from zrb.llm.presentation.dictation import emotion_model
 from zrb.llm.presentation.dictation.emotion_model import EmotionWorker
-from zrb.llm.contracts.util.model_load import heavy_model_load
 
 LABELS = ["happy", "sad"]
 SCORES = [0.9, 0.1]

@@ -11,9 +11,9 @@ every import in the tree.
 """
 
 from llm_layers import (
-    LLM,
     _CONTRACT_PATHS,
     _LAYERS,
+    LLM,
     _is_upward,
     _layer,
     _unit,

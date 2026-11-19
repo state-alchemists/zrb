@@ -399,8 +399,7 @@ def read_requests(
 def counts_of_request(usage: object) -> dict[str, int]:
     """The five token fields of one request's usage, as plain integers."""
     return {
-        name: _as_count(getattr(usage, attr, 0))
-        for name, attr in _COUNT_ATTR.items()
+        name: _as_count(getattr(usage, attr, 0)) for name, attr in _COUNT_ATTR.items()
     }
 
 
@@ -444,9 +443,9 @@ def _fingerprint(message: "ModelMessage") -> bytes:
     from pydantic_ai.messages import ModelMessagesTypeAdapter
 
     (raw,) = json.loads(ModelMessagesTypeAdapter.dump_json([message]))
-    return json.dumps(
-        _without_unsent(raw), sort_keys=True, ensure_ascii=False
-    ).encode("utf-8")
+    return json.dumps(_without_unsent(raw), sort_keys=True, ensure_ascii=False).encode(
+        "utf-8"
+    )
 
 
 def _without_unsent(value: object) -> object:
@@ -520,7 +519,9 @@ def _as_cost(value: object) -> float | None:
 
 def _as_datetime(value: object) -> datetime:
     """A timezone-aware datetime; a naive one is read as UTC, like the summed log."""
-    parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+    parsed = (
+        value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+    )
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed

@@ -4,8 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 @pytest.fixture
@@ -36,10 +39,17 @@ async def test_isolate_worktree_uses_distinct_branch_names_per_task(
             "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.delegate.runner.enter_worktree",
+            new_callable=AsyncMock,
         ) as mock_enter,
-        patch("zrb.llm.capabilities.tool.delegate.runner.get_active_worktree", return_value="/wt"),
-        patch("zrb.llm.capabilities.tool.delegate.runner.exit_worktree", new_callable=AsyncMock),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.get_active_worktree",
+            return_value="/wt",
+        ),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.exit_worktree",
+            new_callable=AsyncMock,
+        ),
         patch(
             "zrb.llm.capabilities.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
@@ -96,7 +106,9 @@ async def test_subagent_history_persisted(mock_sub_agent_manager, monkeypatch):
             "zrb.llm.capabilities.tool.delegate.runner.get_current_tool_session",
             return_value="sess1",
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.persist_subagent_history") as mock_persist,
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.persist_subagent_history"
+        ) as mock_persist,
     ):
         mock_run_agent.return_value = ("ok", [{"fake": "message"}])
         result = await tool(
@@ -152,7 +164,9 @@ async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeyp
             "zrb.llm.capabilities.tool.delegate.runner.get_current_tool_session",
             return_value="sess1",
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.persist_subagent_history") as mock_persist,
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.persist_subagent_history"
+        ) as mock_persist,
     ):
         mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
         await tool(
@@ -199,7 +213,9 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
             "zrb.llm.capabilities.tool.delegate.runner.get_current_tool_session",
             return_value="display-session-42",
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.agent_activity_registry") as mock_registry,
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.agent_activity_registry"
+        ) as mock_registry,
     ):
         mock_run_agent.return_value = ("ok", [])
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -230,7 +246,10 @@ async def test_single_delegate_does_not_flush_routine_output_to_main(
             "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=run_and_write_to_buffer,
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.get_current_ui", return_value=parent_ui),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.get_current_ui",
+            return_value=parent_ui,
+        ),
     ):
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
 
@@ -239,7 +258,9 @@ async def test_single_delegate_does_not_flush_routine_output_to_main(
 
 def testpersist_subagent_history_does_not_grow_unbounded(tmp_path, monkeypatch):
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "10")
@@ -260,7 +281,9 @@ def testpersist_subagent_history_writes_no_backup(tmp_path, monkeypatch):
     of a session that's never resaved doubles disk usage for no recovery
     value."""
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv(
@@ -279,7 +302,9 @@ def testpersist_subagent_history_never_prunes_ordinary_conversations(
     tmp_path, monkeypatch
 ):
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "3")
@@ -302,7 +327,9 @@ def testpersist_subagent_history_retain_minus_one_disables_pruning(
     tmp_path, monkeypatch
 ):
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "-1")
@@ -319,7 +346,9 @@ def testpersist_subagent_history_retain_minus_one_disables_pruning(
 def testpersist_subagent_history_keeps_most_recently_written(tmp_path, monkeypatch):
     """Pruning must drop the oldest, not an arbitrary subset."""
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "2")
@@ -342,7 +371,9 @@ def testpersist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypat
     """Delegated transcripts land under LLM_HISTORY_DIR/subagent/<agent-type>/
     — separate from main sessions (which stay flat in the history root)."""
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "-1")
@@ -364,7 +395,9 @@ def testpersist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monkey
     The root also holds ordinary sessions; pruning is scoped to subagent/<agent-type>/.
     """
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "2")
@@ -391,7 +424,9 @@ def testpersist_subagent_history_never_prunes_colliding_root_session_name(
     match the delegated naming shape (e.g. via `/save`) must never become a
     deletion candidate, regardless of how many delegated transcripts exist."""
     from zrb.llm.capabilities.tool.delegate import persist_subagent_history
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
 
     monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", str(tmp_path))
     monkeypatch.setenv("ZRB_LLM_SUBAGENT_HISTORY_RETAIN", "1")

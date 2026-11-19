@@ -23,10 +23,10 @@ from zrb.llm.capabilities.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.contracts.shared.agent_state import get_current_ui
-from zrb.llm.contracts.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.capabilities.tool.shell.capture import StreamCapture
+from zrb.llm.contracts.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.shell_cut import get_run_shell_cut_signal
 from zrb.util.cli.ansi import strip_ansi
 
 #: Whatever a cancellable task resolves to; `_stop` only cancels and awaits it.

@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from zrb.llm.engine.agent.any_agent import AnyAgent
-    from zrb.llm.orchestration.subagent.any_sub_agent_definition import AnySubAgentDefinition
+    from zrb.llm.orchestration.subagent.any_sub_agent_definition import (
+        AnySubAgentDefinition,
+    )
 
 
 class AnySubAgentManager(Protocol):

@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
 
-from zrb.llm.presentation.camera.backend.any_camera_backend import AnyCameraBackend
-from zrb.llm.presentation.camera.backend.builtin import get_camera_backend
-from zrb.llm.presentation.camera.config import CameraConfig
-from zrb.llm.orchestration.custom_command.action_command import ActionCommand
 from zrb.llm.capabilities.permission.capability import Capability, tag
 from zrb.llm.contracts.shared.feature_config import replace_registration
 from zrb.llm.contracts.util.image_scale import scale_image_bytes
+from zrb.llm.orchestration.custom_command.action_command import ActionCommand
+from zrb.llm.presentation.camera.backend.any_camera_backend import AnyCameraBackend
+from zrb.llm.presentation.camera.backend.builtin import get_camera_backend
+from zrb.llm.presentation.camera.config import CameraConfig
 from zrb.util.cli.style import stylize_error, stylize_muted
 
 if TYPE_CHECKING:
@@ -116,7 +116,9 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
         user unprompted. The user approves each photo.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.capabilities.tool.multimodal_describe import create_image_tool_return
+        from zrb.llm.capabilities.tool.multimodal_describe import (
+            create_image_tool_return,
+        )
 
         photo = await capture_photo(backend, device or config.device or None)
         if photo is None:

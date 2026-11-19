@@ -10,9 +10,9 @@ import asyncio
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 from zrb.llm.contracts.shared.agent_state import current_ui
 from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT
-from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 
 
 class _RecordingUI:

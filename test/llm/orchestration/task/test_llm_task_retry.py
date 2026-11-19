@@ -228,7 +228,9 @@ async def test_a_permanent_error_is_not_retried_even_with_retries_allowed():
     session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
     with (
         patch("zrb.llm.orchestration.task.llm_task.create_agent"),
-        patch("zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
+        patch(
+            "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as run_agent,
     ):
         run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
         with pytest.raises(UserError):
@@ -246,7 +248,9 @@ async def test_an_explicit_retry_if_wins_over_the_permanent_error_default():
     session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
     with (
         patch("zrb.llm.orchestration.task.llm_task.create_agent"),
-        patch("zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
+        patch(
+            "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as run_agent,
     ):
         run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
         with pytest.raises(UserError):

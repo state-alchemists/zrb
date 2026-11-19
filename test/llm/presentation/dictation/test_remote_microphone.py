@@ -17,8 +17,15 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.presentation.dictation import remote_microphone
-from zrb.llm.presentation.dictation.microphone import SAMPLE_RATE, close_microphone, open_microphone
-from zrb.llm.presentation.dictation.remote_microphone import RemoteMicrophone, open_audio_in
+from zrb.llm.presentation.dictation.microphone import (
+    SAMPLE_RATE,
+    close_microphone,
+    open_microphone,
+)
+from zrb.llm.presentation.dictation.remote_microphone import (
+    RemoteMicrophone,
+    open_audio_in,
+)
 
 np = pytest.importorskip("numpy")
 

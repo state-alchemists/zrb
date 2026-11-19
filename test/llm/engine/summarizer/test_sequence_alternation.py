@@ -37,7 +37,8 @@ async def test_summarize_history_consecutive_user_messages():
     from zrb.llm.contracts.config.limiter import is_turn_start
 
     with patch(
-        "zrb.llm.engine.summarizer.history_splitter.is_turn_start", side_effect=is_turn_start
+        "zrb.llm.engine.summarizer.history_splitter.is_turn_start",
+        side_effect=is_turn_start,
     ):
         new_history = await summarize_history(
             messages,

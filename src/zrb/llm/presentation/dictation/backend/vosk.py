@@ -13,8 +13,12 @@ from collections.abc import Callable
 from typing import Any, BinaryIO
 
 from zrb.config.config import CFG
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
-from zrb.llm.presentation.dictation.backend.any_transcription_stream import AnyTranscriptionStream
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
+from zrb.llm.presentation.dictation.backend.any_transcription_stream import (
+    AnyTranscriptionStream,
+)
 from zrb.util.async_thread import run_in_daemon
 from zrb.util.file import delete_file_quietly
 

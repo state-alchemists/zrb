@@ -315,7 +315,10 @@ def test_scan_dir_permission_error_swallowed(manager, tmp_path):
 
 def test_scan_dir_scan_failure_logged(manager, tmp_path):
 
-    with patch("zrb.llm.capabilities.skill.manager.scan_files", side_effect=OSError("disk error")):
+    with patch(
+        "zrb.llm.capabilities.skill.manager.scan_files",
+        side_effect=OSError("disk error"),
+    ):
         skills = manager.scan(search_dirs=[tmp_path])
     assert skills == []
 

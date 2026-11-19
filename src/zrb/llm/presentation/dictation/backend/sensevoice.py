@@ -8,7 +8,9 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
 from zrb.llm.presentation.dictation.hub import get_hub_path
 from zrb.util.async_thread import run_in_daemon
 

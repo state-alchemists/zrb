@@ -23,13 +23,13 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.tool.purpose import Purpose
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.llm.contracts.shared.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
 from zrb.llm.contracts.shared.shell_cut import interrupted_notice, is_cut_while_waiting
-from zrb.llm.capabilities.tool.purpose import Purpose
 from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi

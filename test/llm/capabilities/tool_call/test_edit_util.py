@@ -29,7 +29,8 @@ class TestEditContentViaEditor:
         content = {"key": "value"}
 
         with patch(
-            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump", return_value="key: value\n"
+            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+            return_value="key: value\n",
         ):
             with patch("tempfile.NamedTemporaryFile") as mock_temp:
                 mock_tf = MagicMock()
@@ -63,7 +64,10 @@ class TestEditContentViaEditor:
         content = {"key": "value"}
         original_yaml = "key: value\n"
 
-        with patch("zrb.llm.capabilities.tool_call.edit_util.yaml_dump", return_value=original_yaml):
+        with patch(
+            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+            return_value=original_yaml,
+        ):
             with patch("tempfile.NamedTemporaryFile") as mock_temp:
                 mock_tf = MagicMock()
                 mock_tf.name = "/tmp/test.yaml"
@@ -95,7 +99,8 @@ class TestEditContentViaEditor:
         content = {"key": "value"}
 
         with patch(
-            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump", return_value="key: value\n"
+            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+            return_value="key: value\n",
         ):
             with patch("tempfile.NamedTemporaryFile") as mock_temp:
                 mock_tf = MagicMock()
@@ -127,7 +132,8 @@ class TestEditContentViaEditor:
         content = {"key": "value"}
 
         with patch(
-            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump", return_value="key: value\n"
+            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+            return_value="key: value\n",
         ):
             with patch("tempfile.NamedTemporaryFile") as mock_temp:
                 mock_tf = MagicMock()
@@ -163,7 +169,8 @@ class TestEditContentViaEditor:
         content = {"key": "value"}
 
         with patch(
-            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump", side_effect=Exception("YAML error")
+            "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+            side_effect=Exception("YAML error"),
         ):
             with patch("json.dumps", return_value='{"key": "value"}'):
                 with patch("tempfile.NamedTemporaryFile") as mock_temp:
@@ -199,7 +206,8 @@ class TestEditContentViaEditor:
         with patch("zrb.llm.capabilities.tool_call.edit_util.CFG") as mock_cfg:
             mock_cfg.EDITOR = "nano"
             with patch(
-                "zrb.llm.capabilities.tool_call.edit_util.yaml_dump", return_value="key: value\n"
+                "zrb.llm.capabilities.tool_call.edit_util.yaml_dump",
+                return_value="key: value\n",
             ):
                 with patch("tempfile.NamedTemporaryFile") as mock_temp:
                     mock_tf = MagicMock()

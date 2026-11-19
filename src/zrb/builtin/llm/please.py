@@ -46,13 +46,13 @@ async def please(ctx: AnyContext) -> str:
     ctx.print(stylize_faint(f"🤔 Thinking about: {ctx.input.message}"))
     # lazy: pydantic_ai is a heavy extra — `please` sits on `cli` for every run,
     # and a run that never calls it should not carry the agent stack.
-    from zrb.llm.engine.agent import create_agent
     from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
     from zrb.llm.contracts.shared.request_log import (
         REASON_PLEASE,
         record_standalone_requests,
     )
     from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.engine.agent import create_agent
 
     model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)

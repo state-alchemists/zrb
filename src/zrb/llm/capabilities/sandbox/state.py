@@ -7,7 +7,10 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import replace
 
-from zrb.llm.capabilities.sandbox.policy import SandboxPolicy, resolve_sandbox_policy_from_config
+from zrb.llm.capabilities.sandbox.policy import (
+    SandboxPolicy,
+    resolve_sandbox_policy_from_config,
+)
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.util.contextvar_scope import scoped
 

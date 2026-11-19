@@ -15,18 +15,25 @@ from typing import Any
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.capabilities.hook.agent_hook_registry import register_agent_hook_builder
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
+from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig
+from zrb.llm.contracts.shared.delegation_api import registered_sub_agent_manager
+from zrb.llm.contracts.shared.tool_registry import tool_registry
+from zrb.llm.contracts.shared.tool_resolver import (
+    resolve_tools_by_name,
+    resolved_tool_name,
+)
 from zrb.llm.engine.agent.common import wrap_tool
 
 # Importing the seed is what gives `tool_registry` the built-in tools, which is
 # the surface a hook resolves against — and the reason this module can answer
 # "what is `Read`?" without a sub-agent manager.
 from zrb.llm.engine.agent.tool_seed import seed_default_tools  # noqa: F401
-from zrb.llm.capabilities.hook.agent_hook_registry import register_agent_hook_builder
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
-from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig
-from zrb.llm.contracts.shared.delegation_api import registered_sub_agent_manager
-from zrb.llm.contracts.shared.tool_registry import tool_registry
-from zrb.llm.contracts.shared.tool_resolver import resolve_tools_by_name, resolved_tool_name
 
 
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:

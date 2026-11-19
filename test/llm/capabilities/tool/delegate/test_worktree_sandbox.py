@@ -11,7 +11,11 @@ import pytest
 from zrb.llm.capabilities.sandbox import SandboxPolicy
 from zrb.llm.capabilities.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.capabilities.tool.delegate import worktree
-from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree, exit_worktree, list_worktrees
+from zrb.llm.capabilities.tool.delegate.worktree import (
+    enter_worktree,
+    exit_worktree,
+    list_worktrees,
+)
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:

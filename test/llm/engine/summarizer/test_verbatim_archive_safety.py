@@ -349,7 +349,8 @@ def test_the_append_waits_the_configured_lock_timeout(tmp_path, monkeypatch):
     path = verbatim_archive_path("timed", str(tmp_path))
 
     with patch(
-        "zrb.llm.engine.summarizer.verbatim_archive.hold_file_lock", wraps=hold_file_lock
+        "zrb.llm.engine.summarizer.verbatim_archive.hold_file_lock",
+        wraps=hold_file_lock,
     ) as lock:
         archive_verbatim_history(_messages(), path=path)
 

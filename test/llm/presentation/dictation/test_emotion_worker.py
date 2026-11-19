@@ -36,7 +36,9 @@ async def test_out_of_process_classifies_through_a_worker(monkeypatch):
             self.closed = True
             self.is_started = False
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", FakeWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", FakeWorker
+    )
     detector = EmotionDetector("me/e2v", out_of_process=True)
 
     assert await detector.hear(b"\x00\x10" * 160) == Tone("happy", 0.9)
@@ -88,7 +90,9 @@ async def test_a_worker_whose_child_died_is_started_again_beside_the_turn(
             self.closed = True
             self.is_started = False
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", DyingWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", DyingWorker
+    )
     detector = EmotionDetector("me/e2v", out_of_process=True)
     clip = b"\x00\x10" * 160
 
@@ -132,7 +136,9 @@ async def test_a_detector_gives_up_after_the_deaths_it_is_allowed(monkeypatch):
         def close(self):
             self.is_started = False
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", DoomedWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", DoomedWorker
+    )
     detector = EmotionDetector("me/e2v", out_of_process=True)
 
     assert (
@@ -172,7 +178,9 @@ async def test_a_child_killed_while_loading_is_started_again(monkeypatch):
         def close(self):
             self.is_started = False
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", KilledOnceWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", KilledOnceWorker
+    )
     detector = EmotionDetector("me/e2v", out_of_process=True)
     clip = b"\x00\x10" * 160
 
@@ -227,7 +235,9 @@ async def test_a_session_ending_mid_load_closes_the_worker_it_made(monkeypatch):
             self.closed = True
             self.is_started = False
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", LoadingWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", LoadingWorker
+    )
     detector = EmotionDetector("me/e2v", out_of_process=True)
     prepare = asyncio.create_task(detector.prepare(lambda message: None))
     assert await asyncio.to_thread(started.wait, 5)
@@ -256,7 +266,9 @@ async def test_a_worker_that_cannot_start_costs_only_the_tone(monkeypatch, caplo
         def close(self):
             self.closed = True
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.emotion.EmotionWorker", DeadWorker)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.emotion.EmotionWorker", DeadWorker
+    )
     detector = EmotionDetector(out_of_process=True)
 
     assert await detector.hear(b"\x00\x00") is None

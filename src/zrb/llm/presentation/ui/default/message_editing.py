@@ -19,7 +19,9 @@ from zrb.util.cli.style import stylize_warning
 if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
 
-    from zrb.llm.presentation.ui.default.previous_message_history import PreviousMessageHistory
+    from zrb.llm.presentation.ui.default.previous_message_history import (
+        PreviousMessageHistory,
+    )
     from zrb.llm.presentation.ui.default.ui import UI
 
 

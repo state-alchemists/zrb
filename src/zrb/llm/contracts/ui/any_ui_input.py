@@ -6,9 +6,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import UserContent
     from zrb.llm.contracts.shared.input_source import InputProvenance
     from zrb.llm.contracts.util.delivery_report import DeliveryReport
+    from zrb.llm.engine.agent.types import UserContent
 
 
 class AnyUIInput(ABC):

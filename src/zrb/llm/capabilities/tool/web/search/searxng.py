@@ -3,7 +3,10 @@ import subprocess
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.tool.web.search.http_errors import BROWSER_USER_AGENT, SearchToolError
+from zrb.llm.capabilities.tool.web.search.http_errors import (
+    BROWSER_USER_AGENT,
+    SearchToolError,
+)
 
 
 def is_docker_installed() -> bool:

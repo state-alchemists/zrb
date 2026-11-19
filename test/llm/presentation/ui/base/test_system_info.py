@@ -7,7 +7,10 @@ import subprocess
 
 import pytest
 
-from zrb.llm.presentation.ui.base.system_info import BaseUISystemInfo, communicate_or_reap
+from zrb.llm.presentation.ui.base.system_info import (
+    BaseUISystemInfo,
+    communicate_or_reap,
+)
 
 
 class FakeBaseUI:
@@ -144,7 +147,8 @@ async def test_get_git_info_swallows_spawn_failure(ui, monkeypatch):
         raise OSError("git not found")
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.ui.base.system_info.asyncio.create_subprocess_exec", broken_exec
+        "zrb.llm.presentation.ui.base.system_info.asyncio.create_subprocess_exec",
+        broken_exec,
     )
     branch, status = await ui.system_info.get_git_info()
     assert (branch, status) == ("", "")

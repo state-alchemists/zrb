@@ -9,7 +9,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.presentation.screenshot.backend import SCREENSHOT_TOOLS, ScreenshotToolBackend
+from zrb.llm.presentation.screenshot.backend import (
+    SCREENSHOT_TOOLS,
+    ScreenshotToolBackend,
+)
 
 
 class _FakeProcess:

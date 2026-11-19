@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.run.hook_result_extractor import extract_additional_context
 from zrb.llm.capabilities.hook.builtin.memory_recall import (
     RECALL_LIMIT,
     build_recall_hook_config,
@@ -21,10 +20,14 @@ from zrb.llm.capabilities.hook.builtin.memory_recall import (
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager.manager import HookManager
+from zrb.llm.capabilities.prompt.memory_context import (
+    render_memory_block,
+    shown_claim_ids,
+)
 from zrb.llm.contracts.memory import paths, store
 from zrb.llm.contracts.memory.model import Fact
 from zrb.llm.contracts.memory.search import RESULT_CONTRACT
-from zrb.llm.capabilities.prompt.memory_context import render_memory_block, shown_claim_ids
+from zrb.llm.engine.agent.run.hook_result_extractor import extract_additional_context
 
 
 @pytest.fixture

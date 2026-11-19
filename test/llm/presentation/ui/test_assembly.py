@@ -28,7 +28,9 @@ def terminal_backend(monkeypatch):
             built.append(self)
 
     monkeypatch.setattr("zrb.llm.presentation.ui.default.ui.UI", _FakeUI)
-    monkeypatch.setattr("zrb.llm.presentation.ui.default.app.lexer.CLIStyleLexer", MagicMock)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.ui.default.app.lexer.CLIStyleLexer", MagicMock
+    )
     return built
 
 
@@ -59,7 +61,8 @@ def test_several_uis_are_combined_into_one_multi_ui(monkeypatch, wired_channels)
     first, second = _ui(), _ui()
     channel = MagicMock()
     monkeypatch.setattr(
-        "zrb.llm.capabilities.approval.resolve_approval_channel", lambda channels: channel
+        "zrb.llm.capabilities.approval.resolve_approval_channel",
+        lambda channels: channel,
     )
 
     assembled = assemble_ui(

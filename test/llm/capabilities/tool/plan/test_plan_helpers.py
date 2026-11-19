@@ -2,16 +2,16 @@
 
 import pytest
 
-from zrb.llm.contracts.shared.ambient_state import (
-    get_current_context_session,
-    set_current_session,
-)
 from zrb.llm.capabilities.tool.plan import (
     TodoManager,
     create_plan_tools,
     get_todos,
     todo_manager,
     write_todos,
+)
+from zrb.llm.contracts.shared.ambient_state import (
+    get_current_context_session,
+    set_current_session,
 )
 
 

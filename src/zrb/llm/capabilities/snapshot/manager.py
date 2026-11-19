@@ -46,7 +46,10 @@ from zrb.llm.capabilities.snapshot.command import (
     get_worker_cancel,
     run_in_worker,
 )
-from zrb.llm.capabilities.snapshot.listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
+from zrb.llm.capabilities.snapshot.listing import (
+    DEFAULT_IGNORE_DIRS,
+    SnapshotBudgetError,
+)
 from zrb.llm.capabilities.snapshot.store import Snapshot as StoreSnapshot
 from zrb.llm.capabilities.snapshot.store import SnapshotStore, is_repository, plain_path
 from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock

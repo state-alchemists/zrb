@@ -13,8 +13,8 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import FunctionModel
 
-from zrb.llm.presentation.emotion.reply import ReplyEmotion
 from zrb.llm.contracts.shared.ambient_state import current_reply_emotion
+from zrb.llm.presentation.emotion.reply import ReplyEmotion
 
 
 def _model(*chunks: str) -> FunctionModel:

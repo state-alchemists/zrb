@@ -20,8 +20,8 @@ from zrb.llm.capabilities.tool_call.handler import (
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
 

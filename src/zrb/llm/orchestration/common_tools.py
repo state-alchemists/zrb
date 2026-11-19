@@ -23,18 +23,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-# Importing the seed is what gives `tool_registry` its built-in content, so a
-# host built here resolves the same set an agent hook does.
-from zrb.llm.engine.agent import tool_seed  # noqa: F401
-from zrb.llm.contracts.shared.tool_registry import (  # noqa: F401 -- re-exported
-    tool_name,
-    tool_registry,
-)
 from zrb.llm.capabilities.tool_call.always_approve import (
     register_default_auto_approve,
     register_default_auto_approve_if,
 )
-from zrb.llm.capabilities.tool_call.tool_policy.bash_validation import bash_safe_command_policy
+from zrb.llm.capabilities.tool_call.tool_policy.bash_validation import (
+    bash_safe_command_policy,
+)
+from zrb.llm.contracts.shared.tool_registry import (  # noqa: F401 -- re-exported
+    tool_name,
+    tool_registry,
+)
+
+# Importing the seed is what gives `tool_registry` its built-in content, so a
+# host built here resolves the same set an agent hook does.
+from zrb.llm.engine.agent import tool_seed  # noqa: F401
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext

@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
-from zrb.llm.engine.summarizer.chunk_processor import chunk_and_summarize
 from zrb.llm.contracts.util.capabilities import model_capabilities
+from zrb.llm.engine.summarizer.chunk_processor import chunk_and_summarize
 
 
 class _Limiter:

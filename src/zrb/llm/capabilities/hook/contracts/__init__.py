@@ -7,7 +7,11 @@ it answers with. Nothing here runs a hook or reads a file — this package is th
 contract the rest of `hook/` is written against, and it imports nothing from it.
 """
 
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.capabilities.hook.contracts.schema import (
     AgentHookConfig,
     CommandHookConfig,
@@ -15,7 +19,11 @@ from zrb.llm.capabilities.hook.contracts.schema import (
     MatcherConfig,
     PromptHookConfig,
 )
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
 
 __all__ = [
     "HookEvent",

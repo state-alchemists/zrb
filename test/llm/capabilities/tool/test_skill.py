@@ -54,7 +54,9 @@ class TestCreateActivateSkillTool:
         """Test tool uses default_skill_manager if none provided."""
         from zrb.llm.capabilities.tool.skill import create_activate_skill_tool
 
-        with patch("zrb.llm.capabilities.tool.skill.default_skill_manager") as mock_default_manager:
+        with patch(
+            "zrb.llm.capabilities.tool.skill.default_skill_manager"
+        ) as mock_default_manager:
             mock_skill = MagicMock()
             mock_skill.model_invocable = True
             mock_skill.companion_files = []
@@ -326,7 +328,9 @@ class TestSearchSkillTool:
     def test_default_manager_is_used_when_none_passed(self):
         from zrb.llm.capabilities.tool.skill import create_search_skill_tool
 
-        with patch("zrb.llm.capabilities.tool.skill.default_skill_manager") as mock_default:
+        with patch(
+            "zrb.llm.capabilities.tool.skill.default_skill_manager"
+        ) as mock_default:
             mock_default.get_skills.return_value = []
             tool = create_search_skill_tool()
             assert tool.__name__ == "SearchSkill"

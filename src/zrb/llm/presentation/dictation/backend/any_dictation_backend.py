@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.llm.presentation.dictation.backend.any_transcription_stream import AnyTranscriptionStream
+from zrb.llm.presentation.dictation.backend.any_transcription_stream import (
+    AnyTranscriptionStream,
+)
 
 if TYPE_CHECKING:
     import asyncio

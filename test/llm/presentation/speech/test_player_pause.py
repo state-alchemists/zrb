@@ -5,7 +5,12 @@ import time
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 
 
 class RecordingUtterance(Utterance):

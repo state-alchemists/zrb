@@ -5,8 +5,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.presentation.ui.base.ui import BaseUI
 
 if TYPE_CHECKING:

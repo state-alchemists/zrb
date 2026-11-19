@@ -19,11 +19,11 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.contracts.config.limiter import LLMLimiter
     from zrb.llm.capabilities.hook.manager import HookManager
     from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
+    from zrb.llm.contracts.config.limiter import LLMLimiter
+    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
     AnyToolConfirmation: TypeAlias = (

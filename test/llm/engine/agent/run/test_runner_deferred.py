@@ -3,11 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):
@@ -152,7 +152,8 @@ async def test_run_agent_deferred_requests():
 
     # Mock tool resolution - return proper DeferredToolResults object
     with patch(
-        "zrb.llm.engine.agent.run.runner.process_deferred_requests", new_callable=AsyncMock
+        "zrb.llm.engine.agent.run.runner.process_deferred_requests",
+        new_callable=AsyncMock,
     ) as mock_process:
         mock_deferred_results = MagicMock(spec=DeferredToolResults)
         mock_deferred_results.approvals = {}  # Empty approvals (all tools approved)
@@ -238,7 +239,8 @@ async def test_stop_event_wrote_files_true_after_deferred_tool_approval():
     agent.run = _run_from(_gen)
 
     with patch(
-        "zrb.llm.engine.agent.run.runner.process_deferred_requests", new_callable=AsyncMock
+        "zrb.llm.engine.agent.run.runner.process_deferred_requests",
+        new_callable=AsyncMock,
     ) as mock_process:
         mock_deferred_results = MagicMock(spec=DeferredToolResults)
         mock_deferred_results.approvals = {"1": "approved"}

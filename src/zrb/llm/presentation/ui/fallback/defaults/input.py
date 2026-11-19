@@ -14,9 +14,9 @@ from typing import TYPE_CHECKING, cast
 from zrb.llm.contracts.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import UserContent
     from zrb.llm.contracts.shared.input_source import InputProvenance
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+    from zrb.llm.engine.agent.types import UserContent
 
 
 class UIInputDefaults:

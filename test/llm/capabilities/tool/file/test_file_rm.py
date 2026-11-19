@@ -106,7 +106,10 @@ def test_remove_file_propagates_os_remove_error(temp_dir):
     path = os.path.join(temp_dir, "plain.txt")
     open(path, "w").close()
     list_files(temp_dir)
-    with patch("zrb.llm.capabilities.tool.file.rm.os.remove", side_effect=PermissionError("denied")):
+    with patch(
+        "zrb.llm.capabilities.tool.file.rm.os.remove",
+        side_effect=PermissionError("denied"),
+    ):
         result = remove_file(path)
     assert "Error removing" in result
     assert "denied" in result
@@ -133,7 +136,10 @@ def test_remove_directory_denied_is_not_reported_as_non_empty(temp_dir):
     d = os.path.join(temp_dir, "locked")
     os.mkdir(d)
     list_files(d)
-    with patch("zrb.llm.capabilities.tool.file.rm.os.rmdir", side_effect=PermissionError("denied")):
+    with patch(
+        "zrb.llm.capabilities.tool.file.rm.os.rmdir",
+        side_effect=PermissionError("denied"),
+    ):
         result = remove_file(d)
     assert "Error removing directory" in result
     assert "denied" in result

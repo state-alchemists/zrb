@@ -12,7 +12,10 @@ import pytest
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.engine.summarizer.verbatim_archive import archive_lock_path, verbatim_archive_path
+from zrb.llm.engine.summarizer.verbatim_archive import (
+    archive_lock_path,
+    verbatim_archive_path,
+)
 
 OLD = 40 * 24 * 60 * 60
 

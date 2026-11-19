@@ -99,7 +99,8 @@ async def test_analyze_file_refuses_an_image_a_text_only_model_gets_described(
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
     monkeypatch.setattr(
-        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment", describe
+        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment",
+        describe,
     )
     image = tmp_path / "shot.png"
     Image.new("RGB", (4, 4), "red").save(image)

@@ -329,7 +329,9 @@ def _tool_call(tool, args=None):
 
 
 def test_a_tool_call_after_a_silence_is_announced_with_progress(monkeypatch):
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False
+    )
     session = _session(events=["progress"], progress_interval=5)
 
     session.handle_stream_event(_tool_call("Shell"))
@@ -340,7 +342,9 @@ def test_a_tool_call_after_a_silence_is_announced_with_progress(monkeypatch):
 def test_the_call_s_own_purpose_is_what_is_announced(monkeypatch):
     """The narration reaches the speaker as the model wrote the purpose, not
     as the Shell phrase it stands in for."""
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False
+    )
     session = _session(events=["progress"], progress_interval=5)
 
     session.handle_stream_event(
@@ -354,7 +358,9 @@ def test_the_call_s_own_purpose_is_what_is_announced(monkeypatch):
 async def test_a_progress_announcement_is_dropped_when_turn_stops_without_result(
     monkeypatch,
 ):
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False
+    )
     session = _session(stream=True, events=["reply", "progress"], progress_interval=5)
 
     session.handle_stream_event(_tool_call("Shell"))
@@ -368,7 +374,9 @@ async def test_a_progress_announcement_is_dropped_when_turn_stops_without_result
 
 
 def test_a_tool_call_right_after_its_spoken_intro_is_not_announced(monkeypatch):
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: False
+    )
     session = _session(stream=True, events=["reply", "progress"], progress_interval=5)
 
     session.handle_stream_event(_text_start("<spoken>Let me run the tests.</spoken>"))
@@ -379,7 +387,9 @@ def test_a_tool_call_right_after_its_spoken_intro_is_not_announced(monkeypatch):
 
 
 def test_nothing_is_announced_while_speech_is_playing(monkeypatch):
-    monkeypatch.setattr("zrb.llm.presentation.speech.feature.is_speaking", lambda lock: True)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.feature.is_speaking", lambda lock: True
+    )
     session = _session(events=["progress"], progress_interval=5)
 
     session.handle_stream_event(_tool_call("Shell"))

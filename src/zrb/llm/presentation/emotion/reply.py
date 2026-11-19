@@ -31,14 +31,14 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import ModelRequestContext
 
+from zrb.llm.contracts.shared.ambient_state import current_reply_emotion
+from zrb.llm.contracts.util.spoken import OPEN_TAG, partial_marker
 from zrb.llm.presentation.emotion.label import (
     OPENING_MARKERS,
     get_leading_emotion,
     leading_emoji_index,
     opening_tag_index,
 )
-from zrb.llm.contracts.shared.ambient_state import current_reply_emotion
-from zrb.llm.contracts.util.spoken import OPEN_TAG, partial_marker
 
 
 class ReplyEmotion(AbstractCapability[None]):

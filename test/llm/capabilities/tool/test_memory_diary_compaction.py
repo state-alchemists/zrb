@@ -11,9 +11,9 @@ rewrite that starts past it may not land past it.
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.tool.memory import remember
 from zrb.llm.contracts.memory import store
 from zrb.llm.contracts.memory.model import digest_body
-from zrb.llm.capabilities.tool.memory import remember
 
 _CAP = 1_000
 _COMPACT_AT = 600

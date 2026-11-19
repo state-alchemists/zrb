@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 def test_sub_agent_manager_add_tool():
@@ -21,7 +24,9 @@ def test_sub_agent_manager_add_tool():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert my_tool in resolved_tools
@@ -101,7 +106,9 @@ def test_sub_agent_manager_filter_delegate_tools():
     manager.add_agent(agent_def)
 
     # 4. Create the agent and check tools
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         mock_create_agent.assert_called_once()
         call_kwargs = mock_create_agent.call_args.kwargs
@@ -136,7 +143,9 @@ def test_sub_agent_manager_maps_bash_tool_to_shell():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("claude-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert shell_tool in resolved_tools
@@ -163,7 +172,9 @@ def test_sub_agent_manager_maps_bash_disallowed_tool_to_shell():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("claude-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert shell_tool not in resolved_tools
@@ -189,7 +200,9 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert delegate_tool not in resolved_tools

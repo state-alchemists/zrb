@@ -5,10 +5,10 @@ import asyncio
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.presentation.dictation.feature import BADGE_KEY, DictationSession
 from zrb.llm.presentation.dictation.listen import MicState, Utterance
-from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.presentation.ui.trigger import TriggerReply
 
 
@@ -76,7 +76,9 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
             yield Utterance(text.encode(), started_at, ended_at)
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     return heard
 
 
@@ -92,7 +94,9 @@ async def _trigger_replies(session: DictationSession, count: int) -> list[Trigge
 
 
 def test_hands_free_command_switches_the_mode(monkeypatch):
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     session = _session(hands_free_commands=["/handsfree"])
     (command,) = [c for c in session.create_commands() if c.command == "/handsfree"]
 
@@ -328,7 +332,9 @@ async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
         yield  # pragma: no cover
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     session = _session(hands_free_commands=["/handsfree"])
     ui = FakeUI()
     session.toggle_hands_free({}, ui)
@@ -429,7 +435,9 @@ async def test_hands_free_says_what_an_utterance_came_to(monkeypatch, session_ui
 
 
 def test_switching_hands_free_off_clears_the_badge(monkeypatch, session_ui):
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     session = _session(hands_free_commands=["/handsfree"])
     (command,) = [c for c in session.create_commands() if c.command == "/handsfree"]
 

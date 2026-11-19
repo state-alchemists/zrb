@@ -215,9 +215,9 @@ def test_every_host_answers_every_member_of_the_role_it_hands_out():
     to the type checker, missing at the call. Same shape three times, so it is
     checked here once: every host, every accessor, every abstract member.
     """
-    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
     from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
+    from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
     from zrb.llm.presentation.ui.any_ui_session import AnyUISession
     from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 

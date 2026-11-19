@@ -5,10 +5,10 @@ import asyncio
 
 import pytest
 
+from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.presentation.dictation.feature import DictationSession
 from zrb.llm.presentation.dictation.listen import Utterance
-from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):
@@ -66,7 +66,9 @@ def speech(monkeypatch):
             f"zrb.llm.presentation.dictation.feature.{name}_speech",
             lambda key, name=name: events.append(name),
         )
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     fake = FakeUI()
     set_session_ui(fake)
     yield events
@@ -83,7 +85,8 @@ def judge(monkeypatch):
         return None
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", could_not_answer
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in",
+        could_not_answer,
     )
 
 

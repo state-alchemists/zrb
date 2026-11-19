@@ -1,8 +1,8 @@
 """Tests for the two history-transition methods on ``TurnCursor``."""
 
+from zrb.llm.contracts.shared.usage_log import ContextComposition
 from zrb.llm.engine.agent.run.history_utils import TurnPruneFloor
 from zrb.llm.engine.agent.run.turn_cursor import TurnCursor
-from zrb.llm.contracts.shared.usage_log import ContextComposition
 
 
 def test_begin_round_sets_history_and_baseline():

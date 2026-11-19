@@ -182,7 +182,10 @@ def test_a_resolution_error_outside_a_project_is_dropped(tmp_path):
         return_value={
             "found": True,
             "diagnostics": [
-                {"line": 1, "message": 'Import "zrb.llm.capabilities.tool" could not be resolved'}
+                {
+                    "line": 1,
+                    "message": 'Import "zrb.llm.capabilities.tool" could not be resolved',
+                }
             ],
         }
     )
@@ -270,7 +273,10 @@ def test_import_inside_a_project_surfaces_the_lsp_verdict(project_dir):
         return_value={
             "found": True,
             "diagnostics": [
-                {"line": 1, "message": 'Import "zrb.llm.capabilities.tool" could not be resolved'}
+                {
+                    "line": 1,
+                    "message": 'Import "zrb.llm.capabilities.tool" could not be resolved',
+                }
             ],
         }
     )

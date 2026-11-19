@@ -237,7 +237,9 @@ class TestHookManagerHookTypes:
             )
         )
 
-        with patch("zrb.llm.capabilities.hook.manager.loading.AgentHookConfig") as agent_config:
+        with patch(
+            "zrb.llm.capabilities.hook.manager.loading.AgentHookConfig"
+        ) as agent_config:
             manager.scan(search_dirs=[str(tmp_path)])
 
         assert agent_config.call_args.kwargs["auto_approve"] is True

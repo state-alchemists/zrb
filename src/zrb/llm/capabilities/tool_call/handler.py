@@ -11,14 +11,18 @@ from zrb.llm.capabilities.tool_call.middleware import (
     ResponseHandler,
     ToolPolicy,
 )
-from zrb.llm.contracts.util.tool_args import parse_tool_args_value, read_purpose, without_purpose
+from zrb.llm.contracts.util.tool_args import (
+    parse_tool_args_value,
+    read_purpose,
+    without_purpose,
+)
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.truncate import truncate_chars, truncate_display
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolApproved, ToolCallPart, ToolDenied
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
 # payload (e.g. a whole screen buffer) can never enter the conversation

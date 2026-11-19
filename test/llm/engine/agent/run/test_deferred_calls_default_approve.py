@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.engine.agent.run.deferred_calls import process_deferred_requests
-from zrb.llm.engine.agent.run.hook_result_extractor import PreToolDecision
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.permission import ASK
+from zrb.llm.engine.agent.run.deferred_calls import process_deferred_requests
+from zrb.llm.engine.agent.run.hook_result_extractor import PreToolDecision
 from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
@@ -61,7 +61,9 @@ async def _approval(call, policy=None, pre_tool=None):
     result_output.calls = [call]
     result_output.approvals = []
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=policy),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
         patch(
             "zrb.llm.engine.agent.run.deferred_calls.extract_pre_tool_decision",

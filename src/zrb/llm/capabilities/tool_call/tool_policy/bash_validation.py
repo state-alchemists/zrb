@@ -10,8 +10,8 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 # Plain-substring check, so even quoted occurrences require approval. "&"
 # covers "&&"; "\n"/"\r" catch multi-command payloads; "<(" is process

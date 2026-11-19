@@ -7,13 +7,17 @@ from PIL import Image
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission.capability import Capability, tool_capability
-from zrb.llm.presentation.screenshot import AnyScreenshotBackend, ScreenshotConfig, enable_screenshot
+from zrb.llm.contracts.shared.agent_state import current_model
+from zrb.llm.presentation.screenshot import (
+    AnyScreenshotBackend,
+    ScreenshotConfig,
+    enable_screenshot,
+)
 from zrb.llm.presentation.screenshot.feature import (
     capture_screenshot,
     create_screenshot_commands,
     create_screenshot_tools,
 )
-from zrb.llm.contracts.shared.agent_state import current_model
 
 
 def _image(fmt: str, size=(64, 48)) -> bytes:
@@ -270,7 +274,8 @@ async def test_a_text_only_model_gets_the_screen_described(
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
     monkeypatch.setattr(
-        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment", describe
+        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment",
+        describe,
     )
 
     result = await _take_screenshot(FakeScreen(_image("JPEG")))()

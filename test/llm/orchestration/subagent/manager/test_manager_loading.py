@@ -2,7 +2,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 @pytest.fixture

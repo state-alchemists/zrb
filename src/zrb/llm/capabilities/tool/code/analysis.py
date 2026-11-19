@@ -7,16 +7,19 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
-from zrb.llm.contracts.config.limiter import get_run_llm_limiter
-from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
-from zrb.llm.contracts.shared.prompt_text import get_prompt
-from zrb.llm.capabilities.tool.code.constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
+from zrb.llm.capabilities.tool.code.constants import (
+    DEFAULT_EXTENSIONS,
+    LSP_SUPPORTED_EXTENSIONS,
+)
 from zrb.llm.capabilities.tool.file import DEFAULT_EXCLUDED_PATTERNS
 from zrb.llm.capabilities.tool.git_visible import git_visible_files
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.util.file import matches_any_pattern
 
 

@@ -82,7 +82,9 @@ async def test_a_hooks_usage_line_names_the_model_that_served_it():
     with (
         mock_config as mock_resolve_model,
         mock_module,
-        patch("zrb.llm.capabilities.hook.execution.creator.record_agent_usage") as record,
+        patch(
+            "zrb.llm.capabilities.hook.execution.creator.record_agent_usage"
+        ) as record,
     ):
         mock_resolve_model.return_value = "resolved"
         await hook(context)
@@ -170,7 +172,10 @@ async def test_a_hooks_run_is_marked_nested_while_it_runs():
     agent = MagicMock()
     agent.run = run
     with (
-        patch("zrb.llm.capabilities.hook.execution.creator.create_agent", return_value=agent),
+        patch(
+            "zrb.llm.capabilities.hook.execution.creator.create_agent",
+            return_value=agent,
+        ),
         patch(
             "zrb.llm.capabilities.hook.execution.creator.resolve_configured_model",
             return_value="resolved",
@@ -197,7 +202,10 @@ async def test_a_failed_hook_run_does_not_leave_the_mark_behind():
     agent = MagicMock()
     agent.run = run
     with (
-        patch("zrb.llm.capabilities.hook.execution.creator.create_agent", return_value=agent),
+        patch(
+            "zrb.llm.capabilities.hook.execution.creator.create_agent",
+            return_value=agent,
+        ),
         patch(
             "zrb.llm.capabilities.hook.execution.creator.resolve_configured_model",
             return_value="resolved",

@@ -1,12 +1,12 @@
 """Tests for turn-end (STOP) hook extension semantics."""
 
+from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 from zrb.llm.engine.agent.run.session_extension import (
     STOP_HOOK_BLOCK_CAP,
     STOP_HOOK_SYSTEM_MESSAGE_CAP,
     ExtensionState,
     apply_turn_end_extension,
 )
-from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 
 
 def _noop(msg):

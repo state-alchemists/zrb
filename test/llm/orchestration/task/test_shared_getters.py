@@ -16,7 +16,8 @@ def _tool_def(name: str) -> MagicMock:
 
 def _with_policy(policy: PermissionPolicy):
     return patch(
-        "zrb.llm.orchestration.task.shared_getters.get_effective_policy", return_value=policy
+        "zrb.llm.orchestration.task.shared_getters.get_effective_policy",
+        return_value=policy,
     )
 
 

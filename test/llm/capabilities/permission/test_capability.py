@@ -1,6 +1,11 @@
 """Tests for capability tagging and resolution."""
 
-from zrb.llm.capabilities.permission import Capability, capability_metadata, tag, tool_capability
+from zrb.llm.capabilities.permission import (
+    Capability,
+    capability_metadata,
+    tag,
+    tool_capability,
+)
 
 
 def test_untagged_is_unknown():

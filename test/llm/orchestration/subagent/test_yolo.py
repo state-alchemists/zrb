@@ -6,14 +6,18 @@ from zrb.llm.orchestration.subagent.yolo import make_yolo_inheritance_checker
 
 
 def test_yolo_inheritance_current_yolo_true():
-    with patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True):
+    with patch(
+        "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True
+    ):
         checker = make_yolo_inheritance_checker()
         assert checker() is True
 
 
 def test_yolo_inheritance_via_ui_yolo():
     with (
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
         patch("zrb.llm.contracts.shared.agent_state.get_current_ui") as mock_get_ui,
     ):
 
@@ -28,7 +32,9 @@ def test_yolo_inheritance_via_ui_yolo():
 
 def test_yolo_inheritance_via_ui_yolo_false():
     with (
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
         patch("zrb.llm.contracts.shared.agent_state.get_current_ui") as mock_get_ui,
     ):
 
@@ -43,7 +49,9 @@ def test_yolo_inheritance_via_ui_yolo_false():
 
 def test_yolo_inheritance_default_false():
     with (
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
         patch("zrb.llm.contracts.shared.agent_state.get_current_ui", return_value=None),
     ):
 
@@ -53,7 +61,9 @@ def test_yolo_inheritance_default_false():
 
 def test_yolo_inheritance_ui_exception():
     with (
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=False
+        ),
         patch(
             "zrb.llm.contracts.shared.agent_state.get_current_ui",
             side_effect=Exception("error"),

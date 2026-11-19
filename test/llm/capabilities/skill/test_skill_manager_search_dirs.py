@@ -199,7 +199,10 @@ def test_an_absolute_config_root_is_scanned_as_a_user_tier(tmp_path, tmp_path_fa
             LLM_SEARCH_HOME_ENABLED=True,
             LLM_CONFIG_DIR_NAMES=[str(config_root)],
         )
-        with patch("zrb.llm.capabilities.skill.manager.Path.home", return_value=tmp_path / "home"):
+        with patch(
+            "zrb.llm.capabilities.skill.manager.Path.home",
+            return_value=tmp_path / "home",
+        ):
             skills = {skill.name: skill for skill in manager.scan()}
     assert skills["pdf"].description == "from the config dir"
 
@@ -219,7 +222,10 @@ def test_an_absolute_config_root_does_not_outrank_a_project_skill(
             LLM_SEARCH_PROJECT_ENABLED=True,
             LLM_CONFIG_DIR_NAMES=[".claude", str(config_root)],
         )
-        with patch("zrb.llm.capabilities.skill.manager.Path.home", return_value=tmp_path / "home"):
+        with patch(
+            "zrb.llm.capabilities.skill.manager.Path.home",
+            return_value=tmp_path / "home",
+        ):
             skills = {skill.name: skill for skill in manager.scan()}
     assert skills["pdf"].description == "mine"
 
@@ -237,6 +243,9 @@ def test_an_absolute_config_root_appears_once_in_the_search_path(
             LLM_SEARCH_PROJECT_ENABLED=True,
             LLM_CONFIG_DIR_NAMES=[str(config_root)],
         )
-        with patch("zrb.llm.capabilities.skill.manager.Path.home", return_value=tmp_path / "home"):
+        with patch(
+            "zrb.llm.capabilities.skill.manager.Path.home",
+            return_value=tmp_path / "home",
+        ):
             dirs = [Path(str(d)).as_posix() for d in manager.search_dirs]
     assert dirs.count((config_root / "skills").as_posix()) == 1

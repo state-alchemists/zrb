@@ -4,7 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.engine.summarizer.history_summarizer import summarize_history, summarize_messages
+from zrb.llm.engine.summarizer.history_summarizer import (
+    summarize_history,
+    summarize_messages,
+)
 from zrb.llm.engine.summarizer.text_summarizer import (
     summarize_long_text,
     summarize_short_text,

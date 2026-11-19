@@ -110,7 +110,10 @@ async def test_continue_live_session_marks_done_after_drain(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -354,7 +357,10 @@ async def test_a_continuation_runs_as_a_nested_sub_agent_turn(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -389,7 +395,10 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -404,11 +413,11 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
     """A continuation runs outside the parent's run, so the tool policies and
     approval channel its first turn inherited must travel with the captured
     authority — otherwise its tool calls skip the parent's policies."""
+    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.llm.contracts.shared.agent_state import (
         current_approval_channel,
         current_tool_confirmation,
     )
-    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 
     handler = ToolCallHandler()
@@ -431,7 +440,10 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task
@@ -446,11 +458,11 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
 ):
     """A delegation captured with no approval handler keeps none: `run_agent`
     reads a `None` argument as "inherit", so the captured value is bound."""
+    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.llm.contracts.shared.agent_state import (
         current_approval_channel,
         current_tool_confirmation,
     )
-    from zrb.llm.capabilities.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 
     entry = registry.add_session(
@@ -469,7 +481,10 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task

@@ -12,11 +12,14 @@ import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.contracts.shared.agent_activity import agent_activity_registry
-from zrb.llm.contracts.shared.output_chunk import CollapsibleBlockSource, merge_into_block
+from zrb.llm.contracts.shared.output_chunk import (
+    CollapsibleBlockSource,
+    merge_into_block,
+)
 from zrb.llm.contracts.shared.tracked_spans import TrackedSpans
+from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.presentation.ui.any_ui import AnyUI
 from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
-from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 

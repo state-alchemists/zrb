@@ -13,10 +13,10 @@ import pytest
 from pydantic_ai import Tool, ToolApproved, ToolCallPart, ToolDenied
 from pydantic_ai.models.test import TestModel
 
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.engine.agent.common import create_agent
 from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 
 
 def _weather_tool(record: list[str]):

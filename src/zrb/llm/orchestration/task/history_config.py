@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from zrb.attr.type import StrAttr
-    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import (
+        AnyHistoryManager,
+    )
 
 
 @dataclass(frozen=True)

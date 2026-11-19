@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
 from zrb.llm.presentation.dictation.backend.google import GoogleDictationBackend
 from zrb.llm.presentation.dictation.backend.multimodal import MultimodalDictationBackend
 from zrb.llm.presentation.dictation.backend.openai import OpenAIDictationBackend
-from zrb.llm.presentation.dictation.backend.pipecat.backend import PipecatDictationBackend
+from zrb.llm.presentation.dictation.backend.pipecat.backend import (
+    PipecatDictationBackend,
+)
 from zrb.llm.presentation.dictation.backend.sensevoice import SenseVoiceDictationBackend
 from zrb.llm.presentation.dictation.backend.vosk import VoskDictationBackend
 from zrb.llm.presentation.voice.registry import stt_registry

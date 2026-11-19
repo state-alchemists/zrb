@@ -10,12 +10,12 @@ import logging
 
 import pytest
 
-from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
-from zrb.llm.contracts.config.limiter import llm_limiter
 from zrb.llm.capabilities.skill import reattach
 from zrb.llm.capabilities.skill.activation import build_activation_block
 from zrb.llm.capabilities.skill.manager import Skill, skill_manager
 from zrb.llm.capabilities.skill.reattach import build_reattach_message
+from zrb.llm.contracts.config.limiter import llm_limiter
+from zrb.llm.engine.agent.types import ModelRequest, UserPromptPart
 
 
 def _block(name: str, body: str = "Follow the procedure.") -> str:
@@ -211,8 +211,10 @@ def test_a_skill_activated_by_a_slash_command_is_still_reattached(tmp_path):
     """`get_skill_custom_command(manager)` is public too, and it builds the
     activation block straight from its manager. Registration cannot live in one
     factory: the other one is then the hole."""
-    from zrb.llm.orchestration.custom_command.skill_command_factory import get_skill_custom_command
     from zrb.llm.capabilities.skill.manager import SkillManager
+    from zrb.llm.orchestration.custom_command.skill_command_factory import (
+        get_skill_custom_command,
+    )
 
     manager = SkillManager(root_dir=str(tmp_path))
     manager.add_skill(

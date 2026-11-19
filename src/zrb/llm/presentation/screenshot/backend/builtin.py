@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
+from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import (
+    AnyScreenshotBackend,
+)
 from zrb.llm.presentation.screenshot.backend.auto import AutoScreenshotBackend
 from zrb.llm.presentation.screenshot.backend.pillow import PillowScreenshotBackend
-from zrb.llm.presentation.screenshot.backend.tool import SCREENSHOT_TOOLS, ScreenshotToolBackend
+from zrb.llm.presentation.screenshot.backend.tool import (
+    SCREENSHOT_TOOLS,
+    ScreenshotToolBackend,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.presentation.screenshot.config import ScreenshotConfig

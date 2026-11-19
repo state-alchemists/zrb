@@ -11,8 +11,8 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.contracts.shared.ambient_state import get_session_ownership_key
-from zrb.llm.presentation.ui.default.app.focus import focus_widget
 from zrb.llm.contracts.util.choice_spec_format import get_option_label
+from zrb.llm.presentation.ui.default.app.focus import focus_widget
 
 if TYPE_CHECKING:
     from zrb.llm.presentation.ui.default.ui import UI
@@ -225,7 +225,9 @@ class UIConfirmation:
         """Echo an answer into `agent_id`'s own buffered live view."""
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.live_session import (
+            live_subagent_session_registry,
+        )
 
         session_id = get_session_ownership_key(
             getattr(self._ui, "conversation_session_name", "")

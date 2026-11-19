@@ -22,6 +22,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RequestUsage, RunUsage
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.request_log import (
     REASON_FOLLOW_UP,
     REASON_OPENING,
@@ -31,10 +32,9 @@ from zrb.llm.contracts.shared.request_log import (
     record_requests,
     record_round_requests,
 )
+from zrb.llm.contracts.shared.usage_log import read_records
 from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.engine.agent.run.turn_cursor import TurnCursor
-from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.contracts.shared.usage_log import read_records
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)
 
@@ -46,7 +46,9 @@ def usage_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-def _round(prompt: str = "Hi", answer: str = "done", instructions: str | None = None) -> list:
+def _round(
+    prompt: str = "Hi", answer: str = "done", instructions: str | None = None
+) -> list:
     """One round that made two requests: a tool call, then the answer."""
     return [
         ModelRequest(parts=[UserPromptPart(content=prompt)], instructions=instructions),

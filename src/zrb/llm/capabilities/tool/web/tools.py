@@ -9,15 +9,15 @@ from urllib.parse import urljoin
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.limiter import get_run_llm_limiter
-from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
-from zrb.llm.contracts.shared.agent_state import get_current_ui
-from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.capabilities.tool.web.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.capabilities.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.shared.agent_runner import create_agent, run_agent
+from zrb.llm.contracts.shared.agent_state import get_current_ui
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.util.truncate import truncate_text
 
 # Slack added to every off-loop call's own timeout. Some primitives (C-level
@@ -148,13 +148,21 @@ async def search_internet(
     # lazy: tests patch `zrb.llm.capabilities.tool.web.search.<backend>.search_internet` at
     # the source path; hoisting would bind the names at load and bypass it.
     if backend == "serpapi":
-        from zrb.llm.capabilities.tool.web.search.serpapi import search_internet as backend_search
+        from zrb.llm.capabilities.tool.web.search.serpapi import (
+            search_internet as backend_search,
+        )
     elif backend == "brave":
-        from zrb.llm.capabilities.tool.web.search.brave import search_internet as backend_search
+        from zrb.llm.capabilities.tool.web.search.brave import (
+            search_internet as backend_search,
+        )
     elif backend == "searxng":
-        from zrb.llm.capabilities.tool.web.search.searxng import search_internet as backend_search
+        from zrb.llm.capabilities.tool.web.search.searxng import (
+            search_internet as backend_search,
+        )
     else:
-        from zrb.llm.capabilities.tool.web.search.google_rss import search_internet as backend_search
+        from zrb.llm.capabilities.tool.web.search.google_rss import (
+            search_internet as backend_search,
+        )
     # Every backend is a synchronous `requests.get`; inline, one stalled
     # connection would freeze the event loop for every sub-agent and the TUI.
     search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS

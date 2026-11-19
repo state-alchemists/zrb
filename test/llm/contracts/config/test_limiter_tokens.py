@@ -128,7 +128,9 @@ async def test_llm_limiter_fit_context_window():
 
     new_msg = "I am fine"
 
-    with patch("zrb.llm.contracts.config.limiter.is_turn_start", side_effect=[False, True]):
+    with patch(
+        "zrb.llm.contracts.config.limiter.is_turn_start", side_effect=[False, True]
+    ):
         pruned = limiter.fit_context_window(history, new_msg)
         assert len(pruned) < len(history)
 

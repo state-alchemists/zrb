@@ -2,10 +2,10 @@
 
 from unittest.mock import MagicMock
 
+from zrb.llm.capabilities.skill.manager import Skill, SkillManager
 from zrb.llm.orchestration.custom_command.skill_command_factory import (
     get_skill_custom_command,
 )
-from zrb.llm.capabilities.skill.manager import Skill, SkillManager
 
 
 class TestGetSkillCustomCommand:

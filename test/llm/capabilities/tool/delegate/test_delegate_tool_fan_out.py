@@ -3,11 +3,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.capabilities.tool.delegate.background import (
     create_get_delegation_result_tool,
     get_background_registry,
+)
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
 )
 
 _TASKS = [
@@ -68,7 +71,9 @@ async def test_delegate_fan_out_cap_disabled_by_zero(
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
-    with patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent):
+    with patch(
+        "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent
+    ):
         result = await tool(tasks=tasks)
 
     assert get_max_in_flight() == 5
@@ -95,7 +100,10 @@ async def test_background_fan_out_is_collected_as_completed(
             new_callable=AsyncMock,
             return_value=("ok", []),
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.get_current_ui", return_value=MagicMock()),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.get_current_ui",
+            return_value=MagicMock(),
+        ),
     ):
         msg = await tool(tasks=_TASKS, background=True)
         handle = msg.split("Handle:")[1].split(".")[0].strip()
@@ -180,7 +188,10 @@ async def test_delegate_active_worktree_without_context(mock_sub_agent_manager):
         patch(
             "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
-        patch("zrb.llm.capabilities.tool.delegate.runner.get_active_worktree", return_value="/wt"),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.get_active_worktree",
+            return_value="/wt",
+        ),
     ):
         mock_run_agent.return_value = ("ok", [])
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -237,9 +248,9 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 @pytest.mark.asyncio
 async def test_fire_subagent_hook_swallows_cancelled_error():
     """`fire_subagent_hook` must swallow `CancelledError` (a BaseException) too."""
-    from zrb.llm.engine.agent.run.runner import current_hook_manager
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.tool.delegate import fire_subagent_hook
+    from zrb.llm.engine.agent.run.runner import current_hook_manager
 
     cancelling_manager = MagicMock()
     cancelling_manager.execute_hooks = AsyncMock(side_effect=asyncio.CancelledError())
@@ -291,7 +302,8 @@ def test_create_delegate_tool_uses_default_manager():
     default.scan.return_value = []
 
     with patch(
-        "zrb.llm.capabilities.tool.delegate.runner.default_sub_agent_manager", return_value=default
+        "zrb.llm.capabilities.tool.delegate.runner.default_sub_agent_manager",
+        return_value=default,
     ):
         tool = create_delegate_to_agent_tool()
 
@@ -315,7 +327,10 @@ async def test_fan_out_does_not_flush_routine_output_to_main(mock_sub_agent_mana
             "zrb.llm.contracts.shared.subagent_turn.run_agent",
             side_effect=run_and_write_to_buffer,
         ),
-        patch("zrb.llm.capabilities.tool.delegate.runner.get_current_ui", return_value=parent_ui),
+        patch(
+            "zrb.llm.capabilities.tool.delegate.runner.get_current_ui",
+            return_value=parent_ui,
+        ),
     ):
         await tool(
             tasks=[

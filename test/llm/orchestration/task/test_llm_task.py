@@ -39,7 +39,9 @@ class TestLLMTaskExecution:
 
         # Act & Assert
         with (
-            patch("zrb.llm.orchestration.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.orchestration.task.llm_task.create_agent"
+            ) as mock_create_agent,
             patch(
                 "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
@@ -67,7 +69,9 @@ class TestLLMTaskExecution:
         task.append_toolset_factory(toolset_factory)
 
         with (
-            patch("zrb.llm.orchestration.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.orchestration.task.llm_task.create_agent"
+            ) as mock_create_agent,
             patch(
                 "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
@@ -132,7 +136,9 @@ class TestLLMTaskExecution:
         task = LLMTask(name="test-task", message="hello", model_getter=getter)
 
         with (
-            patch("zrb.llm.orchestration.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.orchestration.task.llm_task.create_agent"
+            ) as mock_create_agent,
             patch(
                 "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
@@ -162,7 +168,9 @@ class TestLLMTaskExecution:
         )
 
         with (
-            patch("zrb.llm.orchestration.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.orchestration.task.llm_task.create_agent"
+            ) as mock_create_agent,
             patch(
                 "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
@@ -209,7 +217,9 @@ class TestLLMTaskExecution:
         )
 
         with (
-            patch("zrb.llm.orchestration.task.llm_task.create_agent") as mock_create_agent,
+            patch(
+                "zrb.llm.orchestration.task.llm_task.create_agent"
+            ) as mock_create_agent,
             patch(
                 "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
@@ -228,7 +238,8 @@ class TestLLMTaskExecution:
 
         # Act & Assert
         with patch(
-            "zrb.llm.orchestration.task.llm_task.summarize_history", new_callable=AsyncMock
+            "zrb.llm.orchestration.task.llm_task.summarize_history",
+            new_callable=AsyncMock,
         ) as mock_summarize:
             mock_summarize.return_value = []
             result = await task.async_run(session)
@@ -295,7 +306,9 @@ async def test_compress_publishes_the_sessions_small_model(session):
         seen.append(get_current_small_model())
         return messages
 
-    with patch("zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize):
+    with patch(
+        "zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize
+    ):
         await task.async_run(session)
 
     assert seen == ["openai:session-small"]
@@ -317,7 +330,9 @@ async def test_compress_publishes_nothing_without_a_session_choice(session):
         seen.append(get_current_small_model())
         return messages
 
-    with patch("zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize):
+    with patch(
+        "zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize
+    ):
         await task.async_run(session)
 
     assert seen == [None]
@@ -339,7 +354,9 @@ async def test_compress_hides_the_stale_context_size(session):
     async def fake_summarize(messages, **kwargs):
         return messages
 
-    with patch("zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize):
+    with patch(
+        "zrb.llm.orchestration.task.llm_task.summarize_history", new=fake_summarize
+    ):
         await task.async_run(session)
 
     reset_context_usage.assert_called_once_with()

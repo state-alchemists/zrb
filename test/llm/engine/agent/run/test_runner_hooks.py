@@ -3,11 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):
@@ -205,7 +205,8 @@ async def test_a_precompact_hook_s_context_does_not_hide_a_dropped_message():
     with (
         patch.object(agent, "run") as mock_run,
         patch(
-            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles",
+            side_effect=lambda x: x,
         ),
     ):
         mock_run.side_effect = _run_from(_gen)
@@ -259,7 +260,8 @@ async def test_the_ninety_percent_fit_is_reported_as_a_compaction():
     with (
         patch.object(agent, "run") as mock_run,
         patch(
-            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles",
+            side_effect=lambda x: x,
         ),
     ):
         mock_run.side_effect = _run_from(_gen)
@@ -314,7 +316,8 @@ async def test_a_force_prune_is_reported_as_a_compaction():
     with (
         patch.object(agent, "run") as mock_run,
         patch(
-            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+            "zrb.llm.engine.agent.run.runner.ensure_alternating_roles",
+            side_effect=lambda x: x,
         ),
     ):
         mock_run.side_effect = _run_from(_gen)

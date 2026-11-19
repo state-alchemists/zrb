@@ -9,7 +9,11 @@ parses the three source formats — Claude-nested, zrb-flat and `.hook.py` — i
 """
 
 from zrb.llm.capabilities.hook.manager.loading import HookManagerLoading
-from zrb.llm.capabilities.hook.manager.manager import HookManager, get_run_hook_manager, hook_manager
+from zrb.llm.capabilities.hook.manager.manager import (
+    HookManager,
+    get_run_hook_manager,
+    hook_manager,
+)
 
 __all__ = [
     "HookManager",

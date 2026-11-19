@@ -15,7 +15,6 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.usage_log import (
     count_tool_calls,
@@ -23,6 +22,7 @@ from zrb.llm.contracts.shared.usage_log import (
     record_usage,
     usage_store_path,
 )
+from zrb.llm.engine.agent.run.runner import run_agent
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)
 

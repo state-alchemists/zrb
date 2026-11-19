@@ -5,7 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from zrb.llm.capabilities.tool_call.tool_policy.auto_approve import auto_approve
-from zrb.llm.capabilities.tool_call.tool_policy.bash_validation import bash_safe_command_policy
+from zrb.llm.capabilities.tool_call.tool_policy.bash_validation import (
+    bash_safe_command_policy,
+)
 
 
 def _call(tool_name, args):

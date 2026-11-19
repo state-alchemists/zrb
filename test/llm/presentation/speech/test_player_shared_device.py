@@ -12,7 +12,12 @@ import time
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.player import is_speaking, play
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 

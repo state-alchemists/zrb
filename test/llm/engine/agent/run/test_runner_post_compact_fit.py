@@ -7,11 +7,15 @@ import pytest
 from pydantic_ai import AgentRunResultEvent
 from pydantic_ai.messages import SystemPromptPart
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 CONTEXT = "ctx"
 
@@ -87,7 +91,8 @@ async def _turn(
     manager = HookManager(search_dirs=[])
     manager.add_hook(hook, events=[HookEvent.POST_COMPACT])
     with patch(
-        "zrb.llm.engine.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+        "zrb.llm.engine.agent.run.runner.ensure_alternating_roles",
+        side_effect=lambda x: x,
     ):
         await run_agent(
             agent=agent,

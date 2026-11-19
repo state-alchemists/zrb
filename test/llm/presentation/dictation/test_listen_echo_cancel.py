@@ -139,7 +139,8 @@ async def _collect_echo_cancelled(
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
         patch("zrb.llm.presentation.dictation.listen.is_speaking", return_value=False),
         patch(
-            "zrb.llm.presentation.dictation.microphone.get_unavailable_reason", return_value=reason
+            "zrb.llm.presentation.dictation.microphone.get_unavailable_reason",
+            return_value=reason,
         ),
         patch(
             "zrb.llm.presentation.dictation.microphone.EchoCancelledMicrophone",
@@ -232,7 +233,10 @@ async def test_record_with_a_config_records_through_echo_cancellation():
 
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
-        patch("zrb.llm.presentation.dictation.microphone.get_unavailable_reason", return_value=None),
+        patch(
+            "zrb.llm.presentation.dictation.microphone.get_unavailable_reason",
+            return_value=None,
+        ),
         patch(
             "zrb.llm.presentation.dictation.microphone.EchoCancelledMicrophone",
             _FakeEchoCancelledMicrophone,
@@ -259,7 +263,10 @@ def _patch_echo_cancel(captured):
     return (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
         patch("zrb.llm.presentation.dictation.listen.is_speaking", return_value=False),
-        patch("zrb.llm.presentation.dictation.microphone.get_unavailable_reason", return_value=None),
+        patch(
+            "zrb.llm.presentation.dictation.microphone.get_unavailable_reason",
+            return_value=None,
+        ),
         patch(
             "zrb.llm.presentation.dictation.microphone.EchoCancelledMicrophone",
             _FakeEchoCancelledMicrophone,

@@ -5,8 +5,12 @@ import pytest
 import requests
 
 from zrb.llm.capabilities.tool.web.search.brave import search_internet as brave_search
-from zrb.llm.capabilities.tool.web.search.searxng import search_internet as searxng_search
-from zrb.llm.capabilities.tool.web.search.serpapi import search_internet as serpapi_search
+from zrb.llm.capabilities.tool.web.search.searxng import (
+    search_internet as searxng_search,
+)
+from zrb.llm.capabilities.tool.web.search.serpapi import (
+    search_internet as serpapi_search,
+)
 
 
 @patch("requests.get")
@@ -42,7 +46,10 @@ def test_searxng_search_success(mock_get):
     assert result == {"results": []}
 
 
-@patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=False)
+@patch(
+    "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+    return_value=False,
+)
 @patch("requests.get")
 def test_searxng_search_connection_error(mock_get, mock_docker_installed):
     mock_get.side_effect = requests.exceptions.ConnectionError("Refused")
@@ -86,7 +93,10 @@ class TestSearxngSearch:
         assert "status code: 500" in str(excinfo.value)
         assert "upstream failure" in str(excinfo.value)
 
-    @patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=True)
+    @patch(
+        "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+        return_value=True,
+    )
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_with_docker(
@@ -102,7 +112,10 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Searxng appears to be not running" in str(excinfo.value)
 
-    @patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=False)
+    @patch(
+        "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+        return_value=False,
+    )
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -115,7 +128,10 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Docker is not installed" in str(excinfo.value)
 
-    @patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=True)
+    @patch(
+        "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+        return_value=True,
+    )
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_with_docker(self, mock_get, mock_cfg, mock_docker):
@@ -128,7 +144,10 @@ class TestSearxngSearch:
             searxng_search("query")
         assert "timed out" in str(excinfo.value)
 
-    @patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=False)
+    @patch(
+        "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+        return_value=False,
+    )
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -141,7 +160,10 @@ class TestSearxngSearch:
         assert "timed out" in str(excinfo.value)
         # Should not have suggestion since it's not localhost
 
-    @patch("zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed", return_value=True)
+    @patch(
+        "zrb.llm.capabilities.tool.web.search.searxng.is_docker_installed",
+        return_value=True,
+    )
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_remote_url_connection_error(self, mock_get, mock_cfg, mock_docker):

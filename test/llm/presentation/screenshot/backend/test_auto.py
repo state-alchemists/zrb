@@ -52,7 +52,9 @@ def platform(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.delenv("XDG_SESSION_TYPE", raising=False)
     monkeypatch.setattr("sys.platform", "linux")
-    monkeypatch.setattr("zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: False)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: False
+    )
     monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
     return monkeypatch
 
@@ -221,7 +223,9 @@ async def test_without_a_graphical_session_nothing_runs(platform):
 
 @pytest.mark.asyncio
 async def test_termux_cannot_capture_and_says_so(platform):
-    platform.setattr("zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: True)
+    platform.setattr(
+        "zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: True
+    )
     platform.setenv("DISPLAY", ":0")
 
     data, ran, hint = await _capture({"scrot"})
@@ -246,7 +250,9 @@ def test_display_completion_per_platform(platform, setup, displays):
     if "env" in setup:
         platform.setenv(setup["env"], "Ubuntu")
     if setup.get("termux"):
-        platform.setattr("zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: True)
+        platform.setattr(
+            "zrb.llm.presentation.screenshot.backend.auto.is_termux", lambda: True
+        )
 
     assert AutoScreenshotBackend().list_displays() == displays
 

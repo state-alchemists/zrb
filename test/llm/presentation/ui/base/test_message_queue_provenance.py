@@ -11,7 +11,10 @@ import time
 import pytest
 
 from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT
-from zrb.llm.presentation.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
+from zrb.llm.presentation.ui.base.message_queue import (
+    MessageQueue,
+    submit_user_message_via_queue,
+)
 
 
 async def _stub_stream_ai_response(llm_task, text, attachments):

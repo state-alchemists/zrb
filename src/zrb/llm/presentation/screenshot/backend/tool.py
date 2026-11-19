@@ -18,9 +18,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from zrb.config.config import CFG
-from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.presentation.screenshot.backend.program import ProgramFailed, run_program
 from zrb.llm.contracts.util.deadline import create_deadline, get_earlier
+from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import (
+    AnyScreenshotBackend,
+)
+from zrb.llm.presentation.screenshot.backend.program import ProgramFailed, run_program
 
 
 @dataclass(frozen=True)

@@ -18,8 +18,8 @@ from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cli.style import stylize_warning
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.contracts.config.limiter import LLMLimiter
+    from zrb.llm.engine.agent.types import ModelMessage
 else:
     ModelMessage = Any
 

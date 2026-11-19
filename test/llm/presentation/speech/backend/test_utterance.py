@@ -53,7 +53,9 @@ class FakePopen:
 @pytest.fixture
 def popen(monkeypatch):
     FakePopen.started = []
-    monkeypatch.setattr("zrb.llm.presentation.speech.backend.utterance.subprocess.Popen", FakePopen)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.backend.utterance.subprocess.Popen", FakePopen
+    )
     return FakePopen
 
 

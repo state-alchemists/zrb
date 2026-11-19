@@ -6,7 +6,11 @@ file tool at once, which is what the single module it replaced already did.
 
 from zrb.llm.capabilities.tool.file.analyze import analyze_file
 from zrb.llm.capabilities.tool.file.edit import replace_in_file
-from zrb.llm.capabilities.tool.file.listing import DEFAULT_EXCLUDED_PATTERNS, glob_files, list_files
+from zrb.llm.capabilities.tool.file.listing import (
+    DEFAULT_EXCLUDED_PATTERNS,
+    glob_files,
+    list_files,
+)
 from zrb.llm.capabilities.tool.file.mv import move_file
 from zrb.llm.capabilities.tool.file.read import read_file
 from zrb.llm.capabilities.tool.file.rm import remove_file

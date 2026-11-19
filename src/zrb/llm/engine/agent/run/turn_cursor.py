@@ -14,9 +14,9 @@ from zrb.llm.engine.agent.run.history_utils import TurnPruneFloor
 if TYPE_CHECKING:
     from pydantic_ai import DeferredToolResults
 
+    from zrb.llm.contracts.shared.usage_log import ContextComposition
     from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
     from zrb.llm.engine.agent.run.typing_aliases import History, PromptMessage
-    from zrb.llm.contracts.shared.usage_log import ContextComposition
 
 
 @dataclass

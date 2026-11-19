@@ -14,7 +14,9 @@ class TestDefaultResponseHandler:
         """Test 'yes' response approves execution."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -32,7 +34,9 @@ class TestDefaultResponseHandler:
         """Test 'y' response approves execution."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -50,7 +54,9 @@ class TestDefaultResponseHandler:
         """Test 'okay' response approves execution."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -68,7 +74,9 @@ class TestDefaultResponseHandler:
         """Test empty string response approves execution (Enter accepts)."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -86,7 +94,9 @@ class TestDefaultResponseHandler:
         """Test 'no' response denies execution."""
         from pydantic_ai import ToolDenied
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -104,7 +114,9 @@ class TestDefaultResponseHandler:
         """Test 'n' response denies execution."""
         from pydantic_ai import ToolDenied
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -122,7 +134,9 @@ class TestDefaultResponseHandler:
         """Test custom message denies execution."""
         from pydantic_ai import ToolDenied
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -143,7 +157,9 @@ class TestDefaultResponseHandler:
         """Test case insensitive responses."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -167,7 +183,9 @@ class TestDefaultResponseHandlerEdit:
         """Test 'edit' response with modified arguments approves with override."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -193,7 +211,9 @@ class TestDefaultResponseHandlerEdit:
         """Test 'edit' response with string args parses JSON."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -218,7 +238,9 @@ class TestDefaultResponseHandlerEdit:
         """Test 'edit' response with invalid JSON string uses empty dict."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -244,7 +266,9 @@ class TestDefaultResponseHandlerEdit:
         """Test 'edit' response with non-dict args converts to empty dict."""
         from pydantic_ai import ToolApproved
 
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -268,7 +292,9 @@ class TestDefaultResponseHandlerEdit:
     @pytest.mark.asyncio
     async def test_response_edit_returns_none_on_invalid_format(self):
         """Test 'edit' response returns None when edit_content_via_editor returns None."""
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -291,7 +317,9 @@ class TestDefaultResponseHandlerEdit:
     @pytest.mark.asyncio
     async def test_response_edit_returns_none_on_no_changes(self):
         """Test 'edit' response returns None when no changes made."""
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui
@@ -314,7 +342,9 @@ class TestDefaultResponseHandlerEdit:
     @pytest.mark.asyncio
     async def test_response_edit_handles_exception(self):
         """Test 'edit' response handles exceptions gracefully."""
-        from zrb.llm.capabilities.tool_call.response_handler.default import default_response_handler
+        from zrb.llm.capabilities.tool_call.response_handler.default import (
+            default_response_handler,
+        )
 
         ui = MagicMock()
         ui.input = ui.tools = ui

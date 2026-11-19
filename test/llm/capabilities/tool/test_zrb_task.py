@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.group.root_group import get_root_group, set_root_group
-from zrb.llm.capabilities.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+from zrb.llm.capabilities.tool.zrb_task import (
+    create_list_zrb_task_tool,
+    create_run_zrb_task_tool,
+)
 
 
 @pytest.fixture
@@ -143,7 +146,8 @@ class TestRunZrbTaskTool:
         """B16: arg values with spaces/metacharacters must be shell-quoted."""
         func = create_run_zrb_task_tool()
         with patch(
-            "zrb.llm.capabilities.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.zrb_task.run_shell_command",
+            new_callable=AsyncMock,
         ) as mock_run:
             mock_run.return_value = "ok"
             await func(
@@ -160,7 +164,8 @@ class TestRunZrbTaskTool:
         """B13: mutable default arg must not leak state between calls."""
         func = create_run_zrb_task_tool()
         with patch(
-            "zrb.llm.capabilities.tool.zrb_task.run_shell_command", new_callable=AsyncMock
+            "zrb.llm.capabilities.tool.zrb_task.run_shell_command",
+            new_callable=AsyncMock,
         ) as mock_run:
             mock_run.return_value = "ok"
             # Two calls with no args should both produce a bare command.

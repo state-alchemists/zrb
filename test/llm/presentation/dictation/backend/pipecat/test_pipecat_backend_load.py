@@ -7,7 +7,9 @@ import threading
 
 import pytest
 
-from zrb.llm.presentation.dictation.backend.pipecat.backend import PipecatDictationBackend
+from zrb.llm.presentation.dictation.backend.pipecat.backend import (
+    PipecatDictationBackend,
+)
 from zrb.llm.presentation.dictation.config import DictationConfig
 
 MODULE = "zrb.llm.presentation.dictation.backend.pipecat.backend"

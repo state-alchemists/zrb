@@ -43,9 +43,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TextIO
 
-from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
 from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker, ChoiceOption, ChoiceSpec
+from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.presentation.ui.any_ui_session import AnyUISession
 from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 

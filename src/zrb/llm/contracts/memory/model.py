@@ -488,7 +488,9 @@ def append_past_compaction(body: str, kind: str = KIND_DIARY) -> str | None:
     )
 
 
-def rewrite_not_compacted(before: str, after: str, kind: str = KIND_DIARY) -> str | None:
+def rewrite_not_compacted(
+    before: str, after: str, kind: str = KIND_DIARY
+) -> str | None:
     """Why a rewrite may not leave a full day where it was, or ``None``.
 
     A rewrite is the one write that can shorten a page, so from a page past the

@@ -2,10 +2,10 @@
 
 import pytest
 
+from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.presentation.dictation.feature import DictationSession
 from zrb.llm.presentation.dictation.listen import MicState, Utterance
-from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):
@@ -38,7 +38,8 @@ class FakeUI:
 def interrupted(monkeypatch):
     calls: list[str] = []
     monkeypatch.setattr(
-        "zrb.llm.presentation.dictation.feature.interrupt_speech", lambda key: calls.append(key)
+        "zrb.llm.presentation.dictation.feature.interrupt_speech",
+        lambda key: calls.append(key),
     )
     return calls
 
@@ -72,7 +73,9 @@ def _fake_listen(monkeypatch, *said: str, is_barge_in=True):
             )
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
 
 
 def _session(**config) -> DictationSession:
@@ -207,7 +210,9 @@ async def test_the_badge_says_when_the_mic_is_deaf_over_zrb(monkeypatch, ui):
         yield Utterance(b"hello", 0, 0.5)
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
 
     await _replies(_session(), 1)
 

@@ -30,8 +30,8 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
-from zrb.llm.presentation.dictation.hub import get_hub_path
 from zrb.llm.contracts.util.model_load import heavy_model_load
+from zrb.llm.presentation.dictation.hub import get_hub_path
 
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection

@@ -18,16 +18,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.capabilities.hook.contracts.interface import HookResult
 from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig, HookConfig
 from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType
-from zrb.llm.contracts.memory import search
 from zrb.llm.capabilities.prompt.memory_context import (
     claims_in_the_core,
     note_claims_shown,
     shown_claim_ids,
 )
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
+from zrb.llm.contracts.memory import search
 
 if TYPE_CHECKING:
     from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext

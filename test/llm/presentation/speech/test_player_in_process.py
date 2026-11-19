@@ -4,7 +4,12 @@ import threading
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
 
 

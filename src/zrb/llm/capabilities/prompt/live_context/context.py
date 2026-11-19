@@ -20,7 +20,10 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.capabilities.permission.state import AgentMode, get_current_agent_mode
-from zrb.llm.capabilities.prompt.memory_context import render_memory_block, render_memory_delta
+from zrb.llm.capabilities.prompt.memory_context import (
+    render_memory_block,
+    render_memory_delta,
+)
 from zrb.llm.contracts.shared.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
@@ -382,7 +385,9 @@ def _background_process_lines() -> list[str]:
     try:
         # lazy: transitively heavy via internal — the shell tool pulls
         # pydantic (~50ms on every `import zrb`).
-        from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
+        from zrb.llm.capabilities.tool.shell.background import (
+            get_shell_background_registry,
+        )
 
         rows = get_shell_background_registry().summary(get_current_chat_session_id())
     except (ImportError, RuntimeError) as e:

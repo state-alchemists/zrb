@@ -15,7 +15,10 @@ from prompt_toolkit.layout.dimension import to_dimension
 from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.llm.presentation.ui.default.app.layout import create_layout, create_output_field
+from zrb.llm.presentation.ui.default.app.layout import (
+    create_layout,
+    create_output_field,
+)
 
 INPUT_FRAME_STYLE = "class:input-frame"
 

@@ -9,7 +9,6 @@ drift cannot come back unnoticed.
 
 import pytest
 
-from zrb.llm.engine.agent.run.authority_snapshot import AuthoritySnapshot
 from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.agent_state import (
     current_approval_channel,
@@ -19,6 +18,7 @@ from zrb.llm.contracts.shared.agent_state import (
 )
 from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn
 from zrb.llm.contracts.shared.usage_log import COMPONENT_SUBAGENT, current_component
+from zrb.llm.engine.agent.run.authority_snapshot import AuthoritySnapshot
 from zrb.util.contextvar_scope import scoped
 
 APPROVAL_HANDLER = object()
@@ -63,7 +63,9 @@ async def _capture(monkeypatch, **turn_fields) -> dict:
         seen["tool_confirmation"] = get_current_tool_confirmation()
         return "the answer", [{"turn": 1}]
 
-    monkeypatch.setattr("zrb.llm.contracts.shared.subagent_turn.run_agent", fake_run_agent)
+    monkeypatch.setattr(
+        "zrb.llm.contracts.shared.subagent_turn.run_agent", fake_run_agent
+    )
     turn = _turn(**turn_fields)
     result, history = await run_subagent_turn(turn)
     seen["result"] = result

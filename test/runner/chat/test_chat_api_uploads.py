@@ -134,7 +134,9 @@ def testsave_uploaded_attachment_keeps_a_delegated_session_id_intact(
 ):
     import tempfile as tempfile_module
 
-    from zrb.llm.contracts.util.subagent_session_naming import format_delegated_session_name
+    from zrb.llm.contracts.util.subagent_session_naming import (
+        format_delegated_session_name,
+    )
     from zrb.runner.chat.chat_api_route import save_uploaded_attachment
 
     monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))

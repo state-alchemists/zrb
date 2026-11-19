@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING
 
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable

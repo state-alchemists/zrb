@@ -6,7 +6,12 @@ its own, which is a failure to report. The queued path must not read the second
 as the first, or it would retry a sentence that has already failed.
 """
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.util.file_lock import FileLockTimeout
 
 

@@ -20,6 +20,8 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.util.audio_devices import DeviceWatcher
+from zrb.llm.contracts.util.face_server import is_remote_voice_selected
 from zrb.llm.presentation.dictation.config import DictationConfig
 from zrb.llm.presentation.dictation.microphone import (
     SAMPLE_RATE,
@@ -31,8 +33,6 @@ from zrb.llm.presentation.dictation.microphone import (
 )
 from zrb.llm.presentation.dictation.words import count_words
 from zrb.llm.presentation.speech.player import is_speaking
-from zrb.llm.contracts.util.audio_devices import DeviceWatcher
-from zrb.llm.contracts.util.face_server import is_remote_voice_selected
 
 if TYPE_CHECKING:
     # Annotation-only to avoid importing the backend barrel and its audio

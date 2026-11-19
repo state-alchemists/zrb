@@ -125,7 +125,9 @@ async def _collect(
 
     with (
         patch.dict("sys.modules", {"sounddevice": fake_sd}),
-        patch("zrb.llm.presentation.dictation.listen.is_speaking", return_value=speaking),
+        patch(
+            "zrb.llm.presentation.dictation.listen.is_speaking", return_value=speaking
+        ),
     ):
         task = asyncio.create_task(consume())
         # `open_microphone` hands `sd.InputStream(...)` off to a real daemon

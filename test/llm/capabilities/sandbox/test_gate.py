@@ -7,7 +7,6 @@ from typing import Any, cast
 
 import pytest
 
-from zrb.llm.engine.agent.gates import sandbox_gate
 from zrb.llm.capabilities.permission import Capability, tag
 from zrb.llm.capabilities.sandbox import SandboxPolicy, current_sandbox_policy
 from zrb.llm.capabilities.sandbox.state import (
@@ -15,6 +14,7 @@ from zrb.llm.capabilities.sandbox.state import (
     get_effective_sandbox_policy,
     sandbox_policy,
 )
+from zrb.llm.engine.agent.gates import sandbox_gate
 
 # --- state ------------------------------------------------------------------
 

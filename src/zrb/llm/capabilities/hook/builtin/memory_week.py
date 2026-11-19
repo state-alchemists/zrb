@@ -23,14 +23,18 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.capabilities.hook.contracts.interface import HookResult
 from zrb.llm.capabilities.hook.contracts.schema import (
     AgentHookConfig,
     HookConfig,
     MatcherConfig,
 )
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.contracts.memory import store
 from zrb.llm.contracts.memory.model import (
     MAX_CLAIM_CHARS,
@@ -200,9 +204,7 @@ async def _ask_model(material: str) -> str:
         )
         result = await agent.run(material)
         record_agent_usage(result, component=COMPONENT_HOOK)
-        record_standalone_requests(
-            result, REASON_MEMORY_WEEK, component=COMPONENT_HOOK
-        )
+        record_standalone_requests(result, REASON_MEMORY_WEEK, component=COMPONENT_HOOK)
     except (OSError, RuntimeError) as error:
         # The two shapes a one-shot call fails in: a model that could not be
         # resolved or did not answer, which pydantic-ai raises as a

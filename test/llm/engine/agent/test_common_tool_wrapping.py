@@ -20,8 +20,8 @@ def test_wrap_tool_callable():
     """Wrapping preserves callable capability metadata."""
     from pydantic_ai import Tool
 
-    from zrb.llm.engine.agent.common import wrap_tool
     from zrb.llm.capabilities.permission import Capability, tag
+    from zrb.llm.engine.agent.common import wrap_tool
 
     def my_tool(x: int):
         return x
@@ -36,8 +36,8 @@ def test_wrap_tool_callable():
 def test_wrap_tool_instance():
     from pydantic_ai import Tool
 
-    from zrb.llm.engine.agent.common import wrap_tool
     from zrb.llm.capabilities.permission import Capability, tag
+    from zrb.llm.engine.agent.common import wrap_tool
 
     def my_tool(x: int):
         return x
@@ -58,8 +58,8 @@ def test_wrap_tool_duck_typed_instance():
     """Duck-typed tools are rebuilt with the safe wrapper."""
     from pydantic_ai import Tool
 
-    from zrb.llm.engine.agent.common import wrap_tool
     from zrb.llm.capabilities.permission import Capability, tag
+    from zrb.llm.engine.agent.common import wrap_tool
 
     def my_tool(ctx, x: int):
         return x
@@ -150,9 +150,9 @@ async def test_apply_tool_result_limit_survives_none_metadata():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(
@@ -213,9 +213,9 @@ async def test_call_tool_backstop_still_applies_to_hook_rewritten_output():
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
-    from zrb.llm.engine.agent.common import wrap_toolset
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
+    from zrb.llm.engine.agent.common import wrap_toolset
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(

@@ -3,8 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import BufferedUI, create_delegate_to_agent_tool
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 @pytest.fixture
@@ -66,7 +69,9 @@ async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
     """The live-session registry entry's run_scope must reach run_agent, so
     a later continuation of this same sub-agent (live_session.py) can reuse
     it instead of each turn getting its own file_observation.py bucket."""
-    from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     try:
@@ -129,10 +134,10 @@ async def test_a_delegated_turn_is_marked_as_a_sub_agents_own(mock_sub_agent_man
 async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
-    from zrb.llm.engine.agent.run.runner import current_hook_manager
     from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
     from zrb.llm.capabilities.hook.contracts.types import HookEvent
     from zrb.llm.capabilities.hook.manager import HookManager
+    from zrb.llm.engine.agent.run.runner import current_hook_manager
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
 
@@ -195,7 +200,8 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=Exception("Run failed")
+        "zrb.llm.contracts.shared.subagent_turn.run_agent",
+        side_effect=Exception("Run failed"),
     ):
         result = await tool(
             agent_name="test-agent",
@@ -210,7 +216,9 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
 @pytest.mark.asyncio
 async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
     """A human-flagged cancel ends only the sub-agent; the delegate returns a cancelled result."""
-    from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -223,7 +231,8 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
 
     try:
         with patch(
-            "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=blocking_run_agent
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=blocking_run_agent,
         ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])

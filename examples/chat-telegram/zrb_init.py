@@ -37,7 +37,11 @@ from telegram.ext import (
 )
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.capabilities.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.capabilities.approval import (
+    AnyApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+)
 from zrb.llm.contracts.shared.input_source import InputProvenance
 from zrb.llm.presentation.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style

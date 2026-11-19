@@ -62,7 +62,9 @@ def _which_only(*names: str):
 @pytest.mark.asyncio
 async def test_windows_ffmpeg_auto_detects_device_from_dshow_listing(clean_env):
     clean_env.setattr("sys.platform", "win32")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     listing = (
         b'[dshow @ 0000] "Integrated Webcam" (video)\n'
@@ -84,7 +86,9 @@ async def test_windows_ffmpeg_auto_detects_device_from_dshow_listing(clean_env):
 @pytest.mark.asyncio
 async def test_windows_ffmpeg_returns_none_when_no_device_detected(clean_env):
     clean_env.setattr("sys.platform", "win32")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     def _make_proc(*args, **kwargs):
@@ -113,7 +117,9 @@ def _record_procs(listing: bytes = b""):
 async def test_wsl_captures_through_windows_ffmpeg_exe(clean_env):
     "Windows keeps the camera: WSL borrows it through ffmpeg.exe's dshow."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg.exe"))
     commands, exec_mock = _record_procs(b'[dshow @ 0] "USB Camera" (video)\n')
@@ -129,7 +135,9 @@ async def test_wsl_captures_through_windows_ffmpeg_exe(clean_env):
 @pytest.mark.asyncio
 async def test_wsl_dev_video_device_uses_linux_ffmpeg(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
     commands, exec_mock = _record_procs()
@@ -145,7 +153,9 @@ async def test_wsl_dev_video_device_uses_linux_ffmpeg(clean_env):
 @pytest.mark.asyncio
 async def test_wsl_without_ffmpeg_exe_falls_back_to_v4l2(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     commands, exec_mock = _record_procs()
@@ -161,7 +171,9 @@ async def test_wsl_without_ffmpeg_exe_falls_back_to_v4l2(clean_env):
 async def test_wsl_falls_back_to_a_usbipd_camera_windows_no_longer_lists(clean_env):
     "A camera attached through usbipd leaves Windows' listing for /dev/video0."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
     clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
@@ -178,7 +190,9 @@ async def test_wsl_falls_back_to_a_usbipd_camera_windows_no_longer_lists(clean_e
 async def test_wsl_does_not_swap_a_busy_windows_camera_for_dev_video(clean_env):
     "A listed Windows camera that fails must not turn into another camera's photo."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
     clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
@@ -201,7 +215,9 @@ async def test_wsl_does_not_swap_a_busy_windows_camera_for_dev_video(clean_env):
 async def test_a_failed_dev_video_capture_on_wsl_gets_the_linux_hint(clean_env):
     "/photo /dev/video0 fails on Linux v4l2; the hint must not blame dshow."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
     clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
@@ -222,7 +238,9 @@ async def test_a_failed_dev_video_capture_on_wsl_gets_the_linux_hint(clean_env):
 @pytest.mark.asyncio
 async def test_dev_video_on_wsl_without_linux_ffmpeg_asks_for_it(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg.exe"))
     backend = AutoCameraBackend()
@@ -238,7 +256,9 @@ async def test_dev_video_on_wsl_without_linux_ffmpeg_asks_for_it(clean_env):
 @pytest.mark.asyncio
 async def test_wsl_without_any_camera_stops_after_the_windows_listing(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
     clean_env.setattr("glob.glob", lambda pattern: [])
@@ -254,7 +274,9 @@ async def test_wsl_without_any_camera_stops_after_the_windows_listing(clean_env)
 @pytest.mark.asyncio
 async def test_capture_returns_none_on_nonzero_exit(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     with patch(
@@ -269,7 +291,9 @@ async def test_capture_returns_none_on_nonzero_exit(clean_env):
 @pytest.mark.asyncio
 async def test_subprocess_filenotfound_returns_none(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     with patch(
@@ -284,7 +308,9 @@ async def test_subprocess_filenotfound_returns_none(clean_env):
 @pytest.mark.asyncio
 async def test_unexpected_exception_is_swallowed(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     with patch(
@@ -297,7 +323,9 @@ async def test_unexpected_exception_is_swallowed(clean_env):
 
 
 def test_failure_hint_termux(clean_env):
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: True)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: True
+    )
 
     hint = AutoCameraBackend().get_failure_hint()
 
@@ -306,7 +334,9 @@ def test_failure_hint_termux(clean_env):
 
 def test_failure_hint_macos(clean_env):
     clean_env.setattr("sys.platform", "darwin")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
 
     hint = AutoCameraBackend().get_failure_hint()
 
@@ -316,7 +346,9 @@ def test_failure_hint_macos(clean_env):
 
 def test_failure_hint_windows(clean_env):
     clean_env.setattr("sys.platform", "win32")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
 
     hint = AutoCameraBackend().get_failure_hint()
 
@@ -326,7 +358,9 @@ def test_failure_hint_windows(clean_env):
 
 def test_failure_hint_wsl_no_ffmpeg_exe_recommends_windows_ffmpeg(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only())
     clean_env.setattr("glob.glob", lambda pattern: [])
@@ -340,7 +374,9 @@ def test_failure_hint_wsl_no_ffmpeg_exe_recommends_windows_ffmpeg(clean_env):
 def test_failure_hint_wsl_device_exists(clean_env):
     "/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
@@ -354,7 +390,9 @@ def test_failure_hint_wsl_device_exists(clean_env):
 
 def test_failure_hint_wsl_with_ffmpeg_exe_points_at_dshow(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg.exe"))
 
@@ -366,7 +404,9 @@ def test_failure_hint_wsl_with_ffmpeg_exe_points_at_dshow(clean_env):
 
 def test_failure_hint_generic_linux(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
 
     hint = AutoCameraBackend().get_failure_hint()
 
@@ -375,13 +415,17 @@ def test_failure_hint_generic_linux(clean_env):
 
 
 def test_list_devices_termux_uses_camera_ids(clean_env):
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: True)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: True
+    )
 
     assert AutoCameraBackend().list_devices() == ["0", "1"]
 
 
 def test_list_devices_linux_globs_video_nodes(clean_env):
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr(
         "glob.glob",
@@ -393,7 +437,9 @@ def test_list_devices_linux_globs_video_nodes(clean_env):
 
 def test_list_devices_windows_sync_never_blocks(clean_env):
     "Windows dshow names need the ffmpeg subprocess probe; the sync path"
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "win32")
 
     assert AutoCameraBackend().list_devices() == []
@@ -401,7 +447,9 @@ def test_list_devices_windows_sync_never_blocks(clean_env):
 
 @pytest.mark.asyncio
 async def test_refresh_devices_parses_dshow_names_on_windows(clean_env):
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "win32")
 
     listing = (
@@ -421,7 +469,9 @@ async def test_refresh_devices_parses_dshow_names_on_windows(clean_env):
 
 @pytest.mark.asyncio
 async def test_refresh_devices_on_wsl_lists_windows_and_linux_cameras(clean_env):
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
     clean_env.setattr("shutil.which", _which_only("ffmpeg.exe"))
@@ -437,7 +487,9 @@ async def test_refresh_devices_on_wsl_lists_windows_and_linux_cameras(clean_env)
 @pytest.mark.asyncio
 async def test_schedule_device_refresh_schedules_probe_when_stale(clean_env):
     "Stale cache + a running loop → a background refresh is scheduled and"
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()
 
@@ -471,7 +523,9 @@ async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
     clean_env,
 ):
     "The dshow listing is slow, so `list_devices` starts it in the background"
-    clean_env.setattr("zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False)
+    clean_env.setattr(
+        "zrb.llm.presentation.camera.backend.auto.is_termux", lambda: False
+    )
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()
     started = asyncio.Event()

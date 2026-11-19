@@ -148,7 +148,8 @@ async def test_send_message_injects_live_when_turn_is_in_flight(
     buffered_ui.active_run_context = MagicMock()  # a "live" run context
 
     with patch(
-        "zrb.llm.orchestration.subagent.live_session.steer_into_live_run", return_value=True
+        "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
+        return_value=True,
     ) as mock_steer:
         result = await registry.send_message("sess1", "a", "focus on pricing")
 
@@ -206,7 +207,10 @@ async def test_send_message_queues_without_double_spawning_when_already_running(
     )
     entry.state = "running"  # a continuation is already in flight
 
-    with patch("zrb.llm.orchestration.subagent.live_session.steer_into_live_run", return_value=False):
+    with patch(
+        "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
+        return_value=False,
+    ):
         result = await registry.send_message("sess1", "a", "and another thing")
 
     assert result is True
@@ -344,7 +348,10 @@ async def test_continue_live_session_drains_multiple_queued_messages(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "first")
         task = entry.active_task
@@ -383,7 +390,10 @@ async def test_continue_live_session_reuses_entrys_run_scope_across_turns(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
     ):
         await registry.send_message("sess1", "a", "first")
         task = entry.active_task
@@ -404,9 +414,9 @@ async def test_continue_live_session_uses_captured_authority_not_ambient(
     ambient inheritance alone would be wrong (ADR-0069's "spawn inside the
     still-bound scope" invariant does not hold here — see
     `authority_snapshot.py`)."""
-    from zrb.llm.engine.agent.run.runner import current_yolo
     from zrb.llm.capabilities.permission.policy import PermissionPolicy, Rule
     from zrb.llm.capabilities.permission.state import permission_policy
+    from zrb.llm.engine.agent.run.runner import current_yolo
     from zrb.util.contextvar_scope import scoped
 
     narrow_policy = PermissionPolicy(rules=(Rule("*", "deny"),))
@@ -435,7 +445,10 @@ async def test_continue_live_session_uses_captured_authority_not_ambient(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
         # Ambient state at continuation time is broader than what the
         # delegation was granted — must not leak into the continuation.
         permission_policy(broad_policy),
@@ -470,8 +483,13 @@ async def test_continue_live_session_reflects_in_activity_registry(
             "zrb.llm.orchestration.subagent.live_session.steer_into_live_run",
             return_value=False,
         ),
-        patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent),
-        patch("zrb.llm.orchestration.subagent.live_session.agent_activity_registry") as mock_registry,
+        patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=fake_run_agent,
+        ),
+        patch(
+            "zrb.llm.orchestration.subagent.live_session.agent_activity_registry"
+        ) as mock_registry,
     ):
         await registry.send_message("sess1", "a", "hello")
         await entry.active_task

@@ -2,10 +2,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.engine.agent.run.deferred_calls import process_deferred_requests
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
+from zrb.llm.engine.agent.run.deferred_calls import process_deferred_requests
 from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
@@ -75,7 +75,9 @@ async def test_permission_policy_deny_blocks():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=policy),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
     ):
         result = await process_deferred_requests(result_output, None, ui, hook_manager)
@@ -107,11 +109,16 @@ async def test_yolo_auto_approves_with_no_policy_opinion():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=None
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True),
+        patch(
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
+        ),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True
+        ),
     ):
         result = await process_deferred_requests(
             result_output, tool_handler, ui, hook_manager
@@ -146,11 +153,16 @@ async def test_approval_channel_with_invalid_json_string_args():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=None
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None),
+        patch(
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
+        ),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None
+        ),
     ):
         result = await process_deferred_requests(
             result_output, None, ui, hook_manager, approval_channel=approval_channel
@@ -179,12 +191,18 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy",
+            return_value=_ask_policy(),
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None
+        ),
     ):
         # effective_tool_confirmation is neither a ToolCallHandler nor callable.
         result = await process_deferred_requests(
@@ -212,11 +230,16 @@ async def test_no_approval_mechanism_without_ask_returns_none():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=None
         ),
-        patch("zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None),
+        patch(
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
+        ),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=None
+        ),
     ):
         result = await process_deferred_requests(
             result_output, object(), ui, hook_manager
@@ -248,10 +271,14 @@ async def test_interactive_exit_plan_mode_still_prompts():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy",
+            return_value=_ask_policy(),
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
     ):
         result = await process_deferred_requests(

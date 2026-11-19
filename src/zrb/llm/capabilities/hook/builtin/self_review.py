@@ -17,13 +17,17 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.hook.agent_hook_registry import get_agent_hook_builder
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
 from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig, HookConfig
 from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType
-from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.capabilities.snapshot.command import SnapshotError, run_in_worker
 from zrb.llm.capabilities.snapshot.listing import get_fork_point
 from zrb.llm.capabilities.snapshot.store import Snapshot, SnapshotStore
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:

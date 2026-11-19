@@ -7,8 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.capabilities.prompt.live_context.context import render_live_context
+from zrb.llm.capabilities.tool.delegate.worktree import (
+    enter_worktree,
+    exit_worktree,
+    list_worktrees,
+)
 from zrb.llm.contracts.shared.ambient_state import get_active_worktree
-from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:

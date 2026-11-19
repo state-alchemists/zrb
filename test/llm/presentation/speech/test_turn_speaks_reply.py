@@ -11,10 +11,10 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.hook.manager import HookManager
+from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.contracts.shared.stream_observer import create_observed_event_handler
+from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.presentation.speech import SpeechConfig
 from zrb.llm.presentation.speech.feature import SpeechSession
 

@@ -467,7 +467,9 @@ def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
     )
 
     _paste(setup_bindings, str(pdf))
-    with patch("zrb.llm.contracts.util.attachment.extract_pdf_text", return_value="report text"):
+    with patch(
+        "zrb.llm.contracts.util.attachment.extract_pdf_text", return_value="report text"
+    ):
         content = get_prompt_content("hi", mock_ui.pending_attachments, print)
 
     mock_ui.submit_attachment.assert_called_once_with(str(pdf))

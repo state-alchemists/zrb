@@ -26,7 +26,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.capabilities.sandbox import check_read, check_write, get_effective_sandbox_policy
+from zrb.llm.capabilities.sandbox import (
+    check_read,
+    check_write,
+    get_effective_sandbox_policy,
+)
 from zrb.llm.contracts.shared.agent_tool_result import has_multimodal
 from zrb.util.string.conversion import to_safe_filename
 

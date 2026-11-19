@@ -27,8 +27,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):

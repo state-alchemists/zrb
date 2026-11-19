@@ -9,11 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from zrb.llm.contracts.shared.input_source import DICTATION_INPUT, InputProvenance
 from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.presentation.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.presentation.dictation.feature import DictationSession
 from zrb.llm.presentation.dictation.listen import Utterance
-from zrb.llm.contracts.shared.input_source import DICTATION_INPUT, InputProvenance
 
 LABELS = ["生气/angry", "开心/happy", "中立/neutral", "难过/sad", "吃惊/surprised"]
 
@@ -140,7 +140,9 @@ async def test_a_model_that_cannot_load_ends_its_loading_line_with_a_failure(
     monkeypatch.setitem(sys.modules, "funasr", None)
     # Fakes the microphone; the real detector then replaces the fake one.
     _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.EmotionDetector", EmotionDetector)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.EmotionDetector", EmotionDetector
+    )
     session = DictationSession(
         DictationConfig(
             backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True
@@ -182,8 +184,12 @@ def _session_hearing(monkeypatch, *said: str, detect_emotion_enabled: bool):
             yield Utterance(text.encode(), i, i + 1)
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.EmotionDetector", FakeDetector)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.EmotionDetector", FakeDetector
+    )
     config = DictationConfig(
         backend=WordsBackend(),
         mode="hands_free",
@@ -249,7 +255,9 @@ async def test_the_microphone_listens_before_the_emotion_model_loads(monkeypatch
             await finish.wait()
 
     _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.EmotionDetector", SlowDetector)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.EmotionDetector", SlowDetector
+    )
     session = DictationSession(
         DictationConfig(
             backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True
@@ -297,7 +305,9 @@ async def test_the_load_is_marked_before_the_first_utterance_is_heard(monkeypatc
             return None
 
     _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.EmotionDetector", MarkingDetector)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.EmotionDetector", MarkingDetector
+    )
     session = DictationSession(
         DictationConfig(
             backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True

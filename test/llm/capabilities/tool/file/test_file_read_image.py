@@ -6,8 +6,8 @@ import os
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.shared.agent_state import current_model
 from zrb.llm.capabilities.tool.file import read_file
+from zrb.llm.contracts.shared.agent_state import current_model
 
 
 def _save_image(path, size=(4, 4), image_format="PNG") -> str:
@@ -93,7 +93,8 @@ async def test_a_text_only_model_gets_the_image_described(
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
     monkeypatch.setattr(
-        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment", describe
+        "zrb.llm.capabilities.tool.multimodal_describe.describe_binary_attachment",
+        describe,
     )
     path = _save_image(tmp_path / "shot.png")
 

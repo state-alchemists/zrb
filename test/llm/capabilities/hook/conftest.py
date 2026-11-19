@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.capabilities.hook.contracts.interface import HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.skill_frontmatter import reset_skill_hook_configs
+from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
 
 
 @pytest.fixture(autouse=True)

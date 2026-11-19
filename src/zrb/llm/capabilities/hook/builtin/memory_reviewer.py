@@ -25,10 +25,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.capabilities.hook.contracts.interface import HookResult
-from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
-from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.capabilities.hook.contracts.schema import (
+    AgentHookConfig,
+    HookConfig,
+    MatcherConfig,
+)
+from zrb.llm.capabilities.hook.contracts.types import (
+    HookEvent,
+    HookType,
+    MatcherOperator,
+)
+from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.contracts.memory import store
 from zrb.llm.contracts.memory.model import (
     KIND_DIARY,

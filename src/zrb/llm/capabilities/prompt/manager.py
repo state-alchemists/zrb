@@ -14,7 +14,10 @@ from zrb.llm.capabilities.prompt.live_context.context import (
     render_live_context,
     render_live_context_async,
 )
-from zrb.llm.capabilities.prompt.live_context.providers import LiveContextProviders, SimplePrompt
+from zrb.llm.capabilities.prompt.live_context.providers import (
+    LiveContextProviders,
+    SimplePrompt,
+)
 from zrb.llm.capabilities.prompt.profile import active_profile
 from zrb.llm.capabilities.prompt.registry import (
     PromptDelta,
@@ -22,14 +25,16 @@ from zrb.llm.capabilities.prompt.registry import (
     PromptRegistry,
     PromptSetValue,
 )
-from zrb.llm.capabilities.prompt.registry import prompt_registry as default_prompt_registry
+from zrb.llm.capabilities.prompt.registry import (
+    prompt_registry as default_prompt_registry,
+)
 from zrb.llm.capabilities.prompt.registry import (
     resolve_prompt_set,
 )
 from zrb.llm.capabilities.prompt.system_context import system_context
-from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.capabilities.skill.manager import SkillManager
 from zrb.llm.capabilities.skill.manager import skill_manager as default_skill_manager
+from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Full middleware: takes context, current prompt, and next handler

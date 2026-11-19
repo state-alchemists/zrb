@@ -273,7 +273,9 @@ async def test_command_hook_outer_exception_is_caught(caplog):
         "zrb.llm.capabilities.hook.execution.creator.subprocess.Popen",
         side_effect=OSError("spawn failed"),
     ):
-        with caplog.at_level(logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"):
+        with caplog.at_level(
+            logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"
+        ):
             result = await hook(context)
 
     assert result.success is False

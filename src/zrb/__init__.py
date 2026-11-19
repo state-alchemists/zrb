@@ -55,34 +55,37 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm.contracts.config.limiter import LLMLimiter, llm_limiter
-    from zrb.llm.contracts.config.model_resolver import ModelResolver, model_resolver
     from zrb.llm.capabilities.hook import HookContext, HookEvent, HookResult
     from zrb.llm.capabilities.hook.manager import HookManager, hook_manager
     from zrb.llm.capabilities.hook.registry import HookRegistry, hook_registry
     from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
     from zrb.llm.capabilities.prompt.manager import PromptManager
     from zrb.llm.capabilities.prompt.registry import PromptRegistry, prompt_registry
-    from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_registry
     from zrb.llm.capabilities.skill import Skill, SkillRegistry
     from zrb.llm.capabilities.skill.manager import SkillManager, skill_manager
     from zrb.llm.capabilities.skill.registry import skill_registry
-    from zrb.llm.orchestration.subagent.manager.manager import (
-        SubAgentDefinition,
-        SubAgentManager,
-        sub_agent_manager,
-    )
-    from zrb.llm.orchestration.subagent.registry import SubAgentRegistry, sub_agent_registry
-    from zrb.llm.orchestration.task.chat.task import LLMChatTask
-    from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.capabilities.tool_call.always_approve import (
         register_always_auto_approve,
         register_default_auto_approve,
         register_default_auto_approve_if,
     )
+    from zrb.llm.contracts.config.limiter import LLMLimiter, llm_limiter
+    from zrb.llm.contracts.config.model_resolver import ModelResolver, model_resolver
+    from zrb.llm.contracts.shared.tool_registry import ToolRegistry, tool_registry
+    from zrb.llm.contracts.util.capabilities import model_capabilities
+    from zrb.llm.orchestration.subagent.manager.manager import (
+        SubAgentDefinition,
+        SubAgentManager,
+        sub_agent_manager,
+    )
+    from zrb.llm.orchestration.subagent.registry import (
+        SubAgentRegistry,
+        sub_agent_registry,
+    )
+    from zrb.llm.orchestration.task.chat.task import LLMChatTask
+    from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.llm.presentation.ui.trigger import TriggerMessage, TriggerReply
-    from zrb.llm.contracts.util.capabilities import model_capabilities
     from zrb.llm.presentation.voice.manager import (
         STTServiceManager,
         TTSServiceManager,

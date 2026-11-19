@@ -10,14 +10,20 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.cmd.command import terminate_process, wait_for_exit_and_drain
-from zrb.llm.contracts.config.model_resolver import apply_model_hooks, resolve_configured_model
-from zrb.llm.orchestration.custom_command.resolver import get_custom_command_match, run_custom_command
+from zrb.llm.contracts.config.model_resolver import (
+    apply_model_hooks,
+    resolve_configured_model,
+)
 from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.contracts.shared.request_log import (
     REASON_SIDE_QUESTION,
     record_standalone_requests,
 )
 from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+from zrb.llm.orchestration.custom_command.resolver import (
+    get_custom_command_match,
+    run_custom_command,
+)
 from zrb.llm.presentation.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
 from zrb.util.exception import exception_summary

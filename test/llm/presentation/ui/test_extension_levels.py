@@ -5,7 +5,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.presentation.ui import BaseUI, EventDrivenUI, SimpleUI, UIConfig, create_ui_factory
+from zrb.llm.presentation.ui import (
+    BaseUI,
+    EventDrivenUI,
+    SimpleUI,
+    UIConfig,
+    create_ui_factory,
+)
 
 
 class SimpleLevelUI(SimpleUI):

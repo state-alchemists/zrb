@@ -3,14 +3,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.engine.agent.run.deferred_calls import (
-    process_deferred_requests,
-    rebuild_for_denials,
-)
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.execution.executor import HookExecutionResult
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
+from zrb.llm.engine.agent.run.deferred_calls import (
+    process_deferred_requests,
+    rebuild_for_denials,
+)
 from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
@@ -73,7 +73,9 @@ async def test_process_deferred_requests_always_auto_approve_bypasses_handler():
     redundant. The cascade must approve it before any tool-policy check or CLI
     fallback, in every path. See ADR-0062.
     """
-    from zrb.llm.capabilities.tool_call.always_approve import register_always_auto_approve
+    from zrb.llm.capabilities.tool_call.always_approve import (
+        register_always_auto_approve,
+    )
 
     register_always_auto_approve("MyInteractiveTool")
 
@@ -132,7 +134,10 @@ def test_rebuild_for_denials_discards_overrides_for_cleared_calls():
     """A call that was edited-and-approved but shares a batch with a denied
     call must not leak in override_registry once its whole batch is cleared
     (see docs/adr/adr-0085.md and override_registry.discard_override)."""
-    from zrb.llm.capabilities.tool_call.override_registry import pop_override_note, record_override
+    from zrb.llm.capabilities.tool_call.override_registry import (
+        pop_override_note,
+        record_override,
+    )
 
     record_override("call_edited", {"path": "a.txt"}, {"path": "b.txt"})
 
@@ -211,10 +216,14 @@ async def test_noninteractive_exit_plan_mode_is_auto_approved():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy",
+            return_value=_ask_policy(),
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=False
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=False,
         ),
     ):
         result = await process_deferred_requests(
@@ -250,10 +259,14 @@ async def test_noninteractive_other_ask_tool_is_denied():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=_ask_policy()),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy",
+            return_value=_ask_policy(),
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=False
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=False,
         ),
     ):
         result = await process_deferred_requests(
@@ -290,9 +303,12 @@ async def test_pretooluse_ask_forces_prompt_over_auto_approve():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=None),
         patch(
-            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode", return_value=True
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=None
+        ),
+        patch(
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
         ),
     ):
         result = await process_deferred_requests(
@@ -429,7 +445,9 @@ async def test_permission_policy_allow_auto_approves():
     result_output.approvals = []
 
     with (
-        patch("zrb.llm.capabilities.permission.get_effective_policy", return_value=policy),
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
+        ),
         patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
     ):
         result = await process_deferred_requests(result_output, None, ui, hook_manager)

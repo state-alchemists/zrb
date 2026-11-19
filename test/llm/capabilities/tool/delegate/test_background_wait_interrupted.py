@@ -11,13 +11,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from zrb.llm.capabilities.tool.delegate.background import _BackgroundRegistry
 from zrb.llm.contracts.shared.shell_cut import (
     ShellCutSignal,
     current_shell_cut_signal,
     interrupted_notice,
     is_cut_while_waiting,
 )
-from zrb.llm.capabilities.tool.delegate.background import _BackgroundRegistry
 from zrb.llm.presentation.ui.buffered.ui import BufferedUI
 
 

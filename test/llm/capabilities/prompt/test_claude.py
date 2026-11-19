@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.capabilities.prompt.claude import create_project_context_prompt, get_search_directories
+from zrb.llm.capabilities.prompt.claude import (
+    create_project_context_prompt,
+    get_search_directories,
+)
 
 
 def _make_ctx():
@@ -23,7 +26,10 @@ def test_create_project_context_prompt_no_doc_files(tmp_path):
         called_prompts.append(p)
         return p
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", capture_next)
 
     assert called_prompts[-1] == "base prompt"
@@ -38,7 +44,10 @@ def test_create_project_context_prompt_lists_agents_md(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(agents_md) in result
@@ -53,7 +62,10 @@ def test_create_project_context_prompt_lists_claude_md(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(claude_md) in result
@@ -67,7 +79,10 @@ def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert str(readme) in result
@@ -87,7 +102,8 @@ def test_create_project_context_prompt_multiple_dirs(tmp_path):
     ctx = _make_ctx()
 
     with patch(
-        "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[dir1, dir2]
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[dir1, dir2],
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
@@ -102,7 +118,10 @@ def test_create_project_context_prompt_listed_files_section(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "Documentation Files Found" in result
@@ -119,7 +138,10 @@ def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
@@ -136,7 +158,10 @@ def test_create_project_context_prompt_home_docs_are_user_level(tmp_path):
     ctx = _make_ctx()
 
     with (
-        patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[home]),
+        patch(
+            "zrb.llm.capabilities.prompt.claude.get_search_directories",
+            return_value=[home],
+        ),
         patch("zrb.llm.capabilities.prompt.claude.Path.home", return_value=home),
     ):
         result = handler(ctx, "base prompt", _identity_next)
@@ -158,7 +183,8 @@ def test_create_project_context_prompt_dot_claude_docs_are_user_level(tmp_path):
 
     with (
         patch(
-            "zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[claude_dir]
+            "zrb.llm.capabilities.prompt.claude.get_search_directories",
+            return_value=[claude_dir],
         ),
         patch("zrb.llm.capabilities.prompt.claude.Path.home", return_value=home),
     ):
@@ -204,8 +230,14 @@ def test_create_project_context_prompt_unresolvable_home_stays_project_level(tmp
     ctx = _make_ctx()
 
     with (
-        patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]),
-        patch("zrb.llm.capabilities.prompt.claude.Path.home", side_effect=RuntimeError("no home")),
+        patch(
+            "zrb.llm.capabilities.prompt.claude.get_search_directories",
+            return_value=[tmp_path],
+        ),
+        patch(
+            "zrb.llm.capabilities.prompt.claude.Path.home",
+            side_effect=RuntimeError("no home"),
+        ),
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
@@ -223,7 +255,10 @@ def test_create_project_context_prompt_calls_next_handler(tmp_path):
         call_count.append(p)
         return p
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         handler(ctx, "base prompt", counting_next)
 
     assert len(call_count) == 1
@@ -236,7 +271,10 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch("zrb.llm.capabilities.prompt.claude.get_search_directories", return_value=[tmp_path]):
+    with patch(
+        "zrb.llm.capabilities.prompt.claude.get_search_directories",
+        return_value=[tmp_path],
+    ):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "base prompt" in result

@@ -17,12 +17,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai import RunContext
 
-from zrb.llm.engine.agent.hook_agent import create_agent_hook, resolve_agent_hook_tools
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.shared.tool_registry import tool_registry
 from zrb.llm.contracts.shared.tool_resolver import resolved_tool_name
+from zrb.llm.engine.agent.hook_agent import create_agent_hook, resolve_agent_hook_tools
 
 
 def _agent_returning(output):
@@ -309,7 +309,8 @@ async def test_an_auto_approving_config_reaches_the_agent():
             return_value="resolved",
         ),
         patch(
-            "zrb.llm.capabilities.hook.execution.creator.create_agent", return_value=agent
+            "zrb.llm.capabilities.hook.execution.creator.create_agent",
+            return_value=agent,
         ) as create,
         patch(
             "zrb.llm.engine.agent.hook_agent.resolve_agent_hook_tools",

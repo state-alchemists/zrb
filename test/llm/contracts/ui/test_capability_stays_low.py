@@ -43,7 +43,9 @@ def _modules_loaded_by(module: str) -> list[str]:
 def test_a_capability_does_not_load_the_ui():
     for module in CAPABILITY_MODULES:
         dragged = sorted(
-            name for name in _modules_loaded_by(module) if name.startswith("zrb.llm.presentation.ui")
+            name
+            for name in _modules_loaded_by(module)
+            if name.startswith("zrb.llm.presentation.ui")
         )
         assert not dragged, (
             f"importing {module} loads {dragged}. A capability that loads the UI "

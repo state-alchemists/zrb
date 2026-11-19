@@ -28,7 +28,9 @@ async def test_command_hook_killed_by_signal_is_quiet_non_failure(caplog):
         hook = create_command_hook(CommandHookConfig(command="kill -INT $$"))
         context = HookContext(event=HookEvent.SESSION_END, event_data={})
 
-        with caplog.at_level(logging.DEBUG, logger="zrb.llm.capabilities.hook.execution.creator"):
+        with caplog.at_level(
+            logging.DEBUG, logger="zrb.llm.capabilities.hook.execution.creator"
+        ):
             result = await hook(context)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
@@ -63,7 +65,10 @@ async def test_command_hook_unknown_signal_number_uses_generic_label():
     hook = create_command_hook(CommandHookConfig(command="true"))
     context = HookContext(event=HookEvent.SESSION_END, event_data={})
 
-    with patch("zrb.llm.capabilities.hook.execution.creator.subprocess.Popen", return_value=_Proc()):
+    with patch(
+        "zrb.llm.capabilities.hook.execution.creator.subprocess.Popen",
+        return_value=_Proc(),
+    ):
         result = await hook(context)
 
     assert result.success is False
@@ -197,7 +202,9 @@ async def test_command_hook_generic_failure_logs_error(caplog):
     hook = create_command_hook(CommandHookConfig(command='echo "boom" >&2; exit 3'))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
-    with caplog.at_level(logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"):
+    with caplog.at_level(
+        logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"
+    ):
         result = await hook(context)
 
     assert result.success is False
@@ -215,7 +222,9 @@ async def test_command_hook_error_exit_with_stdout_only(caplog):
     )
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
-    with caplog.at_level(logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"):
+    with caplog.at_level(
+        logging.ERROR, logger="zrb.llm.capabilities.hook.execution.creator"
+    ):
         result = await hook(context)
 
     assert result.success is False

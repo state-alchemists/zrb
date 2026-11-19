@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from zrb.llm.engine.agent.common import create_agent
 from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.contracts.shared.prompt_text import get_prompt
+from zrb.llm.engine.agent.common import create_agent
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent

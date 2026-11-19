@@ -16,9 +16,13 @@ from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import (
+        AnyHistoryManager,
+    )
     from zrb.llm.capabilities.snapshot.manager import SnapshotManager
-    from zrb.llm.presentation.ui.base.conversation_commands import BaseUIConversationCommands
+    from zrb.llm.presentation.ui.base.conversation_commands import (
+        BaseUIConversationCommands,
+    )
 
 
 class MultiUIState(UIStateDefaultsMixin):

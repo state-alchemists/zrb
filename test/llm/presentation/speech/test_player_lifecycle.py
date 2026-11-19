@@ -5,7 +5,12 @@ import time
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.player import is_speaking
 from zrb.util.file_lock import hold_file_lock
 
@@ -250,9 +255,12 @@ def test_audio_is_imported_before_the_exit_handler_is_registered(
         lambda: order.append("import audio") or False,
     )
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.player.atexit.register", lambda fn: order.append("register")
+        "zrb.llm.presentation.speech.player.atexit.register",
+        lambda fn: order.append("register"),
     )
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.atexit.unregister", lambda fn: None)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.atexit.unregister", lambda fn: None
+    )
     backend = FakeBackend()
     speaker = Speaker(_config(backend, lock_file, player="auto"))
 

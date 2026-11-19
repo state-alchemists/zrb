@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.presentation.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.presentation.dictation.backend.any_dictation_backend import (
+    AnyDictationBackend,
+)
 from zrb.llm.presentation.dictation.backend.wav import pcm16_to_wav_bytes
 
 
@@ -32,10 +34,10 @@ class MultimodalDictationBackend(AnyDictationBackend):
         # lazy: zrb internal (heavy via transitive) — not a cycle, verified
         # empirically (nothing zrb.llm.engine.agent's package __init__ imports at
         # module level reaches zrb.llm.presentation.dictation).
-        from zrb.llm.engine.agent import create_agent, run_agent
-        from zrb.llm.engine.agent.types import BinaryContent
         from zrb.llm.contracts.config.limiter import llm_limiter
         from zrb.llm.contracts.shared.prompt_text import get_prompt
+        from zrb.llm.engine.agent import create_agent, run_agent
+        from zrb.llm.engine.agent.types import BinaryContent
 
         agent = create_agent(
             model=self._get_model(),
@@ -58,7 +60,9 @@ class MultimodalDictationBackend(AnyDictationBackend):
         if self._checked_model is not None:
             return self._checked_model
         # lazy: zrb internal (heavy via transitive)
-        from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
+        from zrb.llm.contracts.config.model_resolver import (
+            resolve_configured_multimodal_model,
+        )
         from zrb.llm.contracts.util.capabilities import model_capabilities
 
         model = resolve_configured_multimodal_model(self._model)

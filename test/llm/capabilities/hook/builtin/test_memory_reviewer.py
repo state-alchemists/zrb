@@ -8,8 +8,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.memory import paths, store
-from zrb.llm.contracts.memory.model import KIND_DIARY, Diary, compact_at, digest_body
 from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
     _DAY_APPEND_RESERVE,
     INTERRUPTED_LOG_TEXT,
@@ -26,6 +24,8 @@ from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
 )
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType
+from zrb.llm.contracts.memory import paths, store
+from zrb.llm.contracts.memory.model import KIND_DIARY, Diary, compact_at, digest_body
 
 
 @pytest.fixture
@@ -389,7 +389,9 @@ def test_the_day_and_the_hour_come_from_one_read_of_the_clock(store_dir, monkeyp
             reads.append(1)
             return datetime(2026, 11, 18, 0, 0, 1)
 
-    monkeypatch.setattr("zrb.llm.capabilities.hook.builtin.memory_reviewer.datetime", _Midnight)
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.hook.builtin.memory_reviewer.datetime", _Midnight
+    )
 
     note = _day_note(HookContext(event=HookEvent.STOP, event_data={}))
 

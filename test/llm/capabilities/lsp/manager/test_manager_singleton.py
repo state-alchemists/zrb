@@ -124,7 +124,9 @@ class TestDetectProjectRoot:
         file_path = tmp_path / "standalone.py"
         file_path.write_text("print('hello')")
 
-        monkeypatch.setattr("zrb.llm.capabilities.lsp.manager.lifecycle.PROJECT_MARKERS", [])
+        monkeypatch.setattr(
+            "zrb.llm.capabilities.lsp.manager.lifecycle.PROJECT_MARKERS", []
+        )
         root = manager.detect_project_root(str(file_path))
         assert root == str(tmp_path)
 

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.shared.ambient_state import current_speech_voice
+from zrb.llm.contracts.util.face_server import is_remote_voice_selected
 from zrb.llm.presentation.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.presentation.speech.backend.builtin import get_speech_backend
 from zrb.llm.presentation.speech.backend.utterance import Utterance
@@ -25,12 +26,13 @@ from zrb.llm.presentation.speech.pcm_player import (
     clamp_volume,
     guard_exit_handler,
 )
-from zrb.llm.presentation.speech.pcm_player import is_available as is_in_process_available
+from zrb.llm.presentation.speech.pcm_player import (
+    is_available as is_in_process_available,
+)
 from zrb.llm.presentation.speech.pcm_player import (
     is_device_wedged,
     wait_for_streams_to_close,
 )
-from zrb.llm.contracts.util.face_server import is_remote_voice_selected
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.owner_only import makedirs_owner_only
 

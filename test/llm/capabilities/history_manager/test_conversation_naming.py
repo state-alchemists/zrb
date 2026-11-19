@@ -67,7 +67,9 @@ async def test_suggest_slug_raises_when_the_model_fails():
 def test_rename_moves_the_history_file_and_leaves_sub_agent_transcripts(tmp_path):
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-    from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
+    from zrb.llm.capabilities.history_manager.file_history_manager import (
+        FileHistoryManager,
+    )
 
     manager = FileHistoryManager(str(tmp_path))
     messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]

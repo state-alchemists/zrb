@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.orchestration.common_tools import apply_common_tools
 from zrb.llm.contracts.shared.delegation_api import register_subagent_manager
 from zrb.llm.contracts.shared.tool_resolver import resolved_tool_name
+from zrb.llm.orchestration.common_tools import apply_common_tools
 from zrb.llm.orchestration.subagent.building import SubAgentBuilding
 from zrb.llm.orchestration.subagent.definition import SubAgentDefinition
 from zrb.llm.orchestration.subagent.manager.loading import SubAgentManagerLoading

@@ -7,7 +7,12 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.shared.ambient_state import get_current_speech_voice
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.player import is_speaking, play
 from zrb.util.file_lock import hold_file_lock
 

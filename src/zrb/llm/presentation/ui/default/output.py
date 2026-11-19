@@ -25,13 +25,13 @@ from zrb.llm.contracts.shared.output_chunk import (
     merge_into_block,
 )
 from zrb.llm.contracts.shared.tracked_spans import TrackedSpans
-from zrb.llm.presentation.ui.default.app.follow import OutputFollow
 from zrb.llm.contracts.util.stream_response import (
     DEFAULT_ICON_INDENTATION,
     DEFAULT_STREAM_INDENTATION,
     TEXT_BLOCK_LABEL,
     icon_indentation,
 )
+from zrb.llm.presentation.ui.default.app.follow import OutputFollow
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -777,7 +777,9 @@ class UIOutput:
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.engine.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.orchestration.subagent.live_session import (
+            live_subagent_session_registry,
+        )
 
         live = live_subagent_session_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)

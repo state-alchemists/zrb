@@ -1,7 +1,10 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.orchestration.common_tools import apply_common_tools
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 def test_sub_agent_manager_add_toolset_factory():
@@ -231,7 +234,9 @@ def test_common_tools_are_name_gated_for_sub_agents():
         )
     )
 
-    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.orchestration.subagent.building.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("read-only")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
 

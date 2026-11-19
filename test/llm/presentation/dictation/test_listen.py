@@ -88,7 +88,9 @@ async def _collect(blocks, keep_partial=False, speaking=False, on_state=None):
 
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
-        patch("zrb.llm.presentation.dictation.listen.is_speaking", return_value=speaking),
+        patch(
+            "zrb.llm.presentation.dictation.listen.is_speaking", return_value=speaking
+        ),
     ):
         task = asyncio.create_task(consume())
         await _play(captured, blocks)

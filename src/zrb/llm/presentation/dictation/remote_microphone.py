@@ -20,12 +20,12 @@ import urllib.request
 from types import ModuleType
 from typing import TYPE_CHECKING
 
-from zrb.llm.presentation.dictation.echo_cancel import AudioCallback, Rechunker
 from zrb.llm.contracts.util.face_server import (
     AUDIO_SAMPLE_WIDTH,
     MICROPHONE_PATH,
     check_audio_format,
 )
+from zrb.llm.presentation.dictation.echo_cancel import AudioCallback, Rechunker
 
 if TYPE_CHECKING:
     import numpy

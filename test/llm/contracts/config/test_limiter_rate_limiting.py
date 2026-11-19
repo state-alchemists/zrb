@@ -278,7 +278,8 @@ class TestLLMLimiterFitContextWindow:
         new_msg = "A longer new message"
 
         with patch(
-            "zrb.llm.contracts.config.limiter.is_turn_start", side_effect=[False, True, False]
+            "zrb.llm.contracts.config.limiter.is_turn_start",
+            side_effect=[False, True, False],
         ):
             result = limiter.fit_context_window(history, new_msg)
 
@@ -292,7 +293,9 @@ class TestLLMLimiterFitContextWindow:
         msg = ModelRequest(parts=[UserPromptPart(content="Hello")])
         history = [msg]
 
-        with patch("zrb.llm.contracts.config.limiter.is_turn_start", return_value=False):
+        with patch(
+            "zrb.llm.contracts.config.limiter.is_turn_start", return_value=False
+        ):
             result = limiter.fit_context_window(history, "new message")
             assert result == []
 

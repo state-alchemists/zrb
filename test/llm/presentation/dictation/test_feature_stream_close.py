@@ -52,7 +52,9 @@ def _session(monkeypatch, stream):
         await asyncio.Event().wait()
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     config = DictationConfig(
         backend=FakeBackend(), mode="hands_free", hands_free_commands=["/handsfree"]
     )

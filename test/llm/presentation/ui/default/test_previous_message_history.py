@@ -8,7 +8,9 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserProm
 from zrb.config.config import CFG
 from zrb.llm.presentation.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.presentation.ui.default.message_editing import UIMessageEditing
-from zrb.llm.presentation.ui.default.previous_message_history import PreviousMessageHistory
+from zrb.llm.presentation.ui.default.previous_message_history import (
+    PreviousMessageHistory,
+)
 from zrb.llm.presentation.ui.default.ui import UI
 from zrb.util.file_lock import hold_file_lock
 

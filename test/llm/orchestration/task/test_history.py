@@ -15,7 +15,9 @@ class TestConversationAndHistoryLookup:
         assert task.get_history_manager(MagicMock()) is manager
 
     def test_get_history_manager_defaults_to_file_manager(self):
-        from zrb.llm.capabilities.history_manager.file_history_manager import FileHistoryManager
+        from zrb.llm.capabilities.history_manager.file_history_manager import (
+            FileHistoryManager,
+        )
 
         task = LLMTask(name="t")
         assert isinstance(task.get_history_manager(MagicMock()), FileHistoryManager)

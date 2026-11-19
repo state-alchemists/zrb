@@ -7,8 +7,9 @@ and that each default in `UIStateDefaultsMixin` is what the absent hook meant.
 
 import pytest
 
-from zrb.llm.presentation.ui.any_ui import AnyUI, AnyUIDisplay
 from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
+from zrb.llm.contracts.util.delivery_report import DeliveryOutcome
+from zrb.llm.presentation.ui.any_ui import AnyUI, AnyUIDisplay
 from zrb.llm.presentation.ui.any_ui_session import AnyUISession
 from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 from zrb.llm.presentation.ui.fallback.defaults import (
@@ -19,7 +20,6 @@ from zrb.llm.presentation.ui.fallback.defaults import (
     UIToolsDefaults,
 )
 from zrb.llm.presentation.ui.fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.contracts.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
 
 PARTS = (

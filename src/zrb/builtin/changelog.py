@@ -113,12 +113,12 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
 
 
 async def _summarize(ctx, repo_dir, template, tag, previous, model):
-    from zrb.llm.engine.agent import create_agent  # lazy: pydantic_ai is a heavy extra
     from zrb.llm.contracts.shared.request_log import (
         REASON_CHANGELOG,
         record_standalone_requests,
     )
     from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.engine.agent import create_agent  # lazy: pydantic_ai is a heavy extra
 
     log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
     # Pre-fill the values we already know; the LLM fills the section details.

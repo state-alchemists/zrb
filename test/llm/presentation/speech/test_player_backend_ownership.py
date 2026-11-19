@@ -4,7 +4,12 @@ import threading
 
 import pytest
 
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
 
 
@@ -79,7 +84,9 @@ def _in_process(monkeypatch, made=None):
         def __init__(self, audio, **kwargs):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.is_in_process_available", lambda: True)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.is_in_process_available", lambda: True
+    )
     monkeypatch.setattr("zrb.llm.presentation.speech.player.PcmUtterance", FakePcm)
     return made
 
@@ -87,7 +94,8 @@ def _in_process(monkeypatch, made=None):
 def _built_by_zrb(monkeypatch, backend):
     """Hand the speaker a name, so what it speaks with is its own to close."""
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.player.get_speech_backend", lambda name, config: backend
+        "zrb.llm.presentation.speech.player.get_speech_backend",
+        lambda name, config: backend,
     )
     return backend
 

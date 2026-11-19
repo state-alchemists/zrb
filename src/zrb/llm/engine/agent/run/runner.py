@@ -17,55 +17,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.run.checkpoint_writer import (
-    CheckpointWriter,
-    create_checkpoint_writer,
-    drain_checkpoints,
-)
-from zrb.llm.engine.agent.run.deferred_calls import (
-    process_deferred_requests,
-    rebuild_for_denials,
-)
-from zrb.llm.engine.agent.run.error_classifier import add_credential_hint, classify_error_type
-from zrb.llm.engine.agent.run.history_utils import (
-    history_through_deferred_returns,
-    history_without_trailing_response,
-    is_empty_completion,
-    merge_consecutive_messages,
-    sanitize_history,
-)
-from zrb.llm.engine.agent.run.hook_result_extractor import (
-    extract_additional_context,
-    extract_block_decision,
-    extract_continue_decision,
-)
-from zrb.llm.engine.agent.run.openai_patch import patch_openai_model_response_serialization
-from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
-from zrb.llm.engine.agent.run.prompt_content import get_prompt_content as _get_prompt_content
-from zrb.llm.contracts.shared.request_log import (
-    REASON_CONTINUE,
-    REASON_OPENING,
-    REASON_RESUME,
-    REASON_RETRY,
-    record_round_requests,
-)
-from zrb.llm.engine.agent.run.retry_loop import RetryState, handle_stream_error
-from zrb.llm.engine.agent.run.session_extension import (
-    ExtensionState,
-    apply_turn_end_extension,
-    resolve_extended_return,
-)
-from zrb.llm.engine.agent.run.setup import (
-    bind_contextvar,
-    log_startup,
-    resolve_context_dependencies,
-    setup_print_and_events,
-)
-from zrb.llm.engine.agent.run.turn_cursor import TurnCursor
-from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.capabilities.approval.approval_channel import current_approval_channel
-from zrb.llm.contracts.config.limiter import LLMLimiter
-from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.hook.turn_evidence import (
@@ -78,6 +30,9 @@ from zrb.llm.capabilities.permission.state import (
     exit_agent_mode_scope,
 )
 from zrb.llm.capabilities.sandbox.state import current_sandbox_policy
+from zrb.llm.capabilities.snapshot.command import run_in_worker
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.contracts.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -94,20 +49,75 @@ from zrb.llm.contracts.shared.agent_state import (
 )
 from zrb.llm.contracts.shared.ambient_state import active_worktree
 from zrb.llm.contracts.shared.message import ensure_alternating_roles
+from zrb.llm.contracts.shared.request_log import (
+    REASON_CONTINUE,
+    REASON_OPENING,
+    REASON_RESUME,
+    REASON_RETRY,
+    record_round_requests,
+)
 from zrb.llm.contracts.shared.shell_cut import (
     current_shell_cut_signal,
     get_run_shell_cut_signal,
     signal_for_run,
 )
-from zrb.llm.contracts.shared.stream_observer import StreamObserver, create_observed_event_handler
+from zrb.llm.contracts.shared.stream_observer import (
+    StreamObserver,
+    create_observed_event_handler,
+)
 from zrb.llm.contracts.shared.usage_log import (
     ContextComposition,
     count_tool_calls,
     record_usage,
 )
-from zrb.llm.capabilities.snapshot.command import run_in_worker
 from zrb.llm.contracts.util.live_context_block import append_live_context
 from zrb.llm.contracts.util.prompt import expand_prompt
+from zrb.llm.engine.agent.run.checkpoint_writer import (
+    CheckpointWriter,
+    create_checkpoint_writer,
+    drain_checkpoints,
+)
+from zrb.llm.engine.agent.run.deferred_calls import (
+    process_deferred_requests,
+    rebuild_for_denials,
+)
+from zrb.llm.engine.agent.run.error_classifier import (
+    add_credential_hint,
+    classify_error_type,
+)
+from zrb.llm.engine.agent.run.history_utils import (
+    history_through_deferred_returns,
+    history_without_trailing_response,
+    is_empty_completion,
+    merge_consecutive_messages,
+    sanitize_history,
+)
+from zrb.llm.engine.agent.run.hook_result_extractor import (
+    extract_additional_context,
+    extract_block_decision,
+    extract_continue_decision,
+)
+from zrb.llm.engine.agent.run.openai_patch import (
+    patch_openai_model_response_serialization,
+)
+from zrb.llm.engine.agent.run.partial_run import PartialRunAccumulator
+from zrb.llm.engine.agent.run.prompt_content import (
+    get_prompt_content as _get_prompt_content,
+)
+from zrb.llm.engine.agent.run.retry_loop import RetryState, handle_stream_error
+from zrb.llm.engine.agent.run.session_extension import (
+    ExtensionState,
+    apply_turn_end_extension,
+    resolve_extended_return,
+)
+from zrb.llm.engine.agent.run.setup import (
+    bind_contextvar,
+    log_startup,
+    resolve_context_dependencies,
+    setup_print_and_events,
+)
+from zrb.llm.engine.agent.run.turn_cursor import TurnCursor
+from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable
@@ -116,6 +126,9 @@ if TYPE_CHECKING:
     from pydantic_ai.agent import EventStreamHandler
     from pydantic_ai.messages import UserContent
 
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.permission.policy import PermissionPolicy
+    from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
     from zrb.llm.engine.agent.run.typing_aliases import (
         CheckpointFn,
         History,
@@ -125,9 +138,6 @@ if TYPE_CHECKING:
         UIEvent,
     )
     from zrb.llm.engine.agent.types import RunUsage
-    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.capabilities.permission.policy import PermissionPolicy
-    from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
     # What a run hands back: the model's output (typed by the agent's own
@@ -1341,7 +1351,9 @@ async def _apply_multimodal_fallback(
     attachments are dropped with a warning.
     """
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai, pdfplumber, prompt_toolkit
-    from zrb.llm.capabilities.tool.multimodal_describe import replace_unsupported_attachments
+    from zrb.llm.capabilities.tool.multimodal_describe import (
+        replace_unsupported_attachments,
+    )
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(

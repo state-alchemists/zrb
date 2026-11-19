@@ -137,7 +137,9 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch
     llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
-    with patch("zrb.llm.presentation.ui.multi.input.asyncio.sleep", side_effect=tracking_sleep):
+    with patch(
+        "zrb.llm.presentation.ui.multi.input.asyncio.sleep", side_effect=tracking_sleep
+    ):
         multi_ui.submit_user_message(llm_task, "first")
         multi_ui.submit_user_message(llm_task, "second")
 

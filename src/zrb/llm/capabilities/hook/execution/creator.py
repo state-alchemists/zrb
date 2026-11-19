@@ -10,16 +10,26 @@ import threading
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.model_resolver import resolve_configured_model
-from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext, HookResult
-from zrb.llm.capabilities.hook.contracts.schema import CommandHookConfig, PromptHookConfig
+from zrb.llm.capabilities.hook.contracts.interface import (
+    HookCallable,
+    HookContext,
+    HookResult,
+)
+from zrb.llm.capabilities.hook.contracts.schema import (
+    CommandHookConfig,
+    PromptHookConfig,
+)
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
-from zrb.llm.capabilities.hook.execution.process_io import read_hook_output, run_detached
+from zrb.llm.capabilities.hook.execution.process_io import (
+    read_hook_output,
+    run_detached,
+)
 from zrb.llm.capabilities.hook.execution.process_kill import (
     kill_process_tree,
     read_process_group,
     reap_killed_process,
 )
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.contracts.shared.agent_runner import create_agent
 from zrb.llm.contracts.shared.agent_state import current_nested_run, get_current_model
 from zrb.llm.contracts.shared.request_log import (

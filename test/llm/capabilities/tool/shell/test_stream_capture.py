@@ -91,7 +91,9 @@ def test_head_text_of_an_unavailable_spill_is_empty_not_an_error(monkeypatch):
     def _boom(*args, **kwargs):
         raise OSError("no temp for you")
 
-    monkeypatch.setattr("zrb.llm.capabilities.tool.shell.capture.tempfile.mkstemp", _boom)
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.tool.shell.capture.tempfile.mkstemp", _boom
+    )
     cap = StreamCapture(retain=5, echo=0)
     cap.feed("x" * 50)
 

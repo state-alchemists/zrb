@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
-from zrb.llm.engine.agent.run.runner import run_agent
 from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):

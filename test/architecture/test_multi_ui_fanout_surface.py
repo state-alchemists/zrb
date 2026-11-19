@@ -118,9 +118,9 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 
 
 def test_every_declared_hook_is_declared_on_any_ui():
+    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
-    from zrb.llm.contracts.ui.any_ui_input import AnyUIInput
     from zrb.llm.presentation.ui.any_ui_session import AnyUISession
     from zrb.llm.presentation.ui.any_ui_tools import AnyUITools
 

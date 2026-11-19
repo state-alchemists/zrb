@@ -6,7 +6,12 @@ import threading
 import pytest
 
 from zrb.llm.contracts.shared.ambient_state import get_current_speech_voice
-from zrb.llm.presentation.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
+from zrb.llm.presentation.speech import (
+    AnySpeechBackend,
+    Speaker,
+    SpeechConfig,
+    Utterance,
+)
 from zrb.llm.presentation.speech.backend.audio import SpeechAudio
 
 
@@ -93,7 +98,8 @@ def _with_local_voice(monkeypatch, voice, local):
 def _built_by_zrb(monkeypatch, backend):
     """Hand the speaker a name, so what it speaks with is its own to close."""
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.player.get_speech_backend", lambda name, config: backend
+        "zrb.llm.presentation.speech.player.get_speech_backend",
+        lambda name, config: backend,
     )
     return backend
 
@@ -237,8 +243,12 @@ class RenderRecordingBackend(AudioBackend):
 def _device_failing(monkeypatch):
     clock = FakeClock()
     monkeypatch.setattr("zrb.llm.presentation.speech.player.time", clock)
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.is_in_process_available", lambda: True)
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.PcmUtterance", DeviceFailingPcm)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.is_in_process_available", lambda: True
+    )
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.PcmUtterance", DeviceFailingPcm
+    )
     return clock
 
 
@@ -290,7 +300,9 @@ def test_speech_returns_to_its_queued_voice_after_a_device_failure(
             super().play(timeout)
             failed.set()
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.PcmUtterance", SignallingPcm)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.PcmUtterance", SignallingPcm
+    )
     backend = RenderRecordingBackend()
     speaker = Speaker(_config(backend, lock_file, player="auto"))
 
@@ -484,7 +496,9 @@ def test_a_local_voice_keeps_its_voice_while_the_device_rests(lock_file, monkeyp
     """Changing the output device costs a sentence its pause, not its voice:
     the local voice is rendered again rather than handed to the local engine."""
     _device_failing(monkeypatch)
-    monkeypatch.setattr("zrb.llm.presentation.speech.player.PcmUtterance", QuietDevicePcm)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.player.PcmUtterance", QuietDevicePcm
+    )
     voice, local = LocalVoice(), AudioBackend(renders=False)
     _with_local_voice(monkeypatch, voice, local)
     speaker = Speaker(_config(voice, lock_file, player="auto"))

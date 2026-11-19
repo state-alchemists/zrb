@@ -6,11 +6,15 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
-from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig, enable_dictation
-from zrb.llm.presentation.dictation.feature import DictationSession
-from zrb.llm.presentation.dictation.listen import MicState, Utterance
 from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.contracts.shared.input_source import DICTATION_INPUT
+from zrb.llm.presentation.dictation import (
+    AnyDictationBackend,
+    DictationConfig,
+    enable_dictation,
+)
+from zrb.llm.presentation.dictation.feature import DictationSession
+from zrb.llm.presentation.dictation.listen import MicState, Utterance
 from zrb.llm.presentation.ui.trigger import TriggerReply
 
 
@@ -96,7 +100,9 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
             yield Utterance(text.encode(), started_at, ended_at)
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     return heard
 
 
@@ -370,7 +376,9 @@ async def test_enabling_dictation_again_uses_the_new_config(monkeypatch):
 
 
 def test_an_unknown_backend_does_not_break_a_session_that_never_uses_it(monkeypatch):
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None))
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.import_audio", lambda: (None, None)
+    )
     session = DictationSession(
         DictationConfig(
             backend="nonesuch", commands=["/voice"], hands_free_commands=["/handsfree"]

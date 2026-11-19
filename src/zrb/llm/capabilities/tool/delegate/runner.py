@@ -12,11 +12,21 @@ from typing import TYPE_CHECKING, Annotated, TypedDict, cast
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.contracts.config.limiter import get_run_llm_limiter
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import get_run_hook_manager
 from zrb.llm.capabilities.permission import Capability, tag
-from zrb.llm.contracts.shared.agent_activity import HasActivityTracking, agent_activity_registry
+from zrb.llm.capabilities.tool.delegate.background import (
+    get_background_registry,
+    register_background_handle,
+    start_background_run,
+)
+from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree, exit_worktree
+from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
+from zrb.llm.contracts.config.limiter import get_run_llm_limiter
+from zrb.llm.contracts.shared.agent_activity import (
+    HasActivityTracking,
+    agent_activity_registry,
+)
 from zrb.llm.contracts.shared.agent_state import get_current_ui
 from zrb.llm.contracts.shared.ambient_state import (
     get_active_worktree,
@@ -30,27 +40,20 @@ from zrb.llm.contracts.shared.delegation_api import (
 )
 from zrb.llm.contracts.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.contracts.shared.subagent_turn import SubAgentTurn, run_subagent_turn
-from zrb.llm.capabilities.tool.delegate.background import (
-    get_background_registry,
-    register_background_handle,
-    start_background_run,
-)
-from zrb.llm.capabilities.tool.delegate.worktree import enter_worktree, exit_worktree
-from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
-from zrb.llm.presentation.ui.buffered.ui import BufferedUI
-from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.llm.contracts.util.roster import cap_items, search_roster
 from zrb.llm.contracts.util.subagent_session_naming import (
     format_delegated_session_name,
     parse_delegated_session,
     subagent_only_directories,
 )
+from zrb.llm.presentation.ui.buffered.ui import BufferedUI
+from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
 from zrb.util.string.name import get_random_name
 from zrb.util.string.suggestion import suggest_name
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.contracts.shared.delegation_api import SubAgentManagerAPI
+    from zrb.llm.engine.agent.types import ModelMessage
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
 

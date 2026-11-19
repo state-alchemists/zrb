@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 
 from zrb.cmd.command import resolve_shell
 from zrb.config.helper import get_shell_name
-from zrb.llm.capabilities.tool_call.argument_formatter.util import render_indented_markdown
+from zrb.llm.capabilities.tool_call.argument_formatter.util import (
+    render_indented_markdown,
+)
 from zrb.llm.capabilities.tool_call.shell_call import (
     is_sandbox_off,
     shell_command,
@@ -16,8 +18,8 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.engine.agent.types import ToolCallPart
     from zrb.llm.contracts.ui.any_agent_output import AnyAgentOutput
+    from zrb.llm.engine.agent.types import ToolCallPart
 
 # Fence language per shell, so pygments highlights the command as the shell
 # that will run it. `bash` stands in for the POSIX shells it reads the same

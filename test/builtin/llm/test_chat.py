@@ -13,9 +13,12 @@ import pytest
 from zrb.builtin.llm.chat import llm_chat
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.contracts.shared.tool_registry import tool_name
-from zrb.llm.capabilities.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
+from zrb.llm.capabilities.tool.delegate import (
+    AgentTaskResult,
+    create_delegate_to_agent_tool,
+)
 from zrb.llm.capabilities.tool.delegate.background import get_background_registry
+from zrb.llm.contracts.shared.tool_registry import tool_name
 
 
 def _names(profile: str, model: str | None = None) -> list[str]:

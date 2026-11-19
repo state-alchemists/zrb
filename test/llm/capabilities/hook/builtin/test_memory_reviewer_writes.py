@@ -11,10 +11,12 @@ from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
 from zrb.config.config import CFG
-from zrb.llm.engine.agent.common import create_agent, wrap_tool
-from zrb.llm.capabilities.hook.builtin.memory_reviewer import build_memory_reviewer_hook_config
-from zrb.llm.contracts.memory import paths
+from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
+    build_memory_reviewer_hook_config,
+)
 from zrb.llm.capabilities.tool.memory import remember
+from zrb.llm.contracts.memory import paths
+from zrb.llm.engine.agent.common import create_agent, wrap_tool
 
 
 @pytest.fixture

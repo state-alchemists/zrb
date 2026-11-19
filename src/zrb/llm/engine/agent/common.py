@@ -9,6 +9,12 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.hook.contracts.types import HookEvent
+from zrb.llm.capabilities.hook.manager import get_run_hook_manager
+from zrb.llm.contracts.config.model_resolver import resolve_configured_model
+from zrb.llm.contracts.shared.agent_tool_result import has_multimodal, tool_return
+from zrb.llm.contracts.util.capabilities import model_capabilities
+from zrb.llm.contracts.util.prompt import expand_prompt
 from zrb.llm.engine.agent.gates import permission_gate, sandbox_gate
 from zrb.llm.engine.agent.run.error_classifier import add_credential_hint
 from zrb.llm.engine.agent.run.hook_result_extractor import (
@@ -17,12 +23,6 @@ from zrb.llm.engine.agent.run.hook_result_extractor import (
 )
 from zrb.llm.engine.agent.spill import maybe_spill
 from zrb.llm.engine.agent.truncate import truncate_tool_content
-from zrb.llm.contracts.config.model_resolver import resolve_configured_model
-from zrb.llm.capabilities.hook.contracts.types import HookEvent
-from zrb.llm.capabilities.hook.manager import get_run_hook_manager
-from zrb.llm.contracts.shared.agent_tool_result import has_multimodal, tool_return
-from zrb.llm.contracts.util.capabilities import model_capabilities
-from zrb.llm.contracts.util.prompt import expand_prompt
 from zrb.util.signature import can_take_positional
 from zrb.util.string.conversion import to_string
 
@@ -182,7 +182,11 @@ def create_safe_wrapper(
     # through here, so this is the one place that closes it. A toolset that owns
     # its own schema — an MCP server's — never reaches this function; that edge is
     # closed in `zrb.llm.capabilities.tool.mcp.add_purpose_to_mcp_tools`.
-    from zrb.llm.capabilities.tool.purpose import Purpose, add_optional_purpose, has_purpose
+    from zrb.llm.capabilities.tool.purpose import (
+        Purpose,
+        add_optional_purpose,
+        has_purpose,
+    )
 
     passes_purpose = has_purpose(func)
     signature = None if passes_purpose else inspect.signature(func)

@@ -11,9 +11,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from zrb.llm.orchestration.custom_command.resolver import get_custom_command_match
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
-from zrb.llm.presentation.ui.base.conversation_commands import BaseUIConversationCommands
+from zrb.llm.orchestration.custom_command.resolver import get_custom_command_match
+from zrb.llm.presentation.ui.base.conversation_commands import (
+    BaseUIConversationCommands,
+)
 from zrb.llm.presentation.ui.base.exec_commands import BaseUIExecCommands
 from zrb.llm.presentation.ui.base.model_commands import BaseUIModelCommands
 from zrb.util.cli.help_panel import HelpPanel, render_help_panel

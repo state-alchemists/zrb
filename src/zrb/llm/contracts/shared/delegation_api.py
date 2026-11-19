@@ -19,8 +19,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from zrb.llm.orchestration.subagent.any_live_session_registry import AnyLiveSessionRegistry
-    from zrb.llm.orchestration.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
+    from zrb.llm.orchestration.subagent.any_live_session_registry import (
+        AnyLiveSessionRegistry,
+    )
+    from zrb.llm.orchestration.subagent.any_live_sub_agent_session import (
+        AnyLiveSubAgentSession,
+    )
     from zrb.llm.orchestration.subagent.any_sub_agent_manager import AnySubAgentManager
 
     SubAgentManagerAPI: TypeAlias = AnySubAgentManager

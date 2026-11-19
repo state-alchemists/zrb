@@ -6,6 +6,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from zrb.llm.capabilities.tool_call.judge_note import (
+    JUDGE_CAUTION,
+    JUDGE_DANGEROUS,
+    JUDGE_SAFE,
+    JUDGE_UNKNOWN,
+    MAX_JUDGE_REASON_CHARS,
+)
+from zrb.llm.contracts.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
 from zrb.llm.engine.agent.shell_judge import (
     JUDGE_TIMEOUT_SECONDS,
     JudgeVerdict,
@@ -17,14 +25,6 @@ from zrb.llm.engine.agent.shell_judge import (
     shown_facts,
     uncommitted_files,
     verdict_from_output,
-)
-from zrb.llm.contracts.shared.usage_log import COMPONENT_SHELL_JUDGE, read_records
-from zrb.llm.capabilities.tool_call.judge_note import (
-    JUDGE_CAUTION,
-    JUDGE_DANGEROUS,
-    JUDGE_SAFE,
-    JUDGE_UNKNOWN,
-    MAX_JUDGE_REASON_CHARS,
 )
 
 _CREATE_AGENT = "zrb.llm.engine.agent.shell_judge.create_agent"

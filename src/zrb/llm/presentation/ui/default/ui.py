@@ -8,13 +8,18 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.contracts.config.ui_config import UIConfig
-from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.capabilities.tool_call import (
+    ArgumentFormatter,
+    ResponseHandler,
+    ToolPolicy,
+)
+from zrb.llm.contracts.config.ui_config import UIConfig
 from zrb.llm.contracts.shared.input_source import KEYBOARD_INPUT, InputProvenance
-from zrb.llm.capabilities.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
-from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.contracts.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.contracts.util.history_formatter import extract_user_message_texts
+from zrb.llm.orchestration.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.presentation.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.presentation.ui.base.ui import BaseUI
 from zrb.llm.presentation.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.presentation.ui.default.app.follow import OutputFollow
@@ -32,10 +37,11 @@ from zrb.llm.presentation.ui.default.lifecycle import UILifecycle
 from zrb.llm.presentation.ui.default.message_editing import UIMessageEditing
 from zrb.llm.presentation.ui.default.output import UIOutput
 from zrb.llm.presentation.ui.default.picker import UIPicker
-from zrb.llm.presentation.ui.default.previous_message_history import PreviousMessageHistory
+from zrb.llm.presentation.ui.default.previous_message_history import (
+    PreviousMessageHistory,
+)
 from zrb.llm.presentation.ui.default.selection import UISelection
 from zrb.llm.presentation.ui.default.side_question import UISideQuestion
-from zrb.llm.contracts.util.history_formatter import extract_user_message_texts
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 

@@ -105,7 +105,6 @@ def test_every_llm_module_imports(tmp_path):
         "These modules do not import. A path that moved, or a string nothing "
         "rewrites, reads exactly like this:\n  "
         + "\n  ".join(
-            f"{name}: {kind}: {message}"
-            for name, kind, message in report["failures"]
+            f"{name}: {kind}: {message}" for name, kind, message in report["failures"]
         )
     )

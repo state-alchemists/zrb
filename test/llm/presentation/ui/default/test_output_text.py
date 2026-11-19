@@ -288,7 +288,9 @@ def test_get_agent_activity_text_omits_picker_hint_without_live_sessions():
     ui = MockOutputUI()
     no_activity = MagicMock(active=lambda session_id: [])
 
-    with patch("zrb.llm.presentation.ui.default.output.agent_activity_registry", no_activity):
+    with patch(
+        "zrb.llm.presentation.ui.default.output.agent_activity_registry", no_activity
+    ):
         with patch(
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             no_activity,
@@ -307,7 +309,9 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
     running = MagicMock(active=lambda session_id: [object()])
     live = MagicMock(active=lambda session_id: [object()])
 
-    with patch("zrb.llm.presentation.ui.default.output.agent_activity_registry", running):
+    with patch(
+        "zrb.llm.presentation.ui.default.output.agent_activity_registry", running
+    ):
         with patch(
             "zrb.llm.orchestration.subagent.live_session.live_subagent_session_registry",
             live,
@@ -426,7 +430,9 @@ def test_append_markdown_rewraps_on_resize():
     paragraph = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo"
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+        with patch(
+            "zrb.llm.presentation.ui.default.output.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value.columns = 34
             ui.append_to_output("before")
             ui.append_markdown(paragraph)
@@ -448,7 +454,9 @@ def test_rewrap_output_is_a_noop_at_unchanged_width():
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+        with patch(
+            "zrb.llm.presentation.ui.default.output.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value.columns = 60
             ui.append_markdown("hello **world**")
             ui.rewrap_output()
@@ -472,7 +480,9 @@ def test_print_help_panel_rerenders_on_resize_without_truncating():
     )
 
     with patch.object(ui.output_part, "schedule_invalidate"):
-        with patch("zrb.llm.presentation.ui.default.output.get_terminal_size") as mock_size:
+        with patch(
+            "zrb.llm.presentation.ui.default.output.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value.columns = 60
             ui.print_help()
             narrow = ui.output_text

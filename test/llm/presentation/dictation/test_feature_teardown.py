@@ -121,7 +121,9 @@ def test_a_backend_whose_loop_is_gone_is_released_and_reported(caplog):
     session = DictationSession(DictationConfig().resolve())
     session.backend = Abandoned()
 
-    with caplog.at_level(logging.WARNING, logger="zrb.llm.presentation.dictation.feature"):
+    with caplog.at_level(
+        logging.WARNING, logger="zrb.llm.presentation.dictation.feature"
+    ):
         session.close()
 
     assert closed == []
@@ -156,7 +158,9 @@ def test_a_loop_that_stops_during_the_handoff_still_lets_the_backend_go(
     session = DictationSession(DictationConfig().resolve())
     session.backend = Abandoned()
 
-    with caplog.at_level(logging.WARNING, logger="zrb.llm.presentation.dictation.feature"):
+    with caplog.at_level(
+        logging.WARNING, logger="zrb.llm.presentation.dictation.feature"
+    ):
         session.close()
 
     assert released == [True]
@@ -188,7 +192,9 @@ async def test_a_session_ended_mid_recording_builds_no_second_backend(monkeypatc
         return backend
 
     monkeypatch.setattr("zrb.llm.presentation.dictation.feature.listen", listen)
-    monkeypatch.setattr("zrb.llm.presentation.dictation.feature.get_dictation_backend", get_backend)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.feature.get_dictation_backend", get_backend
+    )
     session = DictationSession(
         DictationConfig(backend="moonshine", commands=["/voice"]).resolve()
     )

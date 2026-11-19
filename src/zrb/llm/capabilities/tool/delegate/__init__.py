@@ -8,7 +8,9 @@ from zrb.llm.capabilities.tool.delegate.background import (
     register_background_handle,
     start_background_run,
 )
-from zrb.llm.capabilities.tool.delegate.message import create_send_message_to_subagent_tool
+from zrb.llm.capabilities.tool.delegate.message import (
+    create_send_message_to_subagent_tool,
+)
 from zrb.llm.capabilities.tool.delegate.runner import (
     AgentTaskResult,
     BufferedUI,

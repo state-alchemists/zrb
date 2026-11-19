@@ -29,7 +29,9 @@ async def test_split_history_token_limit_trigger():
         ModelRequest(parts=[UserPromptPart(content="m4")]),
     ]
 
-    with patch("zrb.llm.engine.summarizer.history_splitter.is_turn_start", return_value=True):
+    with patch(
+        "zrb.llm.engine.summarizer.history_splitter.is_turn_start", return_value=True
+    ):
         to_sum, to_keep = split_history(
             messages,
             summary_window=10,
@@ -48,7 +50,9 @@ async def test_split_history_fallback():
         ModelRequest(parts=[UserPromptPart(content="m2")]),
     ]
 
-    with patch("zrb.llm.engine.summarizer.history_splitter.is_turn_start", return_value=False):
+    with patch(
+        "zrb.llm.engine.summarizer.history_splitter.is_turn_start", return_value=False
+    ):
         to_sum, to_keep = split_history(messages, 10, limiter, 100)
 
         assert len(to_keep) == 2

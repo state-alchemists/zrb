@@ -7,11 +7,11 @@ import contextlib
 
 import pytest
 
+from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.presentation.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.presentation.dictation.feature import DictationSession
 from zrb.llm.presentation.dictation.interrupt_judge import BargeInVerdict
 from zrb.llm.presentation.dictation.listen import Utterance
-from zrb.llm.contracts.shared.feature_config import reset_session_ui, set_session_ui
 
 from .barge_in_support import (
     FakeUI,
@@ -88,7 +88,9 @@ async def test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway(
             return BargeInVerdict(intent="stop", reason="asks zrb to be quiet")
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_stop)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_stop
+    )
     ui = FakeUI()
     set_session_ui(ui)
     _listen(monkeypatch, "hey zed please fucking stop", "hey zed go on")
@@ -117,7 +119,9 @@ async def test_a_one_word_stop_the_word_lists_do_not_know_still_reaches_the_judg
             return BargeInVerdict(intent="stop", reason="a stop in another language")
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_stop)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_stop
+    )
     ui = FakeUI()
     set_session_ui(ui)
     _listen(monkeypatch, "berhenti", "carry on")
@@ -140,7 +144,9 @@ async def test_a_stop_word_is_not_put_to_the_model(monkeypatch, speech):
         asked.append(command)
         return None
 
-    monkeypatch.setattr("zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.dictation.interrupt_judge.judge_barge_in", judge_spy
+    )
     _listen(monkeypatch, "hey zed stop", "hey zed go on")
 
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["go on"]

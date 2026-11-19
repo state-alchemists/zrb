@@ -15,7 +15,9 @@ from zrb.llm.capabilities.approval.multiplex_approval_channel import (
     resolve_approval_channel,
 )
 from zrb.llm.capabilities.approval.null_approval_channel import NullApprovalChannel
-from zrb.llm.capabilities.approval.terminal_approval_channel import TerminalApprovalChannel
+from zrb.llm.capabilities.approval.terminal_approval_channel import (
+    TerminalApprovalChannel,
+)
 
 __all__ = [
     "AnyApprovalChannel",

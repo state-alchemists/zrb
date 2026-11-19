@@ -269,7 +269,10 @@ async def test_the_echo_cancelled_microphone_is_not_reopened_for_a_change():
 
     with (
         _patched(sounddevice),
-        patch("zrb.llm.presentation.dictation.microphone.get_unavailable_reason", return_value=None),
+        patch(
+            "zrb.llm.presentation.dictation.microphone.get_unavailable_reason",
+            return_value=None,
+        ),
         patch(
             "zrb.llm.presentation.dictation.microphone.EchoCancelledMicrophone",
             _FakeEchoCancelledMicrophone,

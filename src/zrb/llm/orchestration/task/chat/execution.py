@@ -18,7 +18,10 @@ from zrb.llm.capabilities.approval import resolve_approval_channel
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.permission import tool_capability
 from zrb.llm.capabilities.sandbox import coerce_sandbox
+from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
+from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.task.chat.persistence import (
     build_session_history_config,
@@ -37,14 +40,16 @@ from zrb.llm.orchestration.task.shared_getters import (
     resolve_model,
     resolve_system_prompt,
 )
-from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
-from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.presentation.ui.fallback.resolution import resolve_ui
-from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
+    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.capabilities.history_manager.any_history_manager import (
+        AnyHistoryManager,
+    )
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
     from zrb.llm.engine.agent import AnyToolConfirmation
     from zrb.llm.engine.agent.types import (
         AbstractCapability,
@@ -53,9 +58,6 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.capabilities.approval.any_approval_channel import AnyApprovalChannel
-    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.capabilities.sandbox import SandboxPolicy
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.history_config import HistoryConfig
     from zrb.llm.presentation.ui.any_ui import AnyUI

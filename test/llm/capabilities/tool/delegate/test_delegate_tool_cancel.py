@@ -3,8 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.orchestration.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.capabilities.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.orchestration.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+)
 
 
 @pytest.fixture
@@ -62,7 +65,9 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
     """A cancellation NOT flagged by the sub-agent-view Esc (e.g. the main
     run's own Esc) must propagate as CancelledError — swallowing it would
     resurrect a main turn the user explicitly cancelled."""
-    from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -75,7 +80,8 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
 
     try:
         with patch(
-            "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=blocking_run_agent
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=blocking_run_agent,
         ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -94,7 +100,9 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
 async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manager):
     """A completed delegation appends an end-of-session <Done> to the sub-agent's
     live-view transcript — after the turn went idle, so the view visibly ends."""
-    from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
 
     live_subagent_session_registry.clear()
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -103,7 +111,8 @@ async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manage
     try:
         with (
             patch(
-                "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
+                "zrb.llm.contracts.shared.subagent_turn.run_agent",
+                new_callable=AsyncMock,
             ) as mock_run_agent,
             patch("zrb.llm.capabilities.tool.delegate.runner.persist_subagent_history"),
         ):
@@ -124,7 +133,9 @@ async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manage
 async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manager):
     """A human-cancelled delegation must not end with <Done> — the TUI wrote
     <Esc> Canceled, and a <Done> on top would contradict it."""
-    from zrb.llm.orchestration.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
 
     live_subagent_session_registry.clear()
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -137,7 +148,8 @@ async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manag
 
     try:
         with patch(
-            "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=blocking_run_agent
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=blocking_run_agent,
         ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -160,7 +172,11 @@ def test_docstring_lists_all_agents_without_policy(two_agent_manager):
 
 
 def test_docstring_filters_denied_agent(two_agent_manager):
-    from zrb.llm.capabilities.permission import PermissionPolicy, Rule, current_permission_policy
+    from zrb.llm.capabilities.permission import (
+        PermissionPolicy,
+        Rule,
+        current_permission_policy,
+    )
 
     # Deny delegating to the "builder" agent specifically (arg_pattern on
     # agent_name), allow the rest.
@@ -264,7 +280,9 @@ async def test_delegate_fan_out_respects_parallel_cap(
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
-    with patch("zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent):
+    with patch(
+        "zrb.llm.contracts.shared.subagent_turn.run_agent", side_effect=fake_run_agent
+    ):
         result = await tool(tasks=tasks)
 
     assert get_max_in_flight() <= 2

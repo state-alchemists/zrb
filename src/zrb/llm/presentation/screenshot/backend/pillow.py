@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import sys
 
-from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.presentation.screenshot.backend.program import ProgramFailed, run_program
 from zrb.llm.contracts.util.deadline import create_deadline, get_earlier
+from zrb.llm.presentation.screenshot.backend.any_screenshot_backend import (
+    AnyScreenshotBackend,
+)
+from zrb.llm.presentation.screenshot.backend.program import ProgramFailed, run_program
 
 # Runs in a subprocess: `-c` with this source, the display as argv[1]. Kept
 # out of the shared asyncio thread pool so a timed-out grab is killable.

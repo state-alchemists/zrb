@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
-from zrb.llm.capabilities.tool.purpose import DECLARED_PURPOSE_KEY, with_declared_purpose
+from zrb.llm.capabilities.tool.purpose import (
+    DECLARED_PURPOSE_KEY,
+    with_declared_purpose,
+)
 from zrb.llm.capabilities.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 

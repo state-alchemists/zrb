@@ -6,13 +6,17 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.history_manager.conversation_naming import with_slug
+from zrb.llm.contracts.shared.usage_log import (
+    KIND_SUMMARIZATION,
+    KIND_TURN,
+    record_usage,
+)
 from zrb.llm.orchestration.custom_command.usage.command import (
     _duration,
     create_usage_commands,
     render_usage,
 )
-from zrb.llm.capabilities.history_manager.conversation_naming import with_slug
-from zrb.llm.contracts.shared.usage_log import KIND_SUMMARIZATION, KIND_TURN, record_usage
 from zrb.util.string.name import get_random_name
 
 NOW = datetime.now(timezone.utc)

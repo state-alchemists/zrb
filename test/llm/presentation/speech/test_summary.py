@@ -114,7 +114,8 @@ async def test_a_model_that_cannot_be_resolved_is_reported(monkeypatch):
         raise RuntimeError("no credentials")
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.summary.create_speech_summarizer_agent", failing_create
+        "zrb.llm.presentation.speech.summary.create_speech_summarizer_agent",
+        failing_create,
     )
 
     with pytest.raises(SpeechSummaryError, match="no credentials"):
@@ -223,7 +224,9 @@ def test_a_second_reply_is_refused_while_a_worker_is_stuck(monkeypatch):
         created.append(1)
         return _BlockedAgent(release)
 
-    monkeypatch.setattr("zrb.llm.presentation.speech.summary.create_speech_summarizer_agent", create)
+    monkeypatch.setattr(
+        "zrb.llm.presentation.speech.summary.create_speech_summarizer_agent", create
+    )
     summarizer = SpeechSummarizer()
     spoken = _Spoken()
     try:
@@ -250,7 +253,8 @@ def test_a_model_that_cannot_be_resolved_in_time_speaks_the_reply(monkeypatch):
         return _Agent("short")
 
     monkeypatch.setattr(
-        "zrb.llm.presentation.speech.summary.create_speech_summarizer_agent", blocking_create
+        "zrb.llm.presentation.speech.summary.create_speech_summarizer_agent",
+        blocking_create,
     )
     spoken = _Spoken()
     try:

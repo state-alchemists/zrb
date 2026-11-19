@@ -9,12 +9,12 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
-from zrb.llm.engine.agent.run.runner import run_agent
-from zrb.llm.contracts.config.limiter import LLMLimiter
 from zrb.llm.capabilities.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.snapshot.store import Snapshot
+from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.engine.agent.run.runner import run_agent
 
 
 def _run_from(agen_func):
@@ -75,7 +75,8 @@ async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypat
         "zrb.llm.engine.agent.run.turn_snapshot.SnapshotStore.snapshot", slow_snapshot
     )
     monkeypatch.setattr(
-        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook", lambda manager: None
+        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook",
+        lambda manager: None,
     )
     turn = asyncio.create_task(
         run_agent(
@@ -123,7 +124,8 @@ async def test_a_working_directory_that_is_gone_does_not_fail_the_turn(monkeypat
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
     monkeypatch.setattr(
-        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook", lambda manager: None
+        "zrb.llm.capabilities.hook.manager.manager.register_self_review_hook",
+        lambda manager: None,
     )
     monkeypatch.setattr("zrb.llm.engine.agent.run.runner.os", _GoneWorkdir())
     manager = HookManager(search_dirs=[])

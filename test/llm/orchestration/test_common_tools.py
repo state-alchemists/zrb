@@ -23,12 +23,12 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.capabilities.permission import Capability, tool_capability
 from zrb.llm.orchestration.common_tools import (
     DEFAULT_AUTO_APPROVED_TOOLS,
     apply_common_tools,
     tool_name,
 )
-from zrb.llm.capabilities.permission import Capability, tool_capability
 
 
 @pytest.fixture(autouse=True)

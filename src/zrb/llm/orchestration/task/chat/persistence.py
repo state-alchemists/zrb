@@ -19,10 +19,14 @@ from typing import TYPE_CHECKING
 
 from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
-from zrb.llm.capabilities.history_manager.file_history_manager import default_history_manager
+from zrb.llm.capabilities.history_manager.file_history_manager import (
+    default_history_manager,
+)
 
 if TYPE_CHECKING:
-    from zrb.llm.capabilities.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.capabilities.history_manager.any_history_manager import (
+        AnyHistoryManager,
+    )
     from zrb.llm.orchestration.task.chat.task import LLMChatTask
     from zrb.llm.orchestration.task.history_config import HistoryConfig
     from zrb.llm.presentation.ui.any_ui import AnyUI

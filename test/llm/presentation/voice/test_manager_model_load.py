@@ -6,8 +6,8 @@ chat for; one after another is survivable.
 
 import threading
 
-from zrb.llm.presentation.speech.config import SpeechConfig
 from zrb.llm.contracts.util.model_load import heavy_model_load
+from zrb.llm.presentation.speech.config import SpeechConfig
 from zrb.llm.presentation.voice.manager import TTSServiceManager
 from zrb.llm.presentation.voice.registry import TTSServiceRegistry
 from zrb.llm.presentation.voice.spec import TTSServiceSpec
