@@ -197,7 +197,10 @@ def test_create_llm_chat_task_builds_task_from_resolved_persona():
 
     mock_task = MagicMock()
     with (
-        patch("zrb.llm.task.chat.task.LLMChatTask", return_value=mock_task) as MockTask,
+        patch(
+            "zrb.llm.subagent.building.create_resumed_chat_task",
+            return_value=mock_task,
+        ) as create_resumed_chat_task,
         patch(
             "zrb.llm.subagent.building.resolve_configured_model",
             return_value="resolved-test-model",
@@ -206,13 +209,13 @@ def test_create_llm_chat_task_builds_task_from_resolved_persona():
         result = manager.create_llm_chat_task("stub-researcher")
 
     assert result is mock_task
-    MockTask.assert_called_once()
-    call_kwargs = MockTask.call_args.kwargs
-    assert "You are a stub researcher." in call_kwargs["system_prompt"]
-    assert stub_researcher_tool in call_kwargs["tools"]
-    assert delegate_tool not in call_kwargs["tools"]
-    assert call_kwargs["model"] == "resolved-test-model"
-    assert call_kwargs["name"] == "resumed-stub-researcher"
+    create_resumed_chat_task.assert_called_once()
+    build, name, description = create_resumed_chat_task.call_args.args
+    assert "You are a stub researcher." in build.system_prompt
+    assert stub_researcher_tool in build.tools
+    assert delegate_tool not in build.tools
+    assert build.model == "resolved-test-model"
+    assert (name, description) == ("stub-researcher", "Research agent")
 
 
 def test_common_tools_are_name_gated_for_sub_agents():

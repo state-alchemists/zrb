@@ -1,12 +1,13 @@
-"""The two layer-0 seams reach nothing in `zrb.llm` while they load.
+"""The layer-0 seams reach nothing in `zrb.llm` while they load.
 
-`agent_runner.py` and `delegation_api.py` are the modules lower layers call
-instead of importing the engine package and the sub-agent package. Both work
-because the package registers into them while it loads, which means the
-registration module is half-built at that moment: a runtime import back into it
-raises `ImportError` and only in the import order that triggers it. So the rule
-is not "keep the import cheap" but "have no such import at all" — every name
-these modules take from `zrb.llm` sits under `if TYPE_CHECKING:`.
+`agent_runner.py` and `delegation_api.py` are the modules
+lower layers call instead of importing the engine package and the sub-agent
+package. Each works because a package registers into it while that
+package loads, which means the registration module is half-built at that moment:
+a runtime import back into it raises `ImportError` and only in the import order
+that triggers it. So the rule is not "keep the import cheap" but "have no such
+import at all" — every name these modules take from `zrb.llm` sits under
+`if TYPE_CHECKING:`.
 
 The check reads the syntax tree rather than importing, so it holds for a module
 that cannot be imported on its own.
