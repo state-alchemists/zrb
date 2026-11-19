@@ -34,14 +34,17 @@ def test_a_moved_path_is_scored_by_its_directory():
     assert _layer("presentation/ui/default.py") == 4
 
 
-def test_an_unmoved_unit_still_reads_the_table():
-    """Half-moved is legal: a unit still in the old layout scores as it did before.
+def test_no_unit_reads_the_table_any_more():
+    """The move is finished: `llm/` holds the five directories and nothing else.
 
-    L0–L3 have no line left: the contracts, the capabilities, the engine and the
-    orchestration units all moved, and the UI went with them, so only the six
-    media units still answer from the table.
+    Half-moved was legal while it happened — a unit still in the old layout
+    scored as it had before — and P6 was the last one to leave. So the table is
+    empty, a path in the old layout scores nothing at all, and the mechanism
+    itself is deleted in P7.
     """
-    assert _layer("camera/feature.py") == 4
+    assert LAYER_OF_UNIT == {}
+    assert _layer("camera/feature.py") is None
+    assert _layer("presentation/camera/feature.py") == 4
     assert LAYER_OF_UNIT.get("ui") is None
     assert LAYER_OF_UNIT.get("task") is None
 
@@ -109,7 +112,7 @@ def test_an_upward_import_is_refused_in_both_layouts():
     """What makes one directory per pull request safe: a half-moved tree is judged."""
     assert _is_upward("contracts/config/x.py", "presentation/ui/y.py")
     assert _is_upward("capabilities/tool/x.py", "engine/agent/y.py")
-    assert _is_upward("presentation/ui/fallback/x.py", "camera/y.py")
+    assert _is_upward("presentation/ui/fallback/x.py", "presentation/camera/y.py")
     assert _is_upward("contracts/config/x.py", "orchestration/subagent/y.py")
     assert not _is_upward("presentation/ui/y.py", "contracts/config/x.py")
     assert not _is_upward("contracts/config/x.py", "contracts/shared/y.py")
@@ -143,13 +146,15 @@ def test_no_layer_names_a_unit_that_moved_away():
 
 
 def test_every_unit_has_a_destination():
-    """A unit with no destination is one the codemod would leave behind."""
-    expected = set(LAYER_OF_UNIT)
-    missing = sorted(expected - set(_UNIT_DESTINATIONS))
-    extra = sorted(set(_UNIT_DESTINATIONS) - expected)
-    assert not missing and not extra, (
-        f"undestined: {missing}; mapped but not a unit: {extra}"
-    )
+    """Nothing is left to move: the table and the map are both empty.
+
+    The guard used to keep the worklist equal to the units the table still
+    scored. The worklist is done, so what it holds now is the other half of that
+    claim — no unit reads the table, and no directory under `llm/` sits outside
+    the five.
+    """
+    assert not LAYER_OF_UNIT and not _UNIT_DESTINATIONS
+    assert _present_units() == set()
 
 
 def test_each_destination_sits_in_a_layer_directory():

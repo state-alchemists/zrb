@@ -51,7 +51,7 @@ A path is read when the turn reaches the model, not when it is submitted, which 
 
 ```python
 from zrb.llm.engine.agent.types import BinaryContent
-from zrb.llm.camera import AutoCameraBackend
+from zrb.llm.presentation.camera import AutoCameraBackend
 
 camera = AutoCameraBackend()
 

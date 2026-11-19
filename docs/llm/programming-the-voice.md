@@ -138,7 +138,7 @@ Pass a `DictationConfig` when enabling dictation. Fields left as `None` come fro
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.dictation import DictationConfig, enable_dictation
+from zrb.llm.presentation.dictation import DictationConfig, enable_dictation
 
 chat = LLMChatTask(name="voice-assistant")
 
@@ -168,7 +168,7 @@ Use wake words when other people or media may be audible. Use stop words for sho
 `SpeechConfig` controls which events become speech and the templates used for built-in notifications:
 
 ```python
-from zrb.llm.speech import SpeechConfig, enable_speech
+from zrb.llm.presentation.speech import SpeechConfig, enable_speech
 
 speech = SpeechConfig(
     enabled=True,
@@ -226,8 +226,8 @@ When the built-in backends are not enough, implement `AnySpeechBackend`:
 import json
 import urllib.request
 
-from zrb.llm.speech import AnySpeechBackend, SpeechConfig, enable_speech
-from zrb.llm.speech.backend import create_wav_utterance
+from zrb.llm.presentation.speech import AnySpeechBackend, SpeechConfig, enable_speech
+from zrb.llm.presentation.speech.backend import create_wav_utterance
 
 
 class LocalTTS(AnySpeechBackend):
@@ -252,8 +252,8 @@ The voice features are opt-in on a custom task:
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.dictation import DictationConfig, enable_dictation
-from zrb.llm.speech import SpeechConfig, enable_speech
+from zrb.llm.presentation.dictation import DictationConfig, enable_dictation
+from zrb.llm.presentation.speech import SpeechConfig, enable_speech
 
 chat = LLMChatTask(
     name="voice-assistant",
@@ -293,7 +293,7 @@ This registers [Floe](https://docs.pipecat.ai/api-reference/server/services/tts/
 
 ```python
 from zrb import stt_manager, tts_manager
-from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+from zrb.llm.presentation.voice.spec import STTServiceSpec, TTSServiceSpec
 
 
 def create_floe_tts(config):
@@ -348,7 +348,7 @@ Many Pipecat services take a `Settings` object instead of keyword arguments. Set
 import os
 
 from zrb import stt_manager
-from zrb.llm.voice.spec import STTServiceSpec
+from zrb.llm.presentation.voice.spec import STTServiceSpec
 
 
 def create_groq_stt(config):

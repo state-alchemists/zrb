@@ -2,7 +2,7 @@
 
 A listener hears a short line when a tool starts. A call's own ``purpose`` is
 the best of those lines — it says what the call is *for*, which a tool name and
-its arguments only imply — and `zrb.llm.speech.progress` speaks it in preference
+its arguments only imply — and `zrb.llm.presentation.speech.progress` speaks it in preference
 to the tool's phrase.
 
 **No tool body reads it.** It is not a parameter to the work, it is the spoken
@@ -16,7 +16,7 @@ argument on every call — including on a lookup, where the tool never asked. A
 schema that leaves it out turns that instruction into a validation error instead
 of the work: on 2026-11-12, 7 of the 13 tool errors in 517 calls were exactly
 `extra_forbidden` on `purpose`, 5 of them `SearchSkill`'s, and each one cost a
-retried round plus a full context re-send. `zrb.llm.speech.progress` speaks the
+retried round plus a full context re-send. `zrb.llm.presentation.speech.progress` speaks the
 line whenever a call carries one, so declaring it on a tool that does not act
 adds nothing a listener hears and removes what the model cannot say.
 

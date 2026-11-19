@@ -1,0 +1,23 @@
+import pytest
+
+from zrb.llm.presentation.emotion import get_leading_emotion
+
+
+@pytest.mark.parametrize(
+    "text, emotion",
+    [
+        ("😊 Done, the tests pass.", "happy"),
+        ("  😢 That failed again.", "sad"),
+        ("🙂 Here it is.", "neutral"),
+        ("**😊 Bold opener.", "happy"),
+        ("**🙂 Bold neutral.**", "neutral"),
+        ("_😢 Italic one._", "sad"),
+        ("Done 😊", None),
+        ("**Done 😊", None),
+        ("** 😊 Hi", None),
+        ("", None),
+        ("🚀 Shipped.", None),
+    ],
+)
+def test_the_leading_emoji_names_the_emotion(text, emotion):
+    assert get_leading_emotion(text) == emotion

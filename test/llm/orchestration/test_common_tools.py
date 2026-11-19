@@ -245,7 +245,7 @@ _LSP_PREFIX = "Lsp"
 
 
 def test_every_tool_outside_the_harness_says_what_the_call_is_for():
-    """`zrb.llm.speech.progress` speaks a call's `purpose` before the phrase map,
+    """`zrb.llm.presentation.speech.progress` speaks a call's `purpose` before the phrase map,
     so a tool without one is narrated as "Editing llmtask.py." — true of every
     call of that tool and of none of them. The phrase map names the arguments,
     and the arguments are the half a listener can already infer; `purpose` names

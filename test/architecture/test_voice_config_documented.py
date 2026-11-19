@@ -10,10 +10,10 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.config.env_field import EnvField
-from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.emotion.config import EmotionConfig
-from zrb.llm.screenshot.config import ScreenshotConfig
-from zrb.llm.speech.config import SpeechConfig
+from zrb.llm.presentation.dictation.config import DictationConfig
+from zrb.llm.presentation.emotion.config import EmotionConfig
+from zrb.llm.presentation.screenshot.config import ScreenshotConfig
+from zrb.llm.presentation.speech.config import SpeechConfig
 
 _DOC = Path(__file__).parents[2] / "docs" / "configuration" / "llm-voice-camera.md"
 _FEATURES = [

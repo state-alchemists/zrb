@@ -17,10 +17,11 @@ SRC = REPO_ROOT / "src"
 LLM = SRC / "zrb" / "llm"
 
 # The table, for a unit that has not moved into the five-directory layout yet.
-# It is deleted when the last one has (the P7 step of the 4.0 move).
-_UNITS_BY_LAYER = {
-    4: "camera dictation emotion screenshot speech voice",
-}
+# It is empty now: `llm/` holds the five directories and nothing else, so every
+# module scores from its own path and there is no unit left for a table to
+# place. The mechanism is deleted in the P7 step, with the rest of the move's
+# bookkeeping; until then the empty dict is what the guards read to say so.
+_UNITS_BY_LAYER: dict[int, str] = {}
 LAYER_OF_UNIT = {
     unit: layer for layer, units in _UNITS_BY_LAYER.items() for unit in units.split()
 }
@@ -141,22 +142,15 @@ def _present_units() -> set[str]:
 # unit mapped to a path ending in `.py` stays a loose module; everything else
 # becomes a package.
 #
-# This is written down here, rather than in the prose of the plan, because the
-# codemod that performs the move reads a map and the guards audit it: a
-# destination that disagrees with the table, or two units landing on one path, is
-# a typo a human would not catch in 250 rewritten module paths. A unit's line is
-# deleted in the same pull request that moves it, so what is left is the work
-# still to do, and `test_every_unit_has_a_destination` keeps that worklist equal
-# to the units the table still scores.
-_UNIT_DESTINATIONS = {
-    # presentation
-    "camera": "presentation/camera",
-    "dictation": "presentation/dictation",
-    "emotion": "presentation/emotion",
-    "screenshot": "presentation/screenshot",
-    "speech": "presentation/speech",
-    "voice": "presentation/voice",
-}
+# This was written down here, rather than in the prose of the plan, because the
+# codemod that performed each move read a map and the guards audited it: a
+# destination that disagreed with the table, or two units landing on one path,
+# is a typo a human would not catch in hundreds of rewritten module paths. A
+# unit's line was deleted in the same pull request that moved it, so what was
+# left was the work still to do — and there is no work left, which is why this
+# is empty and why `test_every_unit_has_a_destination` now asserts that the map
+# and the table are both empty rather than equal.
+_UNIT_DESTINATIONS: dict[str, str] = {}
 
 
 def _path_in(prefix: str) -> str:

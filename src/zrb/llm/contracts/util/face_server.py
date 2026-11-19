@@ -9,7 +9,7 @@ a microphone nor an output stream, and a phone across the room holds both. Empty
 
 The same server is where a camera that is not on this machine lives: GET /frame
 asks its page for one photo, and GET /frame/devices is the names that page gives
-its cameras. Both are read by `zrb.llm.camera.backend.remote`.
+its cameras. Both are read by `zrb.llm.presentation.camera.backend.remote`.
 
 Every route here carries something zrb would otherwise read from a device of its
 own, and the contract is spelled here once because two packages speak it. The

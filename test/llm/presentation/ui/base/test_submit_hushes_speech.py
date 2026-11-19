@@ -37,7 +37,7 @@ def base_ui():
 
 
 def test_a_submitted_message_hushes_the_voice(base_ui):
-    with patch("zrb.llm.speech.feature.interrupt_speech") as hush:
+    with patch("zrb.llm.presentation.speech.feature.interrupt_speech") as hush:
         base_ui.submit_message("never mind, look at this instead")
 
     hush.assert_called_once_with()
@@ -46,7 +46,7 @@ def test_a_submitted_message_hushes_the_voice(base_ui):
 def test_the_message_is_still_queued_after_the_hush(base_ui):
     """A hush quiets the voice; it does not swallow the message or cancel the
     turn — the user's words have to be read."""
-    with patch("zrb.llm.speech.feature.interrupt_speech"):
+    with patch("zrb.llm.presentation.speech.feature.interrupt_speech"):
         base_ui.submit_message("keep going, but with tests")
 
     assert base_ui.queued_message_count == 1
@@ -59,7 +59,7 @@ def test_a_child_ui_leaves_the_hush_to_its_parent(base_ui):
     parent.input = parent.tools = parent
     base_ui.multi_ui_parent = parent
 
-    with patch("zrb.llm.speech.feature.interrupt_speech") as hush:
+    with patch("zrb.llm.presentation.speech.feature.interrupt_speech") as hush:
         base_ui.submit_user_message(base_ui.llm_task, "one message")
 
     assert hush.call_count == 0

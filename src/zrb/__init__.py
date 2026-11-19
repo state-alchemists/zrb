@@ -83,19 +83,19 @@ if TYPE_CHECKING:
     from zrb.llm.presentation.ui.any_ui import AnyUI
     from zrb.llm.presentation.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.contracts.util.capabilities import model_capabilities
-    from zrb.llm.voice.manager import (
+    from zrb.llm.presentation.voice.manager import (
         STTServiceManager,
         TTSServiceManager,
         stt_manager,
         tts_manager,
     )
-    from zrb.llm.voice.registry import (
+    from zrb.llm.presentation.voice.registry import (
         STTServiceRegistry,
         TTSServiceRegistry,
         stt_registry,
         tts_registry,
     )
-    from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+    from zrb.llm.presentation.voice.spec import STTServiceSpec, TTSServiceSpec
     from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
     from zrb.runner.cli import Cli, cli
     from zrb.runner.web_schema.user import User
@@ -317,16 +317,16 @@ _LAZY_EXPORTS = {
     "PromptManager": "zrb.llm.capabilities.prompt.manager",
     "PromptRegistry": "zrb.llm.capabilities.prompt.registry",
     "prompt_registry": "zrb.llm.capabilities.prompt.registry",
-    "STTServiceManager": "zrb.llm.voice.manager",
-    "STTServiceRegistry": "zrb.llm.voice.registry",
-    "STTServiceSpec": "zrb.llm.voice.spec",
-    "stt_manager": "zrb.llm.voice.manager",
-    "stt_registry": "zrb.llm.voice.registry",
-    "TTSServiceManager": "zrb.llm.voice.manager",
-    "TTSServiceRegistry": "zrb.llm.voice.registry",
-    "TTSServiceSpec": "zrb.llm.voice.spec",
-    "tts_manager": "zrb.llm.voice.manager",
-    "tts_registry": "zrb.llm.voice.registry",
+    "STTServiceManager": "zrb.llm.presentation.voice.manager",
+    "STTServiceRegistry": "zrb.llm.presentation.voice.registry",
+    "STTServiceSpec": "zrb.llm.presentation.voice.spec",
+    "stt_manager": "zrb.llm.presentation.voice.manager",
+    "stt_registry": "zrb.llm.presentation.voice.registry",
+    "TTSServiceManager": "zrb.llm.presentation.voice.manager",
+    "TTSServiceRegistry": "zrb.llm.presentation.voice.registry",
+    "TTSServiceSpec": "zrb.llm.presentation.voice.spec",
+    "tts_manager": "zrb.llm.presentation.voice.manager",
+    "tts_registry": "zrb.llm.presentation.voice.registry",
     "ToolRegistry": "zrb.llm.contracts.shared.tool_registry",
     "tool_registry": "zrb.llm.contracts.shared.tool_registry",
     "AnyUI": "zrb.llm.presentation.ui.any_ui",

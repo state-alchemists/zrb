@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 
 from zrb import CFG, Group, StrInput, cli, make_task
-from zrb.llm.speech import Speaker, SpeechConfig
+from zrb.llm.presentation.speech import Speaker, SpeechConfig
 
 os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_SPEECH_ENABLED", "on")
 

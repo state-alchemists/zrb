@@ -262,10 +262,10 @@ Each feature takes a backend name or an object implementing its interface:
 
 | Feature | Interface | Built-in names |
 |---|---|---|
-| Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg`, `remote` |
-| Screenshot | `zrb.llm.screenshot.AnyScreenshotBackend` — `async capture(display) -> bytes \| None` (PNG or JPEG) | `auto`, `pillow`, `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` |
-| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
-| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, for whoever asked to be told with `set_on_start`); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
+| Camera | `zrb.llm.presentation.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg`, `remote` |
+| Screenshot | `zrb.llm.presentation.screenshot.AnyScreenshotBackend` — `async capture(display) -> bytes \| None` (PNG or JPEG) | `auto`, `pillow`, `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` |
+| Dictation | `zrb.llm.presentation.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
+| Speech | `zrb.llm.presentation.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, for whoever asked to be told with `set_on_start`); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
 
@@ -274,8 +274,8 @@ import json
 import urllib.request
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.speech import AnySpeechBackend, SpeechConfig, enable_speech
-from zrb.llm.speech.backend import create_wav_utterance
+from zrb.llm.presentation.speech import AnySpeechBackend, SpeechConfig, enable_speech
+from zrb.llm.presentation.speech.backend import create_wav_utterance
 
 
 class LocalTTS(AnySpeechBackend):
@@ -294,7 +294,7 @@ enable_speech(llm_chat, SpeechConfig(backend=LocalTTS(), enabled=True))
 
 `llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one `/speech` per session and the earlier session's speaker is closed. The same holds for `enable_camera`, `enable_screenshot` and `enable_dictation`.
 
-If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
+If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.presentation.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
 
 **The local Pipecat services.** `whisper`, `moonshine`, `funasr`, `kokoro`, `piper` and `pocket` run their model on your machine. The `zrb[voice]` extra brings Pipecat itself but none of their model packages, and each is a Pipecat extra of its own:
 
@@ -313,7 +313,7 @@ Each model downloads once on first use and runs offline afterwards. `piper` carr
 
 ```python
 from zrb import tts_manager
-from zrb.llm.voice.spec import TTSServiceSpec
+from zrb.llm.presentation.voice.spec import TTSServiceSpec
 
 tts_manager.register(
     "my-voice",
@@ -325,7 +325,7 @@ tts_manager.register(
 )
 ```
 
-then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.voice`. [Programming the Voice → Use any Pipecat STT or TTS service](programming-the-voice.md#use-any-pipecat-stt-or-tts-service) has a worked cloud example and what a service must do to work here.
+then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.presentation.voice`. [Programming the Voice → Use any Pipecat STT or TTS service](programming-the-voice.md#use-any-pipecat-stt-or-tts-service) has a worked cloud example and what a service must do to work here.
 
 ## On your own chat task
 
@@ -333,10 +333,10 @@ A custom `LLMChatTask` gets none of these until it asks:
 
 ```python
 from zrb import LLMChatTask
-from zrb.llm.camera import enable_camera
-from zrb.llm.dictation import DictationConfig, enable_dictation
-from zrb.llm.screenshot import ScreenshotConfig, enable_screenshot
-from zrb.llm.speech import enable_speech
+from zrb.llm.presentation.camera import enable_camera
+from zrb.llm.presentation.dictation import DictationConfig, enable_dictation
+from zrb.llm.presentation.screenshot import ScreenshotConfig, enable_screenshot
+from zrb.llm.presentation.speech import enable_speech
 
 chat = LLMChatTask(name="assistant")
 enable_camera(chat)
