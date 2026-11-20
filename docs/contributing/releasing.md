@@ -47,7 +47,7 @@ Each release is a `## <version> (<Month D, YYYY>)` heading followed by one conti
 
 ### Collapsing (compaction)
 
-Each patch release first lands in its own file under its line's directory (`v2/`, `v3/`). Once a minor ages out (a later minor opens), its per-patch files are merged into one range file that **keeps only two entries** — the minor bump and its final revision:
+Each patch release first lands in its own file under its line's directory (`v2/`, `v3/`). Once a minor ages out (a later minor opens), its per-patch files are merged into one range file holding **the whole line under one heading** — `## x.y.0–x.y.z (dates)` — with no per-release headings inside it:
 
 ```mermaid
 flowchart LR
@@ -63,13 +63,15 @@ flowchart LR
 
 `2.31` had no patches (stays `2.31.0.md`); `2.32` collapsed `2.32.1` into `2.32.2` and its `2.32.0a1`–`b5` pre-releases into `2.32.0`; `2.33`, once it aged out, merged `2.33.1.md`–`2.33.4.md` into `2.33.4` in `2.33.0-2.33.4.md`. **The newest minor stays as separate per-patch files.**
 
-The surviving entries must not lose the dropped history:
+The one entry must not lose the dropped history:
 
-- The kept **`x.y.z` (latest)** entry **summarizes the cumulative changes** of every dropped patch `x.y.1`–`x.y.z`, not merely its own.
-- The kept **`x.y.0`** entry **absorbs its pre-releases** (`x.y.0a*`/`x.y.0b*`). Headline features usually land there (the stable `.0` note often just says "consolidating the pre-release line below"), so dropping them without folding loses the real content.
-- Mark a rolled-up entry with a one-line italic note under the heading: `_Cumulative summary of the X.Y.1–X.Y.Z patch line._`
-- **Summarize, don't concatenate.** A 24-patch line becomes one release-note-sized entry grouped by theme; drop version-bump noise and test-only churn (one "expanded test coverage" mention suffices).
+- It is the **cumulative** note for the line — `x.y.0` through `x.y.z`, pre-releases included. Headline features usually land in the minor bump (its stable note often just says "consolidating the pre-release line below"), so a summary that covers only the patches loses the real content.
+- Mark it with a one-line italic note under the heading: `_Cumulative summary of the X.Y.0–X.Y.Z line._`
+- **Summarize, don't concatenate.** A 24-patch line becomes one release-note-sized entry grouped by theme; drop version-bump noise and test-only churn (one "expanded test coverage" mention suffices). A range heading over the line's bullets, copied unchanged, is a concatenation wearing a heading.
+- Keep what a reader acts on: the new behavior, a changed default, a removed import path, a migration step, a headline number — the rule in *Writing an entry* applies here unchanged. The mechanism stays in the module, class, env var or ADR the bullet cites.
 - Update `README.md` when renaming a file (e.g. `2.38.0.md` → `2.38.0-2.38.3.md`).
+
+Older range files carry two headings — `## x.y.z` over a summary of its patches, then `## x.y.0` — because that is what this rule asked for until 2026-11-20. Seven files in `v3/` and most of `v2/` are in that shape: they still read correctly, they are not worth rewriting, and a new collapse uses the single heading.
 
 Dropped content stays recoverable from git, but the compacted file should convey what happened without it.
 
