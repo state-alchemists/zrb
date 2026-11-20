@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from unittest.mock import patch
 
@@ -93,12 +94,16 @@ class _StubProc:
 
     def __init__(self, on_kill=None):
         self._on_kill = on_kill
+        # Set once the hook is blocked on this child, so a test can cancel at
+        # that moment instead of guessing a delay.
+        self.started = threading.Event()
 
     def poll(self):
         return None
 
     def wait(self):
 
+        self.started.set()
         time.sleep(0.3)
         return 0
 
@@ -110,6 +115,15 @@ class _StubProc:
     def kill(self):
         if self._on_kill is not None:
             self._on_kill()
+
+
+async def _await_output_read(stub: _StubProc) -> None:
+    "Wait until the hook is blocked reading this child, without blocking the loop."
+    for _ in range(int(_SENTINEL_TIMEOUT_SECONDS / _SENTINEL_POLL_SECONDS)):
+        if stub.started.is_set():
+            return
+        await asyncio.sleep(_SENTINEL_POLL_SECONDS)
+    raise AssertionError("the hook never reached its output read")
 
 
 @pytest.mark.asyncio
@@ -229,12 +243,16 @@ async def test_command_hook_cancelled_kills_process():
     hook = create_command_hook(CommandHookConfig(command="sleep 5"))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
+    stub = _StubProc(on_kill=_mark_killed)
     with patch(
         "zrb.llm.capabilities.hook.execution.creator.subprocess.Popen",
-        return_value=_StubProc(on_kill=_mark_killed),
+        return_value=stub,
     ):
         task = asyncio.ensure_future(hook(context))
-        await asyncio.sleep(0.1)
+        # Cancel while the hook is blocked on the child, not after a fixed
+        # delay: on a laden runner the spawn alone can outlast it, and a cancel
+        # that lands in the spawn window never reaches the handler under test.
+        await _await_output_read(stub)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
@@ -252,12 +270,13 @@ async def test_command_hook_cancelled_when_process_already_gone():
     hook = create_command_hook(CommandHookConfig(command="sleep 5"))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
+    stub = _StubProc(on_kill=_raise_gone)
     with patch(
         "zrb.llm.capabilities.hook.execution.creator.subprocess.Popen",
-        return_value=_StubProc(on_kill=_raise_gone),
+        return_value=stub,
     ):
         task = asyncio.ensure_future(hook(context))
-        await asyncio.sleep(0.1)
+        await _await_output_read(stub)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
