@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -12,7 +13,7 @@ from zrb.llm.contracts.util.tool_args import (
     parse_tool_args_value,
     truncate_tool_args_values,
 )
-from zrb.util.truncate import truncate_display
+from zrb.util.truncate import truncate_display, truncate_head_tail
 
 if TYPE_CHECKING:
     from zrb.llm.engine.agent.types import ModelMessage
@@ -90,11 +91,43 @@ def _strip_live_context(content):
     return content
 
 
+@dataclass(frozen=True)
+class TranscriptPolicy:
+    """How each part of a transcript is cut, for a reader that will act on it.
+
+    The default render is a width for a person reading — 200 characters of a
+    tool return, three of its lines, ten of thinking. An agent whose job is to
+    state a number cannot work from that, and one that states a wrong number
+    writes it where it will be read again. So the transcript is rendered whole
+    (``full=True``) and the one part that dominates it is capped: the tool
+    returns, at both ends and with the gap named.
+
+    Only a return that succeeded is capped. A failed or retried call's text is
+    what the agent has to reason about, and it is short by nature.
+    """
+
+    tool_return_head_chars: int | None = None
+    tool_return_tail_chars: int = 0
+    tool_return_keep: frozenset[str] = frozenset()
+    include_thinking: bool = True
+
+    def tool_return_cap(
+        self, tool_name: str | None, outcome: str
+    ) -> tuple[int, int] | None:
+        """The ``(head, tail)`` this return is cut to, or ``None`` for whole."""
+        if self.tool_return_head_chars is None:
+            return None
+        if tool_name in self.tool_return_keep or outcome != "success":
+            return None
+        return self.tool_return_head_chars, self.tool_return_tail_chars
+
+
 def format_history_as_text(
     messages: "Sequence[ModelMessage]",
     max_length: int | None = None,
     *,
     full: bool = False,
+    policy: TranscriptPolicy | None = None,
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 
@@ -110,6 +143,9 @@ def format_history_as_text(
                     Defaults to CFG.LLM_HISTORY_MAX_DISPLAY_CHARS. Ignored
                     when ``full`` is True.
         full: When True, apply no truncation at all (for export).
+        policy: How each part is cut within ``full`` — the shape a reader that
+                acts on the text needs rather than a human reading a screen.
+                Without one, ``full`` renders every part entire.
     """
     if max_length is None:
         max_length = CFG.LLM_HISTORY_MAX_DISPLAY_CHARS
@@ -123,9 +159,9 @@ def format_history_as_text(
         kind = getattr(msg, "kind", "unknown")
 
         if kind == "request":
-            lines.extend(_format_request(msg, pending_tool_calls, full))
+            lines.extend(_format_request(msg, pending_tool_calls, full, policy))
         elif kind == "response":
-            lines.extend(_format_response(msg, pending_tool_calls, full))
+            lines.extend(_format_response(msg, pending_tool_calls, full, policy))
 
     result = "\n".join(lines)
     if not full and len(result) > max_length:
@@ -138,7 +174,10 @@ def format_history_as_text(
 
 
 def _format_request(
-    msg, pending_tool_calls: dict[str, str], full: bool = False
+    msg,
+    pending_tool_calls: dict[str, str],
+    full: bool = False,
+    policy: TranscriptPolicy | None = None,
 ) -> list[str]:
     """Format a ModelRequest message; tool returns render first."""
     lines = []
@@ -165,7 +204,7 @@ def _format_request(
             retry_parts.append(part)
 
     for part in tool_return_parts:
-        lines.extend(_format_tool_return(part, pending_tool_calls, full))
+        lines.extend(_format_tool_return(part, pending_tool_calls, full, policy))
 
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
@@ -237,9 +276,17 @@ def format_multimodal_item(item) -> str:
 
 
 def _format_response(
-    msg, pending_tool_calls: dict[str, str], full: bool = False
+    msg,
+    pending_tool_calls: dict[str, str],
+    full: bool = False,
+    policy: TranscriptPolicy | None = None,
 ) -> list[str]:
-    """Format a ModelResponse: thinking, then text, then tool calls."""
+    """Format a ModelResponse: thinking, then text, then tool calls.
+
+    A policy that drops thinking omits the block rather than shortening it: a
+    reader handed the writer's deliberation reads the turn through the writer's
+    own blind spots, which is the thing a second reader is meant to escape.
+    """
     lines = []
     timestamp = format_timestamp(getattr(msg, "timestamp", None))
     model_name = getattr(msg, "model_name", None)
@@ -249,11 +296,7 @@ def _format_response(
 
     parts = getattr(msg, "parts", [])
 
-    thinking_parts = [p for p in parts if getattr(p, "part_kind", None) == "thinking"]
-    for part in thinking_parts:
-        content = getattr(part, "content", "")
-        lines.append("  💭 Thinking:")
-        lines.extend(indent_lines(str(content), 4, max_lines=None if full else 10))
+    lines.extend(_format_thinking(parts, policy, full))
 
     text_parts = [p for p in parts if getattr(p, "part_kind", None) == "text"]
     for part in text_parts:
@@ -267,6 +310,26 @@ def _format_response(
     if model_name:
         lines.append(f"  🎯 Model: {model_name}")
 
+    return lines
+
+
+def _format_thinking(
+    parts, policy: TranscriptPolicy | None, full: bool = False
+) -> list[str]:
+    """The writer's own deliberation, unless the policy leaves it out.
+
+    A second reader is handed the turn to escape the writer's blind spots, and
+    the deliberation is where those blind spots are spelled out.
+    """
+    if policy is not None and not policy.include_thinking:
+        return []
+    lines = []
+    for part in parts:
+        if getattr(part, "part_kind", None) != "thinking":
+            continue
+        lines.append("  💭 Thinking:")
+        content = getattr(part, "content", "")
+        lines.extend(indent_lines(str(content), 4, max_lines=None if full else 10))
     return lines
 
 
@@ -291,7 +354,10 @@ def _format_tool_call(
 
 
 def _format_tool_return(
-    part, pending_tool_calls: dict[str, str], full: bool = False
+    part,
+    pending_tool_calls: dict[str, str],
+    full: bool = False,
+    policy: TranscriptPolicy | None = None,
 ) -> list[str]:
     """Format a ToolReturnPart as ``🔠 {tool_call_id} | {tool_name} {status}``."""
     lines = []
@@ -314,13 +380,36 @@ def _format_tool_return(
         name_display = "unknown"
 
     content_str = str(content) if content else ""
-    shown = content_str if full else truncate(content_str, 200)
+    if full:
+        shown = _cap_tool_return(content_str, policy, name_display, outcome)
+    else:
+        shown = truncate(content_str, 200)
 
     lines.append(f"  🔠 {id_display} | {name_display} {status_icon}")
     if shown.strip():
         lines.extend(indent_lines(shown, 4, max_lines=None if full else 3))
 
     return lines
+
+
+def _cap_tool_return(
+    content: str,
+    policy: TranscriptPolicy | None,
+    tool_name: str | None,
+    outcome: str,
+) -> str:
+    """Cut *content* to the policy's cap, or return it whole.
+
+    Both ends are kept because a one-ended cut can invert what a return says:
+    the sentence saying all three failures were retried and passed sits at the
+    bottom of the output whose top says three failed.
+    """
+    if policy is None:
+        return content
+    cap = policy.tool_return_cap(tool_name, outcome)
+    if cap is None:
+        return content
+    return truncate_head_tail(content, *cap)
 
 
 def indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:

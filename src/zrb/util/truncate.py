@@ -60,3 +60,21 @@ def truncate_display(text: str, max_chars: int) -> str:
         # No room for the ellipsis within max_chars.
         return text[:max_chars]
     return text[: max_chars - 3] + "..."
+
+
+def truncate_head_tail(text: str, head: int, tail: int) -> str:
+    """Keep ``head`` characters at the start and ``tail`` at the end, naming
+    the gap.
+
+    A cut from one end can invert a meaning: the bottom of a shell output is
+    where the sentence saying the three failures were retried and passed sits,
+    and the top is where it says three failed. A reader that acts on the text
+    gets both ends and the number of characters it did not see.
+    """
+    if len(text) <= head + tail:
+        return text
+    omitted = len(text) - head - tail
+    marker = f" ...[TRUNCATED {omitted} chars]"
+    if tail <= 0:
+        return text[:head] + marker
+    return f"{text[:head]}{marker}... {text[-tail:]}"

@@ -1,6 +1,7 @@
 from zrb.util.truncate import (
     truncate_chars,
     truncate_display,
+    truncate_head_tail,
     truncate_items,
     truncate_text,
 )
@@ -142,3 +143,20 @@ def test_the_live_stream_and_the_exported_transcript_agree():
     assert len(exported) == 30 and exported.endswith("...")
     assert stream_response.truncate_tool_args_values is truncate_tool_args_values
     assert history_formatter.truncate_tool_args_values is truncate_tool_args_values
+
+
+# --- truncate_head_tail ---
+def test_truncate_head_tail_keeps_a_short_text_whole():
+    assert truncate_head_tail("short", 10, 5) == "short"
+
+
+def test_truncate_head_tail_keeps_both_ends_and_names_the_gap():
+    out = truncate_head_tail("HEAD" + "x" * 100 + "TAIL", 4, 4)
+    assert out.startswith("HEAD")
+    assert out.endswith("TAIL")
+    assert "TRUNCATED 100 chars" in out
+
+
+def test_truncate_head_tail_with_no_tail_keeps_the_head():
+    out = truncate_head_tail("abcdef" * 10, 6, 0)
+    assert out == "abcdef ...[TRUNCATED 54 chars]"
