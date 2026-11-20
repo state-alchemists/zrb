@@ -162,16 +162,47 @@ def _agent_hook_input(context: HookContext, config: AgentHookConfig) -> str:
     return f"{text}\n\n{note}" if note else text
 
 
+# A hook's opening request is read with nothing cached behind it, so the cap on
+# its transcript is the cheapest cut available: #989 measured the transcript at
+# 24–58% tool returns against 1–11% tool calls, which is why the returns carry
+# the cap and the calls do not.
+_HOOK_TOOL_RETURN_HEAD_CHARS = 1_200
+_HOOK_TOOL_RETURN_TAIL_CHARS = 800
+# The reviewer writes claims out of what these return, so its own store's
+# answers arrive whole: a claim read off a capped return is a claim off a
+# fragment, and it goes into memory for every later session to read.
+_MEMORY_TOOL_NAMES = frozenset({"SearchMemory", "Remember", "Forget"})
+
+
 def _event_text(context: HookContext) -> str:
-    """The event's own payload, as text an agent can read."""
+    """The event's own payload, as text an agent can read.
+
+    A transcript is rendered whole with one cap on it: tool returns are cut to
+    `_HOOK_TOOL_RETURN_HEAD_CHARS` at the top and `_HOOK_TOOL_RETURN_TAIL_CHARS`
+    at the bottom with the gap named, and the writer's thinking is left out. A
+    hook fires outside the turn loop, so its opening request has no cached
+    prefix to read and pays nearly every token of its prompt fresh; the returns
+    are where most of those tokens are, and the thinking is what a second
+    reader is meant to be free of. Whatever `input_note` appends is outside the
+    transcript and is never capped.
+    """
     payload = context.event_data
     if isinstance(payload, dict):
         messages = payload.get("turn") or payload.get("history")
         if messages:
             # lazy: heavy third-party (transitively imports pydantic_ai)
-            from zrb.llm.contracts.util.history_formatter import format_history_as_text
+            from zrb.llm.contracts.util.history_formatter import (
+                TranscriptPolicy,
+                format_history_as_text,
+            )
 
-            return format_history_as_text(messages, full=True)
+            policy = TranscriptPolicy(
+                tool_return_head_chars=_HOOK_TOOL_RETURN_HEAD_CHARS,
+                tool_return_tail_chars=_HOOK_TOOL_RETURN_TAIL_CHARS,
+                tool_return_keep=_MEMORY_TOOL_NAMES,
+                include_thinking=False,
+            )
+            return format_history_as_text(messages, full=True, policy=policy)
     if payload:
         return str(payload)
     if context.prompt:

@@ -300,6 +300,8 @@ Run a tool-using agent for complex analysis.
 
 The agent's user turn is the event payload: for `Stop`, the turn's transcript; otherwise the event data as text. Its reply is read like a prompt hook's — a JSON object is the hook's decision, anything else has no effect.
 
+That transcript is rendered whole except for one part: a tool return is cut to 2,000 characters — 1,200 at the top and 800 at the bottom, with the number dropped named between them — and the writer's thinking is left out. Tool-call arguments, a failed return and the memory tools' own returns arrive untouched: a hook's opening request has no cached prefix to read, so it pays nearly all of its prompt fresh, and the returns are where most of those tokens are, while a wrong number read off a cut return is a wrong claim remembered.
+
 If every name in `tools` fails to resolve — usually because their feature is off (e.g. the memory tools while `LLM_MEMORY_ENABLED` is `false`) — the hook skips its LLM call. A hook that wants no tools leaves `tools` empty and is unaffected.
 
 A runnable version of this snippet is `security-review-agent-example` in `examples/llm-hooks/.zrb/hooks.json`, shipped `enabled: false` because an agent hook on `PreToolUse` adds a model round-trip to every matching tool call.
