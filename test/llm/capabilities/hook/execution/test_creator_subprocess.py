@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from unittest.mock import patch
 
 import pytest
@@ -86,6 +87,16 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
     ), "background descendant remained alive after hook cleanup"
 
 
+async def _wait_until(predicate: Callable[[], bool], what: str) -> None:
+    "Poll *predicate* on the loop until it holds, or fail naming *what*."
+    attempts = int(_SENTINEL_TIMEOUT_SECONDS / _SENTINEL_POLL_SECONDS)
+    for _ in range(attempts):
+        if predicate():
+            return
+        await asyncio.sleep(_SENTINEL_POLL_SECONDS)
+    raise AssertionError(f"timed out waiting for {what}")
+
+
 class _StubProc:
     "A Popen stand-in with a slow wait."
 
@@ -119,11 +130,7 @@ class _StubProc:
 
 async def _await_output_read(stub: _StubProc) -> None:
     "Wait until the hook is blocked reading this child, without blocking the loop."
-    for _ in range(int(_SENTINEL_TIMEOUT_SECONDS / _SENTINEL_POLL_SECONDS)):
-        if stub.started.is_set():
-            return
-        await asyncio.sleep(_SENTINEL_POLL_SECONDS)
-    raise AssertionError("the hook never reached its output read")
+    await _wait_until(stub.started.is_set, "the hook to reach its output read")
 
 
 @pytest.mark.asyncio
@@ -258,6 +265,45 @@ async def test_command_hook_cancelled_kills_process():
             await task
 
     assert killed["done"] is True
+
+
+@pytest.mark.asyncio
+async def test_command_hook_cancelled_during_spawn_kills_the_child_it_spawned():
+    """A cancel that lands before the spawn returns still kills its child.
+
+    The awaiting task never receives a process the spawning thread had not
+    finished creating, so the kill has to happen where the value lands.
+    """
+    killed = {"done": False}
+
+    def _mark_killed():
+        killed["done"] = True
+
+    stub = _StubProc(on_kill=_mark_killed)
+    spawn_started = threading.Event()
+    release_spawn = threading.Event()
+
+    def _slow_spawn(*args, **kwargs):
+        spawn_started.set()
+        release_spawn.wait(timeout=_SENTINEL_TIMEOUT_SECONDS)
+        return stub
+
+    hook = create_command_hook(CommandHookConfig(command="sleep 5"))
+    context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
+
+    with patch(
+        "zrb.llm.capabilities.hook.execution.creator.subprocess.Popen",
+        side_effect=_slow_spawn,
+    ):
+        task = asyncio.ensure_future(hook(context))
+        await _wait_until(spawn_started.is_set, "the spawn to start")
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        release_spawn.set()
+        await _wait_until(lambda: killed["done"], "the orphaned child to be killed")
+
+    assert killed["done"] is True, "the cancelled spawn left its child running"
 
 
 @pytest.mark.asyncio
