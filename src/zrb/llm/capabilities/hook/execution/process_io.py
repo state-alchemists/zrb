@@ -176,6 +176,15 @@ def _close_pipe(pipe: object) -> None:
         pass
 
 
-async def run_detached(func: Callable[[], T], name: str) -> T:
-    """Await *func* on a daemon thread without holding interpreter shutdown."""
-    return await run_in_daemon(func, name=name)
+async def run_detached(
+    func: Callable[[], T],
+    name: str,
+    on_orphan: Callable[[T], None] | None = None,
+) -> T:
+    """Await *func* on a daemon thread without holding interpreter shutdown.
+
+    *on_orphan* receives the value *func* produced when the await was cancelled
+    before that value landed: the caller is gone, so what the thread was making
+    is nobody's to clean up — see ``run_in_daemon``.
+    """
+    return await run_in_daemon(func, name=name, on_orphan=on_orphan)

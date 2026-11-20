@@ -105,6 +105,10 @@ def create_command_hook(
                     start_new_session=True,
                 ),
                 name="zrb-hook-spawn",
+                # Cancellation can land while the thread is still inside Popen;
+                # this caller then never receives the child, so the thread hands
+                # it back here instead of leaving it running.
+                on_orphan=_abandon_spawned_process,
             )
             # Derived from process.pid, not queried — see
             # process_kill.read_process_group for why sampling it via
@@ -133,15 +137,7 @@ def create_command_hook(
                     output=f"Command hook timed out after {timeout}s",
                 )
             except asyncio.CancelledError:
-                kill_process_tree(process, hook_pgid)
-                # The reap waits for the child to exit; this task is being
-                # cancelled, so it waits on a thread of its own.
-                threading.Thread(
-                    target=reap_killed_process,
-                    args=(process, hook_pgid),
-                    name="zrb-hook-reap",
-                    daemon=True,
-                ).start()
+                _kill_and_reap_off_loop(process, hook_pgid)
                 raise
             # The output is read once the child exits, and left for this to
             # reap, so `returncode` is set without waiting.
@@ -160,6 +156,26 @@ def create_command_hook(
             return HookResult(success=False, output=str(e))
 
     return command_hook
+
+
+def _abandon_spawned_process(process: subprocess.Popen) -> None:
+    """Kill a child whose spawn landed after the caller stopped waiting."""
+    _kill_and_reap_off_loop(process, read_process_group(process))
+
+
+def _kill_and_reap_off_loop(process: subprocess.Popen, pgid: int | None) -> None:
+    """Kill a hook child and reap it on its own thread.
+
+    Called while the awaiting task is being cancelled, so it may not await
+    anything, and the reap blocks until the child exits.
+    """
+    kill_process_tree(process, pgid)
+    threading.Thread(
+        target=reap_killed_process,
+        args=(process, pgid),
+        name="zrb-hook-reap",
+        daemon=True,
+    ).start()
 
 
 def _build_hook_env(
