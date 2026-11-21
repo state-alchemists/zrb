@@ -11,11 +11,17 @@ The same server is where a camera that is not on this machine lives: GET /frame
 asks its page for one photo, and GET /frame/devices is the names that page gives
 its cameras. Both are read by `zrb.llm.presentation.camera.backend.remote`.
 
+And it is where a typed message comes from when the page has a text box:
+GET /text/in is one long response of newline-framed UTF-8 lines, read by
+`zrb.llm.presentation.typed.remote_typed`. A line is a whole message, and the
+blank line the server writes every fifteen seconds is not one.
+
 Every route here carries something zrb would otherwise read from a device of its
 own, and the contract is spelled here once because two packages speak it. The
 audio ones are raw little-endian signed 16-bit mono PCM at one rate, named in
 headers rather than wrapped in a container, since neither side converts, mixes
-or resamples. The frame ones are a JPEG and a list of names.
+or resamples. The frame ones are a JPEG and a list of names. The typed ones are
+text, one message a line.
 """
 
 from __future__ import annotations
@@ -41,6 +47,11 @@ SPEAKER_PATH = "/say"
 # reads, since zrb is the one asking and the page is the one that has them.
 CAMERA_PATH = "/frame"
 CAMERA_DEVICES_PATH = "/frame/devices"
+
+# Where the page's text box lives: one long read of newline-framed UTF-8 lines.
+# A line is one message, and the blank line the server writes when nothing is
+# being typed is not one.
+TYPED_PATH = "/text/in"
 
 
 def get_remote_url() -> str | None:

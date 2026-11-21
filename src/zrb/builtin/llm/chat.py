@@ -48,6 +48,7 @@ from zrb.llm.presentation.dictation import enable_dictation
 from zrb.llm.presentation.emotion import enable_emotion
 from zrb.llm.presentation.screenshot import enable_screenshot
 from zrb.llm.presentation.speech import enable_speech
+from zrb.llm.presentation.typed import enable_typed_input
 from zrb.llm.presentation.ui.session import run_interactive_session
 from zrb.runner.cli import cli
 
@@ -263,6 +264,9 @@ enable_screenshot(llm_chat)
 enable_dictation(llm_chat)
 enable_speech(llm_chat)
 enable_emotion(llm_chat)
+# The same page that holds the microphone holds a text box: with a face server named, a phone is
+# also a keyboard, and a line typed there is a turn.
+enable_typed_input(llm_chat)
 
 llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 llm_chat.append_custom_command(create_usage_commands)
