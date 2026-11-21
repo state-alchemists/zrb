@@ -382,7 +382,7 @@ def _day_note(context: "HookContext") -> str:
     Read without the lock, which `store.write_document`'s rename makes safe: a
     reader never sees a document that is still being written.
     """
-    at = datetime.now().astimezone()
+    at = _turn_end(context) or datetime.now().astimezone()
     day = at.date().isoformat()
     span = _turn_span(context, at)
     entry = store.load_diary(day)
@@ -403,6 +403,24 @@ def _day_note(context: "HookContext") -> str:
     if room > _DAY_APPEND_RESERVE:
         return head
     return f"{head}\n\n{_full_day_note(day, entry.body, at)}"
+
+
+def _turn_end(context: "HookContext") -> datetime | None:
+    """When the turn ended, when the payload says — the review may run minutes later.
+
+    The hook is asynchronous: a turn that ends at 23:59 can have its note built at
+    00:01, and a date read from `now` files it under the next day — the one wrong
+    date a reader would have to hunt for. A payload without it (an older runner, a
+    test) leaves `now` the only clock there is.
+    """
+    data = context.event_data if isinstance(context.event_data, dict) else {}
+    raw = data.get("turn_ended_at")
+    if not isinstance(raw, str):
+        return None
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        return None
 
 
 def _turn_span(context: "HookContext", at: datetime) -> str:

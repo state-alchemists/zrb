@@ -126,6 +126,39 @@ def test_the_day_and_the_hour_come_from_one_read_of_the_clock(store_dir, monkeyp
     assert "00:00" in note
 
 
+def test_the_days_date_is_the_turns_end_and_not_the_reviews_clock(store_dir, monkeypatch):
+    """A Stop at 23:59 reviewed at 00:01 belongs to the 21st, not to a day it did not happen in.
+
+    The hook is asynchronous, so the note is built after the turn ended — sometimes
+    after midnight. The payload's `turn_ended_at` is the clock for the date and for
+    the end of the span; `now` is only the fallback for a payload that has neither.
+    """
+    class _AfterMidnight:
+        @staticmethod
+        def now(tz=None):
+            return datetime(2026, 11, 22, 0, 0, 30)
+
+        @staticmethod
+        def fromisoformat(value):
+            return datetime.fromisoformat(value)
+
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.hook.builtin.memory_reviewer.datetime", _AfterMidnight
+    )
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={
+            "turn_started_at": "2026-11-21T23:40:00+07:00",
+            "turn_ended_at": "2026-11-21T23:59:40+07:00",
+        },
+    )
+
+    note = _day_note(context)
+
+    assert "`2026-11-21`" in note
+    assert "the turn ran from 23:40 to 23:59" in note
+
+
 def test_a_full_day_is_handed_over_with_the_call_that_makes_room(store_dir):
     """A page that is full refuses the append, and the reviewer cannot see why.
 
