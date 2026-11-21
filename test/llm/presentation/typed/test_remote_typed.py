@@ -11,6 +11,9 @@ import threading
 import time
 import types
 import urllib.error
+import urllib.request
+
+import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.contracts.shared.input_source import WEB_INPUT
@@ -184,19 +187,31 @@ def test_a_read_that_fails_is_retried_and_does_not_end_typing(monkeypatch, caplo
 def test_the_route_is_a_get_carrying_the_servers_token(monkeypatch):
     asked = {}
 
-    def urlopen(request, timeout):
-        asked["request"], asked["timeout"] = request, timeout
-        return FakeResponse([])
+    class Opener:
+        def open(self, request, timeout):
+            asked["request"], asked["timeout"] = request, timeout
+            return FakeResponse([])
 
-    monkeypatch.setattr(remote_typed.urllib.request, "urlopen", urlopen)
-
-    response = open_typed_in(REMOTE_URL, {"Authorization": "Bearer shared"}, 5)
+    response = open_typed_in(
+        REMOTE_URL, {"Authorization": "Bearer shared"}, 5, opener=Opener()
+    )
 
     assert isinstance(response, FakeResponse)
     assert asked["request"].get_method() == "GET"
     assert asked["request"].full_url == f"{REMOTE_URL}/text/in"
     assert asked["request"].get_header("Authorization") == "Bearer shared"
     assert asked["timeout"] == 5
+
+
+def test_a_redirect_is_refused_rather_than_followed():
+    """The request carries the face server's token, and urllib's redirect handler takes every header
+    with it: an answer naming another host would hand that token over."""
+    request = urllib.request.Request(f"{REMOTE_URL}{remote_typed.TYPED_PATH}")
+
+    with pytest.raises(urllib.error.HTTPError):
+        remote_typed.RefuseRedirects().redirect_request(
+            request, None, 302, "Found", {}, "http://elsewhere.test/text/in"
+        )
 
 
 def test_a_reader_that_is_let_go_closes_its_route(monkeypatch):

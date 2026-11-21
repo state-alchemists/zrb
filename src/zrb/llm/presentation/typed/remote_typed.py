@@ -208,9 +208,28 @@ def _typed_lines(
             yield line
 
 
+class RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """Refuse a redirect: the request carries the face server's token, and urllib's handler would
+    take that header to whatever host the answer named."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(
+            req.full_url, code, f"refused a redirect to {newurl}", headers, fp
+        )
+
+
+_opener = urllib.request.build_opener(RefuseRedirects)
+
+
 def open_typed_in(
-    url: str, headers: dict[str, str], timeout: float
+    url: str,
+    headers: dict[str, str],
+    timeout: float,
+    opener: urllib.request.OpenerDirector | None = None,
 ) -> http.client.HTTPResponse:
-    """The text box route, open: one long response of newline-framed UTF-8."""
+    """The text box route, open: one long response of newline-framed UTF-8.
+
+    *opener* is where a test stands in for the connection; a session leaves it out.
+    """
     request = urllib.request.Request(f"{url}{TYPED_PATH}", headers=headers)
-    return urllib.request.urlopen(request, timeout=timeout)
+    return (opener or _opener).open(request, timeout=timeout)
