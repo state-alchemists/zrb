@@ -140,12 +140,26 @@ def test_the_blank_line_the_server_writes_is_not_a_message(monkeypatch):
     assert asyncio.run(_first_lines(1)) == ["after the quiet"]
 
 
-def test_a_last_line_with_no_newline_still_arrives(monkeypatch):
-    """The route ends on a line the page never finished typing; it is a message
-    like any other rather than bytes the reader sits on."""
-    _serve_in_order(monkeypatch, FakeResponse(["no newline at the end"]))
+def test_a_line_cut_off_midway_is_not_a_message(monkeypatch):
+    """The server terminates every line it writes, so an unterminated one is a line that never
+    finished arriving -- and the server gives that line back for the reconnect. Handing the
+    fragment on is one sentence arriving twice, the first time cut short."""
+    _serve_in_order(monkeypatch, FakeResponse(["only the fir"]))
 
-    assert asyncio.run(_first_lines(1)) == ["no newline at the end"]
+    async def everything():
+        return [line async for line in _reader().lines()]
+
+    assert asyncio.run(asyncio.wait_for(everything(), 3)) == []
+
+
+def test_a_line_cut_off_is_given_back_and_arrives_once(monkeypatch):
+    """A write that fails partway leaves the line with the server, which puts it back: the
+    reconnect reads it whole, so the message arrives once rather than as a prefix and a copy."""
+    _serve_in_order(
+        monkeypatch, FakeResponse(["hello th"]), FakeResponse(["hello there\n"])
+    )
+
+    assert asyncio.run(_first_lines(1)) == ["hello there"]
 
 
 def test_a_page_with_no_text_box_ends_the_reader(monkeypatch):

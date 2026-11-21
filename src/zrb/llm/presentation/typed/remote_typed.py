@@ -203,6 +203,12 @@ def _typed_lines(
         raw = response.readline()
         if not raw:
             return
+        if not raw.endswith(b"\n"):
+            # The route ended mid-line, so these are the bytes of a line that never finished
+            # arriving rather than a message. The server gives an unsent line back for the
+            # reconnect, which reads it whole: handing the fragment on is one sentence arriving
+            # twice, the first time cut short.
+            return
         line = raw.decode("utf-8", "replace").rstrip("\r\n")
         if line:
             yield line
