@@ -56,7 +56,9 @@ class EndlessResponse:
             line, self._first = self._first, b""
             return line
         self.reads += 1
-        time.sleep(0.005)  # the server writes every fifteen seconds; the shape is the same
+        time.sleep(
+            0.005
+        )  # the server writes every fifteen seconds; the shape is the same
         return b"\n"
 
     def close(self):
@@ -154,7 +156,8 @@ def test_a_line_cut_off_midway_is_not_a_message(monkeypatch):
 
 def test_a_line_cut_off_is_given_back_and_arrives_once(monkeypatch):
     """A write that fails partway leaves the line with the server, which puts it back: the
-    reconnect reads it whole, so the message arrives once rather than as a prefix and a copy."""
+    reconnect reads it whole, so the message arrives once rather than as a prefix and a copy.
+    """
     _serve_in_order(
         monkeypatch, FakeResponse(["hello th"]), FakeResponse(["hello there\n"])
     )
@@ -248,7 +251,8 @@ def test_a_reader_that_is_let_go_closes_its_route(monkeypatch):
 
 def test_a_reader_that_is_let_go_breaks_a_read_that_is_waiting(monkeypatch):
     """A quiet route sends nothing for fifteen seconds. A session that ends inside that silence
-    cannot wait for it: the read in flight is broken, and the connection goes with it."""
+    cannot wait for it: the read in flight is broken, and the connection goes with it.
+    """
     response = BlockingResponse()
     _serve_in_order(monkeypatch, response)
 
@@ -264,7 +268,9 @@ def test_a_reader_that_is_let_go_breaks_a_read_that_is_waiting(monkeypatch):
         await generator.aclose()
 
     asyncio.run(read_and_let_go())
-    assert response.broken.is_set(), "the read was left waiting for a line that may never come"
+    assert (
+        response.broken.is_set()
+    ), "the read was left waiting for a line that may never come"
     deadline = time.monotonic() + 2
     while not response.is_closed and time.monotonic() < deadline:
         time.sleep(0.01)
