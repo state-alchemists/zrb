@@ -467,4 +467,3 @@ def test_user_prompt_with_binary_content():
     ]
     result = format_history_as_text(messages)
     assert "[Binary Content: audio/wav]" in result
-

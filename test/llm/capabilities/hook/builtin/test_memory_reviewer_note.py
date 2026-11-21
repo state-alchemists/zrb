@@ -126,13 +126,16 @@ def test_the_day_and_the_hour_come_from_one_read_of_the_clock(store_dir, monkeyp
     assert "00:00" in note
 
 
-def test_the_days_date_is_the_turns_end_and_not_the_reviews_clock(store_dir, monkeypatch):
+def test_the_days_date_is_the_turns_end_and_not_the_reviews_clock(
+    store_dir, monkeypatch
+):
     """A Stop at 23:59 reviewed at 00:01 belongs to the 21st, not to a day it did not happen in.
 
     The hook is asynchronous, so the note is built after the turn ended — sometimes
     after midnight. The payload's `turn_ended_at` is the clock for the date and for
     the end of the span; `now` is only the fallback for a payload that has neither.
     """
+
     class _AfterMidnight:
         @staticmethod
         def now(tz=None):

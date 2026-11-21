@@ -79,8 +79,7 @@ def test_every_adr_file_uses_the_house_name():
     assert not offenders, (
         "An ADR outside `adr-NNNN.md` is invisible to the link pattern in "
         "test_architecture_docs.py, which requires that shape, and it sorts "
-        "away from the records it belongs between. Rename it: "
-        + ", ".join(offenders)
+        "away from the records it belongs between. Rename it: " + ", ".join(offenders)
     )
 
 

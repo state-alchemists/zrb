@@ -14,8 +14,8 @@ from pydantic_ai.messages import (
     ToolCallPart,
     ToolReturnPart,
 )
-
 from test_hook_agent import _agent_returning, _patched_agent
+
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.schema import AgentHookConfig
 from zrb.llm.capabilities.hook.contracts.types import HookEvent

@@ -472,4 +472,3 @@ def test_a_host_tool_beats_a_shipped_tool_of_the_same_name():
 
     assert len(resolved) == 1
     assert resolved[0] is not shipped
-
