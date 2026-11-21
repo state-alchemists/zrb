@@ -6,6 +6,9 @@ dictation's microphone and speech's speaker — so what it reads as decides both
 These tests are about that reading: the base URL with no trailing slash, the
 empty default that keeps the voice on this machine, the `Authorization` header
 a server with a token wants, and the body a route may not send.
+
+And the one route whose name zrb does not serve: `/text/in` belongs to the page,
+so it is pinned here rather than followed anywhere.
 """
 
 import email.message
@@ -93,3 +96,13 @@ def test_a_body_naming_no_format_is_refused():
         face_server.check_audio_format({}, 16000)
 
     assert "X-Sample-Rate" in str(refusal.value)
+
+
+def test_the_text_box_route_is_the_pages_name_for_it():
+    """`/text/in` is served by the page, so its spelling is a wire name, not an
+    internal detail: `zrb-avatar` dispatches on the same string. A rename on
+    this side reaches it as a 404, which the reader treats as "no text box
+    here" -- the same silence as a zrb with no reader installed, so it would
+    fail quietly. Renaming it is therefore a protocol change, and this test is
+    where that change has to be stated."""
+    assert face_server.TYPED_PATH == "/text/in"
