@@ -365,6 +365,14 @@ def _day_note(context: "HookContext") -> str:
     On 2026-11-18 three paragraphs written between six and seven in the morning
     said "late in the morning", "late in the evening" and "late in the night".
 
+    It is stated as the hour *the turn ended*, because that is what it is: the
+    review runs when the turn closes, and a note that said only "the clock reads
+    06:13" left the reviewer free to decide that clock was somebody else's. The
+    prompt then told it so outright — the hour here was the review's, not the
+    moment's — and hours left the diary altogether: no page from 2026-11-16,
+    11-19 or 11-20 names one. A date and no hour is ambiguous; an hour that says
+    which moment it belongs to is not.
+
     Both are read from one instant. Two reads can straddle local midnight, and the
     note would then name yesterday's day beside today's hour — a page that records
     a midnight turn under the wrong date.
@@ -378,14 +386,14 @@ def _day_note(context: "HookContext") -> str:
     entry = store.load_diary(day)
     if entry is None:
         return (
-            f"Today is `{day}` and the clock reads {clock}. It has no diary "
+            f"Today is `{day}`, and the turn just ended at {clock}. It has no diary "
             "entry yet: `claim` and `body` create one."
         )
     limit = body_limit(KIND_DIARY)
     at = compact_at(KIND_DIARY)
     room = at - len(entry.body)
     head = (
-        f"Today is `{day}` and the clock reads {clock}; its page holds "
+        f"Today is `{day}` and the turn just ended at {clock}; its page holds "
         f"{len(entry.body)} of {limit} characters and is compacted from {at}, so "
         f"{max(room, 0)} remain below that. A paragraph that would carry it past "
         "is written back as the whole day, not appended."
