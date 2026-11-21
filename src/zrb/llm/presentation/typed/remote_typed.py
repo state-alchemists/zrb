@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import http.client
 import logging
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -67,6 +68,10 @@ class RemoteTyped:
         self._timeout = timeout
         self._lines: "asyncio.Queue[object]" = asyncio.Queue()
         self._stop = threading.Event()
+        # The route being read, so a generator that is finished can break its read instead of
+        # waiting for a line that may be a keepalive away.
+        self._active: http.client.HTTPResponse | None = None
+        self._active_lock = threading.Lock()
         # Whether the last thing said about this route has been said: a server
         # that is down is one message, not one a second until it comes back.
         self._said = False
@@ -85,10 +90,11 @@ class RemoteTyped:
                 yield str(item)
         finally:
             # The session is over, or whoever read this has closed it: the route is let go rather
-            # than left writing into a queue nobody reads. The thread stops at the next line the
-            # server writes -- the blank keepalive comes every fifteen seconds -- and closes the
-            # response itself, so a join that times out is a route about to close, not one left open.
+            # than left writing into a queue nobody reads. The read in flight is broken at once --
+            # a close would wait for it -- so neither the thread nor the connection outlives the
+            # generator that asked for them.
             self._stop.set()
+            self._release()
             thread.join(_CLOSE_JOIN_SECONDS)
 
     def _read(self) -> None:
@@ -109,14 +115,39 @@ class RemoteTyped:
                 self._retry(f"cannot reach the page's text box: {e}")
                 continue
             self._said = False
+            self._hold(response)
             try:
                 for line in _typed_lines(response, self._stop):
                     self._hand_over(line)
             except (OSError, http.client.HTTPException) as e:
                 logger.warning(f"The page's text box stopped: {e}")
             finally:
+                self._forget(response)
                 response.close()
             self._stop.wait(RECONNECT_SECONDS)
+
+    def _hold(self, response: http.client.HTTPResponse) -> None:
+        """Remember the route being read, so it can be broken rather than waited on."""
+        with self._active_lock:
+            self._active = response
+
+    def _forget(self, response: http.client.HTTPResponse) -> None:
+        """This route is over: it is nobody's to break any more."""
+        with self._active_lock:
+            if self._active is response:
+                self._active = None
+
+    def _release(self) -> None:
+        """Break the read that is in flight, if any: the route is being let go now.
+
+        Closing the response would wait for that read -- the file object's lock is held by it --
+        which is the wait a teardown must not have. Shutting the socket down makes the read return
+        at once; the thread then closes the response on the path it already has.
+        """
+        with self._active_lock:
+            response = self._active
+        if response is not None:
+            _abort(response)
 
     def _hand_over(self, line: str) -> None:
         """Give *line* to the generator, on the loop that is waiting for it."""
@@ -141,14 +172,32 @@ class RemoteTyped:
             pass
 
 
+def _abort(response: http.client.HTTPResponse) -> None:
+    """Make a read that is blocked in ``readline()`` return.
+
+    ``response.close()`` is not the way: the file object's lock is held by the read, so closing
+    waits for it -- exactly the wait a teardown must not have. The socket underneath is what the
+    read is actually waiting on, and shutting it down ends that wait at once. A response whose
+    socket cannot be reached is left to notice its next line, which the server writes every fifteen
+    seconds.
+    """
+    raw = getattr(getattr(response, "fp", None), "raw", None)
+    sock = getattr(raw, "_sock", None)
+    if sock is None:
+        return
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:  # already closed, which is what was wanted
+        pass
+
+
 def _typed_lines(
     response: http.client.HTTPResponse, stop: threading.Event
 ) -> Iterator[str]:
     """The lines of *response*, without the blank ones it writes to stay alive.
 
-    A blank line is also where a stop is noticed: the server writes one every fifteen
-    seconds, so a reader that has been let go ends within a keepalive rather than
-    holding its connection open for as long as the process lives.
+    A blank line is also where a stop is noticed, as a backstop: a read nobody has broken ends at the
+    next keepalive, and the server writes one every fifteen seconds.
     """
     while not stop.is_set():
         raw = response.readline()

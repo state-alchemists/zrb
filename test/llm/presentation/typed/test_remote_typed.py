@@ -6,7 +6,10 @@ No phone and no face server reaches a test, so the server's part is played here
 """
 
 import asyncio
+import contextlib
+import threading
 import time
+import types
 import urllib.error
 
 from zrb.config.config import CFG
@@ -52,6 +55,27 @@ class EndlessResponse:
         self.reads += 1
         time.sleep(0.005)  # the server writes every fifteen seconds; the shape is the same
         return b"\n"
+
+    def close(self):
+        self.is_closed = True
+
+
+class BlockingResponse:
+    """A route that has gone quiet: ``readline()`` waits for a line that does not come."""
+
+    def __init__(self):
+        self.reading = threading.Event()
+        self.broken = threading.Event()
+        self.is_closed = False
+        self.fp = types.SimpleNamespace(raw=types.SimpleNamespace(_sock=self))
+
+    def shutdown(self, how):  # what the socket underneath the response does
+        self.broken.set()
+
+    def readline(self):
+        self.reading.set()
+        self.broken.wait(10)
+        raise OSError("the route was let go")
 
     def close(self):
         self.is_closed = True
@@ -191,6 +215,31 @@ def test_a_reader_that_is_let_go_closes_its_route(monkeypatch):
     while not response.is_closed and time.monotonic() < deadline:
         time.sleep(0.01)
     assert response.is_closed, "the route was left open after its reader was let go"
+
+
+def test_a_reader_that_is_let_go_breaks_a_read_that_is_waiting(monkeypatch):
+    """A quiet route sends nothing for fifteen seconds. A session that ends inside that silence
+    cannot wait for it: the read in flight is broken, and the connection goes with it."""
+    response = BlockingResponse()
+    _serve_in_order(monkeypatch, response)
+
+    async def read_and_let_go():
+        reader = _reader()
+        generator = reader.lines()
+        waiting = asyncio.ensure_future(generator.__anext__())
+        while not response.reading.is_set():
+            await asyncio.sleep(0.01)
+        waiting.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await waiting
+        await generator.aclose()
+
+    asyncio.run(read_and_let_go())
+    assert response.broken.is_set(), "the read was left waiting for a line that may never come"
+    deadline = time.monotonic() + 2
+    while not response.is_closed and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert response.is_closed, "the route outlived the reader that was let go"
 
 
 class FakeChat:
