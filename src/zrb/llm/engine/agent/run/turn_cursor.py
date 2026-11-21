@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.engine.agent.run.history_utils import TurnPruneFloor
@@ -43,6 +44,11 @@ class TurnCursor:
     # `turn_id`). Unique, unlike the run scope, which is the conversation's
     # name and may be shared by concurrent sessions.
     turn_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    # When this turn opened — the cursor is built once, before the first round, so
+    # this is the turn's start and not a round's. The Stop payload carries it as
+    # `turn_started_at`, and a diary paragraph needs it: the hook fires at the
+    # turn's end, and an end-only clock dates a request made at nine to ten.
+    started_at: datetime = field(default_factory=lambda: datetime.now().astimezone())
     # How many request rows this turn has written, so the next round numbers its
     # own from where the last one stopped — a retried round included
     # (`request_log.record_round_requests`).

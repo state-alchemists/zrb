@@ -14,6 +14,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
@@ -1140,6 +1141,11 @@ async def _finish_turn(
             ),
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
+            "turn_started_at": cursor.started_at.isoformat(),
+            # Read here, where the turn ends, rather than by whoever reads the payload:
+            # the memory reviewer's hook is asynchronous, so a Stop at 23:59 can be
+            # reviewed at 00:01 and a date taken then files the turn under the next day.
+            "turn_ended_at": datetime.now().astimezone().isoformat(),
             "nested_run": nested_run,
             "memory_due": is_memory_due_for_turn(),
         },
