@@ -6,6 +6,7 @@ No phone and no face server reaches a test, so the server's part is played here
 """
 
 import asyncio
+import time
 import urllib.error
 
 from zrb.config.config import CFG
@@ -31,6 +32,26 @@ class FakeResponse:
         if self._error is not None:
             raise self._error
         return self._lines.pop(0) if self._lines else b""
+
+    def close(self):
+        self.is_closed = True
+
+
+class EndlessResponse:
+    """A route that stays open and keeps writing the keepalive, as a quiet one does."""
+
+    def __init__(self, first):
+        self._first = first.encode()
+        self.reads = 0
+        self.is_closed = False
+
+    def readline(self):
+        if self._first:
+            line, self._first = self._first, b""
+            return line
+        self.reads += 1
+        time.sleep(0.005)  # the server writes every fifteen seconds; the shape is the same
+        return b"\n"
 
     def close(self):
         self.is_closed = True
@@ -152,6 +173,24 @@ def test_the_route_is_a_get_carrying_the_servers_token(monkeypatch):
     assert asked["request"].full_url == f"{REMOTE_URL}/text/in"
     assert asked["request"].get_header("Authorization") == "Bearer shared"
     assert asked["timeout"] == 5
+
+
+def test_a_reader_that_is_let_go_closes_its_route(monkeypatch):
+    """A session can end while the route is quiet, and a quiet route sends only
+    the keepalive: a reader that stops only after a real line holds its connection
+    open for as long as the process lives."""
+    response = EndlessResponse("the last line\n")
+    _serve_in_order(monkeypatch, response)
+
+    async def one_line():
+        async for line in _reader().lines():
+            return line
+
+    assert asyncio.run(one_line()) == "the last line"
+    deadline = time.monotonic() + 2
+    while not response.is_closed and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert response.is_closed, "the route was left open after its reader was let go"
 
 
 class FakeChat:

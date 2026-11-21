@@ -84,8 +84,10 @@ class RemoteTyped:
                     return
                 yield str(item)
         finally:
-            # The session is over, or whoever read this has closed it: the route
-            # is let go rather than left writing into a queue nobody reads.
+            # The session is over, or whoever read this has closed it: the route is let go rather
+            # than left writing into a queue nobody reads. The thread stops at the next line the
+            # server writes -- the blank keepalive comes every fifteen seconds -- and closes the
+            # response itself, so a join that times out is a route about to close, not one left open.
             self._stop.set()
             thread.join(_CLOSE_JOIN_SECONDS)
 
@@ -108,9 +110,7 @@ class RemoteTyped:
                 continue
             self._said = False
             try:
-                for line in _typed_lines(response):
-                    if self._stop.is_set():
-                        return
+                for line in _typed_lines(response, self._stop):
                     self._hand_over(line)
             except (OSError, http.client.HTTPException) as e:
                 logger.warning(f"The page's text box stopped: {e}")
@@ -141,9 +141,16 @@ class RemoteTyped:
             pass
 
 
-def _typed_lines(response: http.client.HTTPResponse) -> Iterator[str]:
-    """The lines of *response*, without the blank ones it writes to stay alive."""
-    while True:
+def _typed_lines(
+    response: http.client.HTTPResponse, stop: threading.Event
+) -> Iterator[str]:
+    """The lines of *response*, without the blank ones it writes to stay alive.
+
+    A blank line is also where a stop is noticed: the server writes one every fifteen
+    seconds, so a reader that has been let go ends within a keepalive rather than
+    holding its connection open for as long as the process lives.
+    """
+    while not stop.is_set():
         raw = response.readline()
         if not raw:
             return
