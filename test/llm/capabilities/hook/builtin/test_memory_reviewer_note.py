@@ -68,6 +68,38 @@ def test_the_note_carries_the_clock_so_a_paragraph_cannot_lend_itself_one(store_
     assert re.search(r"the turn just ended at \d{2}:\d{2}\b", note)
 
 
+def test_the_note_dates_the_whole_turn_when_the_payload_says_when_it_began(store_dir):
+    """A turn can run an hour, and an end-only hour dates a nine o'clock request to ten.
+
+    The payload's `turn_started_at` comes from the cursor, which is built before the
+    first round, so the note can state the span. Without it the reviewer has one hour
+    and no choice: everything it describes takes that hour, which is the invented-hour
+    failure the hour was added for, wearing a number that happens to be real.
+    """
+    store.save_diary(Diary(id=store.today(), claim="A day.", body="Wrote it down."))
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={"turn_started_at": "2026-11-21T09:00:00+07:00"},
+    )
+
+    note = _day_note(context)
+
+    assert re.search(r"the turn ran from 09:00 to \d{2}:\d{2}\b", note)
+
+
+def test_a_payload_with_no_usable_start_says_only_that_the_turn_ended(store_dir):
+    """An older runner sends no start, and a malformed one is not a time.
+
+    The note says what it knows rather than dropping the hour: the end alone is true
+    and says only that, which is the state the prompt is written against.
+    """
+    store.save_diary(Diary(id=store.today(), claim="A day.", body="Wrote it down."))
+
+    for event_data in ({}, {"turn_started_at": "not a time"}):
+        note = _day_note(HookContext(event=HookEvent.STOP, event_data=event_data))
+        assert re.search(r"the turn just ended at \d{2}:\d{2}\b", note)
+
+
 def test_the_day_and_the_hour_come_from_one_read_of_the_clock(store_dir, monkeypatch):
     """Two reads can straddle midnight: yesterday's date beside today's hour.
 

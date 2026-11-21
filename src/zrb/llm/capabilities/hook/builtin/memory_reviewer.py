@@ -365,35 +365,37 @@ def _day_note(context: "HookContext") -> str:
     On 2026-11-18 three paragraphs written between six and seven in the morning
     said "late in the morning", "late in the evening" and "late in the night".
 
-    It is stated as the hour *the turn ended*, because that is what it is: the
-    review runs when the turn closes, and a note that said only "the clock reads
-    06:13" left the reviewer free to decide that clock was somebody else's. The
-    prompt then told it so outright — the hour here was the review's, not the
-    moment's — and hours left the diary altogether: no page from 2026-11-16,
-    11-19 or 11-20 names one. A date and no hour is ambiguous; an hour that says
-    which moment it belongs to is not.
+    It is stated as the hours *the turn ran*, because that is what they are: the
+    review runs when the turn closes, and the payload says when it opened, so a
+    turn that spent an hour on tools is dated from nine to ten rather than to ten
+    alone. A note that said only "the clock reads 06:13" left the reviewer free to
+    decide that clock was somebody else's, and the prompt then told it so outright
+    — the hour here was the review's, not the moment's — and hours left the diary
+    altogether: no page from 2026-11-16, 11-19 or 11-20 names one. A date and no
+    hour is ambiguous; an hour that says which moment it belongs to is not.
 
     Both are read from one instant. Two reads can straddle local midnight, and the
     note would then name yesterday's day beside today's hour — a page that records
-    a midnight turn under the wrong date.
+    a midnight turn under the wrong date. The turn's start is not read a second
+    time for that reason: it comes from the payload, already a string.
 
     Read without the lock, which `store.write_document`'s rename makes safe: a
     reader never sees a document that is still being written.
     """
     at = datetime.now().astimezone()
     day = at.date().isoformat()
-    clock = at.strftime(_CLOCK_FORMAT)
+    span = _turn_span(context, at)
     entry = store.load_diary(day)
     if entry is None:
         return (
-            f"Today is `{day}`, and the turn just ended at {clock}. It has no diary "
+            f"Today is `{day}`, and {span}. It has no diary "
             "entry yet: `claim` and `body` create one."
         )
     limit = body_limit(KIND_DIARY)
     at = compact_at(KIND_DIARY)
     room = at - len(entry.body)
     head = (
-        f"Today is `{day}` and the turn just ended at {clock}; its page holds "
+        f"Today is `{day}` and {span}; its page holds "
         f"{len(entry.body)} of {limit} characters and is compacted from {at}, so "
         f"{max(room, 0)} remain below that. A paragraph that would carry it past "
         "is written back as the whole day, not appended."
@@ -401,6 +403,33 @@ def _day_note(context: "HookContext") -> str:
     if room > _DAY_APPEND_RESERVE:
         return head
     return f"{head}\n\n{_full_day_note(day, entry.body, at)}"
+
+
+def _turn_span(context: "HookContext", at: datetime) -> str:
+    """When this turn ran, as one clause: its start only when the runner gave one.
+
+    The Stop payload carries `turn_started_at` from the cursor, which is built
+    before the first round. Without it the note says only that the turn ended, and
+    a reviewer told only the end dates a request made at nine to ten — the failure
+    this hour was added for, one level down: an hour that is true but belongs to
+    another moment is as unchecked as an invented one.
+    """
+    data = context.event_data if isinstance(context.event_data, dict) else {}
+    started = _clock_of(data.get("turn_started_at"))
+    ended = at.strftime(_CLOCK_FORMAT)
+    if started is None:
+        return f"the turn just ended at {ended}"
+    return f"the turn ran from {started} to {ended}"
+
+
+def _clock_of(value: object) -> str | None:
+    """An ISO timestamp from the payload read as `HH:MM`, or None if it is not one."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value).strftime(_CLOCK_FORMAT)
+    except ValueError:
+        return None
 
 
 def _full_day_note(day: str, body: str, at: int) -> str:

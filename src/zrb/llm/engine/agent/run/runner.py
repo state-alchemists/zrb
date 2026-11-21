@@ -1140,6 +1140,7 @@ async def _finish_turn(
             ),
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
+            "turn_started_at": cursor.started_at.isoformat(),
             "nested_run": nested_run,
             "memory_due": is_memory_due_for_turn(),
         },
