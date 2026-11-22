@@ -51,7 +51,9 @@ def _session(**config) -> SpeechSession:
 
 
 def _stop(message: str) -> HookContext:
-    return HookContext(event=HookEvent.STOP, event_data={}, last_assistant_message=message)
+    return HookContext(
+        event=HookEvent.STOP, event_data={}, last_assistant_message=message
+    )
 
 
 def _model(monkeypatch, spoken: str = REPAIRED, emotion: str = ""):

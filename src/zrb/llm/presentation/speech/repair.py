@@ -169,7 +169,9 @@ def _start(text: str, model: "str | Model | None") -> "asyncio.Future[RepairedSp
     # The context goes with it because the small model is chosen from
     # `ContextVar`s set by the run that is waiting for this line.
     context = contextvars.copy_context()
-    settlement: "concurrent.futures.Future[RepairedSpeech]" = concurrent.futures.Future()
+    settlement: "concurrent.futures.Future[RepairedSpeech]" = (
+        concurrent.futures.Future()
+    )
     threading.Thread(
         target=_run_in_its_own_thread,
         args=(context, text, model, settlement),

@@ -32,4 +32,3 @@ def _no_model_is_asked_for_a_repair(monkeypatch):
         raise SpeechRepairError("a speech test asks no model")
 
     monkeypatch.setattr(feature, "repair_for_speech", _no_model)
-

@@ -34,8 +34,8 @@ from zrb.llm.presentation.speech.progress import (
     describe_purpose,
 )
 from zrb.llm.presentation.speech.repair import (
-    SpeechRepairError,
     SpeechRepairer,
+    SpeechRepairError,
     repair_for_speech,
 )
 from zrb.llm.presentation.speech.streamed_reply import StreamedReply

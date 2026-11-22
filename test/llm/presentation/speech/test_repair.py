@@ -122,9 +122,7 @@ async def test_an_answer_with_nothing_for_the_ear_is_a_failed_repair(monkeypatch
 async def test_an_answer_as_long_as_the_reply_is_a_failed_repair(monkeypatch):
     """A model that hands back the reply is not a repair, and speaking it would
     put the table on the ear by another road."""
-    _with_agent(
-        monkeypatch, FakeAgent(output=RepairedSpeech(spoken="x" * 2001))
-    )
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken="x" * 2001)))
 
     with pytest.raises(SpeechRepairError, match="the reply again"):
         await repair_for_speech(REPLY)
@@ -326,7 +324,8 @@ def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
         return "an agent"
 
     monkeypatch.setattr(
-        "zrb.llm.engine.agent.common.create_agent", lambda **kwargs: _create_agent(**kwargs)
+        "zrb.llm.engine.agent.common.create_agent",
+        lambda **kwargs: _create_agent(**kwargs),
     )
 
     agent = repair.create_speech_repair_agent("a-model")
