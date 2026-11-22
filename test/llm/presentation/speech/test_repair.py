@@ -141,7 +141,7 @@ async def test_a_model_that_raises_becomes_a_failed_repair(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_slow_model_gives_up_at_the_timeout(monkeypatch):
-    """`ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` bounds the wait, so a hung provider costs
+    """`ZRB_LLM_SPEECH_REPAIR_TIMEOUT` bounds the wait, so a hung provider costs
     the listener a pause rather than the turn."""
     _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.5))
 
@@ -198,11 +198,10 @@ async def test_a_worker_that_outlives_the_deadline_is_dropped(monkeypatch):
 @pytest.mark.asyncio
 async def test_a_second_repair_is_refused_while_the_first_is_still_alive(monkeypatch):
     """A repair that outlived its deadline keeps its thread until the model
-    answers, and a second beside it is how one stuck provider fills the executor
-    everything else shares.
+    answers, and a second beside it is how one stuck provider would hold two.
 
     The second reply is read whole instead — the outcome it had before the
-    repair existed — and nothing new is submitted.
+    repair existed — and nothing new is started.
     """
     _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.3))
     repairer = repair.SpeechRepairer()
@@ -244,6 +243,21 @@ async def test_a_repair_with_no_deadline_still_leaves_the_loop_free(monkeypatch)
 
     assert repaired.spoken == LINE
     assert ticks[0] < 0.15, f"the loop waited for the model: {ticks[0]:.2f}s"
+
+
+@pytest.mark.asyncio
+async def test_a_repair_never_takes_a_worker_from_the_loops_executor(monkeypatch):
+    """Its worker is the repairs' own, so a repair that never returns cannot
+    hold a slot that `asyncio.to_thread` and the rest of the process share."""
+
+    def _refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the repair ran on the loop's default executor")
+
+    monkeypatch.setattr(asyncio.get_running_loop(), "run_in_executor", _refuse)
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE)))
+
+    repaired = await repair_for_speech(REPLY)
+    assert repaired.spoken == LINE
 
 
 def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
