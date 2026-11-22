@@ -19,6 +19,7 @@ turn cannot see a week.
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
@@ -50,7 +51,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_MEMORY_WEEK,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_HOOK,
+    get_elapsed_ms,
+    record_agent_usage,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.capabilities.hook.contracts.interface import HookCallable, HookContext
@@ -202,8 +207,13 @@ async def _ask_model(material: str) -> str:
             system_prompt=get_prompt("memory_week"),
             resolve_model=False,
         )
+        started_at = time.monotonic()
         result = await agent.run(material)
-        record_agent_usage(result, component=COMPONENT_HOOK)
+        record_agent_usage(
+            result,
+            component=COMPONENT_HOOK,
+            duration_ms=get_elapsed_ms(started_at),
+        )
         record_standalone_requests(result, REASON_MEMORY_WEEK, component=COMPONENT_HOOK)
     except (OSError, RuntimeError) as error:
         # The two shapes a one-shot call fails in: a model that could not be

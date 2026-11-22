@@ -152,3 +152,35 @@ def test_every_reason_names_a_call_site():
     ]
 
     assert unused == [], f"These reasons name no call site: {unused}"
+
+
+_CALL = re.compile(r"record_agent_usage\(")
+
+
+def test_every_standalone_run_passes_its_duration():
+    """A line that says a run took no time is a line that measured nothing.
+
+    `record_agent_usage` takes `duration_ms` and defaults it to zero, so a call
+    site that forgets it reads exactly like one that was never timed — which is
+    how every hook, the judge and the namer came to report zero for as long as
+    the log has existed, while the turn loop reported real milliseconds. Each
+    site times its own run now; this is what makes forgetting fail here rather
+    than in a cost report six days later.
+    """
+    missing: list[str] = []
+    for path in SRC.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if _relative(path) in _WRITER_MODULES:
+            continue
+        for match in _CALL.finditer(text):
+            window = text[match.end() : match.end() + 240]
+            if "duration_ms=" in window:
+                continue
+            missing.append(_relative(path))
+            break
+
+    assert missing == [], (
+        "These modules record a standalone run without its duration. Start the "
+        "clock with `started_at = time.monotonic()` before the run and pass "
+        f"`duration_ms=get_elapsed_ms(started_at)`: {sorted(missing)}"
+    )

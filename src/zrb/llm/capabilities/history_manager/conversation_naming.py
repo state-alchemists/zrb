@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -13,7 +14,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_NAMER,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_AUTO_NAMER, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_AUTO_NAMER,
+    get_elapsed_ms,
+    record_agent_usage,
+)
 from zrb.llm.contracts.util.subagent_session_naming import parse_delegated_session
 from zrb.util.string.name import is_random_name
 
@@ -62,8 +67,13 @@ async def suggest_slug(message: str, model: "str | Model | None" = None) -> str:
             system_prompt=get_prompt("conversation_namer"),
             resolve_model=False,
         )
+        started_at = time.monotonic()
         result = await agent.run(message[:_MAX_MESSAGE_CHARS])
-        record_agent_usage(result, component=COMPONENT_AUTO_NAMER)
+        record_agent_usage(
+            result,
+            component=COMPONENT_AUTO_NAMER,
+            duration_ms=get_elapsed_ms(started_at),
+        )
         record_standalone_requests(result, REASON_NAMER, component=COMPONENT_AUTO_NAMER)
         slug = sanitize_slug(str(result.output or ""))
     except Exception as e:

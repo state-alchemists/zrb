@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
@@ -25,7 +26,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_DICTATION_JUDGE,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_OTHER,
+    get_elapsed_ms,
+    record_agent_usage,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -83,11 +88,16 @@ async def judge_barge_in(
     deciding. *timeout* is in seconds; ``None`` takes the default."""
     try:
         agent = create_interrupt_judge_agent(model)
+        started_at = time.monotonic()
         result = await asyncio.wait_for(
             agent.run(command),
             timeout if timeout is not None else DEFAULT_JUDGE_TIMEOUT_SECONDS,
         )
-        record_agent_usage(result, component=COMPONENT_OTHER)
+        record_agent_usage(
+            result,
+            component=COMPONENT_OTHER,
+            duration_ms=get_elapsed_ms(started_at),
+        )
         record_standalone_requests(
             result, REASON_DICTATION_JUDGE, component=COMPONENT_OTHER
         )

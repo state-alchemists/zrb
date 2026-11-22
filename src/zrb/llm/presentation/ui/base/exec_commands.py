@@ -6,6 +6,7 @@ Each `handle_*` returns ``True`` if the input was consumed.
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -19,7 +20,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_SIDE_QUESTION,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_OTHER,
+    get_elapsed_ms,
+    record_agent_usage,
+)
 from zrb.llm.orchestration.custom_command.resolver import (
     get_custom_command_match,
     run_custom_command,
@@ -211,8 +216,13 @@ class BaseUIExecCommands:
                 resolve_model=False,
             )
 
+            started_at = time.monotonic()
             result = await agent.run(question, message_history=btw_history)
-            record_agent_usage(result, component=COMPONENT_OTHER)
+            record_agent_usage(
+                result,
+                component=COMPONENT_OTHER,
+                duration_ms=get_elapsed_ms(started_at),
+            )
             record_standalone_requests(
                 result,
                 REASON_SIDE_QUESTION,

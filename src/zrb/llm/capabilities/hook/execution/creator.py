@@ -7,6 +7,7 @@ import os
 import signal
 import subprocess
 import threading
+import time
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -38,6 +39,7 @@ from zrb.llm.contracts.shared.request_log import (
 )
 from zrb.llm.contracts.shared.usage_log import (
     COMPONENT_HOOK,
+    get_elapsed_ms,
     record_agent_usage,
     usage_component,
 )
@@ -420,6 +422,7 @@ async def run_llm_hook(
             # The lines the run records are attributed explicitly below, so this
             # adds no line and moves none.
             with usage_component(COMPONENT_HOOK):
+                started_at = time.monotonic()
                 result = await agent.run(user_prompt)
         finally:
             current_nested_run.reset(token)
@@ -428,7 +431,11 @@ async def run_llm_hook(
         # No `model=`: this is the configured name, and `create_agent` resolved
         # it above. The result's own response names the model that served the
         # request, which is what `/usage` groups by.
-        record_agent_usage(result, component=COMPONENT_HOOK)
+        record_agent_usage(
+            result,
+            component=COMPONENT_HOOK,
+            duration_ms=get_elapsed_ms(started_at),
+        )
         record_standalone_requests(result, REASON_HOOK, component=COMPONENT_HOOK)
         return HookResult(
             success=True,

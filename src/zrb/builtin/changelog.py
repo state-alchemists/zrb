@@ -1,5 +1,6 @@
 import os
 import re
+import time
 
 from zrb.builtin.group import git_changelog_group
 from zrb.cmd.command import run_command
@@ -117,7 +118,11 @@ async def _summarize(ctx, repo_dir, template, tag, previous, model):
         REASON_CHANGELOG,
         record_standalone_requests,
     )
-    from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.contracts.shared.usage_log import (
+        COMPONENT_OTHER,
+        get_elapsed_ms,
+        record_agent_usage,
+    )
     from zrb.llm.engine.agent import create_agent  # lazy: pydantic_ai is a heavy extra
 
     log, stat, date = await _collect_log(ctx, repo_dir, tag, previous)
@@ -144,8 +149,13 @@ async def _summarize(ctx, repo_dir, template, tag, previous, model):
         "Output only the resulting changelog markdown, nothing else."
     )
     agent = create_agent(model=model, tools=[_make_git_tool(ctx, repo_dir)], yolo=True)
+    started_at = time.monotonic()
     result = await agent.run(instruction)
-    record_agent_usage(result, component=COMPONENT_OTHER)
+    record_agent_usage(
+        result,
+        component=COMPONENT_OTHER,
+        duration_ms=get_elapsed_ms(started_at),
+    )
     record_standalone_requests(result, REASON_CHANGELOG, component=COMPONENT_OTHER)
     return result.output
 

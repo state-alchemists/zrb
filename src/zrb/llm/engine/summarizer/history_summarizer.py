@@ -30,6 +30,7 @@ from zrb.llm.contracts.shared.usage_log import (
     LIMIT_TOKEN,
     CompactionDetail,
     UsageTotals,
+    get_elapsed_ms,
     record_totals,
 )
 from zrb.llm.engine.agent.summarizer import create_conversational_summarizer_agent
@@ -579,7 +580,7 @@ def _record_compaction(
         spent,
         session=_usage_session(session_name, messages),
         kind=KIND_SUMMARIZATION,
-        duration_ms=int((time.monotonic() - started_at) * 1000),
+        duration_ms=get_elapsed_ms(started_at),
         compaction=compaction,
         component=COMPONENT_SUMMARIZER,
     )
