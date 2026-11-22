@@ -523,7 +523,13 @@ class SpeechSession:
         is never silence. The small model is asked once, here, with the reply as
         its only input, so a slow or absent model costs the listener a pause and
         then what would have happened anyway. A newer reply arriving during the
-        wait makes this one stale, and a barge-in is the same case.
+        wait makes this one stale, and a barge-in is the same case: the fallback
+        is about *this* reply, so a stale one is dropped whether the model
+        answered or failed.
+
+        The line is cleaned before it is accepted, not after. One that cleans
+        away to nothing — a table, a fence, a bare URL — is a repair that failed,
+        and the reply is read whole rather than the ear being given silence.
         """
         if not self._config.repair_enabled:
             self.say_reply(reply)
@@ -535,14 +541,25 @@ class SpeechSession:
                 model=self._config.summary_model or None,
                 timeout=self._config.summary_timeout or 0,
             )
+            spoken = clean_for_speech(repaired.spoken)
+            if not spoken:
+                raise SpeechRepairError(
+                    "the repaired line was nothing a voice can say, so the reply "
+                    "is read whole instead"
+                )
         except SpeechRepairError as exc:
+            # The model was asked about a reply that may no longer be the last
+            # one, so the fallback has to look at that too: a failure must not
+            # resurrect words the listener has already moved past.
+            if self._generation != generation:
+                return
             logger.warning(f"Reading the reply whole, not repaired: {exc}")
             self.say_reply(reply)
             return
         if self._generation != generation:
             return
         self._say(
-            clean_for_speech(repaired.spoken),
+            spoken,
             voice=self._get_voice(repaired.emotion or get_current_reply_emotion()),
         )
 

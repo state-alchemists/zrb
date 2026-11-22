@@ -175,6 +175,39 @@ async def test_a_late_repair_is_dropped_when_a_newer_reply_arrives(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_stale_repair_that_fails_does_not_speak_the_old_reply(monkeypatch):
+    """The fallback belongs to *this* reply. If the turn moved on while the model
+    was asked, a failure must not resurrect words already replaced."""
+    session = _session()
+
+    async def _slow_and_broken(text, model=None, timeout=0):
+        # the next turn lands before the model gives up
+        await session.handle_stop(_stop("<spoken>Newer.</spoken>"))
+        raise SpeechRepairError("the model was late")
+
+    monkeypatch.setattr(feature, "repair_for_speech", _slow_and_broken)
+
+    await session.handle_stop(_stop(TABLE))
+
+    assert session.speaker.said == ["Newer."]
+
+
+@pytest.mark.asyncio
+async def test_a_repair_with_nothing_a_voice_can_say_reads_the_reply_whole(
+    monkeypatch, caplog
+):
+    """A line of nothing but a table cleans away to nothing. Passing it on would
+    hand the ear silence, which is the one thing the fallback must never do."""
+    _model(monkeypatch, spoken="| item | cost |\n| --- | --- |\n| a | 1 |")
+    session = _session()
+
+    await session.handle_stop(_stop(LONG))
+
+    assert session.speaker.said == [LONG.strip()]
+    assert any("not repaired" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
 async def test_a_subagents_missed_block_is_not_repaired(monkeypatch):
     """A delegated run's words were never meant for the ear."""
     asked = _model(monkeypatch)
