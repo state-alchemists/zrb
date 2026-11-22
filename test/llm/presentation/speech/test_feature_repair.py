@@ -58,7 +58,7 @@ def _model(monkeypatch, spoken: str = REPAIRED, emotion: str = ""):
     """A repair that answers, and a count of how often it was asked."""
     asked: list[str] = []
 
-    async def _repair(text, model=None, timeout=0):
+    async def _repair(text, model=None, timeout=0, repairer=None):
         asked.append(text)
         return RepairedSpeech(spoken=spoken, emotion=emotion)
 
@@ -119,7 +119,7 @@ async def test_a_failing_repair_reads_the_reply_whole(monkeypatch, caplog):
     """The fallback is what would have happened without any of this — never
     silence."""
 
-    async def _broken(text, model=None, timeout=0):
+    async def _broken(text, model=None, timeout=0, repairer=None):
         raise SpeechRepairError("the model was late")
 
     monkeypatch.setattr(feature, "repair_for_speech", _broken)
@@ -162,7 +162,7 @@ async def test_a_late_repair_is_dropped_when_a_newer_reply_arrives(monkeypatch):
     reply the listener has already replaced."""
     session = _session()
 
-    async def _slow(text, model=None, timeout=0):
+    async def _slow(text, model=None, timeout=0, repairer=None):
         # the next turn lands before the model answers this one
         await session.handle_stop(_stop("<spoken>Newer.</spoken>"))
         return RepairedSpeech(spoken=REPAIRED)
@@ -180,7 +180,7 @@ async def test_a_stale_repair_that_fails_does_not_speak_the_old_reply(monkeypatc
     was asked, a failure must not resurrect words already replaced."""
     session = _session()
 
-    async def _slow_and_broken(text, model=None, timeout=0):
+    async def _slow_and_broken(text, model=None, timeout=0, repairer=None):
         # the next turn lands before the model gives up
         await session.handle_stop(_stop("<spoken>Newer.</spoken>"))
         raise SpeechRepairError("the model was late")

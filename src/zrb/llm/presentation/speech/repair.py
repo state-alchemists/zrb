@@ -81,7 +81,10 @@ def create_speech_repair_agent(
 
 
 async def repair_for_speech(
-    text: str, model: "str | Model | None" = None, timeout: float = 0
+    text: str,
+    model: "str | Model | None" = None,
+    timeout: float = 0,
+    repairer: "SpeechRepairer | None" = None,
 ) -> RepairedSpeech:
     """The line to speak instead of *text*. Raises `SpeechRepairError` when the
     model fails, takes longer than *timeout* seconds (0: no limit), or answers
@@ -92,39 +95,67 @@ async def repair_for_speech(
     its first ``await`` — initializing a local model, waiting in provider setup
     — holds that thread and not the event loop, and the deadline still fires.
     The worker is then abandoned and its late line dropped: the caller has
-    already fallen back to reading the reply whole."""
+    already fallen back to reading the reply whole.
+
+    *repairer* is the one a session holds, which runs one repair at a time; on
+    its own this call gets a fresh one and so serializes with nothing."""
     try:
-        return await _bounded(text, model, timeout)
+        return await (repairer or SpeechRepairer()).repair(text, model, timeout)
     except SpeechRepairError:
         raise
     except Exception as exc:
         raise SpeechRepairError(str(exc) or type(exc).__name__) from exc
 
 
-async def _bounded(
-    text: str, model: "str | Model | None", timeout: float
-) -> RepairedSpeech:
-    if not timeout:
-        return await _run(text, model)
+class SpeechRepairer:
+    """One repair at a time, for one session.
+
+    A deadline bounds the *wait*, not the call. A worker that outlives it keeps
+    running until the model answers or the process ends, so starting another
+    beside it is how one stuck provider fills the loop's shared executor and
+    delays every other thing that uses it. While a worker is alive the next
+    reply is read whole, which is the outcome it had before the repair existed.
+
+    The work runs on a thread whether or not there is a deadline: the model is
+    resolved and the agent built before the first `await`, and that is precisely
+    the code that can block the loop.
+    """
+
+    def __init__(self) -> None:
+        self._outstanding: "asyncio.Future[RepairedSpeech] | None" = None
+
+    async def repair(
+        self, text: str, model: "str | Model | None" = None, timeout: float = 0
+    ) -> RepairedSpeech:
+        if self._outstanding is not None and not self._outstanding.done():
+            raise SpeechRepairError(
+                "an earlier repair is still running, so this reply is read whole"
+            )
+        worker = _start(text, model)
+        self._outstanding = worker
+        if not timeout:
+            return await worker
+        # `wait` rather than `wait_for`: cancelling the future cancels nothing
+        # in a thread that already started, and the line is dropped either way.
+        done, _ = await asyncio.wait({worker}, timeout=timeout)
+        if not done:
+            raise SpeechRepairError(
+                f"the model gave no line within {timeout:g}s, so the reply is read whole"
+            )
+        return worker.result()
+
+
+def _start(text: str, model: "str | Model | None") -> "asyncio.Future[RepairedSpeech]":
+    """Submit one repair to the loop's executor, carrying the caller's context."""
     loop = asyncio.get_running_loop()
-    # The worker's own context, as `SpeechSummarizer` does: the small model is
-    # resolved from a `ContextVar` the run has set, and a bare thread would not
-    # see it.
+    # The context goes with it because the small model is chosen from
+    # `ContextVar`s set by the run that is waiting for this line.
     context = contextvars.copy_context()
-    worker = loop.run_in_executor(
-        None, _run_in_its_own_thread, context, text, model
-    )
-    # `wait` rather than `wait_for`: cancelling the future would cancel nothing
-    # in a thread that already started, and the answer is dropped either way.
-    # The callback reads the late exception so asyncio does not report it as
-    # never retrieved.
+    worker = loop.run_in_executor(None, _run_in_its_own_thread, context, text, model)
+    # Its outcome is read here whether or not anyone waits for it any more, so a
+    # dropped repair is not reported as an exception never retrieved.
     worker.add_done_callback(_drop)
-    done, _ = await asyncio.wait({worker}, timeout=timeout)
-    if not done:
-        raise SpeechRepairError(
-            f"the model gave no line within {timeout:g}s, so the reply is read whole"
-        )
-    return worker.result()
+    return worker
 
 
 def _run_in_its_own_thread(

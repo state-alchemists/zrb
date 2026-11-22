@@ -7,6 +7,7 @@ a stale one is dropped. This file is the other half of that seam: it runs
 checks that keep silence impossible are exercised rather than assumed.
 """
 
+import asyncio
 import time
 
 import pytest
@@ -192,6 +193,57 @@ async def test_a_worker_that_outlives_the_deadline_is_dropped(monkeypatch):
 
     # The abandoned worker finishes in its own thread; the caller never sees it.
     time.sleep(0.4)
+
+
+@pytest.mark.asyncio
+async def test_a_second_repair_is_refused_while_the_first_is_still_alive(monkeypatch):
+    """A repair that outlived its deadline keeps its thread until the model
+    answers, and a second beside it is how one stuck provider fills the executor
+    everything else shares.
+
+    The second reply is read whole instead — the outcome it had before the
+    repair existed — and nothing new is submitted.
+    """
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.3))
+    repairer = repair.SpeechRepairer()
+
+    with pytest.raises(SpeechRepairError, match="within"):
+        await repairer.repair(REPLY, timeout=0.05)
+
+    started = time.monotonic()
+    with pytest.raises(SpeechRepairError, match="still running"):
+        await repairer.repair(REPLY, timeout=0.05)
+
+    assert time.monotonic() - started < 0.1
+    # Let the abandoned worker finish inside this test rather than the next.
+    time.sleep(0.4)
+
+
+@pytest.mark.asyncio
+async def test_a_repair_with_no_deadline_still_leaves_the_loop_free(monkeypatch):
+    """`timeout=0` means no deadline, not "run on the loop".
+
+    The model is resolved and the agent built before the first `await`, which is
+    exactly the work that can block everything else the loop is doing, so the
+    call goes to a thread either way.
+    """
+
+    def _blocking_agent(model=None):
+        time.sleep(0.3)
+        return FakeAgent(output=RepairedSpeech(spoken=LINE))
+
+    monkeypatch.setattr(repair, "create_speech_repair_agent", _blocking_agent)
+    started = time.monotonic()
+    ticks: list[float] = []
+
+    async def ticker():
+        await asyncio.sleep(0.02)
+        ticks.append(time.monotonic() - started)
+
+    repaired, _ = await asyncio.gather(repair_for_speech(REPLY), ticker())
+
+    assert repaired.spoken == LINE
+    assert ticks[0] < 0.15, f"the loop waited for the model: {ticks[0]:.2f}s"
 
 
 def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):

@@ -35,7 +35,11 @@ from zrb.llm.presentation.speech.progress import (
     SpeechClock,
     describe_purpose,
 )
-from zrb.llm.presentation.speech.repair import SpeechRepairError, repair_for_speech
+from zrb.llm.presentation.speech.repair import (
+    SpeechRepairError,
+    SpeechRepairer,
+    repair_for_speech,
+)
 from zrb.llm.presentation.speech.streamed_reply import StreamedReply
 from zrb.llm.presentation.speech.summary import SpeechSummarizer
 from zrb.llm.presentation.speech.text import (
@@ -227,6 +231,10 @@ class SpeechSession:
         # own, so one being off must not reach the other.
         self._wanting_block = False
         self._summarizer = SpeechSummarizer()
+        # One repair at a time: a repair that outlived its deadline keeps its
+        # thread until the model answers, and a second beside it is how one
+        # stuck provider fills the executor everything else shares.
+        self._repairer = SpeechRepairer()
         self.streamed_reply = StreamedReply(
             self._say_reply_part, max_chars=config.chunk_max_chars
         )
@@ -540,6 +548,7 @@ class SpeechSession:
                 reply,
                 model=self._config.summary_model or None,
                 timeout=self._config.summary_timeout or 0,
+                repairer=self._repairer,
             )
             spoken = clean_for_speech(repaired.spoken)
             if not spoken:
