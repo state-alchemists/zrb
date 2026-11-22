@@ -2,7 +2,7 @@
 
 The summed line (`usage_log`) answers what a turn cost. These rows answer what
 it was spent on: which request, why it was sent, and a digest of the prompt it
-sent — the three the sum cannot hold (board 0003 §4).
+sent — the three the sum cannot hold.
 """
 
 import copy

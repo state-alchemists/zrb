@@ -103,7 +103,7 @@ async def test_the_fire_line_names_the_message_window_when_tokens_fit(
     """The window can fire a compaction on its own, and the line has to say so.
 
     A reader who sees only a token figure would take a message-count fire for a
-    mismeasurement, which is the reading that made the board ask for this line.
+    mismeasurement, which is the reading this line exists to prevent.
     """
     monkeypatch.setattr(history_summarizer, "summarize_history", _keep)
 

@@ -4,7 +4,7 @@ The call sites that run an agent themselves — the hooks, the shell judge, the
 namer, the summarizer, a side question, dictation's judge, speech — each write
 one summed line, which answers the bill and cannot say which of them spent it.
 These rows answer that, and carry the digest that says whether each paid the
-prefixed prompt again (board 0003 §4 step 1).
+prefixed prompt again.
 """
 
 import pytest
