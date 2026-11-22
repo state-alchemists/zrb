@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 @accepts_renamed_fields(missing_block_notice_enabled="block_notice_enabled")
-@dataclass
+@dataclass(kw_only=True)
 class SpeechConfig:
     """Settings for `enable_speech`. Each field mirrors `CFG.LLM_SPEECH_<FIELD>`;
     one left ``None`` is read from there when a session starts.
@@ -36,8 +36,14 @@ class SpeechConfig:
     A *volume* is a percentage of the speech's own level, 0-200, and applies
     where zrb plays the audio itself — a player program keeps its own.
 
-    New fields go at the end: a caller may pass them positionally, and a field
-    inserted earlier would shift every argument after it.
+    Every field is a keyword. Until 4.0 the class took them by position too, on
+    the rule that a new field goes at the end — but the three settings a long
+    reply's summary used sat in the middle, and retiring them moved every field
+    after them up three places. A call built against 4.0.0b1 would have set
+    `progress_interval` from the `600` it meant for `summarize_above_chars`, and
+    `openai_base_url` from what it meant for `progress_interval`, without a
+    word. A keyword-only constructor cannot be misbound at all, so a field may
+    now be added or retired anywhere in this list.
     """
 
     enabled: bool | None = None

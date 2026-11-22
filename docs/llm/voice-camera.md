@@ -192,7 +192,7 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 - "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
-**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. By default it is read whole, however long it is; see *Summarizing a long reply* below to shorten it. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. A reply is read whole, however long it is: nothing shortens it, and a long `<spoken>` block is read in full rather than compressed. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
 
 With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, whole in one go.
 

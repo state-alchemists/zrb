@@ -7,7 +7,7 @@ import queue
 import threading
 import time
 import types
-from dataclasses import fields
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -205,10 +205,14 @@ def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
     assert _played(stream)[:1600].tolist() == [5] * 1600  # not silence
 
 
-def test_the_newest_speech_setting_is_the_last_field():
-    """A dataclass is positional too: a field added in the middle rebinds every
-    field after it for a caller that passes them that way."""
-    assert [field.name for field in fields(SpeechConfig)][-1] == "repair_timeout"
+def test_the_speech_config_refuses_a_positional_caller():
+    """Keywords only, so a field added or retired may not rebind the ones
+    around it. The last-field rule this replaces could not survive a removal:
+    4.0 retired three settings from the middle, and every field after them
+    moved up."""
+    build = cast("Any", SpeechConfig)
+    with pytest.raises(TypeError):
+        build(True)
 
 
 def test_the_cushion_is_added_last_so_a_positional_caller_still_fits(sd):

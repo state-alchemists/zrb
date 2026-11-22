@@ -71,6 +71,8 @@ Search for `zrb.llm.` and check every hit against the table above. The two shape
 
 Three speech settings are retired and reported at startup with what replaced them: `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` (nothing — a reply is read whole, and a long one is no longer compressed), and `ZRB_LLM_SPEECH_SUMMARY_MODEL` / `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT`, which are now `ZRB_LLM_SPEECH_REPAIR_MODEL` / `ZRB_LLM_SPEECH_REPAIR_TIMEOUT` and bound the one model call speech still makes. A reply's one breath is its `<spoken>` block; a reply that opened none is repaired at the end of the turn, and nothing else shortens what is read aloud.
 
+**`SpeechConfig` takes keywords only.** It used to accept its fields by position as well, on the rule that a new field goes at the end so the ones before it keep their meaning. Retiring the three summary settings broke that rule's premise, because they sat among the middle fields: `progress_interval`, `events`, `openai_model` and every field after them moved up three places, so a call written against 4.0.0b1 would have set `progress_interval` from the `600` it meant for `summarize_above_chars`, and `openai_base_url` from what it meant for `progress_interval`. Nothing in zrb builds one that way and every example in these docs was already keyword, but a `zrb_init.py` that did has to be changed: name every field, and the values land where you meant. The constructor now refuses a positional argument outright, so no later field can ever be added or retired into a caller's argument by accident.
+
 ---
 
 ## Upgrading to 3.38.0
