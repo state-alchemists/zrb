@@ -9,13 +9,22 @@ from zrb.config.config import CFG
 from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
     _DAY_APPEND_RESERVE,
     _day_note,
+    _open_loops_note,
+    _reviewer_note,
     build_completed_log_hook_config,
     build_memory_reviewer_hook_config,
 )
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.contracts.memory import paths, store
-from zrb.llm.contracts.memory.model import KIND_DIARY, Diary, compact_at, digest_body
+from zrb.llm.contracts.memory.model import (
+    KIND_DIARY,
+    KIND_LOOP,
+    Diary,
+    Fact,
+    compact_at,
+    digest_body,
+)
 
 
 @pytest.fixture
@@ -228,5 +237,63 @@ def test_a_day_with_no_entry_names_the_date_so_one_can_be_created(store_dir):
 
 def test_the_note_is_offered_to_the_reviewer_but_not_to_the_log_hooks(store_dir):
     """The log hooks build no agent, so a note would be read for nothing."""
-    assert build_memory_reviewer_hook_config().config.input_note is _day_note
+    assert build_memory_reviewer_hook_config().config.input_note is _reviewer_note
     assert build_completed_log_hook_config().config.input_note is None
+
+
+def test_the_note_names_the_loops_that_are_still_open(store_dir):
+    """A rule the reviewer cannot check is one it can only ignore or over-apply.
+
+    "Close the loop this turn finished" was in the prompt with no list of the
+    loops, so the only ones ever closed were the ones it happened to search for.
+    """
+    for index, subject in enumerate(("first", "second", "third")):
+        store.save_fact(
+            Fact(
+                id=subject,
+                claim=f"I owe {subject}.",
+                kind=KIND_LOOP,
+                updated=f"2026-11-2{index}T09:00:00",
+            )
+        )
+
+    note = _open_loops_note()
+
+    assert "3 loops are open" in note
+    assert note.index("[third]") < note.index("[second]") < note.index("[first]")
+    assert "this turn's own evidence" in note
+
+
+def test_only_the_newest_loops_are_named_and_the_rest_are_counted(store_dir):
+    """Six lines a turn, and a number so a loop left out is not a loop forgotten."""
+    for index in range(8):
+        store.save_fact(
+            Fact(
+                id=f"owed-{index}",
+                claim=f"I owe thing {index}.",
+                kind=KIND_LOOP,
+                updated=f"2026-11-{20 + index}T09:00:00",
+            )
+        )
+
+    note = _open_loops_note()
+
+    assert "8 loops are open" in note
+    assert "2 more are open" in note
+    assert note.count("[owed-") == 6
+
+
+def test_a_retired_loop_is_not_handed_over(store_dir):
+    """A closed loop is not a debt, and naming it would invite a second closing."""
+    store.save_fact(
+        Fact(id="owed", claim="I owe a cert rotation.", kind=KIND_LOOP, status="retired")
+    )
+    assert _open_loops_note() == ""
+
+
+def test_no_open_loop_leaves_the_day_alone(store_dir):
+    """With nothing owed the note is the day's, and says nothing about loops."""
+    assert _open_loops_note() == ""
+    assert "loops are open" not in _reviewer_note(
+        HookContext(event=HookEvent.STOP, event_data={})
+    )

@@ -37,9 +37,10 @@ from zrb.llm.capabilities.hook.contracts.types import (
     MatcherOperator,
 )
 from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
-from zrb.llm.contracts.memory import store
+from zrb.llm.contracts.memory import render, store
 from zrb.llm.contracts.memory.model import (
     KIND_DIARY,
+    KIND_LOOP,
     body_limit,
     compact_at,
     digest_body,
@@ -114,7 +115,9 @@ def build_memory_reviewer_hook_config() -> HookConfig:
             # a fact that is never recorded. Its tool list is the three memory
             # verbs above, so approving every call it makes approves nothing else.
             auto_approve=True,
-            input_note=_day_note,
+            # The whole note: the day the turn belongs to, and the debts a turn
+            # can close. One callable because the hook carries one.
+            input_note=_reviewer_note,
         ),
         matchers=[
             MatcherConfig(
@@ -343,6 +346,60 @@ def _first_sentence(message: str) -> str:
             "…" if len(sentence) >= _LOG_LINE_MAX_CHARS else ""
         )
     return ""
+
+
+# How many open loops the note names. A loop that reaches the note is one this
+# turn can close; one that misses it is not lost — the note says how many more
+# exist and `SearchMemory` still reaches them — so the number is a budget, not
+# the ledger. On a laptop whose small model is its main model, every line here
+# is paid for on every turn.
+_LOOPS_HANDED_OVER = 6
+
+
+def _reviewer_note(context: "HookContext") -> str:
+    """What the reviewer is told beyond the transcript: the day, then the loops.
+
+    Two subjects in one note because the hook carries one note: the day this turn
+    belongs to, and the debts a turn can close.
+    """
+    parts = (_day_note(context), _open_loops_note())
+    return "\n\n".join(part for part in parts if part)
+
+
+def _open_loops_note() -> str:
+    """The loops still open, newest first, and the one rule for closing one.
+
+    The prompt has said "when the turn finished something you owed, close it"
+    since the hook existed, and said it against a store the reviewer could not
+    see: the only way it found a loop was to search a subject it had no reason
+    to suspect was owed, so a thread finished across three turns was read by
+    three turns and closed by none. This is the list that makes that sentence a
+    decision.
+    """
+    loops = sorted(
+        (fact for fact in store.load_facts() if fact.kind == KIND_LOOP),
+        key=lambda fact: (fact.updated, fact.id),
+        reverse=True,
+    )
+    named = loops[:_LOOPS_HANDED_OVER]
+    lines = [line for line in (render.core_line(fact) for fact in named) if line]
+    if not lines:
+        return ""
+    rest = len(loops) - len(named)
+    tail = (
+        f"\n{rest} more are open and not named here; `SearchMemory` reaches them "
+        "by subject."
+        if rest > 0
+        else ""
+    )
+    return (
+        f"{len(loops)} loops are open, newest first. Close one only when this "
+        "turn's own evidence proves it finished — a merge, a green run, a tag on "
+        "the remote. A thread waiting on the user is not finished by a turn that "
+        "asks about it, and one this turn only discussed stays open.\n"
+        + "\n".join(lines)
+        + tail
+    )
 
 
 def _day_note(context: "HookContext") -> str:
