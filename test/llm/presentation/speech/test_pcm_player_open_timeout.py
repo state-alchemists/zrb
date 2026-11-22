@@ -89,6 +89,10 @@ def test_a_stream_that_arrives_after_the_deadline_is_closed(sd, monkeypatch):
 
     with pytest.raises(TimeoutError):
         utterance.play(timeout=5)
+    # Nothing is counted until the open begins, and on a loaded runner starting
+    # its thread outlasts the 0.05 s deadline: wait for the open itself, not for
+    # the clock, or the count is read before there is anything to count.
+    assert SlowOpenStream.opening.wait(2)
     open_while_stuck = pcm_player.has_open_streams()
     SlowOpenStream.release.set()
     pcm_player.wait_for_streams_to_close(2)
