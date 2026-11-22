@@ -286,7 +286,9 @@ def test_only_the_newest_loops_are_named_and_the_rest_are_counted(store_dir):
 def test_a_retired_loop_is_not_handed_over(store_dir):
     """A closed loop is not a debt, and naming it would invite a second closing."""
     store.save_fact(
-        Fact(id="owed", claim="I owe a cert rotation.", kind=KIND_LOOP, status="retired")
+        Fact(
+            id="owed", claim="I owe a cert rotation.", kind=KIND_LOOP, status="retired"
+        )
     )
     assert _open_loops_note() == ""
 

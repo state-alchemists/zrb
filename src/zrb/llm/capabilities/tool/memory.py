@@ -25,7 +25,6 @@ from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.contracts.memory import paths, render, search, store
-from zrb.llm.contracts.shared.usage_log import current_component
 from zrb.llm.contracts.memory.model import (
     BODY_APPEND,
     BODY_MODES,
@@ -52,6 +51,7 @@ from zrb.llm.contracts.memory.model import (
     reason_error,
     rewrite_not_compacted,
 )
+from zrb.llm.contracts.shared.usage_log import current_component
 from zrb.util.file_lock import FileLockTimeout
 
 _NOT_A_KIND = (
