@@ -35,6 +35,7 @@ from zrb.llm.presentation.speech.progress import (
     SpeechClock,
     describe_purpose,
 )
+from zrb.llm.presentation.speech.repair import SpeechRepairError, repair_for_speech
 from zrb.llm.presentation.speech.streamed_reply import StreamedReply
 from zrb.llm.presentation.speech.summary import SpeechSummarizer
 from zrb.llm.presentation.speech.text import (
@@ -222,6 +223,9 @@ class SpeechSession:
         self._generation = 0
         # Whether the last reply wanted a block and opened none.
         self._missed_block = False
+        # The same, before the notice's switch is consulted: the repair has its
+        # own, so one being off must not reach the other.
+        self._wanting_block = False
         self._summarizer = SpeechSummarizer()
         self.streamed_reply = StreamedReply(
             self._say_reply_part, max_chars=config.chunk_max_chars
@@ -435,6 +439,7 @@ class SpeechSession:
         # anything to say: a note left over from an older turn would be about a
         # reply that is no longer the last one.
         self._missed_block = False
+        self._wanting_block = False
         # A summary still being made belongs to an earlier turn, whatever this
         # one goes on to say; one `say_reply` starts is for the new generation.
         self._generation += 1
@@ -449,16 +454,20 @@ class SpeechSession:
         if "reply" not in self._events:
             # Nothing to say here: a queued progress line is already stale.
             return HookResult(success=True)
-        if context.last_assistant_message and self.speaker.is_enabled:
-            self._note_reply(context.last_assistant_message)
+        reply = context.last_assistant_message
+        if reply and self.speaker.is_enabled:
+            self._note_reply(reply)
         if self.is_streaming_reply:
             self.streamed_reply.flush()
             has_claimed_turn = self.streamed_reply.has_claimed_turn
             self.streamed_reply.reset()
             if has_claimed_turn:
                 return HookResult(success=True)
-        if context.last_assistant_message:
-            self.say_reply(context.last_assistant_message)
+        if reply:
+            if self._wanting_block:
+                await self._say_repaired(reply)
+            else:
+                self.say_reply(reply)
         return HookResult(success=True)
 
     async def handle_permission_request(self, context: HookContext) -> HookResult:
@@ -506,6 +515,37 @@ class SpeechSession:
     def _summarize_above_chars(self) -> int:
         return max(self._config.summarize_above_chars or 0, 0)
 
+    async def _say_repaired(self, reply: str) -> None:
+        """Speak the line the ear should have had, for a reply that marked none.
+
+        That reply would otherwise be read whole — its tables, paths and
+        commands along with its prose — because the fallback for a missing block
+        is never silence. The small model is asked once, here, with the reply as
+        its only input, so a slow or absent model costs the listener a pause and
+        then what would have happened anyway. A newer reply arriving during the
+        wait makes this one stale, and a barge-in is the same case.
+        """
+        if not self._config.repair_enabled:
+            self.say_reply(reply)
+            return
+        generation = self._generation
+        try:
+            repaired = await repair_for_speech(
+                reply,
+                model=self._config.summary_model or None,
+                timeout=self._config.summary_timeout or 0,
+            )
+        except SpeechRepairError as exc:
+            logger.warning(f"Reading the reply whole, not repaired: {exc}")
+            self.say_reply(reply)
+            return
+        if self._generation != generation:
+            return
+        self._say(
+            clean_for_speech(repaired.spoken),
+            voice=self._get_voice(repaired.emotion or get_current_reply_emotion()),
+        )
+
     def say_reply(self, reply: str) -> None:
         """Speak *reply*'s `<spoken>` block, or all of it when it opens none:
         whole, or as a summary when that speakable text is longer than
@@ -547,15 +587,16 @@ class SpeechSession:
         """Record whether *reply* wanted a block and opened none, and log it.
 
         The caller checks that speech is on first: a reply nobody hears has no
-        ear to write for. A notice switched off also clears one already
-        standing, so turning it off is not a promise about the next turn.
+        ear to write for. ``_wanting_block`` is kept apart from the notice,
+        because speaking for a missed block has its own switch: one is a line in
+        the next request, the other is what this turn is heard as. A notice
+        switched off also clears one already standing, so turning it off is not
+        a promise about the next turn.
         """
-        if not self._config.block_notice_enabled:
-            self._missed_block = False
-            return
-        missed = needs_spoken_block(reply)
-        self._missed_block = missed
-        if missed:
+        wanted = needs_spoken_block(reply)
+        self._wanting_block = wanted
+        self._missed_block = wanted and bool(self._config.block_notice_enabled)
+        if self._missed_block:
             logger.warning(
                 f"The reply opened no `<spoken>` block ({len(reply)} characters)."
             )

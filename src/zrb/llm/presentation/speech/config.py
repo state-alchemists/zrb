@@ -22,6 +22,11 @@ class SpeechConfig:
     reply opened no spoken block; ``missing_block_notice_enabled``, its name
     before the suffix was shortened, still works and warns.
 
+    *repair_enabled* has the small model write the line the listener should
+    have heard, for a reply that needed a block and opened none, instead of
+    reading that reply whole. It is asked once at the end of the turn, so a
+    slow or missing model costs a pause rather than silence.
+
     *backend* names a built-in backend (``auto``, ``termux``, ``say``,
     ``espeak-ng``, ``openai``, ``gemini``), built from the fields here, or is
     an `AnySpeechBackend` of your own, which ignores them.
@@ -84,6 +89,7 @@ class SpeechConfig:
     player_prebuffer_seconds: float | None = None
     chunk_max_chars: int | None = None
     block_notice_enabled: bool | None = None
+    repair_enabled: bool | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""
