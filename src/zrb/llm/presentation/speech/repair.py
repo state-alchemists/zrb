@@ -18,9 +18,10 @@ instead of reaching it.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextvars
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import threading
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -45,13 +46,6 @@ logger = logging.getLogger(__name__)
 # Longer than a spoken line has any business being, and short enough to notice
 # a model that answered with the reply again. Not a limit on the reply.
 _LONGEST_SPOKEN_LINE = 2000
-
-#: Every repair in the process shares this one worker. A repair cannot be taken
-#: back once it has started — a provider that never answers keeps its thread
-#: until the process ends — so the ceiling is what keeps one stuck provider from
-#: eating the loop's own executor, where unrelated work runs. The reply that
-#: needs a repair while this is busy is read whole, on its own deadline.
-_REPAIR_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="speech-repair")
 
 
 class RepairedSpeech(BaseModel):
@@ -123,10 +117,10 @@ class SpeechRepairer:
     beside it is how one stuck provider would take two of whatever runs them.
     While a worker is alive the next reply is read whole, which is the outcome
     it had before the repair existed, so a session never has more than one.
-    That worker is not the loop's default executor, which the rest of the
-    process runs unrelated work on; repairs share `_REPAIR_EXECUTOR`, one
-    thread for the whole process, so a provider that never answers costs a
-    later reply its line and nothing else.
+    That worker is a thread of its own — not the loop's default executor, which
+    the rest of the process runs unrelated work on, and not a thread pool, whose
+    workers a blocked repair would hold open at exit. Nothing is queued, so a
+    repair that has already given up never runs and charges afterward.
 
     The work runs on a thread whether or not there is a deadline: the model is
     resolved and the agent built before the first `await`, and that is precisely
@@ -158,22 +152,33 @@ class SpeechRepairer:
 
 
 def _start(text: str, model: "str | Model | None") -> "asyncio.Future[RepairedSpeech]":
-    """Start one repair on the repair executor, carrying the caller's context.
+    """Start one repair on a daemon thread of its own, carrying the caller's context.
 
     Not `run_in_executor(None, …)`: that puts the worker in the loop's default
-    pool, which `asyncio.to_thread` and the rest of the process also draw on,
-    and a worker cannot be taken back once it has started — so a provider that
-    never answers would hold a slot another job needs. `_REPAIR_EXECUTOR` has
-    one worker for the whole process, which is the ceiling: a repair that is
-    still stuck when the next reply needs one leaves that reply read whole,
-    because its own deadline fires while it waits for the slot.
+    pool, which `asyncio.to_thread` and the rest of the process also draw on, and
+    a worker cannot be taken back once it has started — so a provider that never
+    answers would hold a slot another job needs. Not a `ThreadPoolExecutor`
+    either: its workers are joined at interpreter exit, so one blocked repair
+    would keep the process from ever finishing. A daemon thread is bounded by the
+    repairer that started it — one at a time, per session — costs no shared slot,
+    and cannot hold the process open. Nothing is queued behind it, so a repair
+    whose wait has already ended never starts afterwards and charges for a line
+    nobody will hear.
     """
     loop = asyncio.get_running_loop()
     # The context goes with it because the small model is chosen from
     # `ContextVar`s set by the run that is waiting for this line.
     context = contextvars.copy_context()
-    outcome = _REPAIR_EXECUTOR.submit(_run_in_its_own_thread, context, text, model)
-    worker: "asyncio.Future[RepairedSpeech]" = asyncio.wrap_future(outcome, loop=loop)
+    settlement: "concurrent.futures.Future[RepairedSpeech]" = concurrent.futures.Future()
+    threading.Thread(
+        target=_run_in_its_own_thread,
+        args=(context, text, model, settlement),
+        name="speech-repair",
+        daemon=True,
+    ).start()
+    worker: "asyncio.Future[RepairedSpeech]" = asyncio.wrap_future(
+        settlement, loop=loop
+    )
     # Its outcome is read here whether or not anyone waits for it any more, so a
     # dropped repair is not reported as an exception never retrieved.
     worker.add_done_callback(_drop)
@@ -181,16 +186,33 @@ def _start(text: str, model: "str | Model | None") -> "asyncio.Future[RepairedSp
 
 
 def _run_in_its_own_thread(
-    context: "contextvars.Context", text: str, model: "str | Model | None"
-) -> RepairedSpeech:
+    context: "contextvars.Context",
+    text: str,
+    model: "str | Model | None",
+    settlement: "concurrent.futures.Future[RepairedSpeech]",
+) -> None:
     """One repair on a thread of its own, under the caller's context.
 
     `asyncio.run` gives it a loop of its own, which is what a thread needs; the
     context is carried in because the model is chosen from `ContextVar`s set by
-    the run that is waiting for it. Whatever it raises settles the future the
-    executor handed back, so the loop is never left waiting for an answer.
+    the run that is waiting for it.
+
+    `settlement` is settled on every ordinary ending, and the `finally` covers
+    the ones `_run` does not convert — the waiter must never be left with a
+    future that cannot complete, because a reply with no deadline waits on it.
     """
-    return context.run(asyncio.run, _run(text, model))
+    settled = False
+    try:
+        settlement.set_result(context.run(asyncio.run, _run(text, model)))
+        settled = True
+    except SpeechRepairError as exc:
+        settlement.set_exception(exc)
+        settled = True
+    finally:
+        if not settled:
+            settlement.set_exception(
+                SpeechRepairError("the repair stopped without an answer")
+            )
 
 
 def _drop(worker: "asyncio.Future[RepairedSpeech]") -> None:
@@ -200,6 +222,23 @@ def _drop(worker: "asyncio.Future[RepairedSpeech]") -> None:
 
 
 async def _run(text: str, model: "str | Model | None") -> RepairedSpeech:
+    """One repair's work, with every provider failure turned into a refusal.
+
+    The conversion is what lets the worker settle its future on a narrow handler
+    alone: a provider that raises is a failed repair either way, and reporting
+    it as one keeps the waiter's fallback the same for all of them.
+    """
+    try:
+        return await _repair_with_the_model(text, model)
+    except SpeechRepairError:
+        raise
+    except Exception as exc:
+        raise SpeechRepairError(str(exc) or type(exc).__name__) from exc
+
+
+async def _repair_with_the_model(
+    text: str, model: "str | Model | None"
+) -> RepairedSpeech:
     agent = create_speech_repair_agent(model)
     result = await agent.run(text)
     record_agent_usage(result, component=COMPONENT_SPEECH_REPAIR)

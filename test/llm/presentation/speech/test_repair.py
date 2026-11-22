@@ -8,6 +8,7 @@ checks that keep silence impossible are exercised rather than assumed.
 """
 
 import asyncio
+import threading
 import time
 
 import pytest
@@ -247,7 +248,7 @@ async def test_a_repair_with_no_deadline_still_leaves_the_loop_free(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_a_repair_never_takes_a_worker_from_the_loops_executor(monkeypatch):
-    """Its worker is the repairs' own, so a repair that never returns cannot
+    """Its thread is the repair's own, so a repair that never returns cannot
     hold a slot that `asyncio.to_thread` and the rest of the process share."""
 
     def _refuse(*args: object, **kwargs: object) -> None:
@@ -258,6 +259,57 @@ async def test_a_repair_never_takes_a_worker_from_the_loops_executor(monkeypatch
 
     repaired = await repair_for_speech(REPLY)
     assert repaired.spoken == LINE
+
+
+@pytest.mark.asyncio
+async def test_the_repair_thread_is_a_daemon(monkeypatch):
+    """A provider that never answers must not keep the process open at exit.
+
+    A thread pool's workers are joined at interpreter exit, so one blocked
+    repair there would stop zrb from ever finishing; a daemon thread is dropped
+    instead.
+    """
+    started = threading.Event()
+
+    async def _never_answers(text, model=None):
+        started.set()
+        time.sleep(0.4)
+        return RepairedSpeech(spoken=LINE)
+
+    monkeypatch.setattr(repair, "_run", _never_answers)
+
+    with pytest.raises(SpeechRepairError):
+        await repair_for_speech(REPLY, timeout=0.05)
+
+    assert started.wait(1), "the repair never reached a thread"
+    [thread] = [item for item in threading.enumerate() if item.name == "speech-repair"]
+    assert thread.daemon
+    # Let the abandoned worker finish inside this test rather than the next.
+    time.sleep(0.4)
+
+
+@pytest.mark.asyncio
+async def test_a_stuck_repair_does_not_cost_another_session_its_line(monkeypatch):
+    """Nothing is queued behind a worker: another session's repair runs at once,
+    rather than after a worker that has already given up."""
+
+    async def _slow_for_one_reply(text, model=None):
+        if "slow" in text:
+            time.sleep(0.4)
+        return RepairedSpeech(spoken=LINE)
+
+    monkeypatch.setattr(repair, "_run", _slow_for_one_reply)
+    stuck, other = repair.SpeechRepairer(), repair.SpeechRepairer()
+
+    with pytest.raises(SpeechRepairError):
+        await stuck.repair("a slow reply", timeout=0.02)
+
+    started = time.monotonic()
+    repaired = await other.repair(REPLY, timeout=1.0)
+
+    assert repaired.spoken == LINE
+    assert time.monotonic() - started < 0.3, "the second session waited for the first"
+    time.sleep(0.4)
 
 
 def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
