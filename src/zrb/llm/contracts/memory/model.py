@@ -113,6 +113,7 @@ _FACT_FIELDS = (
     "updated",
     "reason",
     "retired_on",
+    "retired_by",
 )
 _DIARY_FIELDS = (
     "id",
@@ -142,6 +143,13 @@ class Fact:
     updated: str = ""
     reason: str = ""
     retired_on: str = ""
+    # The component that called `forget` (`main_agent`, `hook_agent`, ...), read
+    # from the running component rather than passed in: a writer must not be able
+    # to say it was somebody else, and the count it makes possible is "how many
+    # did the reviewer close, against how many did a conversation close". Empty on
+    # an active claim, and on one retired before the field existed — the retired
+    # files from before it are not wrong, just unstamped.
+    retired_by: str = ""
     body: str = ""
 
     @property
@@ -161,6 +169,7 @@ class Fact:
             "updated": self.updated,
             "reason": self.reason,
             "retired_on": self.retired_on,
+            "retired_by": self.retired_by,
         }
         return _document(_FACT_FIELDS, values, self.body)
 
@@ -184,6 +193,7 @@ class Fact:
             updated=front.get("updated", "").strip(),
             reason=front.get("reason", "").strip(),
             retired_on=front.get("retired_on", "").strip(),
+            retired_by=front.get("retired_by", "").strip(),
             body=body,
         )
 

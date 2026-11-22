@@ -7,6 +7,11 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.memory import forget, remember, search_memory
 from zrb.llm.contracts.memory import paths, store
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_HOOK,
+    COMPONENT_MAIN,
+    usage_component,
+)
 
 
 @pytest.fixture
@@ -119,6 +124,34 @@ def test_a_retired_fact_is_revived_by_remembering_it_again(store_dir):
     fact = store.load_fact("x")
     assert fact is not None
     assert fact.status == "active"
+
+
+def test_a_retirement_is_stamped_with_the_conversation(store_dir):
+    remember("x", "X is true.")
+    forget("x", "stale")
+    fact = store.load_fact("x", include_retired=True)
+    assert fact is not None
+    assert fact.retired_by == COMPONENT_MAIN
+
+
+def test_a_retirement_inside_a_hook_is_stamped_as_the_hook(store_dir):
+    """The reviewer closes loops with this tool, so its closings must show as its own."""
+    remember("x", "X is true.")
+    with usage_component(COMPONENT_HOOK):
+        forget("x", "stale")
+    fact = store.load_fact("x", include_retired=True)
+    assert fact is not None
+    assert fact.retired_by == COMPONENT_HOOK
+
+
+def test_reviving_a_fact_clears_the_retirement_stamp(store_dir):
+    """An active claim has no retirement, so the stamp of the old one must not linger."""
+    remember("x", "X is true.")
+    forget("x", "wrong")
+    remember("x", "X is true after all.")
+    fact = store.load_fact("x")
+    assert fact is not None
+    assert fact.retired_by == ""
 
 
 def test_forgetting_something_unknown_says_so(store_dir):
