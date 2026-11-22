@@ -5,6 +5,12 @@ replacement settings omit the environment prefix.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 4.0.0: the summarizer is gone. The `<spoken>` block is the one breath the
+    # ear gets, and a reply that opened none is repaired at the end of the turn
+    # (ADR-0145), so nothing asks a model for a shorter version of a reply.
+    "LLM_SPEECH_SUMMARIZE_ABOVE_CHARS": "nothing: every reply is read whole",
+    "LLM_SPEECH_SUMMARY_MODEL": "LLM_SPEECH_REPAIR_MODEL",
+    "LLM_SPEECH_SUMMARY_TIMEOUT": "LLM_SPEECH_REPAIR_TIMEOUT",
     # 3.33.0: the journal was removed once the memory store replaced it
     # (ADR-0138). Every knob below only controlled its tools, its injection,
     # its judge or its writes.
@@ -61,7 +67,7 @@ RETIRED_SETTINGS: dict[str, str] = {
     ),
     # 3.14.0: speech reads the whole reply.
     "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
-    "LLM_SPEECH_SUMMARIZE": "LLM_SPEECH_SUMMARIZE_ABOVE_CHARS",
+    "LLM_SPEECH_SUMMARIZE": "nothing: every reply is read whole",
     "LLM_SPEECH_ON_SCREEN_NOTE": "nothing: the whole reply is read",
     # 3.10.0: voice became the dictation and camera features.
     "LLM_VOICE_ENABLED": "/voice is always offered",
