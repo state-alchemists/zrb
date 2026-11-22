@@ -230,8 +230,14 @@ def record_round_requests(
     *new_messages* are the messages the run produced. A result that cannot give
     them — a mocked run, a provider that raised — writes no row rather than a
     guessed one, which is why the list is checked rather than trusted.
+
+    A round that files nothing says so. It used to be silent, and silence is the
+    shape that cost a day: on 2026-11-22 a session wrote every summed line and no
+    request row for an hour and three quarters, and nothing on disk said why. The
+    turn is unaffected either way; this only makes such a gap findable.
     """
     if not isinstance(new_messages, list):
+        _say_unfiled("the run could not say which messages it sent")
         return
     rows = _rows_for(
         history=cursor.history,
@@ -241,7 +247,20 @@ def record_round_requests(
         reason=reason,
     )
     cursor.requests += len(rows)
+    if not rows:
+        _say_unfiled("the round's messages held no response to file")
+        return
     record_requests(rows)
+
+
+def _say_unfiled(why: str) -> None:
+    """Say once that a round's requests were not filed, and where they should be."""
+    CFG.LOGGER.warning(
+        f"Request log: no rows written for this round ({why}). The turn is "
+        f"unaffected, but a per-request report cannot explain it. The file is "
+        f"`request-YYYY-MM.jsonl` under {CFG.LLM_USAGE_DIR} "
+        f"(`ZRB_LLM_USAGE_DIR`)."
+    )
 
 
 def record_standalone_requests(
@@ -362,7 +381,12 @@ def record_requests(records: Iterable[RequestRecord]) -> list[RequestRecord]:
                 for row in rows:
                     handle.write(json.dumps(row.to_dict(), ensure_ascii=False) + "\n")
         except OSError:
-            CFG.LOGGER.debug(f"Request log not written: {path}", exc_info=True)
+            CFG.LOGGER.warning(
+                f"Request log not written: {path}. The rows for these requests are "
+                f"lost, and the turn is unaffected. Check that the directory "
+                f"(`ZRB_LLM_USAGE_DIR`) exists and that its disk has room.",
+                exc_info=True,
+            )
             continue
         written.extend(rows)
     return written

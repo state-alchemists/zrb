@@ -6,12 +6,14 @@ sent — the three the sum cannot hold.
 """
 
 import copy
+import logging
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai import AgentRunResultEvent
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelRequest,
     ModelResponse,
     TextPart,
@@ -237,22 +239,45 @@ def test_the_two_logs_share_a_directory_without_mixing(usage_dir):
     assert read_records() == []
 
 
-def test_a_log_that_cannot_be_written_costs_only_its_rows(usage_dir, monkeypatch):
+def test_a_log_that_cannot_be_written_costs_only_its_rows(usage_dir, monkeypatch, caplog):
     """A read-only home must not fail the turn that produced the numbers."""
+
     blocked = usage_dir / "blocked"
     blocked.write_text("not a directory")
     monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(blocked), raising=False)
 
-    assert record_requests([_row()]) == []
+    with caplog.at_level(logging.WARNING):
+        assert record_requests([_row()]) == []
+
+    assert "Request log not written" in caplog.text
 
 
-def test_a_run_that_cannot_list_its_messages_writes_no_request_rows(usage_dir):
+def test_a_run_that_cannot_list_its_messages_writes_no_request_rows(usage_dir, caplog):
     """No rows is better than a guessed one: a mocked or failed run sent nothing."""
+
     cursor = TurnCursor(history=[])
 
-    record_round_requests(cursor, MagicMock(), REASON_OPENING)
+    with caplog.at_level(logging.WARNING):
+        record_round_requests(cursor, MagicMock(), REASON_OPENING)
 
     assert read_requests() == []
+    assert "no rows written for this round" in caplog.text
+
+
+def test_a_round_with_no_response_says_so(usage_dir, caplog):
+    """A round that files nothing is not silent, so a gap can be found next time.
+
+    The round of 2026-11-22 that wrote its summed line and no request row left
+    nothing on disk to notice; this is what would have said it.
+    """
+    cursor = TurnCursor(history=[])
+    sent: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="Hi")])]
+
+    with caplog.at_level(logging.WARNING):
+        record_round_requests(cursor, sent, REASON_OPENING)
+
+    assert read_requests() == []
+    assert "no rows written for this round" in caplog.text
 
 
 @pytest.mark.asyncio
