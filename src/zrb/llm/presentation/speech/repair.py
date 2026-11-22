@@ -26,10 +26,13 @@ from pydantic import BaseModel
 from zrb.llm.contracts.config.model_resolver import resolve_configured_small_model
 from zrb.llm.contracts.shared.prompt_text import get_prompt
 from zrb.llm.contracts.shared.request_log import (
-    REASON_SPEECH,
+    REASON_SPEECH_REPAIR,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_SPEECH_REPAIR,
+    record_agent_usage,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -95,8 +98,10 @@ async def repair_for_speech(
 async def _run(text: str, model: "str | Model | None") -> RepairedSpeech:
     agent = create_speech_repair_agent(model)
     result = await agent.run(text)
-    record_agent_usage(result, component=COMPONENT_OTHER)
-    record_standalone_requests(result, REASON_SPEECH, component=COMPONENT_OTHER)
+    record_agent_usage(result, component=COMPONENT_SPEECH_REPAIR)
+    record_standalone_requests(
+        result, REASON_SPEECH_REPAIR, component=COMPONENT_SPEECH_REPAIR
+    )
     output = result.output
     if not isinstance(output, RepairedSpeech):
         raise SpeechRepairError(

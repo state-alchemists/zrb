@@ -1,0 +1,173 @@
+"""The repair itself: what it accepts, what it refuses, and what it costs.
+
+`test_feature_repair.py` drives the session with the model replaced, because its
+subject is the hook — when a repair is asked for, whose reply it speaks, and how
+a stale one is dropped. This file is the other half of that seam: it runs
+`repair_for_speech` with only *its* outermost dependency replaced, so the
+checks that keep silence impossible are exercised rather than assumed.
+"""
+
+import pytest
+
+from zrb.llm.contracts.shared.request_log import REASON_SPEECH_REPAIR
+from zrb.llm.contracts.shared.usage_log import COMPONENT_SPEECH_REPAIR
+from zrb.llm.presentation.speech import repair
+from zrb.llm.presentation.speech.repair import (
+    RepairedSpeech,
+    SpeechRepairError,
+    repair_for_speech,
+)
+
+REPLY = "Where things stand:\n\n| item | cost |\n| --- | --- |\n| a | 1 |\n"
+LINE = "Three modules changed and one new knob was added."
+
+
+class FakeResult:
+    """What `agent.run(...)` answers with, as far as the repair reads it."""
+
+    def __init__(self, output):
+        self.output = output
+
+
+class FakeAgent:
+    """A model that answers with *output*, after *delay*, or fails."""
+
+    def __init__(self, output=None, error=None, delay=0.0):
+        self.output = output
+        self.error = error
+        self.delay = delay
+        self.asked: list[str] = []
+
+    async def run(self, text):
+        self.asked.append(text)
+        if self.delay:
+            import asyncio
+
+            await asyncio.sleep(self.delay)
+        if self.error is not None:
+            raise self.error
+        return FakeResult(self.output)
+
+
+def _with_agent(monkeypatch, agent) -> FakeAgent:
+    monkeypatch.setattr(repair, "create_speech_repair_agent", lambda model=None: agent)
+    return agent
+
+
+@pytest.mark.asyncio
+async def test_the_reply_is_what_the_model_is_asked_and_the_line_is_what_comes_back(
+    monkeypatch,
+):
+    """The reply is the model's only input, and the whitespace a model likes to
+    add around a line never reaches the ear."""
+    agent = _with_agent(
+        monkeypatch,
+        FakeAgent(output=RepairedSpeech(spoken=f"  {LINE}  ", emotion=" happy ")),
+    )
+
+    repaired = await repair_for_speech(REPLY)
+
+    assert agent.asked == [REPLY]
+    assert repaired.spoken == LINE
+    assert repaired.emotion == "happy"
+
+
+@pytest.mark.asyncio
+async def test_the_run_is_recorded_under_its_own_component(monkeypatch):
+    """`/usage` can only charge the repair to itself if the call site says so.
+    Both logs are written, with the same name, as every other auxiliary call."""
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE)))
+    lines: list[dict] = []
+    rows: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        repair,
+        "record_agent_usage",
+        lambda result, **kwargs: lines.append(kwargs),
+    )
+    monkeypatch.setattr(
+        repair,
+        "record_standalone_requests",
+        lambda result, reason, **kwargs: rows.append((reason, kwargs["component"])),
+    )
+
+    await repair_for_speech(REPLY)
+
+    assert [kwargs["component"] for kwargs in lines] == [COMPONENT_SPEECH_REPAIR]
+    assert rows == [(REASON_SPEECH_REPAIR, COMPONENT_SPEECH_REPAIR)]
+
+
+@pytest.mark.asyncio
+async def test_an_answer_of_the_wrong_shape_is_a_failed_repair(monkeypatch):
+    """The structured output is what makes the line a field rather than a parse:
+    anything else means the model ignored the shape, and the reply is read."""
+    _with_agent(monkeypatch, FakeAgent(output=LINE))
+
+    with pytest.raises(SpeechRepairError, match="not a spoken line"):
+        await repair_for_speech(REPLY)
+
+
+@pytest.mark.asyncio
+async def test_an_answer_with_nothing_for_the_ear_is_a_failed_repair(monkeypatch):
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken="   \n ")))
+
+    with pytest.raises(SpeechRepairError, match="nothing for the ear"):
+        await repair_for_speech(REPLY)
+
+
+@pytest.mark.asyncio
+async def test_an_answer_as_long_as_the_reply_is_a_failed_repair(monkeypatch):
+    """A model that hands back the reply is not a repair, and speaking it would
+    put the table on the ear by another road."""
+    _with_agent(
+        monkeypatch, FakeAgent(output=RepairedSpeech(spoken="x" * 2001))
+    )
+
+    with pytest.raises(SpeechRepairError, match="the reply again"):
+        await repair_for_speech(REPLY)
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_raises_becomes_a_failed_repair(monkeypatch):
+    """The exception is the model's; what the caller gets is one kind of failure
+    to fall back from, and the message keeps the reason readable."""
+    _with_agent(monkeypatch, FakeAgent(error=RuntimeError("connection reset")))
+
+    with pytest.raises(SpeechRepairError, match="connection reset"):
+        await repair_for_speech(REPLY)
+
+
+@pytest.mark.asyncio
+async def test_a_slow_model_gives_up_at_the_timeout(monkeypatch):
+    """`ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` bounds the wait, so a hung provider costs
+    the listener a pause rather than the turn."""
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.5))
+
+    with pytest.raises(SpeechRepairError):
+        await repair_for_speech(REPLY, timeout=0.01)
+
+
+def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
+    """One field, not a parse: the schema is the whole reason the ear cannot be
+    handed an empty answer, and the prompt is the one a project may override."""
+    built: dict = {}
+    monkeypatch.setattr(
+        repair, "resolve_configured_small_model", lambda model: f"small({model})"
+    )
+    monkeypatch.setattr(repair, "get_prompt", lambda name: f"prompt({name})")
+
+    def _create_agent(**kwargs):
+        built.update(kwargs)
+        return "an agent"
+
+    monkeypatch.setattr(
+        "zrb.llm.engine.agent.common.create_agent", lambda **kwargs: _create_agent(**kwargs)
+    )
+
+    agent = repair.create_speech_repair_agent("a-model")
+
+    assert agent == "an agent"
+    assert built["model"] == "small(a-model)"
+    assert built["system_prompt"] == "prompt(speech_repair)"
+    assert built["output_type"] is RepairedSpeech
+    # Resolved above already; resolving twice would be a second lookup per turn.
+    assert built["resolve_model"] is False
