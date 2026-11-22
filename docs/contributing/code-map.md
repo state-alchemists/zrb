@@ -27,7 +27,7 @@ Inside `llm/`:
 The five-directory layout (`contracts/ capabilities/ engine/ orchestration/
 presentation/`) is complete: those five are the whole of `llm/`, and a path
 states its layer. The ratchet reads a unit's layer from the directory it sits
-in, and the table that once scored an unmoved unit is empty (board 0016).
+in, and the table that once scored an unmoved unit is empty.
 
 | Path | What is in it |
 | --- | --- |

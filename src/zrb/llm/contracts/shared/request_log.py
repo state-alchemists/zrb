@@ -4,8 +4,7 @@
 number — and that is the right line for a bill. It cannot say why the round cost
 what it did: a round of fifty-four requests is one line, and whether the input
 rose because the history grew, because a tool returned something enormous, or
-because zrb resent a prefix it had rewritten is invisible at that size (board
-0003 §4).
+because zrb resent a prefix it had rewritten is invisible at that size.
 
 So this module writes a second file beside the first, `request-YYYY-MM.jsonl`,
 one line per model request. Two fields carry what the sum cannot:
@@ -15,7 +14,7 @@ follow-up after a tool returned, a resend after a stream error, a round that
 resumes a deferred approval, or a round an extension kept going.
 
 `prompt_hash` is a digest of the messages as sent, and it settles the
-zero-cache read mid-session (§7.7). Two requests with the same digest and a
+zero-cache read mid-session. Two requests with the same digest and a
 different cache read sent the same prompt and were answered differently, which
 is the provider's doing; a digest that changes while `prompt_messages` stays
 put says zrb rewrote the prefix in place, which is zrb's.
@@ -133,8 +132,8 @@ REASON_HOOK = "hook"
 
 Four of them call a model — memory recall, memory review, self review, the
 weekly write — and they share this reason: all four spend under the same
-component too. Splitting it is step 2 of board 0003 §4, and it needs the hook
-read before the name is worth splitting.
+component too. Splitting it needs the hook read first, before the name is worth
+splitting.
 """
 REASON_MEMORY_WEEK = "memory_week"
 """The weekly diary write, which runs on a schedule rather than in a turn."""

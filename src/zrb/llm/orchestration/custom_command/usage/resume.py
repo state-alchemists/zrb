@@ -3,7 +3,7 @@
 `/usage` reports what has already been spent. The one number about the *next*
 turn is not a spend yet: a history the provider's prompt cache no longer holds
 is re-sent whole, and a new session instead pays only its own system prompt.
-Measured on 2026-11-12 (board 0003): three turns resuming after 37, 21 and 127
+Measured on 2026-11-12: three turns resuming after 37, 21 and 127
 idle minutes paid 351,517 fresh input tokens to produce 5,484 output — a fifth
 of that day's fresh input — while a cold session pays 18–24k before the first
 word.
@@ -37,7 +37,7 @@ FRESH_SESSION_TOKENS = 20_000
 """What a new session costs before the user has said anything.
 
 Its system prompt and live-context block, measured at 18–24k on the
-2026-11-12 log (board 0003). A round midpoint: the line compares two costs, it
+2026-11-12 log. A round midpoint: the line compares two costs, it
 does not audit the prompt.
 """
 

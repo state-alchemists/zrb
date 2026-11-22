@@ -19,7 +19,7 @@ LLM = SRC / "zrb" / "llm"
 # The 4.0 layout: the directory under `llm/` *is* the layer, so a reader — or an
 # agent — stops needing a table to know where an import may point. It took one
 # directory per pull request, and the table that scored a unit which had not
-# moved yet was emptied by the last of them and deleted here (board 0016).
+# moved yet was emptied by the last of them and deleted here.
 _LAYERS = {
     "contracts": 0,
     "capabilities": 1,
