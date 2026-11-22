@@ -147,8 +147,6 @@ REASON_SIDE_QUESTION = "side_question"
 """A question asked beside the conversation instead of as a turn of it."""
 REASON_DICTATION_JUDGE = "dictation_judge"
 """The judge that decides whether spoken words interrupt the run."""
-REASON_SPEECH = "speech"
-"""An answer's text read down to the part worth saying out loud."""
 REASON_SPEECH_REPAIR = "speech_repair"
 """A reply that marked no `<spoken>` block, read down to the line the ear
 should have had."""

@@ -124,10 +124,10 @@ async def test_a_subagents_reply_is_not_the_users_and_is_not_checked():
 
 @pytest.mark.asyncio
 async def test_the_notice_claims_nothing_about_what_was_heard():
-    """The reply may be summarized, cut short by a barge-in, or muted between
+    """The reply may be repaired, cut short by a barge-in, or muted between
     being written and being listened to, so the notice states the omission and
     the rule and stops there."""
-    session = _session(summarize_above_chars=100)
+    session = _session()
 
     await session.handle_stop(_stop("A long enough answer. " * 20))
 
@@ -135,6 +135,7 @@ async def test_the_notice_claims_nothing_about_what_was_heard():
     assert "no `<spoken>` block" in context
     assert "whole reply" not in context
     assert "summary" not in context
+    assert "repaired" not in context
 
 
 @pytest.mark.asyncio

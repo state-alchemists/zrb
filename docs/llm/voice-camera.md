@@ -196,8 +196,6 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 
 With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, whole in one go.
 
-**Summarizing a long reply.** Set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` (default `0`, off) to a length such as `600`, and a reply whose speakable text is longer is spoken as a two-to-four-sentence summary from the small model instead (`ZRB_LLM_SPEECH_SUMMARY_MODEL`, else `ZRB_LLM_SMALL_MODEL`, else the main model); the reply on screen is unchanged. A summary needs the finished reply, so while this is set the reply is **not** streamed, whatever `ZRB_LLM_SPEECH_STREAM` says: a short reply is read whole and a long one summarized, once the turn ends. If the model fails or takes longer than `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` (15 seconds), the reply is read whole.
-
 **Saying what it is doing.** A tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped. Take `progress` out of `ZRB_LLM_SPEECH_EVENTS` to turn it off.
 
 While speech is on, the model is told its reply is heard, so it opens with the answer in a sentence or two and puts code and detail after it.

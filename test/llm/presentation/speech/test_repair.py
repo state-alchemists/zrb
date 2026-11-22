@@ -153,7 +153,7 @@ async def test_a_slow_model_gives_up_at_the_timeout(monkeypatch):
 async def test_a_resolver_that_blocks_while_the_agent_is_built_still_gives_up(
     monkeypatch,
 ):
-    """The deadline is kept outside the worker, as `SpeechSummarizer`'s is.
+    """The deadline is kept outside the call, not at an `await` inside it.
 
     A resolver that blocks before the model's first `await` — a local model
     warming up, provider setup — holds the thread it runs in, not the event

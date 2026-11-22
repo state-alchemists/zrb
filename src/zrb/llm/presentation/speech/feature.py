@@ -2,9 +2,7 @@
 
 Everything is spoken by one background thread per session, in order, so a hook
 only queues text and returns. Of a reply, the `<spoken>` blocks are read and
-nothing else; a reply with no block is read whole. Either is read in full,
-unless ``summarize_above_chars`` is set and the speakable text is longer than
-it: the small model's summary is spoken instead, once the turn ends.
+nothing else; a reply with no block is read whole. Either is read in full.
 """
 
 from __future__ import annotations
@@ -41,7 +39,6 @@ from zrb.llm.presentation.speech.repair import (
     repair_for_speech,
 )
 from zrb.llm.presentation.speech.streamed_reply import StreamedReply
-from zrb.llm.presentation.speech.summary import SpeechSummarizer
 from zrb.llm.presentation.speech.text import (
     clean_for_speech,
     fill_template,
@@ -67,7 +64,7 @@ _HOOK_NAMES = ("handle_stop", "handle_permission_request", "handle_notification"
 _VOLUME_STEP_PERCENT = 10
 # What the model is told the turn after it left the block out. It states the
 # omission and the rule, and nothing about what was heard: a reply can be
-# summarized, cut by a barge-in or muted between being written and being
+# repaired, cut by a barge-in or muted between being written and being
 # listened to, and a notice that names a delivery would be wrong in some of those.
 _MISSED_BLOCK_NOTICE = (
     "Your last reply opened no `<spoken>` block. Anything more than a short "
@@ -223,14 +220,13 @@ class SpeechSession:
         self.speaker.is_enabled = bool(config.enabled)
         self._clock = SpeechClock()
         # Bumped whenever what is pending stops mattering: an interrupt, or a
-        # newer reply than a summary still being made.
+        # newer reply than a repair still being waited for.
         self._generation = 0
         # Whether the last reply wanted a block and opened none.
         self._missed_block = False
         # The same, before the notice's switch is consulted: the repair has its
         # own, so one being off must not reach the other.
         self._wanting_block = False
-        self._summarizer = SpeechSummarizer()
         # One repair at a time: a repair that outlived its deadline keeps its
         # thread until the model answers, and a second beside it is how one
         # stuck provider fills the executor everything else shares.
@@ -288,8 +284,8 @@ class SpeechSession:
             manager.remove_hook(hook)
 
     def close(self) -> None:
-        """Take the hooks back out and stop the speaker. A summary still being
-        made is dropped when it finishes."""
+        """Take the hooks back out and stop the speaker. A repair still being
+        waited for is dropped when it answers."""
         self._generation += 1
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
@@ -448,8 +444,8 @@ class SpeechSession:
         # reply that is no longer the last one.
         self._missed_block = False
         self._wanting_block = False
-        # A summary still being made belongs to an earlier turn, whatever this
-        # one goes on to say; one `say_reply` starts is for the new generation.
+        # A repair still being waited for belongs to an earlier turn, whatever
+        # this one goes on to say; this is the generation it is measured against.
         self._generation += 1
         if event_data.get("reason"):
             if "reply" in self._events:
@@ -515,13 +511,8 @@ class SpeechSession:
 
     @property
     def is_streaming_reply(self) -> bool:
-        """Whether the reply is spoken a sentence at a time as it is written.
-        A reply that may be summarized waits for its last word, so it is not."""
-        return bool(self._config.stream) and not self._summarize_above_chars
-
-    @property
-    def _summarize_above_chars(self) -> int:
-        return max(self._config.summarize_above_chars or 0, 0)
+        """Whether the reply is spoken a sentence at a time as it is written."""
+        return bool(self._config.stream)
 
     async def _say_repaired(self, reply: str) -> None:
         """Speak the line the ear should have had, for a reply that marked none.
@@ -546,8 +537,8 @@ class SpeechSession:
         try:
             repaired = await repair_for_speech(
                 reply,
-                model=self._config.summary_model or None,
-                timeout=self._config.summary_timeout or 0,
+                model=self._config.repair_model or None,
+                timeout=self._config.repair_timeout or 0,
                 repairer=self._repairer,
             )
             spoken = clean_for_speech(repaired.spoken)
@@ -573,15 +564,11 @@ class SpeechSession:
         )
 
     def say_reply(self, reply: str) -> None:
-        """Speak *reply*'s `<spoken>` block, or all of it when it opens none:
-        whole, or as a summary when that speakable text is longer than
-        ``summarize_above_chars``. The summary is made on a worker
-        (`SpeechSummarizer`), and summarizes what would be said, never the
-        whole reply, so the detail meant for the eye cannot leak into the ear;
-        the turn and the speaker's queue wait for no model call. It is dropped
-        if speech is interrupted, the session closes or a newer reply comes
-        first, and the reply is read whole when the summary fails, is late, or
-        another is still being made."""
+        """Speak *reply*'s `<spoken>` block, or all of it when it opens none.
+
+        Cleaned and in full: nothing shortens a reply for the ear. The block is
+        the line the listener was meant to hear, and a reply that opened none is
+        what `_say_repaired` is for — or, when that fails, this whole read."""
         self._generation += 1
         spoken, _shown = split_spoken(reply)
         if spoken is not None and not spoken.strip():
@@ -591,23 +578,7 @@ class SpeechSession:
         text = clean_for_speech(
             without_blockquotes(reply) if spoken is None else spoken
         )
-        voice = self._get_voice(get_current_reply_emotion())
-        if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
-            self._say(text, voice=voice)
-            return
-        generation = self._generation
-
-        def speak(spoken: str) -> None:
-            self._say(
-                spoken, is_stale=lambda: self._generation != generation, voice=voice
-            )
-
-        self._summarizer.start(
-            text,
-            self._config.summary_model or None,
-            self._config.summary_timeout or 0,
-            speak,
-        )
+        self._say(text, voice=self._get_voice(get_current_reply_emotion()))
 
     def _note_reply(self, reply: str) -> None:
         """Record whether *reply* wanted a block and opened none, and log it.

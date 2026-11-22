@@ -67,6 +67,10 @@ Search for `zrb.llm.` and check every hit against the table above. The two shape
 - A path built from parts — `"zrb", "llm", "task"` in a list, or `"llm" / "ui"` in a `pathlib` expression — never appears as a dotted name, so no search for `zrb.llm.task` will find it.
 - A file that walks the source tree, e.g. `Path(__file__).parents[2] / "llm" / "ui"`. Test files of zrb's own needed one more level for each directory the move added.
 
+### Settings
+
+Three speech settings are retired and reported at startup with what replaced them: `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` (nothing — a reply is read whole, and a long one is no longer compressed), and `ZRB_LLM_SPEECH_SUMMARY_MODEL` / `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT`, which are now `ZRB_LLM_SPEECH_REPAIR_MODEL` / `ZRB_LLM_SPEECH_REPAIR_TIMEOUT` and bound the one model call speech still makes. A reply's one breath is its `<spoken>` block; a reply that opened none is repaired at the end of the turn, and nothing else shortens what is read aloud.
+
 ---
 
 ## Upgrading to 3.38.0

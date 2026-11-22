@@ -25,18 +25,15 @@ class SpeechConfig:
     *repair_enabled* has the small model write the line the listener should
     have heard, for a reply that needed a block and opened none, instead of
     reading that reply whole. It is asked once at the end of the turn, so a
-    slow or missing model costs a pause rather than silence.
+    slow or missing model costs a pause rather than silence; *repair_model*
+    picks the model (empty: the small model) and *repair_timeout* bounds the
+    wait.
 
     *backend* names a built-in backend (``auto``, ``termux``, ``say``,
     ``espeak-ng``, ``openai``, ``gemini``), built from the fields here, or is
     an `AnySpeechBackend` of your own, which ignores them.
 
-    A *summarize_above_chars* above 0 has the small model summarize a reply
-    longer than that, once it is finished, and speaks the summary instead; it
-    also turns off sentence streaming of the reply, which cannot be summarized
-    while it is still being written.
-
-    *volume* is a percentage of the speech's own level, 0-200, and applies
+    A *volume* is a percentage of the speech's own level, 0-200, and applies
     where zrb plays the audio itself — a player program keeps its own.
 
     New fields go at the end: a caller may pass them positionally, and a field
@@ -51,9 +48,6 @@ class SpeechConfig:
     rate: int | None = None
     volume: int | None = None
     stream: bool | None = None
-    summarize_above_chars: int | None = None
-    summary_model: str | None = None
-    summary_timeout: float | None = None
     progress_interval: float | None = None
     events: list[str] | None = None
     openai_model: str | None = None
@@ -90,6 +84,8 @@ class SpeechConfig:
     chunk_max_chars: int | None = None
     block_notice_enabled: bool | None = None
     repair_enabled: bool | None = None
+    repair_model: str | None = None
+    repair_timeout: float | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""
