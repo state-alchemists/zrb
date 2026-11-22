@@ -50,6 +50,8 @@ def test_a_value_the_cast_rejects_when_empty_is_none_or_has_a_declared_default(
         ("LLM_AGENT_MESSAGE_LIMIT", "20"),
         ("LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT", "2.0"),
         ("LLM_MEMORY_RECENT_LOG_LINES", "4"),
+        ("LLM_SPEECH_BLOCK_NOTICE_ENABLED", "true"),
+        ("LLM_SPEECH_REPAIR_ENABLED", "true"),
         ("LLM_SUBAGENT_HISTORY_RETAIN", "50"),
         ("LOGGING_FILE_BACKUP_COUNT", "3"),
         ("LOGGING_FILE_MAX_BYTES", "10485760"),
