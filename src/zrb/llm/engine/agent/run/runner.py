@@ -69,6 +69,7 @@ from zrb.llm.contracts.shared.stream_observer import (
 from zrb.llm.contracts.shared.usage_log import (
     ContextComposition,
     count_tool_calls,
+    get_elapsed_ms,
     record_usage,
 )
 from zrb.llm.contracts.util.live_context_block import append_live_context
@@ -947,7 +948,7 @@ def _record_run_usage(
         usage,
         model=model_name if isinstance(model_name, str) else "",
         session=session,
-        duration_ms=int((time.monotonic() - started_at) * 1000),
+        duration_ms=get_elapsed_ms(started_at),
         tool_counts=calls,
         tool_errors=errors,
         context=composition,

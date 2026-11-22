@@ -30,6 +30,7 @@ import asyncio
 import os
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -50,7 +51,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_SHELL_JUDGE,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_SHELL_JUDGE, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_SHELL_JUDGE,
+    get_elapsed_ms,
+    record_agent_usage,
+)
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
@@ -204,13 +209,18 @@ async def judge_shell_command(
             resolve_model=False,
         )
         payload, facts = await asyncio.to_thread(_build_payload, text, cwd, sandbox_off)
+        started_at = time.monotonic()
         result = await asyncio.wait_for(
             agent.run(payload), timeout=JUDGE_TIMEOUT_SECONDS
         )
     except Exception as error:
         CFG.LOGGER.debug(f"Shell judge failed: {error}")
         raise ShellJudgeError(str(error) or type(error).__name__) from error
-    record_agent_usage(result, component=COMPONENT_SHELL_JUDGE)
+    record_agent_usage(
+        result,
+        component=COMPONENT_SHELL_JUDGE,
+        duration_ms=get_elapsed_ms(started_at),
+    )
     record_standalone_requests(
         result, REASON_SHELL_JUDGE, component=COMPONENT_SHELL_JUDGE
     )

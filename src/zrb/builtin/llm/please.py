@@ -1,6 +1,7 @@
 import os
 import platform
 import re
+import time
 
 from zrb.builtin.group import llm_group
 from zrb.config.helper import get_current_shell
@@ -51,13 +52,22 @@ async def please(ctx: AnyContext) -> str:
         REASON_PLEASE,
         record_standalone_requests,
     )
-    from zrb.llm.contracts.shared.usage_log import COMPONENT_OTHER, record_agent_usage
+    from zrb.llm.contracts.shared.usage_log import (
+        COMPONENT_OTHER,
+        get_elapsed_ms,
+        record_agent_usage,
+    )
     from zrb.llm.engine.agent import create_agent
 
     model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)
+    started_at = time.monotonic()
     result = await agent.run(build_user_message(str(ctx.input.message)))
-    record_agent_usage(result, component=COMPONENT_OTHER)
+    record_agent_usage(
+        result,
+        component=COMPONENT_OTHER,
+        duration_ms=get_elapsed_ms(started_at),
+    )
     record_standalone_requests(result, REASON_PLEASE, component=COMPONENT_OTHER)
     command = strip_code_fences(str(result.output))
     if command == "":

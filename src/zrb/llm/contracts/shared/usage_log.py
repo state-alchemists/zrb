@@ -16,6 +16,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import time
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -367,6 +368,16 @@ class UsageTotals:
             self.cost = cost if self.cost is None else self.cost + cost
         if model:
             self.model = model
+
+
+def get_elapsed_ms(started_at: float) -> int:
+    """Milliseconds since a `time.monotonic()` reading, for `duration_ms`.
+
+    The writer cannot measure what it did not run, so a call site that runs an
+    agent itself times it and hands the number over. Monotonic rather than wall
+    clock: a clock correction mid-run must not make a duration negative.
+    """
+    return int((time.monotonic() - started_at) * 1000)
 
 
 def record_usage(

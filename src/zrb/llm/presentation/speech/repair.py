@@ -22,6 +22,7 @@ import concurrent.futures
 import contextvars
 import logging
 import threading
+import time
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -34,6 +35,7 @@ from zrb.llm.contracts.shared.request_log import (
 )
 from zrb.llm.contracts.shared.usage_log import (
     COMPONENT_SPEECH_REPAIR,
+    get_elapsed_ms,
     record_agent_usage,
 )
 
@@ -242,8 +244,13 @@ async def _repair_with_the_model(
     text: str, model: "str | Model | None"
 ) -> RepairedSpeech:
     agent = create_speech_repair_agent(model)
+    started_at = time.monotonic()
     result = await agent.run(text)
-    record_agent_usage(result, component=COMPONENT_SPEECH_REPAIR)
+    record_agent_usage(
+        result,
+        component=COMPONENT_SPEECH_REPAIR,
+        duration_ms=get_elapsed_ms(started_at),
+    )
     record_standalone_requests(
         result, REASON_SPEECH_REPAIR, component=COMPONENT_SPEECH_REPAIR
     )
