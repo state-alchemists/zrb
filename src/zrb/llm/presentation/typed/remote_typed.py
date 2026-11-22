@@ -224,7 +224,22 @@ class RefuseRedirects(urllib.request.HTTPRedirectHandler):
         )
 
 
-_opener = urllib.request.build_opener(RefuseRedirects)
+_opener: urllib.request.OpenerDirector | None = None
+
+
+def _get_opener() -> urllib.request.OpenerDirector:
+    """The opener, built the first time a call needs it.
+
+    `build_opener` reads the system's proxy settings, and on macOS that read is not safe in a
+    process that has just been forked: it segfaults inside CoreFoundation. Building it at import
+    time therefore made this module the one thing an isolated import could not survive, since the
+    architecture guard forks a child per module and imports it there. Importing a module should
+    touch nothing outside the interpreter, and this is the only thing here that did.
+    """
+    global _opener
+    if _opener is None:
+        _opener = urllib.request.build_opener(RefuseRedirects)
+    return _opener
 
 
 def open_typed_in(
@@ -238,4 +253,4 @@ def open_typed_in(
     *opener* is where a test stands in for the connection; a session leaves it out.
     """
     request = urllib.request.Request(f"{url}{TYPED_PATH}", headers=headers)
-    return (opener or _opener).open(request, timeout=timeout)
+    return (opener or _get_opener()).open(request, timeout=timeout)
