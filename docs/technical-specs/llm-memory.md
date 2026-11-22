@@ -120,6 +120,7 @@ refused. Related: [[deploy-pipeline]]
 | `updated` | yes | ISO datetime | Ordering and the session-delta comparison. |
 | `reason` | retired only | `wrong` \| `stale` \| `done` | Why it was retired. |
 | `retired_on` | retired only | ISO date | When. |
+| `retired_by` | retired only | `main_agent` \| `hook_agent` \| `subagent` | Who retired it — the component that was running when `forget` was called, read from the run rather than supplied by the writer, so a hook's closings can be counted apart from a conversation's. |
 
 The body is evidence: context, quotes, links. It is never injected and never required. `[[other-id]]` links create the Obsidian graph.
 
@@ -520,7 +521,7 @@ forget(id, reason):
     require entry exists
     if entry.kind == "diary": require reason == "wrong"     # a day does not go stale
     fields.status = "retired"; fields.reason = reason
-    fields.retired_on = today(); fields.updated = now()
+    fields.retired_on = today(); fields.retired_by = component(); fields.updated = now()
     with lock():
         write_atomic(path, fields)
         write_atomic(core.md, render_core(load_all()))      # it leaves the core
@@ -528,6 +529,8 @@ forget(id, reason):
 ```
 
 The file stays. Retiring a claim never removes evidence, and `search(scope="retired")` is how the agent answers "I thought X — why did I stop thinking X?"
+
+`retired_by` is the one field no caller may set. Before it existed, a conversation's `forget` and the memory reviewer's produced the same commit and the same `source:`, so the number of loops the reviewer closes on its own was unanswerable; the field is read from the component running the call, which is `hook_agent` inside an agent hook and `main_agent` in the conversation.
 
 ### 5.4 Lifecycle
 

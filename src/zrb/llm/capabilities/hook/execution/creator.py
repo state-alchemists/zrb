@@ -36,7 +36,11 @@ from zrb.llm.contracts.shared.request_log import (
     REASON_HOOK,
     record_standalone_requests,
 )
-from zrb.llm.contracts.shared.usage_log import COMPONENT_HOOK, record_agent_usage
+from zrb.llm.contracts.shared.usage_log import (
+    COMPONENT_HOOK,
+    record_agent_usage,
+    usage_component,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -409,7 +413,14 @@ async def run_llm_hook(
         # it binds the same one here.
         token = current_nested_run.set(True)
         try:
-            result = await agent.run(user_prompt)
+            # The hook's own tool calls run inside this block, so a write can
+            # record *who* made it: `usage_component` is the ambient answer to
+            # "which model call is this", and a `forget` inside a hook stamps
+            # `hook_agent` on the claim rather than the conversation's own name.
+            # The lines the run records are attributed explicitly below, so this
+            # adds no line and moves none.
+            with usage_component(COMPONENT_HOOK):
+                result = await agent.run(user_prompt)
         finally:
             current_nested_run.reset(token)
 

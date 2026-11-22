@@ -208,6 +208,45 @@ def test_a_retired_fact_keeps_its_reason_across_a_read():
     assert restored.retired_on == "2026-11-01"
 
 
+def test_a_retired_fact_keeps_its_writer_across_a_read():
+    """The stamp is a file line, not a value a reader has to be told about.
+
+    Until it existed, the reviewer's closings and a conversation's could not be
+    told apart: both wrote the same `forget:` commit and the same `source:`.
+    That count is the one thing this field exists to make possible.
+    """
+    fact = Fact(
+        id="old-port",
+        claim="Staging was port 22.",
+        status="retired",
+        reason="stale",
+        retired_on="2026-11-01",
+        retired_by="hook_agent",
+        updated="2026-11-01T10:00:00",
+    )
+    text = fact.to_markdown()
+    assert "retired_by: hook_agent" in text
+    restored = Fact.from_markdown(text)
+    assert restored is not None
+    assert restored.retired_by == "hook_agent"
+
+
+def test_a_retirement_written_before_the_stamp_reads_as_unstamped():
+    """The files retired before the field existed carry none: unknown, not false."""
+    text = (
+        "---\n"
+        "id: old-port\n"
+        "claim: Staging was port 22.\n"
+        "status: retired\n"
+        "reason: stale\n"
+        "retired_on: 2026-11-01\n"
+        "---\n"
+    )
+    fact = Fact.from_markdown(text)
+    assert fact is not None
+    assert fact.retired_by == ""
+
+
 def test_a_document_without_frontmatter_is_body_only():
     front, body = split_document("# A hand-written page\n\ntext")
     assert front == {}

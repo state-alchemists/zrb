@@ -25,6 +25,7 @@ from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.contracts.memory import paths, render, search, store
+from zrb.llm.contracts.shared.usage_log import current_component
 from zrb.llm.contracts.memory.model import (
     BODY_APPEND,
     BODY_MODES,
@@ -329,14 +330,24 @@ def _forget_locked(fact_id: str, reason: str) -> str:
 
 
 def _retire(entry: Fact | Diary, reason: str) -> None:
+    """Mark *entry* retired, and name who did it when it is a fact.
+
+    `retired_by` is read rather than passed: the writer of the call is the
+    component that is running, so a hook's retirement is stamped `hook_agent`
+    without the hook saying so, and the count that separates the reviewer's
+    closings from a conversation's own becomes a query over the files. A diary
+    is refused the field — a day is retired only as `wrong`, and "who thought
+    so" is not the number this answers.
+    """
     entry.status = STATUS_RETIRED
     entry.reason = reason
     entry.retired_on = store.today()
     entry.updated = store.now()
     if isinstance(entry, Diary):
         store.save_diary(entry)
-    else:
-        store.save_fact(entry)
+        return
+    entry.retired_by = current_component()
+    store.save_fact(entry)
 
 
 def _remember_fact(
