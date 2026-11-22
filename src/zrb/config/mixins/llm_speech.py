@@ -46,6 +46,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_VOLUME: str = "100"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
         self.DEFAULT_LLM_SPEECH_BLOCK_NOTICE_ENABLED: str = "true"
+        self.DEFAULT_LLM_SPEECH_REPAIR_ENABLED: str = "true"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS: str = "0"
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_TIMEOUT: str = "15"
@@ -200,6 +201,23 @@ class LLMSpeechMixin:
             "went out whole — speech already said it, so no tool result carries "
             "the news. It never fires for a short answer, for a reply while "
             "speech is off, or for a sub-agent's words. Default: true."
+        ),
+    )
+
+    LLM_SPEECH_REPAIR_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Write the line the listener should have heard, for a reply that "
+            "needed a `<spoken>` block and opened none, instead of reading that "
+            "reply whole — a reply built around a table was otherwise heard as "
+            "a table. The small model is asked once, at the end of the turn, "
+            "with the reply as its only input (`{ENV_PREFIX}_LLM_SPEECH_"
+            "SUMMARY_MODEL`, or the small model), and "
+            "`{ENV_PREFIX}_LLM_SPEECH_SUMMARY_TIMEOUT` bounds the wait. The "
+            "reply on screen is untouched; when the model fails or is late the "
+            "reply is read whole, which is what would have happened anyway. "
+            "Default: true."
         ),
     )
 

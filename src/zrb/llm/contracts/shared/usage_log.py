@@ -80,6 +80,8 @@ COMPONENT_SHELL_JUDGE = "shell_judge"
 """The approval judge (ADR-0141)."""
 COMPONENT_SUBAGENT = "subagent"
 """A delegated sub-agent's own rounds."""
+COMPONENT_SPEECH_REPAIR = "speech_repair"
+"""The line written for a reply that marked no `<spoken>` block."""
 COMPONENT_OTHER = "other"
 """A call site that is not tagged yet."""
 
