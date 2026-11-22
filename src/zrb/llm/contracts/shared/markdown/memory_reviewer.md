@@ -42,7 +42,9 @@ The transcript may show the assistant calling `Remember` or `Forget` itself. Tha
 
 ## Closing a loop
 
-When the turn finished something you owed, close it: `Forget(id, "done")`. When a stored claim was disproved, retire it with `wrong` or `stale` instead of writing a contradicting second claim under a new id — a store with two answers has none.
+The note that opens a turn names the loops still open. One closes on the turn's own evidence — a merge, a green run, a tag on the remote — never because it was named, and never because the turn was about it: a thread waiting on the user is not finished by a conversation that asks about it, and one the turn only discussed stays open. Close it with `Forget(id, "done")`.
+
+When a stored claim was disproved, retire it with `wrong` or `stale` instead of writing a contradicting second claim under a new id — a store with two answers has none.
 
 ## Never
 
