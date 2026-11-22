@@ -219,6 +219,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0111** — [On macOS, dictation captures through the system's voice processing to take zrb's voice out](adr-0111.md)
 - **ADR-0112** — [Emotion travels as an emoji in the text and leaves zrb as the `Emotion` hook](adr-0112.md)
 - **ADR-0115** — [The microphone opens before the tone loads, and a heavy model's load spike lands outside the chat](adr-0115.md)
+- **ADR-0145** — [A reply that forgot its spoken block is repaired at the ear, and the record is left alone](adr-0145.md)
 
 ### Fleet administration
 
