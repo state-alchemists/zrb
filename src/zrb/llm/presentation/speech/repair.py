@@ -18,6 +18,7 @@ instead of reaching it.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 from typing import TYPE_CHECKING
 
@@ -84,15 +85,64 @@ async def repair_for_speech(
 ) -> RepairedSpeech:
     """The line to speak instead of *text*. Raises `SpeechRepairError` when the
     model fails, takes longer than *timeout* seconds (0: no limit), or answers
-    with nothing for the ear. The timeout cancels the request only at an
-    ``await``: it cannot interrupt a resolver that blocks while the agent is
-    created."""
+    with nothing for the ear.
+
+    *timeout* bounds the wait from outside the call, not at an ``await``: the
+    agent is built and run in a worker thread, so a resolver that blocks before
+    its first ``await`` — initializing a local model, waiting in provider setup
+    — holds that thread and not the event loop, and the deadline still fires.
+    The worker is then abandoned and its late line dropped: the caller has
+    already fallen back to reading the reply whole."""
     try:
-        return await asyncio.wait_for(_run(text, model), timeout or None)
+        return await _bounded(text, model, timeout)
     except SpeechRepairError:
         raise
     except Exception as exc:
         raise SpeechRepairError(str(exc) or type(exc).__name__) from exc
+
+
+async def _bounded(
+    text: str, model: "str | Model | None", timeout: float
+) -> RepairedSpeech:
+    if not timeout:
+        return await _run(text, model)
+    loop = asyncio.get_running_loop()
+    # The worker's own context, as `SpeechSummarizer` does: the small model is
+    # resolved from a `ContextVar` the run has set, and a bare thread would not
+    # see it.
+    context = contextvars.copy_context()
+    worker = loop.run_in_executor(
+        None, _run_in_its_own_thread, context, text, model
+    )
+    # `wait` rather than `wait_for`: cancelling the future would cancel nothing
+    # in a thread that already started, and the answer is dropped either way.
+    # The callback reads the late exception so asyncio does not report it as
+    # never retrieved.
+    worker.add_done_callback(_drop)
+    done, _ = await asyncio.wait({worker}, timeout=timeout)
+    if not done:
+        raise SpeechRepairError(
+            f"the model gave no line within {timeout:g}s, so the reply is read whole"
+        )
+    return worker.result()
+
+
+def _run_in_its_own_thread(
+    context: "contextvars.Context", text: str, model: "str | Model | None"
+) -> RepairedSpeech:
+    """One repair on a thread of its own, under the caller's context.
+
+    `asyncio.run` gives it a loop of its own, which is what a thread needs; the
+    context is carried in because the model is chosen from `ContextVar`s set by
+    the run that is waiting for it.
+    """
+    return context.run(asyncio.run, _run(text, model))
+
+
+def _drop(worker: "asyncio.Future[RepairedSpeech]") -> None:
+    """Consume a worker's outcome that nobody is waiting for any more."""
+    if not worker.cancelled():
+        worker.exception()
 
 
 async def _run(text: str, model: "str | Model | None") -> RepairedSpeech:

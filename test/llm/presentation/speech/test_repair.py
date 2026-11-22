@@ -7,6 +7,8 @@ a stale one is dropped. This file is the other half of that seam: it runs
 checks that keep silence impossible are exercised rather than assumed.
 """
 
+import time
+
 import pytest
 
 from zrb.llm.contracts.shared.request_log import REASON_SPEECH_REPAIR
@@ -144,6 +146,52 @@ async def test_a_slow_model_gives_up_at_the_timeout(monkeypatch):
 
     with pytest.raises(SpeechRepairError):
         await repair_for_speech(REPLY, timeout=0.01)
+
+
+@pytest.mark.asyncio
+async def test_a_resolver_that_blocks_while_the_agent_is_built_still_gives_up(
+    monkeypatch,
+):
+    """The deadline is kept outside the worker, as `SpeechSummarizer`'s is.
+
+    A resolver that blocks before the model's first `await` — a local model
+    warming up, provider setup — holds the thread it runs in, not the event
+    loop. The turn then falls back to reading the reply whole, which is the
+    only outcome a missing block ever had, instead of waiting for the resolver
+    to come back.
+    """
+
+    def _blocking_agent(model=None):
+        time.sleep(0.4)
+        return FakeAgent(output=RepairedSpeech(spoken=LINE))
+
+    monkeypatch.setattr(repair, "create_speech_repair_agent", _blocking_agent)
+    started = time.monotonic()
+
+    with pytest.raises(SpeechRepairError):
+        await repair_for_speech(REPLY, timeout=0.05)
+
+    elapsed = time.monotonic() - started
+    # Well under the block: the deadline fired, rather than waiting the resolver
+    # out and reporting a timeout afterwards.
+    assert elapsed < 0.3, f"the wait was not bounded: {elapsed:.2f}s"
+
+
+@pytest.mark.asyncio
+async def test_a_worker_that_outlives_the_deadline_is_dropped(monkeypatch):
+    """A line that arrives after the fallback has been chosen is not spoken.
+
+    The answer is dropped rather than delivered late: `handle_stop` has already
+    queued the whole reply, and a second utterance for one turn is the bug this
+    guard is against.
+    """
+    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.3))
+
+    with pytest.raises(SpeechRepairError):
+        await repair_for_speech(REPLY, timeout=0.05)
+
+    # The abandoned worker finishes in its own thread; the caller never sees it.
+    time.sleep(0.4)
 
 
 def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
