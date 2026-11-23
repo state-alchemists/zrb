@@ -31,6 +31,105 @@ def test_is_invalid_tool_call_error():
     assert is_invalid_tool_call_error(e3) is False
 
 
+def _http_error(status_code: int, body=None, message: str = "") -> Exception:
+    error = Exception(message)
+    error.status_code = status_code
+    if body is not None:
+        error.body = body
+    return error
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"message": "Unknown tool 'read_file'."},
+        {"error": {"message": "Unknown tool 'read_file'."}},
+        {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "Tool 'read_file' is not defined.",
+            }
+        },
+    ],
+    ids=["openai", "anthropic", "bedrock"],
+)
+def test_invalid_tool_call_reads_each_providers_body_shape(body):
+    """OpenAI, Anthropic and Bedrock disagree on where the message lives, and
+    all three can report an unknown tool."""
+    assert is_invalid_tool_call_error(_http_error(400, body)) is True
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ({"message": "invalid function arguments"}, ""),
+        ({"error": {"message": "invalid tool arguments"}}, ""),
+        ({}, "Unknown tool"),
+        ({}, "tool is invalid"),
+    ],
+    ids=[
+        "invalid-function-arguments",
+        "invalid-tool-arguments",
+        "no-name",
+        "bare-invalid",
+    ],
+)
+def test_invalid_tool_call_requires_an_explicit_named_no_such_tool_phrase(
+    body, message
+):
+    """A malformed-argument 400 must not tell the model it invented a tool."""
+    assert is_invalid_tool_call_error(_http_error(400, body, message)) is False
+
+
+def test_token_limit_alone_is_not_context_overflow():
+    """Billing and validation errors use the same words without asking the
+    conversation to shrink."""
+    assert is_prompt_too_long_error(Exception("token limit exceeded")) is False
+    assert is_prompt_too_long_error(Exception("max tokens exceeded")) is False
+    assert (
+        is_prompt_too_long_error(Exception("maximum tokens for this account reached"))
+        is False
+    )
+
+
+def test_token_limit_with_a_request_context_word_is_context_overflow():
+    assert is_prompt_too_long_error(Exception("max tokens exceeded for messages"))
+    assert is_prompt_too_long_error(Exception("token limit reached: context too large"))
+
+
+def test_authentication_and_model_statuses_win_over_context_words():
+    """A 401 body that happens to mention "token limit" is not a context
+    overflow; pruning history would not fix it."""
+    for status_code, expected in (
+        (401, "authentication_failed"),
+        (403, "authentication_failed"),
+        (404, "model_not_found"),
+    ):
+        error = _http_error(status_code, message="token limit exceeded")
+        assert classify_error_type(error) == expected
+
+
+def test_a_401_provider_body_with_token_limit_is_authentication():
+    """The same rule through the wrapper providers actually raise: its string
+    form includes the body, which is where "token limit" would be read."""
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    error = ModelHTTPError(
+        status_code=401,
+        model_name="m",
+        body={"error": {"message": "token limit exceeded"}},
+    )
+
+    assert classify_error_type(error) == "authentication_failed"
+
+
+def test_a_400_token_limit_without_context_is_invalid_request():
+    assert (
+        classify_error_type(_http_error(400, message="token limit exceeded"))
+        == "invalid_request"
+    )
+
+
 def test_is_retryable_error():
     e = Exception("Rate limit exceeded")
     e.status_code = 429
