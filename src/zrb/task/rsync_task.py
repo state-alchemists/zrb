@@ -23,11 +23,13 @@ class RsyncTask(CmdTask):
     ):
         """Define a task that copies files with `rsync`, locally or over SSH.
 
-        Exactly one side must be remote: pair `local_source_path` with
-        `remote_destination_path` to upload, or `remote_source_path` with
-        `local_destination_path` to download. A local-to-local or
-        remote-to-remote pair is refused before anything runs. The SSH
-        connection reuses `CmdTask`'s `remote_*` parameters.
+        At most one side may be remote: pair `local_source_path` with
+        `remote_destination_path` to upload, `remote_source_path` with
+        `local_destination_path` to download, or two local paths to sync
+        locally. Two remote sides, or a side that sets both its local and
+        remote path, are refused before anything runs; a remote side requires
+        `remote_host`. The SSH connection reuses `CmdTask`'s `remote_*`
+        parameters.
 
         Every value below is a literal unless it is a `Tpl` or a callable, in
         which case it is resolved against the task context at run time.
@@ -72,10 +74,12 @@ class RsyncTask(CmdTask):
         return f"{user_prefix}{bracket_ipv6(self._get_remote_host(ctx))}:{path}"
 
     def _validate_paths(self, ctx: AnyContext) -> None:
-        """Refuse a path combination that cannot be one local and one remote.
+        """Refuse a path combination `rsync` cannot run as configured.
 
-        Runs before the command is built, so an ambiguous or incomplete pair
-        never reaches the shell.
+        Each side must name exactly one path; two remote sides are refused,
+        while two local sides are a valid local copy. A remote side also
+        requires `remote_host`. Runs before the command is built, so a bad
+        pair never reaches the shell.
         """
         source_is_remote = self._side_is_remote(
             "source",
@@ -87,13 +91,14 @@ class RsyncTask(CmdTask):
             self._get_local_destination_path(ctx),
             self._get_remote_destination_path(ctx),
         )
-        if source_is_remote == destination_is_remote:
-            mode = "remote-to-remote" if source_is_remote else "local-to-local"
+        if source_is_remote and destination_is_remote:
             raise ValueError(
-                f"RsyncTask({self.name!r}) cannot run {mode}: exactly one of "
-                "the source and destination must be remote."
+                f"RsyncTask({self.name!r}) cannot run remote-to-remote: at "
+                "most one of the source and destination may be remote."
             )
-        if self._get_remote_host(ctx) == "":
+        if (source_is_remote or destination_is_remote) and (
+            self._get_remote_host(ctx) == ""
+        ):
             raise ValueError(
                 f"RsyncTask({self.name!r}) has a remote path but no "
                 "remote_host; set remote_host to the SSH server."

@@ -345,15 +345,18 @@ def test_two_remote_sides_are_refused():
         _script(task)
 
 
-def test_two_local_sides_are_refused():
+def test_two_local_sides_build_a_local_command():
+    """A local-to-local copy needs no remote_host and still works."""
     task = RsyncTask(
         name="test_rsync",
         local_source_path="/local/source",
         local_destination_path="/local/destination",
     )
 
-    with pytest.raises(ValueError, match="local-to-local"):
-        _script(task)
+    tokens = shlex.split(_script(task))
+
+    assert tokens[-2:] == ["/local/source", "/local/destination"]
+    assert "sshpass" not in tokens
 
 
 def test_a_side_with_both_local_and_remote_paths_is_refused():
