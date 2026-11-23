@@ -1,3 +1,4 @@
+import shlex
 from typing import Unpack
 
 from zrb.attr.type import StrAttr
@@ -22,10 +23,11 @@ class RsyncTask(CmdTask):
     ):
         """Define a task that copies files with `rsync`, locally or over SSH.
 
-        Exactly one side may be remote. Pair `local_source_path` with
+        Exactly one side must be remote: pair `local_source_path` with
         `remote_destination_path` to upload, or `remote_source_path` with
-        `local_destination_path` to download. The SSH connection reuses `CmdTask`'s
-        `remote_*` parameters.
+        `local_destination_path` to download. A local-to-local or
+        remote-to-remote pair is refused before anything runs. The SSH
+        connection reuses `CmdTask`'s `remote_*` parameters.
 
         Every value below is a literal unless it is a `Tpl` or a callable, in
         which case it is resolved against the task context at run time.
@@ -56,19 +58,61 @@ class RsyncTask(CmdTask):
         local_source_path = self._get_local_source_path(ctx)
         if local_source_path != "":
             return local_source_path
-        remote_source_path = self._get_remote_source_path(ctx)
-        host = self._get_remote_host(ctx)
-        user = self._get_remote_user(ctx)
-        return f"{user}@{bracket_ipv6(host)}:{remote_source_path}"
+        return self._get_remote_path(ctx, self._get_remote_source_path(ctx))
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
         local_destination_path = self._get_local_destination_path(ctx)
         if local_destination_path != "":
             return local_destination_path
-        remote_destination_path = self._get_remote_destination_path(ctx)
-        host = self._get_remote_host(ctx)
+        return self._get_remote_path(ctx, self._get_remote_destination_path(ctx))
+
+    def _get_remote_path(self, ctx: AnyContext, path: str) -> str:
         user = self._get_remote_user(ctx)
-        return f"{user}@{bracket_ipv6(host)}:{remote_destination_path}"
+        user_prefix = f"{user}@" if user != "" else ""
+        return f"{user_prefix}{bracket_ipv6(self._get_remote_host(ctx))}:{path}"
+
+    def _validate_paths(self, ctx: AnyContext) -> None:
+        """Refuse a path combination that cannot be one local and one remote.
+
+        Runs before the command is built, so an ambiguous or incomplete pair
+        never reaches the shell.
+        """
+        source_is_remote = self._side_is_remote(
+            "source",
+            self._get_local_source_path(ctx),
+            self._get_remote_source_path(ctx),
+        )
+        destination_is_remote = self._side_is_remote(
+            "destination",
+            self._get_local_destination_path(ctx),
+            self._get_remote_destination_path(ctx),
+        )
+        if source_is_remote == destination_is_remote:
+            mode = "remote-to-remote" if source_is_remote else "local-to-local"
+            raise ValueError(
+                f"RsyncTask({self.name!r}) cannot run {mode}: exactly one of "
+                "the source and destination must be remote."
+            )
+        if self._get_remote_host(ctx) == "":
+            raise ValueError(
+                f"RsyncTask({self.name!r}) has a remote path but no "
+                "remote_host; set remote_host to the SSH server."
+            )
+
+    def _side_is_remote(self, side: str, local: str, remote: str) -> bool:
+        if local != "" and remote != "":
+            raise ValueError(
+                f"RsyncTask({self.name!r}) sets both local_{side}_path and "
+                f"remote_{side}_path; set exactly one."
+            )
+        if local != "":
+            return False
+        if remote != "":
+            return True
+        raise ValueError(
+            f"RsyncTask({self.name!r}) needs either local_{side}_path or "
+            f"remote_{side}_path."
+        )
 
     def _get_remote_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -106,20 +150,32 @@ class RsyncTask(CmdTask):
         ).strip()
         if exclude_from == "":
             return ""
-        return f"--exclude-from='{exclude_from}'"
+        return shlex.quote(f"--exclude-from={exclude_from}")
+
+    def _get_ssh_command(self, ctx: AnyContext) -> str:
+        """The `ssh` command for rsync's `-e`, quoted for both shells.
+
+        `shlex.quote(key)` protects the key inside the command rsync runs;
+        quoting the whole string then protects it from the parent shell.
+        """
+        port = self._get_remote_port(ctx)
+        key = self._get_remote_ssh_key(ctx)
+        parts = ["ssh"]
+        if key != "":
+            parts += ["-i", shlex.quote(key)]
+        parts += ["-p", shlex.quote(str(port))]
+        return shlex.quote(" ".join(parts))
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:
-        port = self._get_remote_port(ctx)
+        self._validate_paths(ctx)
         password = self._get_remote_password(ctx)
-        key = self._get_remote_ssh_key(ctx)
-        src = self._get_source_path(ctx)
-        dst = self._get_destination_path(ctx)
+        ssh_command = self._get_ssh_command(ctx)
         exclude_from = self._get_exclude_from_param(ctx)
         exclude_from_with_space = f"{exclude_from} " if exclude_from != "" else ""
-        if key != "" and password != "":
-            return f'sshpass -e rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        if key != "":
-            return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        if password != "":
-            return f'sshpass -e rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        return f'rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'
+        src = shlex.quote(self._get_source_path(ctx))
+        dst = shlex.quote(self._get_destination_path(ctx))
+        sshpass = "sshpass -e " if password != "" else ""
+        return (
+            f"{sshpass}rsync --mkpath -avz -e {ssh_command} "
+            f"{exclude_from_with_space}{src} {dst}"
+        )

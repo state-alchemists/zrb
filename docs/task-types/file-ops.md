@@ -95,23 +95,13 @@ The `RsyncTask` provides a strongly-typed Python interface over the battle-teste
 
 | Use Case | Description |
 |----------|-------------|
-| Backups | Sync local folders |
+| Backups | Sync a local folder to a remote server, or pull one down |
 | Mirror deployments | Deploy to remote servers |
 | Artifact sync | Transfer build outputs |
 
-### Local to Local Sync
+### Path Combinations
 
-```python
-from zrb import RsyncTask, cli
-
-sync_local = cli.add_task(
-    RsyncTask(
-        name="backup-data",
-        local_source_path="./data/",
-        local_destination_path="./backup/data/",
-    )
-)
-```
+`RsyncTask` generates an SSH-wrapped `rsync`, so exactly one side must be remote. A local-to-local or remote-to-remote pair raises `ValueError` before the command runs, and a remote side requires `remote_host`. Use a `CmdTask` running `rsync` directly for a purely local copy.
 
 ### Local to Remote Sync (Push via SSH)
 
@@ -144,7 +134,7 @@ deploy_remote = cli.add_task(
 
 ### Remote to Local Sync (Pull via SSH)
 
-Pair `remote_source_path` with `local_destination_path` to download. Only one side may be remote. `remote_ssh_key` selects the private key:
+Pair `remote_source_path` with `local_destination_path` to download. Exactly one side must be remote. `remote_ssh_key` selects the private key:
 
 ```python
 from zrb import RsyncTask, cli
