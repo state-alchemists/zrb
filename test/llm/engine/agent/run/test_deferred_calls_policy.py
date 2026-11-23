@@ -213,9 +213,9 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
 
 
 @pytest.mark.asyncio
-async def test_no_approval_mechanism_without_ask_returns_none():
-    """Fallthrough: no policy opinion and no approval mechanism returns None,
-    which becomes the approval result for the call (line 366)."""
+async def test_no_approval_mechanism_without_ask_denies():
+    """Fallthrough: no policy opinion and no approval mechanism denies, because
+    nothing answered the call and the stored verdict must be real."""
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
@@ -245,7 +245,7 @@ async def test_no_approval_mechanism_without_ask_returns_none():
             result_output, object(), ui, hook_manager
         )
 
-    assert result.approvals["call_1"] is None
+    assert isinstance(result.approvals["call_1"], MockToolDenied)
 
 
 @pytest.mark.asyncio
