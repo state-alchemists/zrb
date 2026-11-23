@@ -36,6 +36,14 @@ fi
 # pytest tests under test/architecture/.
 flake8 src/zrb --select=F
 
+# The house format, in check mode — the same flags `zrb code format` runs. It
+# is checked because the facade budgets are pinned to exact line counts: an
+# unformatted diff moves a number that should only move when the code does.
+isort . --check-only --profile black --force-grid-wrap 0 \
+    --skip-glob 'llm-challenges/**' --skip-glob '.claude/**' \
+    --skip-glob '.zrb/**' --skip-glob '.venv/**'
+black --check . --extend-exclude 'llm-challenges'
+
 # pyright checks the whole tree regardless of path args, so full runs only.
 if [ "$#" -eq 0 ]; then
     pyright src/zrb
