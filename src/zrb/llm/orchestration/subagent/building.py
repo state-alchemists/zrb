@@ -91,6 +91,18 @@ class SubAgentBuilding:
             try:
                 return definition.agent_factory()
             except Exception as e:
+                if not definition.system_prompt.strip():
+                    # A Python `get_agent` factory is this definition's only
+                    # source: its prompt and tools are empty. Falling through
+                    # would build an agent with no instructions and no tools,
+                    # turning a transient factory failure into confident,
+                    # broken delegation. Report it instead.
+                    raise RuntimeError(
+                        f"Sub-agent '{name}' could not be built: its agent "
+                        f"factory failed: {e}"
+                    ) from e
+                # A definition with a markdown prompt keeps its prompt/tools as
+                # a fallback when the factory, an override, fails.
                 CFG.LOGGER.debug(f"Sub-agent factory '{name}' failed: {e}")
 
         resolved = self.resolve_agent_build(definition, ctx, yolo)

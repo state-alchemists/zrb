@@ -34,6 +34,14 @@ if TYPE_CHECKING:
     from zrb.llm.presentation.ui.buffered import BufferedUI
 
 
+def _current_task() -> "asyncio.Task | None":
+    """The task running this code, or None when there is no running loop."""
+    try:
+        return asyncio.current_task()
+    except RuntimeError:  # e.g. a synchronous caller of `mark_turn_finished`
+        return None
+
+
 @dataclass
 class LiveSubAgentSession:
     """One delegated sub-agent's live, in-memory conversation state."""
@@ -77,6 +85,11 @@ class LiveSubAgentSession:
         """Set the task driving this session's run, if any."""
         self.active_task = task
 
+    def owns_the_turn(self) -> bool:
+        """Whether the task calling this is the session's current owner."""
+        task = _current_task()
+        return task is not None and self.active_task is task
+
     def consume_cancelled_flag(self) -> bool:
         """Read-and-reset the human-cancel flag (see `cancelled_by_human`)."""
         flag = self.cancelled_by_human
@@ -109,6 +122,12 @@ class LiveSubAgentSessionRegistry:
         continuation happens to run (see `authority_snapshot.py`).
         `yolo_override` is the same per-call override `run_agent_task` passes
         to its own `run_agent()` call for the original turn.
+
+        The entry starts out "running": the original delegation owns this
+        session's turn from the moment it registers. A human message that
+        arrives before `active_task` is set, or between the turn's rounds when
+        there is no `active_run_context` to steer into, must queue behind that
+        turn rather than spawn a concurrent continuation.
         """
         entry = LiveSubAgentSession(
             agent_id=agent_id,
@@ -117,6 +136,7 @@ class LiveSubAgentSessionRegistry:
             sub_agent_manager=sub_agent_manager,
             buffered_ui=buffered_ui,
             authority=capture_current_authority(yolo_override),
+            state="running",
         )
         self._sessions.setdefault(session_id, {})[agent_id] = entry
         return entry
@@ -137,6 +157,24 @@ class LiveSubAgentSessionRegistry:
             return
         entry.history = history
         entry.state = "idle"
+        if entry.owns_the_turn():
+            entry.active_task = None
+        if entry.pending_queue and _current_task() is not None:
+            # Messages arrived while the finished turn was between rounds,
+            # where there was no live run to steer them into: that turn is
+            # over, so deliver them as one continuation instead of leaving
+            # them queued until the next message happens to start one.
+            self._start_continuation(entry)
+
+    def _start_continuation(self, entry: LiveSubAgentSession) -> None:
+        """Claim *entry* for a continuation and spawn it.
+
+        Called synchronously, before the task is scheduled, so two messages
+        arriving back to back cannot both see an idle session and double-spawn.
+        """
+        entry.state = "running"
+        entry.cancelled_by_human = False  # a fresh run, not a stale flag
+        entry.active_task = asyncio.ensure_future(_continue_live_session(entry))
 
     async def send_message(self, session_id: str, agent_id: str, text: str) -> bool:
         """Deliver *text* to the sub-agent *agent_id*: inject it live if its
@@ -155,12 +193,7 @@ class LiveSubAgentSessionRegistry:
             return True
         entry.pending_queue.append(text)
         if entry.state == "idle":
-            # Claimed synchronously, before spawning: the check-then-spawn is
-            # not separated by an `await`, so two messages arriving back to
-            # back cannot both see "idle" and double-spawn a continuation.
-            entry.state = "running"
-            entry.cancelled_by_human = False  # a fresh run, not a stale flag
-            entry.active_task = asyncio.ensure_future(_continue_live_session(entry))
+            self._start_continuation(entry)
         return True
 
     def restore_session(
@@ -315,14 +348,23 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
     continuing the same sub-agent persona's conversation from its
     accumulated history.
 
-    Callers must set ``entry.state = "running"`` before spawning this (see
-    `send_message`) — that assignment is what prevents a second concurrent
+    Callers must claim the session with `_start_continuation` before spawning
+    this — that synchronous claim is what prevents a second concurrent
     continuation for the same entry, so this function itself holds no lock.
     """
     try:
         while entry.pending_queue:
             text = entry.pending_queue.pop(0)
-            agent = entry.sub_agent_manager.create_agent(entry.agent_name)
+            try:
+                agent = entry.sub_agent_manager.create_agent(entry.agent_name)
+            except Exception as e:  # noqa: BLE001
+                # A factory-only definition reports a failed factory instead of
+                # falling back to an empty agent; nothing sane to continue
+                # with, so drop this message like a missing definition.
+                CFG.LOGGER.debug(
+                    f"Cannot continue live session for '{entry.agent_name}': {e}"
+                )
+                continue
             if agent is None:
                 # The definition disappeared mid-session (reload, removal) --
                 # nothing sane to continue with. Drop this message and keep
@@ -361,22 +403,28 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     f"Live sub-agent continuation for '{entry.agent_name}' failed: {e}"
                 )
             finally:
-                if entry.active_task is asyncio.current_task():
-                    entry.active_task = None
                 agent_activity_registry.finish(
                     entry.agent_id, session_id=entry.session_id
                 )
     finally:
-        # Always back to idle, even on CancelledError (not an `Exception`),
-        # or a later message would queue forever behind "running".
-        entry.state = "idle"
-        # Mark the end in the live view, unless a human cancelled it (the TUI
-        # already wrote "<Esc> Canceled"). A cancelled-then-continued session
-        # also reports its latest response to the main agent.
-        if not entry.cancelled_by_human:
-            entry.buffered_ui.append_to_output("<Done>")
-            if entry.notify_parent_on_end:
-                _report_latest_response_to_parent(entry)
+        # Only the task that still owns the session may finish it. `cancel`
+        # hands ownership to no one, and `send_message` can start a
+        # replacement turn before the cancelled one handles its
+        # CancelledError: that cancelled turn must not idle the replacement,
+        # mark <Done> in its view, or report its stale reply to the main agent.
+        if entry.owns_the_turn():
+            entry.active_task = None
+            # Always back to idle, even on CancelledError (not an
+            # `Exception`), or a later message would queue forever behind
+            # "running".
+            entry.state = "idle"
+            # Mark the end in the live view, unless a human cancelled it (the
+            # TUI already wrote "<Esc> Canceled"). A cancelled-then-continued
+            # session also reports its latest response to the main agent.
+            if not entry.cancelled_by_human:
+                entry.buffered_ui.append_to_output("<Done>")
+                if entry.notify_parent_on_end:
+                    _report_latest_response_to_parent(entry)
 
 
 def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
