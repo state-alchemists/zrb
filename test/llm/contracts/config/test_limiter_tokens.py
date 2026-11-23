@@ -149,29 +149,31 @@ async def test_llm_limiter_acquire():
 
 
 @pytest.mark.asyncio
-async def test_llm_limiter_zero_request_limit_blocks_first_request():
-    "A zero request budget blocks the first request."
+async def test_llm_limiter_zero_request_limit_refuses_first_request():
+    "A zero request budget admits nothing, so acquire refuses instead of hanging."
     limiter = LLMLimiter()
     limiter.pacing_enabled = True
     limiter.max_request_per_minute = 0
     limiter.max_token_per_minute = 1000
     limiter.throttle_check_interval = 0.01
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(RuntimeError, match="LLM_MAX_REQUEST_PER_MINUTE.*0"):
         await asyncio.wait_for(limiter.acquire("hello"), timeout=0.1)
+    assert len(limiter.request_log) == 0
 
 
 @pytest.mark.asyncio
-async def test_llm_limiter_zero_token_limit_blocks_positive_tokens():
-    "B10: a token budget of 0 must reject any request that needs tokens."
+async def test_llm_limiter_zero_token_limit_refuses_positive_tokens():
+    "B10: a token budget of 0 rejects any request that needs tokens, promptly."
     limiter = LLMLimiter()
     limiter.pacing_enabled = True
     limiter.max_request_per_minute = 100
     limiter.max_token_per_minute = 0
     limiter.throttle_check_interval = 0.01
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(RuntimeError, match="LLM_MAX_TOKEN_PER_MINUTE.*0"):
         await asyncio.wait_for(limiter.acquire("hello world"), timeout=0.1)
+    assert len(limiter.token_log) == 0
 
 
 def test_llm_limiter_properties():

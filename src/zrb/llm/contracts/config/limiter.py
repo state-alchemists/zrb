@@ -91,7 +91,7 @@ class LLMLimiter:
 
     @property
     def max_request_per_minute(self) -> int:
-        """Requests allowed per minute (`CFG.LLM_MAX_REQUEST_PER_MINUTE` unless overridden); zero blocks all requests."""
+        """Requests allowed per minute (`CFG.LLM_MAX_REQUEST_PER_MINUTE` unless overridden); zero or negative blocks all requests and `acquire` refuses it."""
         if self._max_request_per_minute is not None:
             return self._max_request_per_minute
         cfg_value = getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None)
@@ -104,7 +104,7 @@ class LLMLimiter:
 
     @property
     def max_token_per_minute(self) -> int:
-        """Tokens allowed per minute (`CFG.LLM_MAX_TOKEN_PER_MINUTE` unless overridden); zero blocks all requests."""
+        """Tokens allowed per minute (`CFG.LLM_MAX_TOKEN_PER_MINUTE` unless overridden); zero or negative blocks all requests and `acquire` refuses it."""
         if self._max_token_per_minute is not None:
             return self._max_token_per_minute
         cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None)
@@ -288,14 +288,33 @@ class LLMLimiter:
         Returns immediately when pacing is off (`CFG.LLM_RATE_LIMIT_ENABLED`), and
         records nothing: a later enable must not inherit a window nobody was
         pacing against.
+
+        Raises:
+            RuntimeError: A per-minute budget is non-positive. Such a budget
+                can never admit a request, so waiting for it would spin
+                forever; it is refused instead.
         """
         if not self.pacing_enabled:
             return
+        # A non-positive budget never admits a request, so `can_proceed` would
+        # stay False forever: the wait loop hangs and floods the notifier.
+        if self.max_request_per_minute <= 0:
+            raise RuntimeError(
+                "LLM_MAX_REQUEST_PER_MINUTE must be positive, got "
+                f"{self.max_request_per_minute}; a non-positive per-minute "
+                "request budget admits no request."
+            )
+        if self.max_token_per_minute <= 0:
+            raise RuntimeError(
+                "LLM_MAX_TOKEN_PER_MINUTE must be positive, got "
+                f"{self.max_token_per_minute}; a non-positive per-minute "
+                "token budget admits no request."
+            )
         if estimated_tokens is None:
             estimated_tokens = self._count_tokens(content)
         # A request over the whole per-minute budget can never fit: waiting
         # for an empty window is all that helps, so it goes then, never hangs.
-        # A budget of 0 still blocks everything.
+        # A non-positive budget is refused above, before the wait loop.
         budget = self.max_token_per_minute
         needed = min(estimated_tokens, budget) if budget > 0 else estimated_tokens
 
