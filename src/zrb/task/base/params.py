@@ -125,9 +125,7 @@ def reject_non_rsync_params(class_name: str, kwargs: dict[str, Any]) -> None:
     )
 
 
-def reject_non_positive_interval(
-    class_name: str, source: str, interval: float
-) -> None:
+def reject_non_positive_interval(class_name: str, source: str, interval: float) -> None:
     """Raise `ValueError` for a poll interval that would spin instead of wait.
 
     `HttpCheck`/`TcpCheck` sleep for the interval between probes, so a

@@ -112,6 +112,7 @@ async def test_tcp_check_exception(mock_session):
 @pytest.mark.parametrize("interval", [0, -1])
 async def test_tcp_check_rejects_a_non_positive_interval(mock_session, interval):
     """A non-positive interval would make asyncio.sleep spin, hammering the host."""
+
     async def mock_open_connection(host, port):
         raise AssertionError("a rejected interval must not probe")
 

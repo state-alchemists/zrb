@@ -90,8 +90,7 @@ class TcpCheck(BaseTask):
                 return True
             except asyncio.TimeoutError:
                 ctx.log_info(
-                    f"No response from {host}:{port} within "
-                    f"{_MIN_PROBE_TIMEOUT}s"
+                    f"No response from {host}:{port} within " f"{_MIN_PROBE_TIMEOUT}s"
                 )
             except Exception as e:
                 ctx.log_info(f"Error: {e}")
