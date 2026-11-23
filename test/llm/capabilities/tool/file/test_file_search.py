@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.llm.capabilities.sandbox import SandboxPolicy, sandbox_policy
 from zrb.llm.capabilities.tool.file import search as file_search_mod
 from zrb.llm.capabilities.tool.file import search_files
 from zrb.llm.capabilities.tool.file.search import search_files
@@ -350,3 +351,112 @@ class TestFileSearchTruncation:
             result = search_files("needle", path=str(tmp_path))
             assert "truncation_notice" in result
             assert "TRUNCATED" in result["truncation_notice"]
+
+
+# --- sandbox: every file the scan opens is judged, not just the argument ----
+
+
+def _sandboxed(project, deny_dir):
+    return sandbox_policy(
+        SandboxPolicy(
+            enabled=True,
+            writable_paths=(str(project),),
+            deny_read_paths=(str(deny_dir),),
+        )
+    )
+
+
+def test_a_deny_root_under_the_searched_parent_is_skipped(tmp_path):
+    """The gate judged `path=tmp_path`, which is not itself denied.
+
+    `search_files` then opens every file beneath it, so passing a parent of a
+    deny-read root — `path=~` reaching `~/.ssh` — must not surface the files
+    inside that root. Regression: only the argument was checked.
+    """
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "keep.py").write_text("needle here\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("needle and TOP_SECRET_KEY\n")
+
+    with _no_ripgrep(), _sandboxed(project, secrets):
+        result = search_files("needle", path=str(tmp_path))
+
+    matched_files = [entry["file"] for entry in result["results"]]
+    assert any(name.endswith("keep.py") for name in matched_files)
+    assert not any("settings.py" in name for name in matched_files)
+    assert "TOP_SECRET_KEY" not in repr(result)
+    assert "sandbox deny-read" in result["warning"]
+
+
+def test_a_denied_file_reported_by_ripgrep_is_skipped(tmp_path):
+    """The ripgrep path reads content through the same per-file check."""
+    project = tmp_path / "proj"
+    project.mkdir()
+    allowed = project / "keep.py"
+    allowed.write_text("needle here\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    denied = secrets / "settings.py"
+    denied.write_text("needle and TOP_SECRET_KEY\n")
+    proc = MagicMock(returncode=0, stdout=f"{denied}\n{allowed}\n")
+
+    with (
+        patch(
+            "zrb.llm.capabilities.tool.file.search.shutil.which",
+            return_value="/usr/bin/rg",
+        ),
+        patch(
+            "zrb.llm.capabilities.tool.file.search.subprocess.run", return_value=proc
+        ),
+        _sandboxed(project, secrets),
+    ):
+        result = search_files("needle", path=str(tmp_path))
+
+    matched_files = [entry["file"] for entry in result["results"]]
+    assert any(name.endswith("keep.py") for name in matched_files)
+    assert not any("settings.py" in name for name in matched_files)
+    assert "TOP_SECRET_KEY" not in repr(result)
+
+
+def test_a_workspace_symlink_to_a_denied_file_is_skipped(tmp_path):
+    """A symlink inside the workspace resolves into the deny root at check time."""
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "keep.py").write_text("needle here\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("needle and TOP_SECRET_KEY\n")
+    (project / "innocent.py").symlink_to(secrets / "settings.py")
+
+    with _no_ripgrep(), _sandboxed(project, secrets):
+        result = search_files("needle", path=str(project))
+
+    matched_files = [entry["file"] for entry in result["results"]]
+    assert any(name.endswith("keep.py") for name in matched_files)
+    assert not any("innocent.py" in name for name in matched_files)
+    assert "TOP_SECRET_KEY" not in repr(result)
+
+
+def test_a_disabled_policy_leaves_the_scan_unchanged(tmp_path):
+    """Containment off is the no-sandbox path: a configured deny list filters
+    nothing until the policy is enabled."""
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("needle here\n")
+
+    with (
+        _no_ripgrep(),
+        sandbox_policy(
+            SandboxPolicy(
+                enabled=False,
+                writable_paths=(str(tmp_path / "proj"),),
+                deny_read_paths=(str(secrets),),
+            )
+        ),
+    ):
+        result = search_files("needle", path=str(tmp_path))
+
+    assert any(entry["file"].endswith("settings.py") for entry in result["results"])
+    assert "warning" not in result

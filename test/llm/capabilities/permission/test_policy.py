@@ -1,5 +1,9 @@
 """Tests for the permission policy resolver and yolo parity."""
 
+import logging
+
+import pytest
+
 from zrb.llm.capabilities.permission import (
     ALLOW,
     ASK,
@@ -119,3 +123,73 @@ def test_resolve_list_of_dicts():
 def test_resolve_garbage_string_returns_none():
     # No ':' pairs and not a shorthand → nothing parseable.
     assert resolve_policy("just some words") is None
+
+
+# --- arg_pattern: the spellings an MCP server or plugin uses ----------------
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "filePath",
+        "filepath",
+        "dir_path",
+        "directory",
+        "root",
+        "source",
+        "target",
+        "destination",
+        "dest",
+    ],
+)
+def test_arg_pattern_matches_a_key_an_mcp_tool_declares(key):
+    """A rule written against an MCP-style spelling used to match nothing.
+
+    `filePath` was invisible to `_SALIENT_ARG_KEYS`, so the deny rule fell
+    through to the later allow and the call ran.
+    """
+    policy = PermissionPolicy(
+        (
+            Rule("McpWrite", DENY, arg_pattern="*/.ssh/*"),
+            Rule("McpWrite", ALLOW),
+        )
+    )
+    assert (
+        policy.decide("McpWrite", Capability.EDIT, {key: "/home/u/.ssh/id_rsa"}) == DENY
+    )
+    # The pattern is judged, and does not match: the later rule decides.
+    assert policy.decide("McpWrite", Capability.EDIT, {key: "/repo/main.py"}) == ALLOW
+
+
+def test_a_deny_rule_it_cannot_judge_fails_closed(caplog):
+    """A call whose path key this layer does not know must not walk past a
+    deny rule: the pattern cannot be ruled out, so the decision denies."""
+    policy = PermissionPolicy(
+        (
+            Rule("*", DENY, arg_pattern="*/.ssh/*"),
+            Rule("*", ALLOW),
+        )
+    )
+    with caplog.at_level(logging.WARNING):
+        decision = policy.decide(
+            "McpWrite", Capability.UNKNOWN, {"unknownPath": "/home/u/.ssh/id_rsa"}
+        )
+
+    assert decision == DENY
+    assert "failing closed" in caplog.text
+
+
+def test_a_deny_rule_with_no_arguments_still_falls_through():
+    """The documented edge of the fail-closed rule.
+
+    An argument-less call holds nothing the pattern could describe, and callers
+    that consult the policy without arguments (`get_policy_skip_decision` at
+    tool-listing time) must not turn every such lookup into a denial.
+    """
+    policy = PermissionPolicy(
+        (
+            Rule("Bash", DENY, arg_pattern="rm -rf*"),
+            Rule("*", ALLOW),
+        )
+    )
+    assert policy.decide("Bash", Capability.EXECUTE, {}) == ALLOW

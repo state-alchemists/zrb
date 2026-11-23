@@ -9,6 +9,10 @@ from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.sandbox import (
+    get_effective_sandbox_policy,
+    is_read_allowed,
+)
 from zrb.llm.capabilities.tool.code.constants import (
     DEFAULT_EXTENSIONS,
     LSP_SUPPORTED_EXTENSIONS,
@@ -212,6 +216,14 @@ def _collect_matching_files(
                 if include_patterns and not matches_any_pattern(
                     rel_path, include_patterns
                 ):
+                    continue
+                if not is_read_allowed(file_path, get_effective_sandbox_policy()):
+                    # The gate judged the directory this call was given; a
+                    # deny-read root under it — or a symlink into one — must not
+                    # reach the sub-agent that reads these files.
+                    CFG.LOGGER.debug(
+                        f"analyze_code: skipped file denied by the sandbox: {file_path}"
+                    )
                     continue
                 matches.append((file_path, rel_path))
             except Exception as e:

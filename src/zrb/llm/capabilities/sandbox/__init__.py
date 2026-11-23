@@ -7,7 +7,11 @@ no ``zrb.llm.engine.agent`` imports.
 
 from __future__ import annotations
 
-from zrb.llm.capabilities.sandbox.fs_policy import check_read, check_write
+from zrb.llm.capabilities.sandbox.fs_policy import (
+    check_read,
+    check_write,
+    is_read_allowed,
+)
 from zrb.llm.capabilities.sandbox.os_sandbox import (
     ESCAPE_NOTE,
     SandboxUnavailableError,
@@ -40,6 +44,7 @@ __all__ = [
     "resolved_writable_roots",
     "check_read",
     "check_write",
+    "is_read_allowed",
     "resolve_real",
     "ESCAPE_NOTE",
     "SandboxUnavailableError",

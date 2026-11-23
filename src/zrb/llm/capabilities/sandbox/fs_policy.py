@@ -39,6 +39,20 @@ def check_read(path: str, policy: SandboxPolicy) -> str | None:
     return None
 
 
+def is_read_allowed(path: str, policy: SandboxPolicy) -> bool:
+    """Whether reading ``path`` is permitted, for a reader that opens many files.
+
+    The gate judges the argument a call was given; a recursive reader then opens
+    every file underneath it, which can be a parent of a deny-read root or a
+    workspace directory holding a symlink into one. Callers ask this per file
+    instead of per call. A disabled policy allows everything, so the no-sandbox
+    path stays exactly as it was.
+    """
+    if not policy.enabled:
+        return True
+    return check_read(path, policy) is None
+
+
 def check_write(path: str, policy: SandboxPolicy) -> str | None:
     """Return an error message if writing ``path`` is blocked, else ``None``.
 

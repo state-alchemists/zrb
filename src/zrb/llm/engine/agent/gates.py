@@ -47,10 +47,18 @@ from zrb.llm.contracts.shared.agent_tool_result import tool_return
 if TYPE_CHECKING:
     from pydantic_ai import RunContext, ToolReturn
 
-# Argument keys the sandbox gate treats as filesystem paths (subset of the
-# permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-# writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-# because move_file deletes it; "dst" because it gets overwritten).
+# Argument keys the sandbox gate treats as filesystem paths (the path-shaped
+# subset of the permission layer's _SALIENT_ARG_KEYS; both lists carry the same
+# spellings, so a key added here belongs there too). Reads check every
+# path-like arg; writes additionally check them for EDIT/UNKNOWN tools ("src"
+# is write-checked because move_file deletes it; "dst" because it gets
+# overwritten, and likewise "dest"/"destination"/"target").
+#
+# The snake_case spellings are what zrb's own tools declare; the camelCase and
+# single-word ones are what an MCP server or a plugin declares, and a tool whose
+# path argument is spelled `filePath` used to pass this gate with no check at
+# all. An unlisted spelling is a fail-open, so the common ones are spelled out
+# here rather than discovered at run time.
 # EnterWorktree may receive an existing worktree path to resume; both
 # EnterWorktree and ExitWorktree must stay inside the writable boundary.
 #
@@ -62,20 +70,31 @@ if TYPE_CHECKING:
 # was not, which is a legitimate call.
 _SANDBOX_READ_KEYS = (
     "path",
-    "file_path",
     "file",
+    "file_path",
+    "filePath",
+    "filepath",
     "filename",
+    "file_name",
+    "dir",
+    "dir_path",
+    "dirPath",
+    "directory",
+    "directory_path",
+    "root",
+    "root_path",
     "src",
+    "source",
+    "source_path",
     "worktree_path",
 )
-_SANDBOX_WRITE_KEYS = (
-    "path",
-    "file_path",
-    "file",
-    "filename",
-    "src",
+_SANDBOX_WRITE_KEYS = _SANDBOX_READ_KEYS + (
     "dst",
-    "worktree_path",
+    "dest",
+    "destination",
+    "destination_path",
+    "target",
+    "target_path",
 )
 
 
