@@ -255,7 +255,7 @@ async def test_open_web_page_notifies_before_fetching():
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         mock_get.return_value = MagicMock(
             text="<html><body>hi</body></html>", headers={}
@@ -279,7 +279,7 @@ async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
             "playwright.async_api.async_playwright",
             side_effect=RuntimeError("browser launch failed"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         mock_get.return_value = MagicMock(
             text="<html><body>hi</body></html>", headers={}

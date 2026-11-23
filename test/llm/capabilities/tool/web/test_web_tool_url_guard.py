@@ -1,12 +1,15 @@
 import socket
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import requests
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.web import open_web_page
 from zrb.llm.capabilities.tool.web.tools import (
     UnsafeWebUrlError,
+    get_web_page_response,
     refuse_unsafe_web_url,
 )
 
@@ -111,7 +114,7 @@ def test_refuse_unsafe_web_url_allows_private_hosts_when_configured(monkeypatch)
 async def test_open_web_page_refuses_an_unsafe_url_before_any_fetch(url):
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright,
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         result = await open_web_page(url, summarize=False)
 
@@ -125,7 +128,7 @@ async def test_open_web_page_refuses_a_private_dns_answer_before_any_fetch():
     with (
         _resolve_to("10.1.2.3"),
         patch("playwright.async_api.async_playwright") as mock_playwright,
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         result = await open_web_page("https://intranet.example.com/", summarize=False)
 
@@ -141,7 +144,7 @@ async def test_open_web_page_refuses_a_private_host_when_playwright_is_missing()
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         result = await open_web_page("http://10.0.0.5/", summarize=False)
 
@@ -168,3 +171,124 @@ async def test_open_web_page_opens_a_private_host_when_configured(monkeypatch):
         result = await open_web_page("http://127.0.0.1:8080/", summarize=False)
 
     assert "local" in result["content"]
+
+
+class _FakeRoute:
+    """The slice of a Playwright `Route` the request guard touches."""
+
+    def __init__(self, url: str):
+        self.request = SimpleNamespace(url=url)
+        self.abort = AsyncMock()
+        self.continue_ = AsyncMock()
+
+
+def _fake_session(*responses) -> MagicMock:
+    """A stand-in for `requests.Session` that serves `responses` in order."""
+    session = MagicMock()
+    session.__enter__.return_value = session
+    session.get.side_effect = list(responses)
+    return session
+
+
+def _redirect_to(location: str) -> MagicMock:
+    return MagicMock(is_redirect=True, status_code=302, headers={"Location": location})
+
+
+def _ok_response() -> MagicMock:
+    return MagicMock(is_redirect=False, status_code=200)
+
+
+def _patch_session(session: MagicMock):
+    return patch(
+        "zrb.llm.capabilities.tool.web.tools.requests.Session",
+        return_value=session,
+    )
+
+
+def test_get_web_page_response_refuses_a_public_to_private_redirect():
+    """A public URL must not bounce the request onto a metadata host."""
+    session = _fake_session(_redirect_to("http://169.254.169.254/latest/meta-data/"))
+    with _patch_session(session):
+        with pytest.raises(UnsafeWebUrlError, match="non-public"):
+            get_web_page_response("https://example.com/start", "agent")
+
+    # The refused hop is never requested; only the public start was fetched.
+    assert session.get.call_count == 1
+    session.__exit__.assert_called_once()
+
+
+def test_get_web_page_response_refuses_a_private_start_before_its_public_redirect():
+    """A private URL is refused even when its redirect points somewhere public."""
+    session = _fake_session(_redirect_to("https://example.com/ok"))
+    with _patch_session(session):
+        with pytest.raises(UnsafeWebUrlError, match="non-public"):
+            get_web_page_response("http://127.0.0.1/start", "agent")
+
+    session.get.assert_not_called()
+
+
+def test_get_web_page_response_follows_a_public_redirect():
+    final_response = _ok_response()
+    session = _fake_session(
+        _redirect_to("https://docs.example.com/page"), final_response
+    )
+    with _patch_session(session):
+        response = get_web_page_response("https://example.com/start", "agent")
+
+    assert response is final_response
+    assert session.get.call_count == 2
+
+
+def test_get_web_page_response_caps_a_redirect_chain():
+    session = _fake_session(*[_redirect_to("/again")] * 6)
+    with _patch_session(session):
+        with pytest.raises(requests.TooManyRedirects):
+            get_web_page_response("https://example.com/start", "agent")
+
+    assert session.get.call_count == 6
+
+
+@pytest.mark.asyncio
+async def test_open_web_page_refuses_a_public_to_private_redirect_on_the_http_path():
+    session = _fake_session(_redirect_to("http://10.1.2.3/admin"))
+    with (
+        patch(
+            "playwright.async_api.async_playwright",
+            side_effect=ImportError("No playwright"),
+        ),
+        _patch_session(session),
+    ):
+        result = await open_web_page("https://example.com/start", summarize=False)
+
+    assert result["error"].startswith("Refusing to open")
+    assert session.get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_browser_page_guard_aborts_private_requests_and_allows_public_ones():
+    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
+        mock_page.eval_on_selector_all.return_value = []
+
+        await open_web_page("https://example.com", summarize=False)
+
+    guard = mock_page.route.call_args.args[1]
+
+    private_route = _FakeRoute("http://169.254.169.254/latest/meta-data/")
+    await guard(private_route)
+    private_route.abort.assert_awaited_once()
+    private_route.continue_.assert_not_awaited()
+
+    public_route = _FakeRoute("https://cdn.example.com/app.js")
+    await guard(public_route)
+    public_route.continue_.assert_awaited_once()
+    public_route.abort.assert_not_awaited()

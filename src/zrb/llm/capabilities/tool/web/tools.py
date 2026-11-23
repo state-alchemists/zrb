@@ -8,6 +8,7 @@ import threading
 from typing import Annotated
 from urllib.parse import urljoin, urlsplit
 
+import requests
 from pydantic import Field
 
 from zrb.config.config import CFG
@@ -29,6 +30,9 @@ _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
 
 # A fetch is a network read: only these schemes ever reach a fetcher.
 _WEB_FETCH_SCHEMES = frozenset({"http", "https"})
+
+# A longer chain is a loop or a redirect farm, not a page worth loading.
+_MAX_WEB_REDIRECTS = 5
 
 
 class UnsafeWebUrlError(ValueError):
@@ -405,6 +409,38 @@ def is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) ->
     )
 
 
+def get_web_page_response(url: str, user_agent: str) -> requests.Response:
+    """GET `url`, re-validating every redirect hop against the URL guard.
+
+    `requests` follows a cross-host redirect by default, so a public URL could
+    bounce the fetch onto a loopback or cloud-metadata host the first guard
+    refused. Each hop is followed by hand instead: `Location` is resolved
+    against the current URL, validated, and the chain is capped so a loop ends.
+    `raise_for_status` stays with the callers, which also need the headers.
+    """
+    refuse_unsafe_web_url(url)
+    with requests.Session() as session:
+        current_url = url
+        redirects = 0
+        while True:
+            response = session.get(
+                current_url,
+                headers={"User-Agent": user_agent},
+                timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+                allow_redirects=False,
+            )
+            if not response.is_redirect:
+                return response
+            redirects += 1
+            if redirects > _MAX_WEB_REDIRECTS:
+                raise requests.TooManyRedirects(
+                    f"Refusing to follow more than {_MAX_WEB_REDIRECTS} redirects.",
+                    response=response,
+                )
+            current_url = urljoin(current_url, response.headers["Location"])
+            refuse_unsafe_web_url(current_url)
+
+
 async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
     """Fetch `url` via headless Chromium. Returns ``(content, links, is_pdf)``."""
     # lazy: heavy third-party
@@ -417,6 +453,7 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
         try:
             page = await browser.new_page()
             await page.set_extra_http_headers({"User-Agent": user_agent})
+            await _install_page_request_guard(page)
             response = await page.goto(
                 url, wait_until="networkidle", timeout=CFG.LLM_WEB_PAGE_TIMEOUT
             )
@@ -442,17 +479,44 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
             await browser.close()
 
 
+async def _install_page_request_guard(page) -> None:
+    """Abort every browser request whose URL the fetch guard refuses.
+
+    Chromium resolves, redirects, and loads subresources on its own, so the URL
+    handed to `page.goto` is not necessarily a URL finally fetched. Routing every
+    request through the same guard closes that gap for the main frame (a redirect
+    or an iframe) and for subresources. A guard that cannot answer aborts rather
+    than lets the request through. The `scheme://host` memo keeps a page's many
+    subresources from re-resolving the same host.
+    """
+    allowed_origins: set[str] = set()
+
+    async def guard(route) -> None:
+        request_url = route.request.url
+        parsed_url = urlsplit(request_url)
+        origin = f"{parsed_url.scheme.lower()}://{parsed_url.hostname or ''}"
+        if origin not in allowed_origins:
+            try:
+                await run_blocking(
+                    refuse_unsafe_web_url,
+                    request_url,
+                    timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
+                )
+            except Exception:  # noqa: BLE001 - a guard that cannot answer fails closed
+                await route.abort()
+                return
+            allowed_origins.add(origin)
+        await route.continue_()
+
+    await page.route("**/*", guard)
+
+
 def fetch_page_fallback(url: str, user_agent: str) -> tuple:
     """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
     # lazy: heavy third-party
-    import requests
     from bs4 import BeautifulSoup
 
-    response = requests.get(
-        url,
-        headers={"User-Agent": user_agent},
-        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-    )
+    response = get_web_page_response(url, user_agent)
     response.raise_for_status()
     content_type = response.headers.get("Content-Type", "").lower()
     if "application/pdf" in content_type:
@@ -472,14 +536,7 @@ def fetch_page_fallback(url: str, user_agent: str) -> tuple:
 
 def _fetch_pdf_content(url: str, user_agent: str) -> tuple:
     """Download and extract a PDF (sync, run off-loop)."""
-    # lazy: heavy third-party
-    import requests
-
-    response = requests.get(
-        url,
-        headers={"User-Agent": user_agent},
-        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-    )
+    response = get_web_page_response(url, user_agent)
     response.raise_for_status()
     return _extract_pdf_text(response.content), [], True
 
