@@ -40,6 +40,13 @@ if TYPE_CHECKING:
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
+#: asyncio's default 64KB `StreamReader` limit makes `readline()` raise on a
+#: single long line (minified JS, one-line JSON logs), losing all output. The
+#: foreground `start_process` uses the same 8MB ceiling; `_read_pipe` turns the
+#: over-limit case into a visible truncation notice instead of a dead reader.
+_PIPE_LIMIT = 8 * 1024 * 1024
+
+
 class BackgroundProcessRow(TypedDict):
     """One background process as `summary` reports it, for the live context."""
 
@@ -93,7 +100,13 @@ class _BackgroundProcess:
 
 
 class _ShellBackgroundRegistry:
-    """Process-lifetime registry of background shell tasks keyed by handle."""
+    """Process-lifetime registry of background shell tasks keyed by handle.
+
+    A web chat session only sees the handles it started: `poll`, `collect`
+    and `kill` report another session's handle as unknown. Handles started
+    outside a web run (an empty owner) and callers with an empty session stay
+    reachable, so the CLI is unaffected.
+    """
 
     def __init__(self) -> None:
         self._procs: dict[str, _BackgroundProcess] = {}
@@ -122,6 +135,7 @@ class _ShellBackgroundRegistry:
             stdin=asyncio.subprocess.DEVNULL,
             cwd=effective_cwd,
             start_new_session=True,
+            limit=_PIPE_LIMIT,
         )
         bp = _BackgroundProcess(
             process=proc,
@@ -221,7 +235,20 @@ class _ShellBackgroundRegistry:
     ) -> None:
         """Feed *stream* line by line into the handle's `name` capture."""
         while stream and not stream.at_eof():
-            line = await stream.readline()
+            try:
+                line = await stream.readline()
+            except ValueError:
+                # A single line past `_PIPE_LIMIT`. `readline` has already
+                # discarded it and every later call would raise again, so make
+                # the loss visible and end this reader cleanly instead of
+                # dying with an unretrieved exception.
+                notice = (
+                    f"\n[{name} truncated: a single line exceeded the "
+                    f"{_PIPE_LIMIT}-byte pipe read limit; the rest of this "
+                    "stream was not captured]\n"
+                )
+                self._feed(handle, name, notice.encode())
+                return
             if not line:
                 break
             self._feed(handle, name, line)
@@ -301,7 +328,9 @@ class _ShellBackgroundRegistry:
         interrupted, keeping the process as it is for the retry.
         """
         bp = self._procs.get(handle)
-        if bp is not None and bp.returncode is None and wait > 0:
+        if bp is None or _is_foreign_session(bp):
+            return _unknown_handle_message(handle)
+        if bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
             bp.waiters += 1
             try:
@@ -320,7 +349,7 @@ class _ShellBackgroundRegistry:
 
     def poll(self, handle: str) -> str:
         bp = self._procs.get(handle)
-        if bp is None:
+        if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
         stdout = bp.stdout_cap.text
         stderr = bp.stderr_cap.text
@@ -389,7 +418,7 @@ class _ShellBackgroundRegistry:
 
     async def kill(self, handle: str) -> str:
         bp = self._procs.get(handle)
-        if bp is None:
+        if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
         if bp.process.returncode is not None:
             return (
@@ -444,6 +473,22 @@ def _unknown_handle_message(handle: str) -> str:
     )
 
 
+def _is_foreign_session(bp: _BackgroundProcess) -> bool:
+    """Whether *bp* belongs to another web chat session than this caller's.
+
+    A handle started outside a web run has an empty owner, and a caller with
+    no current chat session has an empty id: neither is refused, which keeps
+    CLI and empty-session behavior. Two non-empty, different ids are two web
+    sessions, and one must not read or kill the other's process.
+    """
+    current_session_id = get_current_chat_session_id()
+    return (
+        bool(bp.owner_session_id)
+        and bool(current_session_id)
+        and bp.owner_session_id != current_session_id
+    )
+
+
 async def _stop_process(bp: _BackgroundProcess) -> None:
     """Terminate *bp* if still running, then release it."""
     if bp.process.returncode is None:
@@ -466,9 +511,16 @@ def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> st
     for name, cap in (("stdout", stdout_cap), ("stderr", stderr_cap)):
         if cap.truncated:
             cap.flush()
+            saved = f"full {name} saved to {cap.spill_path}"
+            if cap.spill_capped:
+                saved = (
+                    f"{name} saved up to {cap.spill_max_chars} chars at "
+                    f"{cap.spill_path} (the spill file was capped, so later "
+                    "output is not on disk)"
+                )
             parts.append(
                 f"{name} truncated (kept the tail, {cap.total_chars} chars "
-                f"total) — full {name} saved to {cap.spill_path}"
+                f"total) — {saved}"
             )
     return (
         "[SYSTEM SUGGESTION]: "
