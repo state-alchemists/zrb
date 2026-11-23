@@ -58,7 +58,9 @@ def read_text_file(file_path: str) -> str:
 
 
 def _read_text_file_content(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
+    # `utf-8-sig` drops a leading BOM, which would otherwise hide a definition's
+    # opening `---`; plain UTF-8 content reads identically.
+    with open(file_path, "r", encoding="utf-8-sig") as f:
         return f.read()
 
 

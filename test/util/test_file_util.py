@@ -152,6 +152,15 @@ def test_read_text_file_returns_text(tmp_path):
     assert read_text_file(str(f)) == "hello"
 
 
+def test_read_text_file_drops_a_leading_utf8_bom(tmp_path):
+    """A BOM before a definition's `---` would hide its frontmatter, so the
+    text reader hands back the content without it."""
+    f = tmp_path / "bom.md"
+    f.write_bytes(b"\xef\xbb\xbf---\nname: review\n---\n# Body\n")
+
+    assert read_text_file(str(f)).startswith("---")
+
+
 def test_read_text_file_raises_on_binary_where_read_file_returns_base64(tmp_path):
     f = tmp_path / "blob.bin"
     f.write_bytes(b"\x80\x81\xff")
