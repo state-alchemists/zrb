@@ -67,6 +67,18 @@ def test_a_read_of_a_missing_file_is_empty_not_an_error(store_dir):
     assert store.read_document(os.path.join(str(store_dir), "facts", "gone.md")) == ""
 
 
+def test_the_strict_read_distinguishes_unreadable_from_empty(store_dir):
+    """Readers keep degrading to "absent"; the migration needs to know that a
+    note it could not read is not an empty one."""
+    path = os.path.join(str(store_dir), "facts", "broken.md")
+    with open(path, "wb") as f:
+        f.write(b"\xff\xfe not utf-8")
+
+    assert store.read_document(path) == ""
+    assert store.read_document_strict(path) is None
+    assert store.read_document_strict(os.path.join(str(store_dir), "gone.md")) is None
+
+
 def test_facts_load_in_id_order(store_dir):
     for fact_id in ("c", "a", "b"):
         store.save_fact(Fact(id=fact_id, claim=f"{fact_id} is true."))

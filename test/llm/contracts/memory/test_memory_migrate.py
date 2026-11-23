@@ -326,6 +326,17 @@ def test_running_it_twice_writes_the_same_store(journal):
     assert not any(fact_id.endswith("-2") for fact_id in after)
 
 
+def test_an_unreadable_note_is_counted_while_readable_notes_migrate(journal):
+    """The point of the count: a migration knows it did not read the whole
+    journal, so the first-use pass must not claim the directory converted."""
+    (journal / "technical" / "broken.md").write_bytes(b"\xff\xfe not utf-8")
+
+    counts = migrate(str(journal))
+
+    assert counts["unreadable"] == 1
+    assert store.load_fact("staging-ssh-port") is not None
+
+
 def test_a_dry_run_counts_only_what_a_real_run_would_add(journal):
     migrate(str(journal))
     counts = migrate(str(journal), dry_run=True)
