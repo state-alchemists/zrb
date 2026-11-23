@@ -59,6 +59,8 @@ create_project = cli.add_task(
 
 When a user runs `zrb create-project --project_name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates — inside files, and in names such as `APP_NAME_PLACEHOLDER.py`, which becomes `my-cool-app.py`. A file that is not UTF-8 text (an image, a font, a PDF) is copied untouched.
 
+The content pass rewrites only the files the copy wrote — a single file placed inside an existing directory, or the files of a directory copied over an existing destination, are the only ones touched. Files already in the destination are left exactly as they were.
+
 ### Per-File Transforms with `ContentTransformer`
 
 The dict shorthand above rewrites every copied file the same way. To limit a transform to specific files, pass `ContentTransformer` instance(s) to `transform_content` instead of a dict:

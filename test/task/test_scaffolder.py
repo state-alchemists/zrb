@@ -184,3 +184,79 @@ def test_generate_copies_binary_files_untouched_next_to_rewritten_text(tmp_path)
 
     assert (tmp_path / "out" / "logo.png").read_bytes() == png
     assert (tmp_path / "out" / "readme.txt").read_text() == "Welcome to Test App\n"
+
+
+def test_generate_single_file_into_existing_directory_leaves_unrelated_files_alone(
+    tmp_path,
+):
+    """The content pass rewrites the file this task copied, nothing else.
+
+    Regression: every file under `destination_path` was transformed, so a
+    pre-existing file in the destination directory was rewritten too.
+    """
+    source = _make_single_file_template(tmp_path)
+    destination = tmp_path / "out"
+    destination.mkdir()
+    unrelated = destination / "unrelated.txt"
+    unrelated.write_text("Hello Project Name\n")
+
+    scaffolder = Scaffolder(
+        name="scaffold-file-into-directory",
+        source_path=source,
+        destination_path=str(destination),
+        transform_path={},
+        transform_content={"Project Name": "Rewritten App"},
+    )
+    scaffolder.run()
+
+    assert (destination / "src.txt").read_text() == "Hello Rewritten App\n"
+    assert unrelated.read_text() == "Hello Project Name\n"
+
+
+def test_generate_directory_over_existing_destination_leaves_unrelated_files_alone(
+    tmp_path,
+):
+    """A directory copied over an existing destination rewrites only what it
+    wrote, including a pre-existing nested file."""
+    src_dir = tmp_path / "template"
+    src_dir.mkdir()
+    (src_dir / "readme.txt").write_text("Welcome to Project Name\n")
+
+    destination = tmp_path / "generated"
+    (destination / "existing").mkdir(parents=True)
+    unrelated = destination / "unrelated.txt"
+    unrelated.write_text("Welcome to Project Name\n")
+    nested_unrelated = destination / "existing" / "keep.txt"
+    nested_unrelated.write_text("Welcome to Project Name\n")
+
+    scaffolder = Scaffolder(
+        name="scaffold-directory-over-existing",
+        source_path=str(src_dir),
+        destination_path=str(destination),
+        transform_path={},
+        transform_content={"Project Name": "Test App"},
+    )
+    scaffolder.run()
+
+    assert (destination / "readme.txt").read_text() == "Welcome to Test App\n"
+    assert unrelated.read_text() == "Welcome to Project Name\n"
+    assert nested_unrelated.read_text() == "Welcome to Project Name\n"
+
+
+def test_generate_transforms_a_renamed_file_at_its_renamed_path(tmp_path):
+    """The path transformer's rename is in the set the content pass receives."""
+    src_dir = tmp_path / "template"
+    src_dir.mkdir()
+    (src_dir / "placeholder.txt").write_text("Hello Project Name\n")
+
+    scaffolder = Scaffolder(
+        name="scaffold-renamed-content",
+        source_path=str(src_dir),
+        destination_path=str(tmp_path / "generated"),
+        transform_path={"placeholder": "renamed"},
+        transform_content={"Project Name": "Test App"},
+    )
+    scaffolder.run()
+
+    assert (tmp_path / "generated" / "renamed.txt").read_text() == "Hello Test App\n"
+    assert not (tmp_path / "generated" / "placeholder.txt").exists()
