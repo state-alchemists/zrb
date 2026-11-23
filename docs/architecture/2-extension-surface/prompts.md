@@ -70,7 +70,7 @@ flowchart TD
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
 | `PromptManager` | `src/zrb/llm/capabilities/prompt/manager.py` | Resolves the section list, chains the sections as middleware, appends extra prompts, and renders the live-context block |
-| `get_prompt` | `src/zrb/llm/contracts/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders |
+| `get_prompt` | `src/zrb/llm/contracts/shared/prompt_text.py` | Loads one file section through the override chain and fills its placeholders. A `{CFG_<KEY>}` in a section — bundled, or a user's own override — renders `CFG.<KEY>` when it holds a number or a switch, so a prompt names a limit rather than copying a value that goes stale. A string setting is left as written: the text goes to the model, and a credential is a string. The three string names a prompt could always use are listed in the module, a caller's own replacement beats them, and a name that does not fill stays visible instead of emptying into a hole |
 | Section files | `src/zrb/llm/contracts/shared/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
 | `active_profile` | `src/zrb/llm/capabilities/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
 | `system_context` | `src/zrb/llm/capabilities/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |

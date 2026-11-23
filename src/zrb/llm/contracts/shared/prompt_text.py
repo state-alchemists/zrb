@@ -8,6 +8,7 @@ other (ADR-0049). The bundled section files are beside it, in `markdown/`.
 """
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,7 +22,9 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
         prompt = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
 
-    Standard ``{CFG_*}`` replacements are always applied.
+    The ``{CFG_<KEY>}`` a prompt names are filled from `CFG` when they hold a
+    number or a switch; see `_fill_cfg_placeholders` for why a string setting is
+    not. A name that is not filled is left as written, so a typo stays visible.
 
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
@@ -35,12 +38,14 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
         The rendered prompt string with all placeholders replaced.
     """
     prompt = _load_prompt_for_profile(name, profile)
-    replacements = _get_prompt_replacements()
-    for key, value in extra_replacements.items():
+    prompt = _replace_prompt_placeholders(prompt, _cfg_string_replacements())
+    replacements = {
         # Allow callers to pass either "ASSISTANT_NAME" or "{ASSISTANT_NAME}"
-        placeholder = key if key.startswith("{") and key.endswith("}") else f"{{{key}}}"
-        replacements[placeholder] = value
-    return _replace_prompt_placeholders(prompt, replacements)
+        key if key.startswith("{") and key.endswith("}") else f"{{{key}}}": value
+        for key, value in extra_replacements.items()
+    }
+    prompt = _replace_prompt_placeholders(prompt, replacements)
+    return _fill_cfg_placeholders(prompt)
 
 
 def _load_prompt_for_profile(name: str, profile: str | None) -> str:
@@ -142,39 +147,51 @@ def _read_package_prompt(name: str) -> str:
         return f.read()
 
 
-def _get_prompt_replacements() -> dict[str, str]:
-    """Return replacement dict, re-computed only when an input changes."""
-    return dict(
-        _get_prompt_replacements_cached(
-            CFG.ROOT_GROUP_NAME,
-            CFG.LLM_ASSISTANT_NAME,
-            CFG.ENV_PREFIX,
-        )
-    )
+#: A placeholder naming a setting: `{CFG_LLM_MEMORY_DIARY_MAX_CHARS}`.
+_CFG_PLACEHOLDER = re.compile(r"\{CFG_([A-Z][A-Z0-9_]*)\}")
+
+#: The string settings a prompt may name, one by one.
+#:
+#: A prompt is sent to a model provider and kept in the history, so a string in
+#: it is a disclosure waiting to happen. These three were nameable before this
+#: module resolved anything by itself and are names and prefixes, not secrets;
+#: everything else that is a string — a key, a token, a path holding a user's
+#: name — must not be reachable from a repository's prompt override.
+_PROMPT_STRING_SETTINGS = ("ROOT_GROUP_NAME", "LLM_ASSISTANT_NAME", "ENV_PREFIX")
 
 
-@lru_cache(maxsize=8)
-def _get_prompt_replacements_cached(
-    root_group_name: str,
-    assistant_name: str,
-    env_prefix: str,
-) -> dict[str, str]:
-    """Compute config-derived prompt replacements; cached on every input.
-
-    Only values that are stable for the life of a process belong here: a value
-    that changes per turn would invalidate the cacheable prefix, so volatile
-    state (the memory block) is injected via ``<live-context>`` instead.
-    """
+def _cfg_string_replacements() -> dict[str, str]:
+    """The values of the string settings a prompt may name, keyed by placeholder."""
     replacements: dict[str, str] = {}
-    cfg_values = {
-        "ROOT_GROUP_NAME": root_group_name,
-        "LLM_ASSISTANT_NAME": assistant_name,
-        "ENV_PREFIX": env_prefix,
-    }
-    for attr, value in cfg_values.items():
+    for attr in _PROMPT_STRING_SETTINGS:
+        value = getattr(CFG, attr, None)
         if value is not None:
             replacements[f"{{CFG_{attr}}}"] = str(value)
     return replacements
+
+
+def _fill_cfg_placeholders(prompt: str) -> str:
+    """Fill every ``{CFG_<KEY>}`` this prompt names when it holds a number.
+
+    Only numbers and switches. What goes stale in a prompt is a limit — a page
+    length, a timeout, a count — and that is worth naming instead of copying. A
+    credential is a string, and this text is sent to the model, so the type is
+    the rule: `isinstance(value, (int, float, bool))` and nothing else, because
+    a timeout is a float as often as a count is an int. A string setting is left
+    as written rather than guessed at, and the few strings a prompt has always
+    been able to name are listed in `_PROMPT_STRING_SETTINGS`.
+
+    Nothing is cached. The work is proportional to the placeholders the prompt
+    actually carries, and the value should be the one the setting holds when the
+    prompt is rendered.
+    """
+
+    def resolve(match: re.Match[str]) -> str:
+        value = getattr(CFG, match.group(1), None)
+        numeric = isinstance(value, (int, float, bool))
+        return str(value) if numeric else match.group(0)
+
+    return _CFG_PLACEHOLDER.sub(resolve, prompt)
 
 
 def _replace_prompt_placeholders(prompt: str, replacements: dict[str, str]) -> str:
