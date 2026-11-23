@@ -298,6 +298,23 @@ async def test_run_shell_command_pid_file_cleanup_failure_is_ignored(monkeypatch
     assert "Exit Code: 0" in res
 
 
+def test_collect_background_pids_drops_the_namespace_init(tmp_path):
+    """PID 1 is bwrap's sandbox init, never a command's background child.
+
+    Under the Linux sandbox the wrapper's `pgrep -g` also lists the namespace
+    init as PID 1, so a command that spawned nothing would otherwise report a
+    spurious background PID.
+    """
+    pid_file = tmp_path / "zrb_pids_1"
+    # The shell's `$$` first, then the group members `pgrep` appended.
+    pid_file.write_text("2\n1\n2\n7\n")
+
+    pids = shell_mod._collect_background_pids(str(pid_file), process_pid=99)
+
+    assert pids == [7]
+    assert not pid_file.exists()
+
+
 @pytest.mark.asyncio
 async def test_the_purpose_changes_no_part_of_what_runs():
     """It is narration: the command runs, and the phrase stays out of the

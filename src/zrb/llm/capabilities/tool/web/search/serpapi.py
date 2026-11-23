@@ -34,18 +34,29 @@ def search_internet(
 
     user_agent = BROWSER_USER_AGENT
 
-    response = requests.get(
-        "https://serpapi.com/search",
-        headers={"User-Agent": user_agent},
-        params={
-            "q": query,
-            "start": (page - 1) * 10,
-            "hl": language,
-            "safe": safe_search,
-            "api_key": effective_api_key,
-        },
-        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-    )
+    try:
+        response = requests.get(
+            "https://serpapi.com/search",
+            headers={"User-Agent": user_agent},
+            params={
+                "q": query,
+                "start": (page - 1) * 10,
+                "hl": language,
+                "safe": safe_search,
+                "api_key": effective_api_key,
+            },
+            timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+        )
+    except requests.RequestException as e:
+        # `requests` embeds the prepared URL — `api_key` included — in its
+        # connection and timeout messages, and this text reaches the model.
+        # Name only the exception type and the host, never the URL or query.
+        raise SearchToolError(
+            f"Error: SerpApi request failed ({type(e).__name__}) for "
+            "serpapi.com. [SYSTEM SUGGESTION]: This is likely a transient "
+            "network issue. Retry the search, or inform the user and try again "
+            "later."
+        ) from None
     if response.status_code != 200:
         raise_http_error(
             response,
