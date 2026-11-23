@@ -11,6 +11,7 @@ The agent's tools and what feeds them: web search, hooks, skill and agent discov
   - [SerpAPI (Google)](#serpapi-google)
   - [Brave Search](#brave-search)
   - [SearXNG (Self-hosted)](#searxng-self-hosted)
+- [Web Fetch Configuration](#web-fetch-configuration)
 - [LLM Hooks Configuration](#llm-hooks-configuration)
 - [Skill & Agent Search Configuration](#skill--agent-search-configuration)
   - [Search Priority](#search-priority)
@@ -57,6 +58,18 @@ Free; reads the Google News RSS feed. No API key, Docker, or configuration neede
 | `ZRB_SEARXNG_BASE_URL` | Base URL | `http://localhost:8080` |
 | `ZRB_SEARXNG_LANG` | Language | `en-US` |
 | `ZRB_SEARXNG_SAFE` | Safe search | `0` |
+
+## Web Fetch Configuration
+
+`WebFetch` opens `http` and `https` URLs only, and only when the host resolves to a public address. The check runs before both the Playwright page and the plain-HTTP fallback. Without it a `file://` URL would return a local file to the model — the sandbox deny-read list is the reason the file tools cannot read it — and a loopback, private, link-local or cloud-metadata host would turn a fetch into a request into the local network.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS` | Allow `WebFetch` to open a host that resolves to a loopback, private, link-local, multicast, reserved or unspecified address. Off reaches public hosts only; on suits a deployment that fetches from `localhost` or an intranet host. | `off` |
+
+```bash
+export ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS=on
+```
 
 ## LLM Hooks Configuration
 
