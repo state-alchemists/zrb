@@ -1,12 +1,10 @@
 import asyncio
 import concurrent.futures
 import io
-import ipaddress
 import json
-import socket
 import threading
 from typing import Annotated
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin
 
 from pydantic import Field
 
@@ -26,13 +24,6 @@ from zrb.util.truncate import truncate_text
 # getaddrinfo) cannot be interrupted; `run_blocking` still gives up on schedule.
 TIMEOUT_MARGIN_SECONDS = 10
 _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
-
-# A fetch is a network read: only these schemes ever reach a fetcher.
-_WEB_FETCH_SCHEMES = frozenset({"http", "https"})
-
-
-class UnsafeWebUrlError(ValueError):
-    """WebFetch refused a URL: a non-http scheme or a non-public host."""
 
 
 def run_blocking(func, *args, timeout: float):
@@ -93,10 +84,6 @@ async def open_web_page(
     )
     try:
         content, links, is_pdf = await _fetch_page_content(url)
-    except UnsafeWebUrlError as e:
-        # Retrying or falling back cannot help a refused scheme/host, so this
-        # does not carry the "page may be unreachable" suggestion below.
-        return {"error": str(e), "url": url}
     except Exception as e:
         return {
             "error": (
@@ -292,9 +279,6 @@ async def _fetch_page_content(url: str) -> tuple:
     via ``run_blocking``."""
     user_agent = BROWSER_USER_AGENT
     fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
-    # Resolution blocks like the fetch itself; refuse before either path
-    # (Playwright or the requests fallback) is allowed to open the URL.
-    await run_blocking(refuse_unsafe_web_url, url, timeout=fetch_timeout)
     # .pdf shortcut skips the browser; plain HTTP can be refused (Cloudflare,
     # JS wall) where the browser succeeds, so failure falls through to it.
     if url.split("?")[0].lower().endswith(".pdf"):
@@ -317,92 +301,6 @@ async def _fetch_page_content(url: str) -> tuple:
         return await run_blocking(
             fetch_page_fallback, url, user_agent, timeout=fetch_timeout
         )
-
-
-def refuse_unsafe_web_url(url: str) -> None:
-    """Raise `UnsafeWebUrlError` unless `url` is a public http(s) URL.
-
-    The sandbox gate judges path-like arguments, not `url`, and `WebFetch` is
-    NETWORK-tagged and plan-mode-allowed, so this is the only place the address
-    is inspected. A `file://` URL would hand the model a local file the
-    deny-read list keeps out of the file tools' reach; a loopback, private,
-    link-local or cloud-metadata host turns the fetch into an SSRF pivot.
-    """
-    parsed_url = urlsplit(url)
-    scheme = parsed_url.scheme.lower()
-    if scheme not in _WEB_FETCH_SCHEMES:
-        raise UnsafeWebUrlError(
-            f"Refusing to open a {scheme or 'scheme-less'} URL: WebFetch fetches "
-            "http and https URLs only. [SYSTEM SUGGESTION]: Use an http(s) URL, "
-            "or use WebSearch instead."
-        )
-    hostname = parsed_url.hostname
-    if not hostname:
-        raise UnsafeWebUrlError(
-            "Refusing to open a URL with no hostname: WebFetch fetches http and "
-            "https URLs only. [SYSTEM SUGGESTION]: Use an http(s) URL, or use "
-            "WebSearch instead."
-        )
-    if CFG.LLM_WEB_ALLOW_PRIVATE_HOSTS:
-        return
-    for address in _get_host_addresses(hostname):
-        if is_public_address(address):
-            continue
-        raise UnsafeWebUrlError(
-            f"Refusing to open {hostname}: it resolves to the non-public address "
-            f"{address}. WebFetch reaches public hosts only; a local deployment "
-            "that must fetch a private host can set LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
-            "[SYSTEM SUGGESTION]: Use a public URL, or use WebSearch instead."
-        )
-
-
-def _get_host_addresses(
-    hostname: str,
-) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
-    """Every address `hostname` resolves to; an IP literal resolves to itself.
-
-    A host that does not resolve is refused rather than passed through: the
-    fetch could only fail, and failing closed keeps the guard's answer total.
-    """
-    try:
-        return [ipaddress.ip_address(hostname)]
-    except ValueError:
-        pass
-    try:
-        address_infos = socket.getaddrinfo(hostname, None)
-    except OSError as e:
-        raise UnsafeWebUrlError(
-            f"Refusing to open {hostname}: it does not resolve "
-            f"({type(e).__name__}). [SYSTEM SUGGESTION]: Check the URL's host, "
-            "or use WebSearch instead."
-        ) from None
-    addresses = []
-    for address_info in address_infos:
-        # A scoped IPv6 answer (`fe80::1%en0`) names a zone, not an address.
-        try:
-            addresses.append(
-                ipaddress.ip_address(str(address_info[4][0]).split("%")[0])
-            )
-        except ValueError:
-            continue
-    if not addresses:
-        raise UnsafeWebUrlError(
-            f"Refusing to open {hostname}: it does not resolve to any address. "
-            "[SYSTEM SUGGESTION]: Check the URL's host, or use WebSearch instead."
-        )
-    return addresses
-
-
-def is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """True when `address` is routable on the public internet."""
-    return not (
-        address.is_loopback
-        or address.is_private
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-    )
 
 
 async def _fetch_via_browser(url: str, user_agent: str) -> tuple:

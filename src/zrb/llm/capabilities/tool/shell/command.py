@@ -449,7 +449,11 @@ async def _read_stream(
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
     """Read background PIDs from the temp file and remove it.
 
-    Excludes the first line (the shell's ``$$``) and ``process_pid``.
+    Excludes the first line (the shell's ``$$``), ``process_pid``, this
+    process, and PID 1. Under the Linux sandbox the shell runs in its own PID
+    namespace, where the wrapper's ``pgrep -g`` also lists bwrap's namespace
+    init as PID 1; it is never a command's background child, and PID 1 on the
+    host is init too.
     """
     bg_pids = []
     if temp_pid_file and os.path.exists(temp_pid_file):
@@ -458,7 +462,7 @@ def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> lis
                 pids = [int(ln.strip()) for ln in f if ln.strip().isdigit()]
             shell_pid = pids[0] if pids else -1
             for pid in pids[1:]:
-                if pid not in (process_pid, shell_pid, os.getpid()):
+                if pid not in (1, process_pid, shell_pid, os.getpid()):
                     bg_pids.append(pid)
             os.remove(temp_pid_file)
         except Exception as e:

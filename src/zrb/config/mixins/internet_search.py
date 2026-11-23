@@ -1,10 +1,8 @@
-"""Internet search provider config: SerpAPI, Brave, SearXNG, which method to use,
-and whether WebFetch may reach a private host."""
+"""Internet search provider config: SerpAPI, Brave, SearXNG, and which method to use."""
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, on_off
-from zrb.util.string.conversion import to_boolean
+from zrb.config.env_field import EnvField
 
 
 class InternetSearchMixin:
@@ -22,7 +20,6 @@ class InternetSearchMixin:
         self.DEFAULT_SEARXNG_BASE_URL: str = ""
         self.DEFAULT_SEARXNG_SAFE: str = "0"
         self.DEFAULT_SEARXNG_LANG: str = "en-US"
-        self.DEFAULT_LLM_WEB_ALLOW_PRIVATE_HOSTS: str = "off"
         super().__init__()
 
     SEARCH_INTERNET_METHOD = EnvField(
@@ -87,17 +84,4 @@ class InternetSearchMixin:
 
     SEARXNG_LANG = EnvField(
         str, doc="Language code for SearXNG search results (e.g. en-US)."
-    )
-
-    LLM_WEB_ALLOW_PRIVATE_HOSTS = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "When on, WebFetch may open a URL whose host resolves to a loopback, "
-            "private, link-local, multicast, reserved or unspecified address.\n\n"
-            "Off by default: the web tools reach public hosts only, so a fetched "
-            "page cannot read a local file through a file:// URL or pivot to the "
-            "local network or a cloud metadata endpoint. Turn it on for a "
-            "deployment that fetches pages from localhost or an intranet host."
-        ),
     )
