@@ -292,6 +292,12 @@ exclude = [
 
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
+# The gate checks the house format (`./zrb-test.sh`), so its tools belong in the
+# environment the documented setup builds with `poetry install`. The same pair
+# ships in the `python` extra for people running `zrb code format`; keep the two
+# pins equal.
+black = ">=26.10.1,<27.0.0"
+isort = ">=7.0.0,<8.0.0"
 flake8 = "^7.2.0"
 # Pinned exact: pyright ships frequent releases that add diagnostics; a caret
 # range could break the CI type-gate on an unrelated auto-upgrade.
