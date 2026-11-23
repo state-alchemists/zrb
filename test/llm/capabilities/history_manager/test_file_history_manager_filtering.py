@@ -145,8 +145,9 @@ def test_ordinary_session_stays_flat_in_history_root(temp_history_dir):
     assert not os.path.exists(os.path.join(temp_history_dir, "subagent"))
 
 
-def test_delegated_history_backup_lands_next_to_main_file(temp_history_dir):
-    "A delegated conversation's timestamped backup goes into the same"
+def test_delegated_history_backup_lands_in_its_backup_directory(temp_history_dir):
+    """A delegated conversation's backup leaves the transcript directory alone:
+    backups live under `backups/<conversation>/`, keyed by the whole name."""
     from zrb.llm.contracts.util.subagent_session_naming import (
         format_delegated_session_name,
     )
@@ -157,18 +158,17 @@ def test_delegated_history_backup_lands_next_to_main_file(temp_history_dir):
     manager.save(name)
 
     subdir = os.path.join(temp_history_dir, "subagent", "code-reviewer")
-    files = os.listdir(subdir)
-    assert f"{name}.json" in files
-    assert len(files) == 2
+    assert os.listdir(subdir) == [f"{name}.json"]
 
-    assert any(f != f"{name}.json" for f in files)
-    assert os.listdir(temp_history_dir) == ["subagent"]
+    backup_dir = os.path.join(temp_history_dir, "backups", name)
+    assert len(os.listdir(backup_dir)) == 1
+    assert set(os.listdir(temp_history_dir)) == {"subagent", "backups"}
 
 
-def test_delegated_history_rotation_scoped_to_subdirectory(
+def test_delegated_history_rotation_scoped_to_its_backup_directory(
     temp_history_dir, monkeypatch
 ):
-    "Backup rotation for a delegated conversation only ever touches files"
+    "Backup rotation for a delegated conversation only touches its own backups."
     from zrb.llm.contracts.util.subagent_session_naming import (
         format_delegated_session_name,
     )
@@ -182,10 +182,10 @@ def test_delegated_history_rotation_scoped_to_subdirectory(
         manager.save(name)
 
     subdir = os.path.join(temp_history_dir, "subagent", "researcher")
-    files = os.listdir(subdir)
-    assert f"{name}.json" in files
-    assert len(files) == 3
-    assert os.listdir(temp_history_dir) == ["subagent"]
+    assert os.listdir(subdir) == [f"{name}.json"]
+    backup_dir = os.path.join(temp_history_dir, "backups", name)
+    assert len(os.listdir(backup_dir)) == 2
+    assert set(os.listdir(temp_history_dir)) == {"subagent", "backups"}
 
 
 def test_delegated_history_legacy_flat_file_still_loads(temp_history_dir):

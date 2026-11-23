@@ -120,7 +120,7 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 - The whole history is the one exception. At split zero nothing is rendered, so `count_history_tokens` counts its content instead; otherwise a tool-heavy history would "fit" a budget it overruns, and a compaction that summarized nothing would leave it whole.
 - A counting subclass keeps its own counter, because the bisected scan declines to trust one.
 
-**Saving.** `save` serializes the list, validates it, writes a sibling `.tmp` file and renames it over the live one. The final save of a turn may also write a timestamped backup; mid-turn checkpoints pass `write_backup=False`.
+**Saving.** `save` serializes the list, validates it, writes a uniquely named temporary file in the same directory (`tempfile.mkstemp`, so two concurrent saves of one conversation never share an inode) and `os.replace`s it over the live one. The final save of a turn may also write a timestamped backup under `<LLM_HISTORY_DIR>/backups/<conversation>/`; mid-turn checkpoints pass `write_backup=False`. Backups sit apart from live transcripts so rotation can never mistake a conversation whose name ends in a timestamp for a backup of another, and `search`/session listing, which read only the root and `subagent/`, never offer one as a conversation. Backups written flat in the root before this layout stay where they are and remain readable; they are not auto-migrated.
 
 ### Variations
 

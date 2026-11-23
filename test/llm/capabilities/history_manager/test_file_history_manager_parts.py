@@ -236,9 +236,9 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
 
     frozen_time = datetime(2026, 1, 1, 10, 0, 0)
 
-    backup_path = os.path.join(
-        temp_history_dir, "test-session-2026-01-01-10-00-00.json"
-    )
+    backup_dir = os.path.join(temp_history_dir, "backups", "test-session")
+    os.makedirs(backup_dir)
+    backup_path = os.path.join(backup_dir, "2026-01-01-10-00-00.json")
     with open(backup_path, "w") as f:
         f.write("{}")
 
@@ -249,7 +249,7 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
         mock_dt.now.return_value = frozen_time
         manager.save("test-session")
 
-    files = os.listdir(temp_history_dir)
+    files = os.listdir(backup_dir)
     assert any("10-00-00-1.json" in f for f in files)
 
 
@@ -288,17 +288,12 @@ def test_save_handles_os_error(temp_history_dir):
     manager.update("os-error-session", messages)
     mtime_before = manager.cache_sync_mtime("os-error-session")
 
-    original_os_open = os.open
-
-    def mock_os_open_selective(path, *args, **kwargs):
-        if "os-error-session" in str(path):
-            raise OSError("disk full")
-        return original_os_open(path, *args, **kwargs)
-
     from unittest.mock import patch
 
-    with patch("os.open", side_effect=mock_os_open_selective):
-
+    with patch(
+        "zrb.llm.capabilities.history_manager.file_history_manager.tempfile.mkstemp",
+        side_effect=OSError("disk full"),
+    ):
         manager.save("os-error-session")
 
     assert manager.is_dirty("os-error-session")

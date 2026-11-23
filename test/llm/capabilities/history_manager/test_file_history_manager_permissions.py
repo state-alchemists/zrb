@@ -55,11 +55,11 @@ def test_a_backup_file_is_created_owner_only(tmp_path, monkeypatch):
     finally:
         os.umask(old_umask)
 
-    backups = [n for n in os.listdir(history_dir) if n != "hello.json"]
+    backup_dir = os.path.join(history_dir, "backups", "hello")
+    backups = os.listdir(backup_dir)
     assert backups, "expected a backup file to have been written"
     assert (
-        stat.S_IMODE(os.stat(os.path.join(history_dir, backups[0])).st_mode)
-        == FILE_MODE
+        stat.S_IMODE(os.stat(os.path.join(backup_dir, backups[0])).st_mode) == FILE_MODE
     )
 
 

@@ -53,6 +53,22 @@ def test_an_expired_auto_named_conversation_is_pruned_with_its_backups(
     assert os.path.exists(fresh)
 
 
+def test_an_expired_auto_named_conversation_takes_its_backup_directory(
+    history_dir, retention
+):
+    """Pruning a conversation also collects the backup set it owns, so
+    retention leaves no backups of a conversation that no longer exists."""
+    old = _write(history_dir, "bold-arch-1234", age_seconds=3 * 86400)
+    backup_dir = os.path.join(history_dir, "backups", "bold-arch-1234")
+    os.makedirs(backup_dir)
+    _write(backup_dir, "2024-01-01-10-00-00", age_seconds=3 * 86400)
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert not os.path.exists(old)
+    assert not os.path.exists(backup_dir)
+
+
 def test_an_expired_topic_named_conversation_is_pruned_too(history_dir, retention):
     old = _write(history_dir, "bold-arch-1234-greetings", age_seconds=3 * 86400)
     old_backup = _write(

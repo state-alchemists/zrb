@@ -55,10 +55,11 @@ def _history(history_dir, name: str, body: str = "[]") -> str:
 
 
 def _backup(history_dir, base_name: str, body: str) -> str:
-    """A retained timestamped backup, named the way `_get_backup_file_path`
-    actually spells one: `<base>-YYYY-MM-DD-HH-MM-SS.json`, not a numbered
-    `.json.N` suffix — it still ends in `.json`, like the live file."""
-    path = os.path.join(str(history_dir), f"{base_name}-2020-01-01-00-00-00.json")
+    """A retained timestamped backup, written the way `_get_backup_file_path`
+    actually spells one: `backups/<conversation>/<timestamp>.json`."""
+    directory = os.path.join(str(history_dir), "backups", base_name)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "2020-01-01-00-00-00.json")
     with open(path, "w", encoding="utf-8") as stream:
         stream.write(body)
     return path
@@ -147,11 +148,9 @@ def test_retention_off_keeps_every_archive(history_dir, retention):
 
 def test_an_archive_named_only_by_a_retained_backup_is_kept(history_dir, retention):
     """The live history for a conversation can be gone — renamed, or itself
-    already pruned — while a retained backup beside it still names the
-    archive. `_references_named_in` reads every `.json` file in the directory,
-    not just ones matching the live-file naming shape, so this already works;
-    pinned here since a backup file ends in plain `.json` in this codebase,
-    not the `.json.N` shape a reviewer once assumed it would."""
+    already pruned — while a retained backup under `backups/` still names the
+    archive. `_referenced_artifacts` reads the backup directories too, not
+    only the live transcripts in the history root and `subagent/`."""
     path = _archive(history_dir, "kept")
     _backup(history_dir, "mine", _pointer_to(history_dir, "kept"))
 
