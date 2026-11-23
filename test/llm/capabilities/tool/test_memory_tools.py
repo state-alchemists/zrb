@@ -7,6 +7,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.memory import forget, remember, search_memory
 from zrb.llm.contracts.memory import paths, store
+from zrb.llm.contracts.memory.model import digest_body
 from zrb.llm.contracts.shared.usage_log import (
     COMPONENT_HOOK,
     COMPONENT_MAIN,
@@ -228,7 +229,12 @@ def test_a_malformed_date_is_not_a_fact_id(store_dir):
 def test_a_diary_can_be_revised_without_repeating_kind(store_dir):
     """A date names a diary entry and nothing else, so the kind is inferable."""
     remember("2026-11-03", "A day.", kind="diary", body="first telling")
-    message = remember("2026-11-03", "A day, told again.", body="second telling")
+    message = remember(
+        "2026-11-03",
+        "A day, told again.",
+        body="second telling",
+        body_digest=digest_body("first telling"),
+    )
     assert "Remembered the day" in message
     entry = store.load_diary("2026-11-03")
     assert entry is not None
@@ -468,3 +474,19 @@ def test_search_returns_a_pointer_with_a_path(store_dir):
 def test_search_with_an_unknown_scope_is_refused(store_dir):
     text = search_memory("x", scope="sessions")
     assert "retry with one of the listed scopes" in text
+
+
+def test_the_tool_description_states_the_limits_the_code_enforces():
+    """The text a model reads names the lengths the code actually enforces.
+
+    The diary's page moved from 8,000 to 12,000 in the same week the schema still
+    said 8,000. The lengths are read where the tool is built, not typed here.
+    """
+    from zrb.llm.contracts.memory.model import body_limit, compact_at
+    from zrb.llm.engine.agent.common import wrap_tool
+
+    description = wrap_tool(remember).description
+    assert str(body_limit("fact")) in description
+    assert str(body_limit("diary")) in description
+    assert str(compact_at("diary")) in description
+    assert str(CFG.LLM_MEMORY_HANDOVER_MAX_CHARS) in description

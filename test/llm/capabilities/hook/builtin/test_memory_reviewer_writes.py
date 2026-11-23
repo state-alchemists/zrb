@@ -31,6 +31,10 @@ def store_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 4_000, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_LOCK_TIMEOUT", 5.0, raising=False)
+    # Pinned, so the day these tests build is sized for a threshold this file
+    # knows rather than for whichever pair currently ships.
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 8_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_COMPACT_AT", 6_000, raising=False)
     paths.ensure_store()
     return tmp_path / "memory"
 
