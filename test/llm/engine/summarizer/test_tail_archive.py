@@ -76,6 +76,22 @@ def _conversation_around_a_big_result():
     return messages
 
 
+def _conversation_ending_in_a_pending_call():
+    """The same tail, then a deferred call whose turn must stay structured."""
+    return _conversation_around_a_big_result() + [
+        ModelRequest(parts=[UserPromptPart(content="clean up the temp dir")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="run_shell",
+                    args={"cmd": "rm -rf /tmp/x"},
+                    tool_call_id="pending-1",
+                )
+            ]
+        ),
+    ]
+
+
 def _history_text(messages) -> str:
     return "\n".join(
         str(getattr(part, "content", ""))
@@ -173,3 +189,51 @@ async def test_a_second_compaction_does_not_archive_the_tail_again(
         verbatim_archive_path("tail-twice", str(tmp_path)), encoding="utf-8"
     ).read()
     assert archived.count(_MIDDLE_MARKER) == 1
+
+
+@pytest.mark.asyncio
+async def test_the_tail_is_aligned_when_a_pending_call_stays_structured(
+    tmp_path, monkeypatch
+):
+    """The structured tail is part of the tail, so it must count toward the
+    source suffix.
+
+    A trailing deferred call is kept as native messages instead of being
+    rendered, and `_clipped_tail` used to receive the rendered part while
+    slicing the verbatim source by that shorter length. Every index then moved
+    by the structured part's size: the clipped result's middle was lost and the
+    turn after it — still in the history in full — was archived in its place.
+    """
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.engine.summarizer import summarize_history
+
+    messages = _conversation_ending_in_a_pending_call()
+    new_history = await summarize_history(
+        messages,
+        agent=_agent(),
+        summary_window=30,
+        conversational_token_threshold=1_500,
+        session_name="tail-pending",
+        verbatim_source=list(messages),
+    )
+
+    rendered = _history_text(new_history)
+    # The result stayed in the kept tail: its head and end were rendered...
+    assert _HEAD_MARKER in rendered
+    assert _END_MARKER in rendered
+    # ...its middle was clipped out of it...
+    assert _MIDDLE_MARKER not in rendered
+    assert "[truncated:" in rendered
+
+    archived = open(
+        verbatim_archive_path("tail-pending", str(tmp_path)), encoding="utf-8"
+    ).read()
+    # ...and the archive holds the whole of the result itself.
+    assert _MIDDLE_MARKER in archived
+    # The neighbour after it is still in the history in full, so archiving it
+    # would duplicate a retained turn; the pending call stays native messages,
+    # so its arguments are not archived either.
+    assert "It has three markers." not in archived
+    assert "rm -rf /tmp/x" not in archived

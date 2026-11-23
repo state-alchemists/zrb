@@ -495,7 +495,7 @@ async def summarize_history(
         kept_verbatim = to_keep[: len(to_keep) - len(structured_tail)]
         archived = _without_prior_summaries(
             _verbatim_prefix(to_summarize, messages, verbatim_source)
-            + _clipped_tail(kept_verbatim, messages, verbatim_source)
+            + _clipped_tail(kept_verbatim, len(to_keep), messages, verbatim_source)
         )
         if not archived:
             # Nothing but prior summaries here, which the archive does not
@@ -1163,7 +1163,8 @@ def _verbatim_prefix(
 
 
 def _clipped_tail(
-    to_keep: "list[ModelMessage]",
+    kept_verbatim: "list[ModelMessage]",
+    tail_size: int,
     messages: "list[ModelMessage]",
     verbatim_source: "list[ModelMessage] | None",
 ) -> "list[ModelMessage]":
@@ -1184,18 +1185,22 @@ def _clipped_tail(
     rule: a message is archived exactly when the text the model sees differs from
     the text the conversation held.
 
-    The tail is the suffix of `messages`, so the same suffix of
-    `verbatim_source` is the same turns before fat tool results were pruned. A
-    source that does not line up is ignored, as in `_verbatim_prefix`.
+    *kept_verbatim* is the kept tail minus its structured part, but *tail_size*
+    is the whole tail (structured part included): the source suffix must be
+    measured from the whole, or every message in the structured part shifts the
+    alignment and the archive records the wrong turns. The tail is the suffix of
+    `messages`, so the same suffix of `verbatim_source` is the same turns before
+    fat tool results were pruned. A source that does not line up is ignored, as
+    in `_verbatim_prefix`.
     """
-    if not to_keep:
+    if not kept_verbatim:
         return []
-    originals = to_keep
+    originals = kept_verbatim
     if verbatim_source is not None and len(verbatim_source) == len(messages):
-        originals = verbatim_source[len(messages) - len(to_keep) :]
+        originals = verbatim_source[len(messages) - tail_size :]
     return [
         original
-        for message, original in zip(to_keep, originals)
+        for message, original in zip(kept_verbatim, originals)
         if _is_render_lossy(message)
     ]
 
