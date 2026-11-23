@@ -66,6 +66,11 @@ _ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _WEEK = re.compile(r"^\d{4}-W\d{2}$")
 
+# The hour a paragraph names, `HH:MM` on the 24-hour clock. A diary paragraph
+# opens on the hour it happened at, so the earliest one a body carries is when
+# its day began — the one property of a day's shape a rewrite can be held to.
+_HOUR = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
+
 # Markers that only make sense as instructions to a model. A memory is read back
 # inside a later prompt, so a line holding one is a poisoned fact, not a claim.
 #
@@ -501,20 +506,63 @@ def append_past_compaction(body: str, kind: str = KIND_DIARY) -> str | None:
 def rewrite_not_compacted(
     before: str, after: str, kind: str = KIND_DIARY
 ) -> str | None:
-    """Why a rewrite may not leave a full day where it was, or ``None``.
+    """Why a rewrite may not land at or over the compaction point, or ``None``.
 
-    A rewrite is the one write that can shorten a page, so from a page past the
-    threshold it *is* a compaction and has to behave like one: a body that lands
-    at or over the threshold again has kept every paragraph and freed nothing,
-    and the day is exactly as stuck as it was before the write.
+    A rewrite is the one write that skips `body_overflow`, so it is the one that
+    can carry a page to its ceiling and leave the next paragraph with nothing: a
+    day rewritten to 7,980 of 8,000 every turn compacts forever and frees nothing,
+    and the writer that arrives next is the one refused.
+
+    Two shapes end there. From a page past the point a rewrite *is* a compaction
+    and has to behave like one, so it has to free something. From a page under it
+    a rewrite may grow, but not past the point — growth is what an append is for,
+    and an append is measured against the whole it makes. Both answers are one:
+    a rewrite lands under the point.
     """
     at = compact_at(kind)
-    if len(before) < at or len(after) < at:
+    if len(after) < at:
         return None
+    if len(before) < at:
+        return (
+            f"The rewrite is {len(after)} characters and a diary is compacted "
+            f"from {at}: a page under that grows by an append, one paragraph at a "
+            "time, so a rewrite may not jump it to the ceiling in one write."
+        )
     return (
         f"The day it replaces is {len(before)} characters and this rewrite is "
         f"{len(after)}: a diary is compacted from {at}, so a body that lands at "
         "or over that has freed nothing and the page is as full as it was."
+    )
+
+
+def first_hour(body: str) -> str | None:
+    """The earliest ``HH:MM`` *body* names, or ``None`` when it names none."""
+    hours = _HOUR.findall(body)
+    return min(hours) if hours else None
+
+
+def rewrite_starts_later(before: str, after: str, kind: str = KIND_DIARY) -> str | None:
+    """Why a rewrite may not open the day later than the day opened, or ``None``.
+
+    A rewrite is the one write that can lose a paragraph, and the paragraph it
+    loses first is the one it read least recently: the morning. A compaction keeps
+    every moment and shortens the detail, so the hour the day began at survives it,
+    and a page that opens at 17:54 in place of one that opened at 06:37 is not a
+    compaction — it is a new page wearing the day's name. Measured on the earliest
+    hour each body names, which is a property of the two pages rather than of the
+    clock the writer was reading; a body naming no hour is passed, because a day
+    made of paragraphs without hours has no opening to keep.
+    """
+    if kind != KIND_DIARY:
+        return None
+    opened = first_hour(before)
+    opens = first_hour(after)
+    if opened is None or opens is None or opens <= opened:
+        return None
+    return (
+        f"The day it replaces opened at {opened} and this rewrite opens at "
+        f"{opens}: a compaction keeps the hour the day began at, so a day is "
+        "compressed, not restarted."
     )
 
 

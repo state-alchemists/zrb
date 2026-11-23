@@ -13,10 +13,13 @@ from zrb.llm.contracts.memory.model import (
     claim_error,
     compact_at,
     date_error,
+    first_hour,
     handover_error,
     id_error,
     injection_reason,
     reason_error,
+    rewrite_not_compacted,
+    rewrite_starts_later,
     split_document,
 )
 
@@ -152,6 +155,19 @@ def test_a_diary_is_compacted_before_its_cap(monkeypatch):
     assert compact_at("diary") == 600
 
 
+def test_a_rewrite_may_not_jump_a_page_from_under_the_point_to_the_cap(monkeypatch):
+    """Growth is an append's job, and an append is measured against the whole.
+
+    A rewrite skips that measurement: from 500 it can carry the day to 990 in one
+    write, and the append after it is refused against a page no append grew into.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 1_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_COMPACT_AT", 600, raising=False)
+    assert rewrite_not_compacted("x" * 500, "x" * 599) is None
+    refusal = rewrite_not_compacted("x" * 500, "x" * 600)
+    assert refusal is not None and "600" in refusal
+
+
 def test_a_compaction_point_above_the_cap_leaves_only_the_cap(monkeypatch):
     """A threshold past the cap asks for a page the cap refuses; it is clamped."""
     monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 1_000, raising=False)
@@ -162,6 +178,30 @@ def test_a_compaction_point_above_the_cap_leaves_only_the_cap(monkeypatch):
 def test_a_fact_is_compacted_at_its_cap(monkeypatch):
     """A fact is evidence about one subject, replaced rather than carried on."""
     assert compact_at("fact") == body_limit("fact")
+
+
+def test_a_body_is_dated_by_the_earliest_hour_it_names():
+    """The hour a body opens at is the oldest one in it, not the first written."""
+    assert first_hour("10:09 — Later.\n\n06:37 — Earlier.") == "06:37"
+    assert first_hour("No hour in this paragraph.") is None
+    assert first_hour("6:37 is not the clock's shape.") is None
+
+
+def test_a_rewrite_may_not_open_the_day_later():
+    """The one property of a day's shape a rewrite can be held to.
+
+    A compaction keeps the hour the day began at and shortens the detail; a page
+    that opens at 17:54 in place of one that opened at 06:37 has dropped the
+    morning. A body naming no hour has no opening to keep, so it is passed.
+    """
+    assert rewrite_starts_later("06:37 — A.", "06:37 — A, shorter.") is None
+    assert rewrite_starts_later("06:37 — A.", "17:54 — B.") is not None
+    assert rewrite_starts_later("06:37 — A.", "A body with no hour.") is None
+
+
+def test_a_fact_body_keeps_no_opening(monkeypatch):
+    """Evidence about one subject is replaced as a whole, so its hours may move."""
+    assert rewrite_starts_later("06:37 — A.", "17:54 — B.", kind="fact") is None
 
 
 def test_a_fact_round_trips_through_markdown():

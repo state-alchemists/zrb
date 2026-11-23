@@ -169,13 +169,15 @@ turn only.
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
 | `claim` | yes | The day in one line, ≤ 160 chars. This is what the recent block shows for that day, so a day stops being inferred from its log lines. Required on creation; omitted keeps the stored sentence, so a handover-only revision does not rewrite the day — see §5's merge rule. |
 | `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
-| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (8,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the whole it becomes; past `LLM_MEMORY_DIARY_COMPACT_AT` (6,000) it is refused, because the page is meant to be shortened before it is grown. `body_mode="w"` replaces the page, and with `body_digest` — the digest shown beside the body it read — the write is refused when the day moved in between. From a page past the threshold a rewrite must land below it: a body that lands at or over the threshold again has dropped nothing and is refused. |
+| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (12,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the whole it becomes; past `LLM_MEMORY_DIARY_COMPACT_AT` (10,000) it is refused, because the page is meant to be shortened before it is grown. `body_mode="w"` replaces the page and needs `body_digest` — the digest shown beside the body it read — so a replace that names no page is refused, and one whose digest no longer matches is refused too. From a page past the threshold a rewrite must land below it, and it may not open the day later than the day opened: a body that lands at or over the threshold again has dropped nothing, and one that opens at 17:54 in place of 06:37 has dropped the morning. The same rule binds from below — a rewrite of a page under the threshold may not land at or over it, because a page that small grows by an append, and an append is measured against the whole it makes. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
 | `status` | yes | Always `active`; only `forget(reason="wrong")` can retire it. `stale` and `done` are refused, because a day does not stop being true. |
 
 A second session on the same day `remember`s into the same file and merges — which is what adding to a diary is. Omitted fields keep their stored values, so a session that only appends a paragraph cannot wipe the handover. `body_mode="a"` is how that paragraph is added without reading the day back: the join happens inside the store's lock, one blank line apart, because only the lock knows what the day already says.
 
 A rewrite is the one diary write that can lose another's work. It replaces the whole page, and whoever wrote it read the day some seconds earlier — long enough for a second session to append a paragraph that the rewrite then replaces with a copy that never held it. `body_digest` names the body that was read; the store compares it under the lock, against the body being replaced, and refuses a stale rewrite with the day as it is now, so the caller merges instead of overwriting. An append carries no digest: it is measured against the day as it stands, which the lock already guarantees.
+
+Two further refusals sit on the same write, because a page can always be shortened for the wrong reason. **A rewrite that names no page at all is refused.** The first diary write of a session reads nothing, so it has no digest to send, and a replace carrying none cannot be told from a compaction by a page it never opened: on 2026-11-23 a fresh session replaced a 6,073-character day with its own 658 characters of evening, and both length rules passed — one asks whether the body fits the cap, the other whether it freed anything, and neither compares the two pages. **A rewrite may not open the day later than the day opened.** A compaction keeps every moment and shortens the detail, so the hour the day began at survives it; the check reads the earliest `HH:MM` each body names, and a page that opens at 17:54 in place of one that opened at 06:37 is a new page wearing the day's name. A body naming no hour is passed by both, having no opening to keep. What neither rule can check is what a rewrite kept: that is the writer's judgement, which is why the reviewer's prompt still states it and why the tool only refuses the shapes where the judgement is not needed.
 
 ### 3.4 A week note — `week/<YYYY-Www>.md` with `kind: week`
 
@@ -446,7 +448,7 @@ Three tools. Two of them write.
 | Tool | Capability | Signature |
 |---|---|---|
 | `search` | `READ` | `search(query, scope="facts", limit=10)` |
-| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
+| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None, body_digest=None)` |
 | `forget` | `EDIT` | `forget(id, reason)` where `reason ∈ {wrong, stale, done}` |
 
 There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or `list` tool. Each is either already possible (`read`) or is a `remember` call with a different `kind` (diary, handover).
@@ -455,7 +457,7 @@ There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or
 
 ```
 remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
-         source=None, handover=None, body=None, body_mode=None):
+         source=None, handover=None, body=None, body_mode=None, body_digest=None):
     require kind in {fact, loop, diary}
     require one_sentence(claim, max=160) unless claim is None
     if kind == "diary":
@@ -477,6 +479,12 @@ remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
     fields = merge(old.fields, given)                # unspecified fields keep their old values
     body   = old.body + "\n\n" + body if body_mode == "a" else (body or old.body)
     require body_mode != "a" or len(body) <= DIARY_MAX         # the whole it becomes
+    if body_mode == "w" and old is not None:                   # a replace of an existing day
+        require body_digest == digest(old.body)                # the page this caller read
+        require len(body) < COMPACT_AT                         # a rewrite lands under the point
+        opened = first_hour(old.body)
+        require opened is None or first_hour(body) is None     # and keeps the morning it opened
+                          or first_hour(body) >= opened
     fields.status = "active"; fields.updated = now()
     core   = render_core(load_all() + this fact)     # computed BEFORE anything is written
     if len(core) > CORE_MAX:
@@ -487,6 +495,14 @@ remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
         git_commit(f"remember: {id}")
     return f"Remembered {id} ({len(core)}/{CORE_MAX} chars)"
 ```
+
+A replace of an existing day is the only write that can lose another session's
+paragraph, so it carries three requirements and refuses rather than repairs: the
+digest names the body the caller read, the rewrite lands below the compaction
+point from either side, and it does not open the day later than the day opened.
+Each is checked under the lock, against the body being replaced, and a refusal
+returns the day as it now stands so the caller merges instead of overwriting.
+The length rules above are the ones a replace would otherwise skip.
 
 The append join runs inside the lock, not before it: the day it is joining is the
 store's to read, and a session that reads it itself pays for the whole body in
@@ -693,8 +709,8 @@ Two lines the Journal section had are absent rather than zeroed. A search's **ou
 | `LLM_MEMORY_RECENT_LOG_LINES` | `4` | Log lines in the recent block |
 | `LLM_MEMORY_RECENT_MAX_CHARS` | `1600` | The recent block cap |
 | `LLM_MEMORY_LOG_RETENTION_DAYS` | `0` | `0` keeps every day file; `180` prunes logs only — never facts or diaries |
-| `LLM_MEMORY_DIARY_MAX_CHARS` | `8000` | Diary body cap; a page, not a transcript |
-| `LLM_MEMORY_DIARY_COMPACT_AT` | `6000` | Where the page is compacted instead of grown: an append is refused past it, and a rewrite from past it must land below it |
+| `LLM_MEMORY_DIARY_MAX_CHARS` | `12000` | Diary body cap; a page, not a transcript |
+| `LLM_MEMORY_DIARY_COMPACT_AT` | `10000` | Where the page is compacted instead of grown: an append is refused past it, and a rewrite must land below it from either side |
 | `LLM_MEMORY_HANDOVER_MAX_CHARS` | `700` | The handover field cap |
 | `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS` | `7` | How far back a handover is still current |
 | `LLM_MEMORY_DELTA_PER_TURN` | `3` | Lines in `<memory-delta>` |
