@@ -130,3 +130,91 @@ async def test_a_snapshot_submitted_after_the_writer_went_idle_is_still_written(
     await writer.drain()
 
     assert written == [["a"], ["b"]]
+
+
+@pytest.mark.asyncio
+async def test_a_synchronous_checkpoint_failure_is_reported_at_drain(caplog):
+    """A raise from the checkpointer call used to kill the writer task.
+
+    `_in_flight` was cleared in a `finally`, so `drain` had nothing to await:
+    the failure reached only the event loop's garbage collector and the
+    snapshot was lost.
+    """
+    calls: list[list] = []
+    written: list[list] = []
+
+    async def write(snapshot):
+        written.append(snapshot)
+
+    def flaky(snapshot):
+        calls.append(snapshot)
+        if len(calls) == 1:
+            raise RuntimeError("cannot serialize")
+        return write(snapshot)
+
+    writer = CheckpointWriter(flaky)
+    writer.submit(["only"])
+    await _until(lambda: calls == [["only"]])
+
+    with caplog.at_level(logging.WARNING):
+        await writer.drain()
+
+    assert calls == [["only"], ["only"]]
+    assert written == [["only"]]
+    assert "Checkpoint save failed: cannot serialize" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_non_awaitable_checkpoint_return_is_reported_and_retried(caplog):
+    """A `checkpoint_fn` that returns None crashed `gather` the same way."""
+    calls: list[list] = []
+    written: list[list] = []
+
+    async def write(snapshot):
+        written.append(snapshot)
+
+    def mis_typed(snapshot):
+        calls.append(snapshot)
+        if len(calls) == 1:
+            return None
+        return write(snapshot)
+
+    writer = CheckpointWriter(mis_typed)
+    writer.submit(["only"])
+    await _until(lambda: calls == [["only"]])
+
+    with caplog.at_level(logging.WARNING):
+        await writer.drain()
+
+    assert calls == [["only"], ["only"]]
+    assert written == [["only"]]
+    assert "Checkpoint save failed:" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_the_snapshot_waiting_behind_a_failed_write_is_still_written(caplog):
+    """The failed write leaves its snapshot waiting; a newer one replaces it and
+    `drain` still gets the last one out."""
+    calls: list[list] = []
+    written: list[list] = []
+
+    async def write(snapshot):
+        written.append(snapshot)
+
+    def flaky(snapshot):
+        calls.append(snapshot)
+        if len(calls) == 1:
+            raise RuntimeError("cannot serialize")
+        return write(snapshot)
+
+    writer = CheckpointWriter(flaky)
+    writer.submit(["old"])
+    await _until(lambda: calls == [["old"]])
+    writer.submit(["new"])
+
+    with caplog.at_level(logging.WARNING):
+        await writer.drain()
+
+    assert calls == [["old"], ["new"]]
+    assert written == [["new"]]
+    assert "Checkpoint save failed: cannot serialize" in caplog.text

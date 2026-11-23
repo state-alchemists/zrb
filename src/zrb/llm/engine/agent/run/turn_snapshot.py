@@ -1,7 +1,8 @@
 """Turn-start filesystem snapshots used by the self-review gate.
 
 Snapshots use a temporary store and are skipped permanently for workdirs that
-exceed listing or hashing limits."""
+exceed listing or hashing limits; a snapshot that merely timed out is retried
+on a later turn."""
 
 from __future__ import annotations
 
@@ -39,8 +40,14 @@ class TurnSnapshot:
             return
         try:
             snapshot = store.snapshot()
-        except (SnapshotBudgetError, SnapshotTimeoutError) as e:
+        except SnapshotBudgetError as e:
             _give_up_on(workdir, e)
+            store.delete()
+            return
+        except SnapshotTimeoutError as e:
+            # A timeout is transient: the directory is not over any limit, so a
+            # later turn may get through and must be allowed to try.
+            logger.warning(f"Turn snapshot of {workdir} timed out: {e}")
             store.delete()
             return
         except (SnapshotError, OSError) as e:

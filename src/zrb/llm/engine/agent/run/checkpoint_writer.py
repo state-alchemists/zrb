@@ -42,21 +42,48 @@ class CheckpointWriter:
             self._in_flight = asyncio.create_task(self._write_until_caught_up())
 
     async def _write_until_caught_up(self) -> None:
-        try:
-            while self._latest is not None:
-                snapshot, self._latest = self._latest, None
-                for result in await asyncio.gather(
+        while self._latest is not None:
+            snapshot = self._latest
+            self._latest = None
+            try:
+                results = await asyncio.gather(
                     self._checkpoint_fn(snapshot), return_exceptions=True
-                ):
-                    if isinstance(result, Exception):
-                        CFG.LOGGER.warning(f"Checkpoint save failed: {result}")
-        finally:
-            self._in_flight = None
+                )
+            except Exception:
+                # The checkpointer raised before it handed back an awaitable, or
+                # handed back something that is not one. The task keeps the
+                # failure for `drain` to retrieve, and the snapshot it owed
+                # stays waiting unless a newer one has replaced it.
+                if self._latest is None:
+                    self._latest = snapshot
+                raise
+            for result in results:
+                if isinstance(result, Exception):
+                    CFG.LOGGER.warning(f"Checkpoint save failed: {result}")
+        self._in_flight = None
 
     async def drain(self) -> None:
-        """Wait for every write this writer owes, the last snapshot included."""
-        if self._in_flight is not None:
-            await asyncio.gather(self._in_flight, return_exceptions=True)
+        """Wait for every write this writer owes, the last snapshot included.
+
+        A write that failed before it could reach `_latest` is awaited here:
+        that is where its failure is retrieved, rather than left to the event
+        loop's garbage collector, and the snapshot still waiting gets the
+        attempt the failed write never made.
+        """
+        task = self._in_flight
+        if task is None:
+            return
+        try:
+            await task
+        except Exception as e:
+            CFG.LOGGER.warning(f"Checkpoint save failed: {e}")
+            if self._latest is not None:
+                try:
+                    await self._write_until_caught_up()
+                except Exception as retry_error:
+                    CFG.LOGGER.warning(f"Checkpoint save failed: {retry_error}")
+        finally:
+            self._in_flight = None
 
 
 def create_checkpoint_writer(
