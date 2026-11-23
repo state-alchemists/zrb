@@ -23,7 +23,7 @@ A variable of your own can be a near miss of a setting without being a typo — 
 
 A *retired* setting still in your environment is named at startup too, with what replaces it: `ZRB_LLM_VOICE_MODE is no longer read and is ignored. Set ZRB_LLM_DICTATION_BACKEND instead.` The full list is in `src/zrb/config/retired.py`; the [Upgrading Guide](../advanced-topics/upgrading-guide.md) explains each change.
 
-A *deprecated* setting is different: it is still read, so nothing you set stops working, and the line names the spelling to use instead. Every on/off knob ends in `_ENABLED`, so the older `ZRB_LLM_ENABLE_*` and bare spellings are deprecated aliases — `ZRB_LLM_ENABLE_REWIND` still sets `LLM_REWIND_ENABLED`, and `CFG.LLM_ENABLE_REWIND = ...` still assigns it, each with one warning. When both spellings are set, the new one wins.
+There is a third case, and 4.0.0 is where it ends. A *renamed* setting used to answer to its old name as a deprecated alias: still read, still assignable on `CFG`, one warning. Those aliases are gone. A rename now happens inside a major and the old name is retired at the next one, so a variable you set that no longer exists reaches you as the retired-setting line above, naming what to set instead. [Upgrading to 4.0.0](../advanced-topics/upgrading-guide.md#upgrading-to-400) lists every name that stopped being read.
 
 ---
 

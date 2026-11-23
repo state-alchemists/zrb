@@ -31,7 +31,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 4.0.0
 
-One change, and it is an import change: `zrb.llm` is sorted into five directories, one per layer, and every unit that used to sit at the top of the package has moved into one of them. Nothing behaves differently; the modules are the same modules at new paths.
+Two changes: the import paths, and the old setting names. `zrb.llm` is sorted into five directories, one per layer, and every unit that used to sit at the top of the package has moved into one of them. Nothing behaves differently; the modules are the same modules at new paths.
 
 **The five directories**, in layer order: `contracts/` (L0), `capabilities/` (L1), `engine/` (L2), `orchestration/` (L3), `presentation/` (L4). A module's layer is now its first path segment, so there is no table to consult and no filename convention that grants a rank.
 
@@ -72,6 +72,16 @@ Search for `zrb.llm.` and check every hit against the table above. The two shape
 Three speech settings are retired and reported at startup with what replaced them: `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` (nothing — a reply is read whole, and a long one is no longer compressed), and `ZRB_LLM_SPEECH_SUMMARY_MODEL` / `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT`, which are now `ZRB_LLM_SPEECH_REPAIR_MODEL` / `ZRB_LLM_SPEECH_REPAIR_TIMEOUT` and bound the one model call speech still makes. A reply's one breath is its `<spoken>` block; a reply that opened none is repaired at the end of the turn, and nothing else shortens what is read aloud.
 
 **`SpeechConfig` takes keywords only.** It used to accept its fields by position as well, on the rule that a new field goes at the end so the ones before it keep their meaning. Retiring the three summary settings broke that rule's premise, because they sat among the middle fields: `progress_interval`, `events`, `openai_model` and every field after them moved up three places, so a call written against 4.0.0b1 would have set `progress_interval` from the `600` it meant for `summarize_above_chars`, and `openai_base_url` from what it meant for `progress_interval`. Nothing in zrb builds one that way and every example in these docs was already keyword, but a `zrb_init.py` that did has to be changed: name every field, and the values land where you meant. The constructor now refuses a positional argument outright, so no later field can ever be added or retired into a caller's argument by accident.
+
+### The old setting names are gone
+
+3.35.0 renamed every on/off switch to `<x>_ENABLED` and kept the old spelling as a deprecated alias, so nothing broke then. Those aliases are gone in 4.0.0, and so are the `CFG.<old> = ...` assignments they carried: `ZRB_LLM_ENABLE_REWIND` is not read at all now, and startup says which name to use instead.
+
+```
+ZRB_LLM_ENABLE_REWIND is no longer read and is ignored. Set ZRB_LLM_REWIND_ENABLED instead.
+```
+
+Every row of the [3.35.0 table](#upgrading-to-3350) is affected; the new names are the same ones that release gave them, so the fix is a rename, not a rewrite. Thirty spellings retired this way, including the two `ENABLE_*` names that never carried the `LLM_` prefix and `WEB_ENABLE_SECURE_COOKIES`.
 
 ---
 
@@ -254,7 +264,7 @@ A boolean setting could be spelled `LLM_ENABLE_REWIND`, `LLM_REWIND` or `LLM_REW
 ZRB_LLM_ENABLE_REWIND is deprecated and still read. Set ZRB_LLM_REWIND_ENABLED instead.
 ```
 
-Move them when convenient; no removal is planned. The tables name the knobs without the `ZRB_` prefix — the environment variable adds it.
+Move them when convenient; 4.0.0 removed them — see [Upgrading to 4.0.0](#upgrading-to-400). The tables name the knobs without the `ZRB_` prefix — the environment variable adds it.
 
 | Before | After |
 |---|---|
