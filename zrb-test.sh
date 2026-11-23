@@ -1,5 +1,32 @@
 set -e
 
+# Every process the suite spawns must import this checkout, and only this one.
+# The editable install points at whichever clone was installed — usually the
+# main one — so a test that runs `python -m zrb` from a worktree imports, and
+# `pytest-cov.pth` records, code that is not the diff. The report then lists the
+# same module twice — relative to this tree at 98%, and absolute under the
+# installed clone at 28% — and the >=95% floor sums both: 74.63% on a run where
+# every test passed. CI and the main clone are unaffected, because the two paths
+# are one there.
+#
+# `PYTHONPATH` is replaced rather than extended: an inherited value names some
+# other tree, which is the one thing this gate must not measure, and joining the
+# two would need the platform's separator (`:` here, `;` under Windows Python).
+# The script's own path is resolved through symlinks first, so a link outside
+# the repository still finds its checkout instead of an `src` beside the link.
+# Several tests pin their own children this way
+# (`test/architecture/test_facade_import_cost.py`); the gate was the one place
+# that trusted the install instead of the tree it is testing.
+ZRB_SCRIPT="$0"
+while [ -L "$ZRB_SCRIPT" ]; do
+    ZRB_TARGET="$(readlink "$ZRB_SCRIPT")"
+    case "$ZRB_TARGET" in
+        /*) ZRB_SCRIPT="$ZRB_TARGET" ;;
+        *) ZRB_SCRIPT="$(dirname "$ZRB_SCRIPT")/$ZRB_TARGET" ;;
+    esac
+done
+export PYTHONPATH="$(cd "$(dirname "$ZRB_SCRIPT")" && pwd)/src"
+
 # Targets are path args (file / dir / file::test). With none, $TEST is used if set.
 if [ "$#" -eq 0 ] && [ -n "$TEST" ]; then
     set -- "$TEST"
