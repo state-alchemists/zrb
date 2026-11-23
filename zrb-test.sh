@@ -1,5 +1,18 @@
 set -e
 
+# Every process the suite spawns must import this checkout. The editable
+# install points at whichever clone was installed — usually the main one — so a
+# test that runs `python -m zrb` from a worktree imports, and `pytest-cov.pth`
+# records, code that is not the diff. The report then lists the same module
+# twice — relative to this tree at 98%, and absolute under the installed clone
+# at 28% — and the >=95% floor sums both: 74.63% on a run where every test
+# passed. CI and the main clone are unaffected, because the two paths are one
+# there. Several tests already pin their own children this way
+# (`test/architecture/test_facade_import_cost.py`); the gate was the one place
+# that trusted the install instead of the tree it is testing.
+ZRB_SRC="$(cd "$(dirname "$0")" && pwd)/src"
+export PYTHONPATH="${ZRB_SRC}${PYTHONPATH:+:${PYTHONPATH}}"
+
 # Targets are path args (file / dir / file::test). With none, $TEST is used if set.
 if [ "$#" -eq 0 ] && [ -n "$TEST" ]; then
     set -- "$TEST"
