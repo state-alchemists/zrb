@@ -15,11 +15,10 @@ The check is coverage, not a row format: a table row, a prose paragraph and a
 code sample all satisfy it. The floor below is a scan sanity check, not a
 ratchet — knobs are removed as well as added.
 
-Only the **canonical** key is required. A `deprecated_aliases` entry
-(`ZRB_LLM_ENABLE_BUILTIN_SKILLS` beside `ZRB_LLM_BUILTIN_SKILLS_ENABLED`) is a
-compatibility spelling kept for an old environment; the page names the current
-name, and a rename does not owe its retired spelling a row (R13). This check
-walks `env_key`, the write key, so the aliases are deliberately outside it.
+Only the **canonical** key is required. This check walks `env_key`, the write
+key, so a name a setting used to have (`config/retired.py`) is deliberately
+outside it: the page names what a user should set, not every spelling the
+setting once answered to (R13).
 """
 
 import pathlib

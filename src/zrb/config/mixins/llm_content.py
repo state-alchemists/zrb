@@ -410,7 +410,6 @@ class LLMContentMixin:
 
     LLM_REWIND_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_REWIND"],
         serialize=on_off,
         doc=(
             "Snapshot the working directory before each turn so /rewind can "

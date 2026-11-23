@@ -93,7 +93,6 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_ALLOW_ESCAPE_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SANDBOX_ALLOW_ESCAPE"],
         serialize=on_off,
         doc=(
             "Whether the dangerously_skip_sandbox tool argument is honored. "

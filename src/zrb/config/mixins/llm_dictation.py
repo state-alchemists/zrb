@@ -479,7 +479,6 @@ class LLMDictationMixin:
 
     LLM_DICTATION_ECHO_CANCEL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_DICTATION_ENABLE_ECHO_CANCEL"],
         serialize=on_off,
         default_factory=lambda c: get_voice_default(
             c, "LLM_DICTATION_ECHO_CANCEL_ENABLED"
@@ -499,7 +498,6 @@ class LLMDictationMixin:
 
     LLM_DICTATION_DETECT_EMOTION_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_DICTATION_DETECT_EMOTION"],
         serialize=on_off,
         doc=(
             "'on' has emotion2vec+ ({ENV_PREFIX}_LLM_DICTATION_EMOTION_MODEL) "
@@ -529,7 +527,6 @@ class LLMDictationMixin:
 
     LLM_DICTATION_EMOTION_OUT_OF_PROCESS_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_DICTATION_EMOTION_OUT_OF_PROCESS"],
         serialize=on_off,
         doc=(
             "'on' loads the emotion2vec+ model in a child process instead of "

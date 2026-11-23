@@ -72,7 +72,6 @@ class LLMLimitsMixin:
 
     LLM_RATE_LIMIT_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_RATE_LIMIT"],
         serialize=on_off,
         doc=(
             "When on, the agent paces itself against LLM_MAX_REQUEST_PER_MINUTE "
@@ -196,7 +195,6 @@ class LLMLimitsMixin:
 
     LLM_VOICE_MOVES_SHELL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_VOICE_MOVES_SHELL"],
         serialize=on_off,
         doc=(
             "Let a dictated message move a running Shell command to the "
@@ -219,7 +217,6 @@ class LLMLimitsMixin:
 
     LLM_BACKGROUND_WAKE_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_BACKGROUND_WAKE"],
         serialize=on_off,
         doc=(
             "Tell the session when a background Shell command ends, so a result "
@@ -292,7 +289,6 @@ class LLMLimitsMixin:
 
     LLM_TOOL_SPILL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_TOOL_SPILL"],
         serialize=on_off,
         doc=(
             "When on, a tool result whose model-facing text exceeds "
@@ -327,7 +323,6 @@ class LLMLimitsMixin:
 
     LLM_READ_IMAGE_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_READ_IMAGE"],
         serialize=on_off,
         doc=(
             "When on, Read on a PNG, JPEG, GIF or WebP file shows the image to "

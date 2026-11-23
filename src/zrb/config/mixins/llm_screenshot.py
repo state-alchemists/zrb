@@ -64,7 +64,6 @@ class LLMScreenshotMixin:
 
     LLM_SCREENSHOT_TOOL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SCREENSHOT_ENABLE_TOOL"],
         serialize=on_off,
         doc=(
             "Give the agent a TakeScreenshot tool, so it can look at the "
