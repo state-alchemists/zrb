@@ -79,12 +79,14 @@ class OptionInput(BaseInput):
         option_str = ", ".join(options)
         if default_value != "":
             prompt_message = f"{prompt_message} ({option_str}) [{default_value}]"
-        value = self._get_value_from_user_input(shared_ctx, prompt_message, options)
-        if value.strip() != "" and value.strip() not in options:
+        value = self._get_value_from_user_input(
+            shared_ctx, prompt_message, options
+        ).strip()
+        if value != "" and value not in options:
             value = self._prompt_cli_str(shared_ctx)
-        if value.strip() == "":
+        if value == "":
             value = default_value
-        return value
+        return value.strip()
 
     def _get_value_from_user_input(
         self, shared_ctx: AnySharedContext, prompt_message: str, options: list[str]

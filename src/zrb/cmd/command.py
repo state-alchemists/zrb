@@ -380,7 +380,9 @@ async def _spawn(
     NO_COLOR is not set: any non-empty value (even "0") disables color, so
     absence is the only way to inherit the user's choice.
     """
-    child_env = (env_map or os.environ).copy()
+    # An explicit empty mapping is authoritative too: it means "this child gets
+    # nothing from my environment", and only a `None` mapping asks to inherit.
+    child_env = (os.environ if env_map is None else env_map).copy()
     child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
     return await asyncio.create_subprocess_exec(
         *cmd,

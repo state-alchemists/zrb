@@ -157,6 +157,30 @@ class TestEnvDefaultBehavior:
 
         assert shared_ctx.env["TEST"] == "world"
 
+    def test_broken_tpl_default_is_not_evaluated_when_the_os_provides_a_value(self):
+        """An OS value wins even when the unused default cannot render."""
+        from zrb.env.env import Env
+
+        env = Env(name="TEST", default=Tpl("{ctx.input.missing}"))
+        shared_ctx = SharedContext(env={})
+
+        with patch.dict(os.environ, {"TEST": "from_os"}):
+            env.update_context(shared_ctx)
+
+        assert shared_ctx.env["TEST"] == "from_os"
+
+    def test_broken_tpl_default_still_surfaces_when_the_os_is_unset(self):
+        """The lazy read must not swallow a default that really is needed."""
+        from zrb.env.env import Env
+
+        env = Env(name="TEST", default=Tpl("{ctx.input.missing}"))
+        shared_ctx = SharedContext(env={})
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TEST", None)
+            with pytest.raises(ValueError, match="missing"):
+                env.update_context(shared_ctx)
+
 
 class TestEnvIntegration:
     """Integration tests for Env class."""
