@@ -260,3 +260,29 @@ def test_generate_transforms_a_renamed_file_at_its_renamed_path(tmp_path):
 
     assert (tmp_path / "generated" / "renamed.txt").read_text() == "Hello Test App\n"
     assert not (tmp_path / "generated" / "placeholder.txt").exists()
+
+
+def test_two_sources_mapped_to_one_destination_are_transformed_once(tmp_path):
+    """A path transformer may collapse two sources onto one destination file.
+
+    The copy writes that file twice but the content pass must see it once:
+    transforming `x` -> `xx` twice would turn the content into `xxxx`, so the
+    published file would depend on how many sources happened to share a name.
+    """
+    src_dir = tmp_path / "template"
+    src_dir.mkdir()
+    (src_dir / "a.txt").write_text("x")
+    (src_dir / "b.txt").write_text("x")
+
+    scaffolder = Scaffolder(
+        name="scaffold-two-sources-one-destination",
+        source_path=str(src_dir),
+        destination_path=str(tmp_path / "generated"),
+        transform_path=lambda ctx, path: (
+            "same.txt" if path in ("a.txt", "b.txt") else path
+        ),
+        transform_content={"x": "xx"},
+    )
+    scaffolder.run()
+
+    assert (tmp_path / "generated" / "same.txt").read_text() == "xx"

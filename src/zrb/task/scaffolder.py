@@ -88,7 +88,10 @@ class Scaffolder(BaseTask):
         destination_path = self._get_destination_path(ctx)
         written_paths = self._copy_path(ctx, source_path, destination_path)
         transformers = self._get_content_transformers()
-        for file_path in written_paths:
+        # Two sources can map to one destination through `transform_path`; the
+        # later copy overwrites the earlier one, so transforming that file once
+        # is enough. First-seen order keeps the pass deterministic.
+        for file_path in dict.fromkeys(written_paths):
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
