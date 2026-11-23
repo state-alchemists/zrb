@@ -60,11 +60,19 @@ def test_a_writable_root_that_does_not_exist_is_not_bound(tmp_path):
     assert os.path.realpath(str(missing)) not in binds
 
 
-def test_no_network_or_pid_unsharing(tmp_path):
+def test_pid_namespace_is_unshared_and_network_stays_open(tmp_path):
+    """A fresh procfs is only safe inside a PID namespace.
+
+    Sharing the host's PID namespace lets `/proc/<pid>/root` and
+    `/proc/<pid>/cwd` resolve into another same-uid process's mount namespace,
+    bypassing the read-only root and the deny-read masks.
+    """
     policy = SandboxPolicy(enabled=True, writable_paths=(str(tmp_path),))
     argv = build_bwrap_argv("bwrap", policy)
+    assert "--unshare-pid" in argv
+    # The namespace's procfs stays mounted, but it now shows only its own pids.
+    assert argv[argv.index("--proc") + 1] == "/proc"
     assert "--unshare-net" not in argv
-    assert "--unshare-pid" not in argv
 
 
 def test_masks_come_after_writable_binds(tmp_path):
