@@ -106,3 +106,75 @@ async def test_tcp_check_exception(mock_session):
     finally:
         asyncio.open_connection = original_open_connection
         asyncio.sleep = original_sleep
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interval", [0, -1])
+async def test_tcp_check_rejects_a_non_positive_interval(mock_session, interval):
+    """A non-positive interval would make asyncio.sleep spin, hammering the host."""
+    async def mock_open_connection(host, port):
+        raise AssertionError("a rejected interval must not probe")
+
+    tcp_check = TcpCheck(name="test_tcp_check", interval=interval)
+    mock_session.register_task(tcp_check)
+
+    with (
+        mock.patch("asyncio.open_connection", mock_open_connection),
+        pytest.raises(ValueError) as exc_info,
+    ):
+        await tcp_check.exec(mock_session)
+
+    message = str(exc_info.value)
+    assert "TcpCheck" in message
+    assert "`interval`" in message
+    assert str(interval) in message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw_interval", ["0", "-500"])
+async def test_tcp_check_rejects_a_non_positive_configured_interval(
+    mock_session, monkeypatch, raw_interval
+):
+    """The CFG-backed interval is rejected too, naming the setting."""
+    monkeypatch.setenv("ZRB_TCP_CHECK_INTERVAL", raw_interval)
+
+    tcp_check = TcpCheck(name="test_tcp_check")
+    mock_session.register_task(tcp_check)
+
+    with pytest.raises(ValueError) as exc_info:
+        await tcp_check.exec(mock_session)
+
+    message = str(exc_info.value)
+    assert "ZRB_TCP_CHECK_INTERVAL" in message
+    assert raw_interval in message
+
+
+@pytest.mark.asyncio
+async def test_tcp_check_bounds_a_hanging_connect_and_retries(mock_session):
+    """A blackholed host must hit the probe timeout, not wait on the OS."""
+    call_count = 0
+    mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
+
+    async def mock_open_connection(host, port):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # Never connects. `wait_for` cancels this on the probe timeout.
+            await asyncio.Event().wait()
+        return (mock_reader, mock_writer)
+
+    async def mock_sleep(delay):
+        return None
+
+    tcp_check = TcpCheck(name="test_tcp_check")
+    mock_session.register_task(tcp_check)
+
+    with (
+        mock.patch("asyncio.open_connection", mock_open_connection),
+        mock.patch("asyncio.sleep", mock_sleep),
+        mock.patch("zrb.task.tcp_check._MIN_PROBE_TIMEOUT", 0.01),
+    ):
+        result = await tcp_check.exec(mock_session)
+
+    assert result is True
+    assert call_count == 2

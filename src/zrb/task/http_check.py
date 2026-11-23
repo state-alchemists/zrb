@@ -5,7 +5,11 @@ from zrb.attr.type import StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.base.base_task import BaseTask
-from zrb.task.base.params import CheckTaskParams, reject_non_check_params
+from zrb.task.base.params import (
+    CheckTaskParams,
+    reject_non_check_params,
+    reject_non_positive_interval,
+)
 from zrb.util.attr import get_str_attr
 
 if TYPE_CHECKING:
@@ -52,8 +56,13 @@ class HttpCheck(BaseTask):
 
     def _get_interval(self) -> float:
         if self._interval is not None:
-            return self._interval
-        return CFG.HTTP_CHECK_INTERVAL / 1000
+            source, interval = "`interval`", self._interval
+        else:
+            configured = CFG.HTTP_CHECK_INTERVAL
+            source = f"`ZRB_HTTP_CHECK_INTERVAL` (milliseconds, currently {configured})"
+            interval = configured / 1000
+        reject_non_positive_interval("HttpCheck", source, interval)
+        return interval
 
     def _get_url(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._url, "http://localhost")

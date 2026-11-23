@@ -123,3 +123,22 @@ def reject_non_rsync_params(class_name: str, kwargs: dict[str, Any]) -> None:
         "its command is generated from the source and destination paths, so a "
         "command you supply here would be stored and never run.",
     )
+
+
+def reject_non_positive_interval(
+    class_name: str, source: str, interval: float
+) -> None:
+    """Raise `ValueError` for a poll interval that would spin instead of wait.
+
+    `HttpCheck`/`TcpCheck` sleep for the interval between probes, so a
+    non-positive delay makes `asyncio.sleep` return at once and hammers the
+    endpoint.
+    """
+    if interval > 0:
+        return
+    raise ValueError(
+        f"{class_name} cannot poll with interval {interval!r}s: {source} must "
+        "be positive. A non-positive interval makes asyncio.sleep return "
+        "immediately, so the check would hammer the endpoint. Set it to a "
+        "positive value."
+    )

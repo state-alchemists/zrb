@@ -156,7 +156,7 @@ Every task type accepts these except `HttpCheck` and `TcpCheck`, which *are* rea
 |-----------|-------------|---------|
 | `url` | URL to check | `http://localhost` |
 | `http_method` | HTTP method | `GET` |
-| `interval` | Seconds between polls | `5` (`ZRB_HTTP_CHECK_INTERVAL`, in ms) |
+| `interval` | Seconds between polls; must be positive | `5` (`ZRB_HTTP_CHECK_INTERVAL`, in ms) |
 
 ### TcpCheck Parameters
 
@@ -164,7 +164,9 @@ Every task type accepts these except `HttpCheck` and `TcpCheck`, which *are* rea
 |-----------|-------------|---------|
 | `host` | Hostname | `localhost` |
 | `port` | Port number | `80` |
-| `interval` | Seconds between polls | `5` (`ZRB_TCP_CHECK_INTERVAL`, in ms) |
+| `interval` | Seconds between polls; must be positive | `5` (`ZRB_TCP_CHECK_INTERVAL`, in ms) |
+
+> **A non-positive `interval` is a `ValueError`, not a busy loop.** Both checks sleep for the interval between attempts, so `0` or a negative value would make `asyncio.sleep` return at once and hammer the endpoint until it answers. The error names the value and where it came from — the `interval` argument or the millisecond setting (`ZRB_HTTP_CHECK_INTERVAL` / `ZRB_TCP_CHECK_INTERVAL`). Each TCP connect is also bounded at one second, so a blackholed host is retried instead of waiting on the OS.
 
 ---
 
