@@ -82,6 +82,22 @@ def build_sandboxed_argv(
     return _fallback(plain, policy, f"no OS sandbox mechanism exists on {system}")
 
 
+def uses_private_pid_namespace(policy: SandboxPolicy, skip: bool = False) -> bool:
+    """Whether the shell will run in bwrap's private PID namespace.
+
+    True exactly when :func:`build_sandboxed_argv` selects the Linux bwrap
+    wrapper: sandbox enabled, shell wrapping on, bwrap installed, and no
+    requested escape. Background shells and timeout adoption assume host PIDs
+    and a lifetime independent of the sandbox; neither holds inside the
+    namespace, so callers refuse or disable those paths when this is true.
+    """
+    if skip or not policy.enabled or policy.os_shell == "off":
+        return False
+    if platform.system() != "Linux":
+        return False
+    return shutil.which("bwrap") is not None
+
+
 def _fallback(
     plain: list[str], policy: SandboxPolicy, reason: str
 ) -> tuple[list[str], str | None]:

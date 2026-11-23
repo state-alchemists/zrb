@@ -22,6 +22,7 @@ from zrb.llm.capabilities.sandbox import get_effective_sandbox_policy
 from zrb.llm.capabilities.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
+    uses_private_pid_namespace,
 )
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.capabilities.tool.shell.capture import StreamCapture
@@ -112,6 +113,10 @@ async def run_shell_command(
     background and the result carries a handle, so the work it already did is
     not lost and no second copy has to be started. A command that begins with
     ``sleep`` is the exception — a delay is the work, so it is still killed.
+    While the Linux sandbox gives a command its own PID namespace, background
+    shells are refused and a timed-out command is killed instead (its
+    namespace-local PIDs cannot be tracked from outside); run it in the
+    foreground, or set the OS shell sandbox to off to use background shells.
 
     Prefer the bounded form: ``git diff --stat`` before ``git diff``,
     ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
@@ -147,6 +152,12 @@ async def run_shell_command(
         )
 
     process = None
+    # A command inside bwrap's PID namespace cannot outlive the sandbox, and
+    # its PIDs are namespace-local, so it is killed at the timeout instead of
+    # being adopted by the background registry.
+    allow_adopt = not uses_private_pid_namespace(
+        get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
+    )
     # Set when a timeout moved the command to the background instead of
     # killing it; the pipe then belongs to the registry, not to this call.
     handle: "str | None" = None
@@ -175,6 +186,7 @@ async def run_shell_command(
                 on_chunk,
                 timeout,
                 drain_notices,
+                allow_adopt=allow_adopt,
             )
         finally:
             if live_ui is not None:
@@ -193,6 +205,7 @@ async def run_shell_command(
             timeout,
             drain_notices[0] if drain_notices else None,
             handle,
+            background_available=allow_adopt,
         )
         return _present_result(result, sandbox_note, handle, timeout, moved)
 
@@ -229,6 +242,10 @@ async def _start_background_shell(
     dangerously_skip_sandbox: bool,
 ) -> str:
     """Hand the command to the background registry and report its handle."""
+    if uses_private_pid_namespace(
+        get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
+    ):
+        return _background_pid_namespace_refusal()
     # lazy: zrb internal — keeps the background registry off the hot
     # path most Shell calls take (foreground, non-backgrounded).
     from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
@@ -242,6 +259,20 @@ async def _start_background_shell(
     return (
         f"Started background process. Handle: {handle}. "
         "Call MonitorProcess with this handle to check status."
+    )
+
+
+def _background_pid_namespace_refusal() -> str:
+    """Model-facing refusal for a background shell inside a PID namespace."""
+    return (
+        "Command refused: background shells are unavailable while the Linux "
+        "sandbox gives each command its own PID namespace. The sandbox's "
+        "processes die when it exits, and the PIDs inside it are not host "
+        "PIDs, so a handle could not track or kill them. Run the command in "
+        "the foreground, or set "
+        f"{CFG.ENV_PREFIX}_LLM_SANDBOX_OS_SHELL=off to disable the OS sandbox "
+        "for shell commands. [SYSTEM SUGGESTION]: call Shell with "
+        "background=False."
     )
 
 
@@ -494,13 +525,16 @@ async def _wait_for_exit_or_adopt(
     on_chunk: "Callable[[], None] | None",
     timeout: int,
     drain_notices: list[str],
+    allow_adopt: bool = True,
 ) -> "tuple[str, str | None]":
     """Wait for the command; report what ended the wait and its handle.
 
     An empty first element means the command finished on its own. Otherwise it
     is `MOVE_TIMEOUT` or `MOVE_CUT`, and either may have moved the process to
     the background (returning its handle) or left it where it is — see
-    `_adopt_or_none` and `_can_adopt` for which, and why.
+    `_adopt_or_none` and `_can_adopt` for which, and why. `allow_adopt` false
+    keeps the process in the foreground (a private PID namespace makes an
+    adopted process untrackable), so a timeout kills it instead.
     """
     # No return_exceptions: a broken reader should abort immediately.
     assert process.stdout is not None and process.stderr is not None
@@ -532,7 +566,9 @@ async def _wait_for_exit_or_adopt(
                 return "", None
             if not done:
                 await _stop(drain)
-                handle = await _adopt_or_none(process, command, stdout_cap, stderr_cap)
+                handle = await _adopt_or_none(
+                    process, command, stdout_cap, stderr_cap, allow_adopt=allow_adopt
+                )
                 if handle is None:
                     await terminate_process(
                         process,
@@ -540,7 +576,7 @@ async def _wait_for_exit_or_adopt(
                         print_method=CFG.LOGGER.warning,
                     )
                 return MOVE_TIMEOUT, handle
-            if not _can_adopt(command):
+            if not _can_adopt(command, allow_adopt=allow_adopt):
                 # Nothing to step aside for: the wait is the work, or adoption
                 # is off. Killing it is not what the user asked for, so keep
                 # waiting — the deadline still applies.
@@ -569,15 +605,17 @@ async def _stop(task: "asyncio.Future[T] | None") -> None:
     await asyncio.gather(task, return_exceptions=True)
 
 
-def _can_adopt(command: str) -> bool:
+def _can_adopt(command: str, allow_adopt: bool = True) -> bool:
     """Whether this command may be moved out of the foreground.
 
     Adoption turned off (``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS`` is 0) leaves
-    nowhere to move it, and a deliberate wait (`_is_deliberate_wait`) is never
-    moved.
+    nowhere to move it, a deliberate wait (`_is_deliberate_wait`) is never
+    moved, and `allow_adopt` false says the sandbox makes it untrackable.
     """
-    return CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS > 0 and not _is_deliberate_wait(
-        command
+    return (
+        allow_adopt
+        and CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS > 0
+        and not _is_deliberate_wait(command)
     )
 
 
@@ -586,9 +624,10 @@ async def _adopt_or_none(
     command: str,
     stdout_cap: StreamCapture,
     stderr_cap: StreamCapture,
+    allow_adopt: bool = True,
 ) -> "str | None":
     """Move the process to the background, unless `_can_adopt` says no."""
-    if not _can_adopt(command):
+    if not _can_adopt(command, allow_adopt=allow_adopt):
         return None
     return await _adopt_process(process, command, stdout_cap, stderr_cap)
 
@@ -678,13 +717,15 @@ def _format_output(
     timeout: int,
     drain_notice: str | None = None,
     handle: "str | None" = None,
+    background_available: bool = True,
 ) -> str:
     """Formats the command execution result into a readable string.
 
     *reason* is what ended the wait early — ``""`` when the command finished on
     its own — and *handle* is set when the command was moved to the background
     instead of being killed. Its captures outlive this call and the entry in
-    the registry keeps feeding them.
+    the registry keeps feeding them. *background_available* false tells the
+    timeout advice not to recommend a background run the sandbox will refuse.
     """
     timed_out = reason == MOVE_TIMEOUT
     still_running = handle is not None
@@ -731,6 +772,7 @@ def _format_output(
         timeout,
         flooded,
         total_chars,
+        background_available=background_available,
     )
     return _assemble_output(
         command,
@@ -827,8 +869,27 @@ def _assemble_output(
     return "\n".join(output_parts)
 
 
-def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:
+def _timeout_suggestion(
+    timeout: int,
+    flooded: bool,
+    total_chars: int,
+    background_available: bool = True,
+) -> str:
     """Tell a hung process apart from one drowning in its own output."""
+    if not background_available:
+        keep_running = (
+            "If it is meant to keep running, background shells are "
+            "unavailable while the Linux sandbox uses a private PID "
+            "namespace; run it in the foreground or set "
+            f"{CFG.ENV_PREFIX}_LLM_SANDBOX_OS_SHELL=off to enable one."
+        )
+    elif flooded:
+        keep_running = "If it is meant to keep running, use background=True instead."
+    else:
+        keep_running = (
+            "If it was meant to keep running (a server, watcher, or tail -f), "
+            "re-run it with background=True and check it with MonitorProcess."
+        )
     if flooded:
         return (
             "[SYSTEM SUGGESTION]: The command timed out after "
@@ -836,19 +897,17 @@ def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:
             "was still writing, not waiting on input. Do not re-run it "
             "unchanged. Re-run a bounded form: scope it to a path, add a "
             "summarizing flag (`git diff --stat`, `--name-only`, `-l`), pipe "
-            "through `head`/`wc -l`, or redirect to a file and Grep that. If it "
-            "is meant to keep running, use background=True instead."
+            "through `head`/`wc -l`, or redirect to a file and Grep that. "
+            f"{keep_running}"
         )
     return (
         "[SYSTEM SUGGESTION]: The command timed out and the tool terminated "
-        "it — there is nothing left to kill. If it was meant to keep running "
-        "(a server, watcher, or tail -f), re-run it with background=True and "
-        "check it with MonitorProcess. If it was meant to finish, do not "
-        "re-run it unchanged: 'ps aux | grep <name>' tells you whether "
-        "anything survived the kill. If nothing did, it was genuinely too "
-        "slow or blocked — scope the work to a path, add a summarizing "
-        "flag, or pass a non-interactive flag like '-y' or 'CI=true' before "
-        "retrying. Next time, prefer the bounded form up front."
+        f"it — there is nothing left to kill. {keep_running} If it was meant "
+        "to finish, do not re-run it unchanged: 'ps aux | grep <name>' tells "
+        "you whether anything survived the kill. If nothing did, it was "
+        "genuinely too slow or blocked — scope the work to a path, add a "
+        "summarizing flag, or pass a non-interactive flag like '-y' or "
+        "'CI=true' before retrying. Next time, prefer the bounded form up front."
     )
 
 
@@ -860,12 +919,15 @@ def _suggest_next_step(
     timeout: int,
     flooded: bool,
     total_chars: int,
+    background_available: bool = True,
 ) -> str:
     """Map a recognizable failure shape to the next action worth taking."""
     suggestion = ""
     combined_output = (stdout_str + stderr_str).lower()
     if timed_out:
-        suggestion = _timeout_suggestion(timeout, flooded, total_chars)
+        suggestion = _timeout_suggestion(
+            timeout, flooded, total_chars, background_available=background_available
+        )
     elif "lock" in combined_output and (
         "apt" in command or "brew" in command or "dpkg" in command
     ):
