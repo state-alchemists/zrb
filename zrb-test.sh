@@ -36,6 +36,23 @@ fi
 # pytest tests under test/architecture/.
 flake8 src/zrb --select=F
 
+# The house format, in check mode — the same flags `zrb code format` runs. It
+# is checked because the facade budgets are pinned to exact line counts: an
+# unformatted diff moves a number that should only move when the code does.
+# Both tools are development dependencies, so `poetry install` brings them;
+# name the fix rather than fail mid-gate as `command not found`.
+for tool in isort black; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "zrb-test.sh: $tool is missing, and the gate checks the house format." >&2
+        echo "Install the development dependencies: poetry install" >&2
+        exit 1
+    fi
+done
+isort . --check-only --profile black --force-grid-wrap 0 \
+    --skip-glob 'llm-challenges/**' --skip-glob '.claude/**' \
+    --skip-glob '.zrb/**' --skip-glob '.venv/**'
+black --check . --extend-exclude 'llm-challenges'
+
 # pyright checks the whole tree regardless of path args, so full runs only.
 if [ "$#" -eq 0 ]; then
     pyright src/zrb
