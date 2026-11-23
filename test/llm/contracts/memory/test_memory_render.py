@@ -178,7 +178,7 @@ def test_the_block_reports_what_the_core_spends():
     facts = [_fact("a", "A is true.", pin=True), _fact("l", "Open.", kind="loop")]
     budget = core_budget(facts, 4_000)
     block = compose_memory(f"{ALWAYS_HEADING}\n- A. [a]", "", "/s", budget)
-    assert f"Core: {budget.chars} of 4000 characters" in block
+    assert f"Core as of this block: {budget.chars} of 4000 characters" in block
     assert "1 pinned claim and 1 open loop" in block
     assert "nothing cut" in block
 
@@ -198,7 +198,7 @@ def test_a_core_with_no_claims_gets_no_budget_line():
     """`## Recent` alone has nothing to be full of, and a `0 of 4,000` is noise."""
     recent = "## Recent\n- Today (x): y"
     block = compose_memory("", recent, "/s", core_budget([], 4_000))
-    assert "Core:" not in block
+    assert "as of this block" not in block
     assert "\n/s\n" in block
 
 
