@@ -48,6 +48,7 @@ class TestMonitorTaskReadinessException:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         call_count = 0
 
@@ -102,6 +103,7 @@ class TestMonitorTaskReadinessChecksNotCompleted:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         call_count = 0
 
@@ -201,6 +203,59 @@ class TestMonitorTaskReadinessThresholdReached:
 
         # action_coro.done() was True so cancel should not be called
         action_coro.cancel.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_action_finished_during_check_is_not_restarted(self):
+        """The action can complete while the check runs; restarting it would
+        re-run a completed action."""
+        check_task = BaseTask(name="check_task")
+        task = BaseTask(
+            name="test_task",
+            readiness_check=check_task,
+            readiness_check_period=0.01,
+            readiness_failure_threshold=1,
+        )
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
+
+        session = MagicMock(spec=AnySession)
+        session.is_terminated = False
+        check_status = _make_task_status(is_completed=False, is_ready=False)
+        task_status = _make_task_status()
+        session.get_task_status.side_effect = lambda t: (
+            check_status if t is check_task else task_status
+        )
+
+        release = asyncio.Event()
+
+        async def action_body():
+            await release.wait()
+            return "done"
+
+        async def check_body(_session, _check):
+            # The action finishes while the check is running.
+            release.set()
+            await asyncio.sleep(0.01)
+
+        action_coro = asyncio.create_task(action_body())
+        ctx = _make_ctx()
+        restart = AsyncMock(return_value=None)
+
+        with patch.object(task, "get_ctx", return_value=ctx):
+            with patch("zrb.task.base.monitoring.run_readiness_check", new=check_body):
+                with patch.object(
+                    BaseTaskExecution,
+                    "execute_action_with_retry",
+                    new=restart,
+                ):
+                    await asyncio.wait_for(
+                        monitoring.monitor_task_readiness(session, action_coro),
+                        timeout=5,
+                    )
+
+        assert action_coro.done() and not action_coro.cancelled()
+        assert action_coro.result() == "done"
+        restart.assert_not_called()
+        session.defer_action.assert_not_called()
 
 
 class TestMonitorThresholdReachedActionErrorsOnCancel:

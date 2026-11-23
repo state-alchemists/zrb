@@ -81,8 +81,13 @@ class Callback(AnyCallback):
             result = await self._task.async_run(session)
             self._maybe_publish_result_to_parent_session(parent_session, result)
             return result
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            # Swallowing cancellation would block shutdown.
+        except (
+            asyncio.CancelledError,
+            KeyboardInterrupt,
+            SystemExit,
+            GeneratorExit,
+        ):
+            # Swallowing a shutdown request would block it.
             raise
         except BaseException as e:
             ctx = session.get_ctx(self._task)

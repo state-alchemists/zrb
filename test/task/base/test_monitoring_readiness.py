@@ -40,6 +40,7 @@ class TestMonitorTaskReadinessNoChecks:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         with patch.object(task, "get_ctx", return_value=ctx):
             await monitoring.monitor_task_readiness(session, action_coro)
@@ -61,6 +62,7 @@ class TestMonitorTaskReadinessSessionTerminated:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         check_status = _make_task_status(is_completed=True, is_ready=True)
         session.get_task_status.return_value = check_status
@@ -121,6 +123,7 @@ class TestMonitorTaskReadinessSuccess:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         call_count = 0
 
@@ -178,6 +181,7 @@ class TestMonitorTaskReadinessTimeout:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         call_count = 0
 
@@ -296,6 +300,7 @@ class TestMonitorTaskReadinessCancelled:
 
         ctx = _make_ctx()
         action_coro = MagicMock(spec=asyncio.Task)
+        action_coro.done.return_value = False
 
         async def mock_sleep(duration):
             pass
@@ -322,3 +327,78 @@ class TestMonitorTaskReadinessCancelled:
         assert any(
             "cancel" in c.lower() or "interrupt" in c.lower() for c in info_calls
         )
+
+
+class TestMonitorTaskReadinessFiniteAction:
+    """A monitor must not outlive the action it watches."""
+
+    @pytest.mark.asyncio
+    async def test_finite_action_with_monitoring_finishes(self):
+        """A completed action ends its monitor so the deferred wait terminates."""
+        task = BaseTask(
+            name="main",
+            action="done",
+            readiness_check=BaseTask(name="check", action="ok"),
+            readiness_check_delay=0,
+            readiness_check_period=0.01,
+            monitor_readiness=True,
+        )
+
+        result = await asyncio.wait_for(task.async_run(), timeout=5)
+
+        assert result == "done"
+
+
+class TestMonitorTaskReadinessThresholdNormalization:
+    """A non-positive threshold must not restart a healthy action forever."""
+
+    @pytest.mark.asyncio
+    async def test_zero_failure_threshold_does_not_restart_a_healthy_action(self):
+        """Explicit 0 is a supported value; it must behave like 1, not like 0."""
+        check_task = BaseTask(name="check_task")
+        task = BaseTask(
+            name="test_task",
+            readiness_check=check_task,
+            readiness_check_period=0.01,
+            readiness_failure_threshold=0,
+        )
+        monitoring = BaseTaskMonitoring(task, BaseTaskExecution(task))
+
+        session = MagicMock(spec=AnySession)
+        session.is_terminated = False
+        check_status = _make_task_status(is_completed=True, is_ready=True)
+        task_status = _make_task_status()
+        session.get_task_status.side_effect = lambda t: (
+            check_status if t is check_task else task_status
+        )
+
+        ctx = _make_ctx()
+        action_coro = asyncio.create_task(asyncio.Event().wait())
+        restart = AsyncMock(return_value=None)
+
+        async def stop_monitoring():
+            await asyncio.sleep(0.1)
+            session.is_terminated = True
+
+        stopper = asyncio.create_task(stop_monitoring())
+        try:
+            with patch.object(task, "get_ctx", return_value=ctx):
+                with patch(
+                    "zrb.task.base.monitoring.run_readiness_check",
+                    new=AsyncMock(return_value=None),
+                ):
+                    with patch.object(
+                        BaseTaskExecution,
+                        "execute_action_with_retry",
+                        new=restart,
+                    ):
+                        await asyncio.wait_for(
+                            monitoring.monitor_task_readiness(session, action_coro),
+                            timeout=5,
+                        )
+            assert not action_coro.done(), "a healthy action must keep running"
+            restart.assert_not_called()
+        finally:
+            action_coro.cancel()
+            stopper.cancel()
+            await asyncio.gather(action_coro, stopper, return_exceptions=True)

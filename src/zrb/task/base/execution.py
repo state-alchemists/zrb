@@ -6,7 +6,7 @@
 
 import asyncio
 import traceback
-from collections.abc import Awaitable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext, current_ctx
@@ -281,7 +281,7 @@ class BaseTaskExecution:
 
                 retry_if = task.retry_if
                 if attempt < max_attempt - 1 and retry_if is not None:
-                    if not retry_if(e):
+                    if not self._is_retryable(ctx, retry_if, e):
                         ctx.log_error("Not retryable, skipping remaining attempts")
                         attempt = max_attempt - 1
                 if attempt < max_attempt - 1:
@@ -296,6 +296,26 @@ class BaseTaskExecution:
                 # Outside the try: a failing successor must not retry this action.
                 await run_async(self.execute_successors(session))
                 return result
+
+    def _is_retryable(
+        self,
+        ctx: AnyContext,
+        retry_if: Callable[[BaseException], bool],
+        error: BaseException,
+    ) -> bool:
+        """Evaluate `retry_if`; a predicate that raises means "not retryable".
+
+        Called inside the failure handler, so a predicate error would otherwise
+        replace the action's error and skip the permanent-failure path.
+        """
+        try:
+            return bool(retry_if(error))
+        except Exception as predicate_error:
+            ctx.log_error(
+                f"retry_if raised {exception_summary(predicate_error)}; "
+                "treating as not retryable"
+            )
+            return False
 
     async def run_default_action(self, ctx: AnyContext) -> Any:
         """Run `task.action`: the default `BaseTask.exec_action` body."""

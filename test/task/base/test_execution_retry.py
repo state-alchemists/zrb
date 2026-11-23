@@ -128,3 +128,38 @@ async def test_failing_successor_neither_reruns_action_nor_is_swallowed():
         await parent.async_run()
 
     assert calls == {"parent": 1, "fallback": 0}
+
+
+@pytest.mark.asyncio
+async def test_raising_retry_if_is_not_retryable_and_keeps_the_action_error():
+    """A predicate that raises must not replace the action's error or skip the
+    permanent-failure path (skip successors, run fallbacks)."""
+    calls = {"action": 0, "fallback": 0, "successor": 0}
+
+    def failing_action(ctx):
+        calls["action"] += 1
+        raise ValueError("action failed")
+
+    def raising_retry_if(error):
+        raise RuntimeError("predicate bug")
+
+    def fallback_action(ctx):
+        calls["fallback"] += 1
+
+    def successor_action(ctx):
+        calls["successor"] += 1
+
+    parent = BaseTask(
+        name="parent",
+        action=failing_action,
+        retries=2,
+        retry_period=0,
+        retry_if=raising_retry_if,
+    )
+    parent.append_fallback(BaseTask(name="rollback", action=fallback_action))
+    parent.append_successor(BaseTask(name="notify", action=successor_action))
+
+    with pytest.raises(ValueError, match="action failed"):
+        await parent.async_run()
+
+    assert calls == {"action": 1, "fallback": 1, "successor": 0}
