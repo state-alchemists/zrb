@@ -282,3 +282,30 @@ async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
         current_llm_limiter.reset(token)
 
     assert mock_run_agent.call_args.kwargs["limiter"] is run_limiter
+
+
+@pytest.mark.asyncio
+async def test_a_failing_agent_factory_is_reported_not_raised(mock_sub_agent_manager):
+    """A factory-only sub-agent whose factory raises is a delegation failure.
+
+    `create_agent` used to run before `run_agent_task`'s try, so the RuntimeError
+    escaped the tool instead of becoming the `Error:` line callers render.
+    """
+    mock_sub_agent_manager.create_agent.side_effect = RuntimeError(
+        "Sub-agent 'test-agent' could not be built: its agent factory failed: boom"
+    )
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        result = await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="t",
+            non_goals=[],
+        )
+
+    assert "Error:" in result
+    assert "agent factory failed: boom" in result
+    mock_run_agent.assert_not_called()

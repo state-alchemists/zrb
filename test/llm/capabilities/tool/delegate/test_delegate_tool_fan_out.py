@@ -296,6 +296,20 @@ async def test_delegate_fan_out_reports_failed_task(mock_sub_agent_manager):
     assert "Error: boom" in result
 
 
+@pytest.mark.asyncio
+async def test_a_failing_agent_factory_fails_each_fan_out_entry_cleanly(
+    mock_sub_agent_manager,
+):
+    """One raising factory is each entry's own Error line, not the batch's crash."""
+    mock_sub_agent_manager.create_agent.side_effect = RuntimeError("factory boom")
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    result = await tool(tasks=_TASKS)
+
+    assert result.count("Error:") == len(_TASKS)
+    assert result.count("factory boom") == len(_TASKS)
+
+
 def test_create_delegate_tool_uses_default_manager():
     """Passing no manager falls back to the module default singleton."""
     default = MagicMock(spec=SubAgentManager)
