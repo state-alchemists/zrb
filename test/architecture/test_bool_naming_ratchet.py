@@ -29,7 +29,9 @@ _QUESTION = re.compile(r"^_?(is|has|should|can|needs)_|(_enabled|_active)$")
 # -2 (188->186): the slop sweep deleted `_admits` in live_context (always True,
 # no caller) and `_handle_edit_response` in http_chat (a forwarder to the
 # public `handle_edit_response`).
-BOOL_NAMES_NOT_PHRASED_AS_A_QUESTION = 185
+# -1 (185->184): `_arg_matches` now returns `(matched, recognized)` instead of a
+# bare bool, so it is no longer an offender.
+BOOL_NAMES_NOT_PHRASED_AS_A_QUESTION = 184
 
 
 def _offenders() -> list[str]:
