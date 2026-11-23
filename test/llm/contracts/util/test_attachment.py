@@ -196,6 +196,61 @@ def test_normalize_attachments_spoofed_extension(tmp_path, capsys):
     assert "doesn't look like" in captured.out
 
 
+def test_normalize_attachments_keeps_pdf_text(tmp_path, monkeypatch):
+    f = tmp_path / "report.pdf"
+    f.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(
+        "zrb.llm.contracts.util.attachment.extract_pdf_text",
+        lambda path: "report text",
+    )
+
+    assert normalize_attachments([str(f)]) == ["report text"]
+
+
+def test_normalize_attachments_empty_pdf_text_falls_back_to_binary(
+    tmp_path, monkeypatch, capsys
+):
+    """An image-only PDF extracts to `""`; appending that empty string would
+    silently drop the PDF from the prompt."""
+    from pydantic_ai import BinaryContent
+
+    f = tmp_path / "scan.pdf"
+    f.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(
+        "zrb.llm.contracts.util.attachment.extract_pdf_text",
+        lambda path: "",
+    )
+
+    normalized = normalize_attachments(
+        [str(f)], print_fn=lambda msg: print(msg, end="")
+    )
+
+    assert len(normalized) == 1
+    assert isinstance(normalized[0], BinaryContent)
+    assert normalized[0].media_type == "application/pdf"
+    assert normalized[0].data == b"%PDF-1.4\n%%EOF\n"
+    assert "attaching as binary" in capsys.readouterr().out
+
+
+def test_normalize_attachments_failed_pdf_extraction_stays_binary(
+    tmp_path, monkeypatch
+):
+    from pydantic_ai import BinaryContent
+
+    f = tmp_path / "report.pdf"
+    f.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(
+        "zrb.llm.contracts.util.attachment.extract_pdf_text",
+        lambda path: None,
+    )
+
+    normalized = normalize_attachments([str(f)])
+
+    assert len(normalized) == 1
+    assert isinstance(normalized[0], BinaryContent)
+    assert normalized[0].media_type == "application/pdf"
+
+
 def test_check_attachment_bytes_ok():
     data = b"\x89PNG\r\n\x1a\n" + b"rest"
     assert check_attachment_bytes(data, "image/png") is None
