@@ -225,10 +225,13 @@ def write_text_owner_only(path: str, content: str) -> None:
     directory above it, owner-only.
 
     `O_NOFOLLOW` refuses a symlink planted at *path* (dangling or not) instead
-    of truncating and writing through it. The descriptor is wrapped in a
-    buffered file object because a single `os.write()` may write fewer bytes
-    than given without raising. Shared by every subsystem that persists private
-    text to a user-configured directory.
+    of truncating and writing through it. The mode passed to `os.open` applies
+    only when it creates the file, so the descriptor is narrowed with `fchmod`
+    as well: an existing file reopens at `FILE_MODE` instead of keeping the
+    wider mode it already had. The descriptor is wrapped in a buffered file
+    object because a single `os.write()` may write fewer bytes than given
+    without raising. Shared by every subsystem that persists private text to a
+    user-configured directory.
     """
     makedirs_owner_only(os.path.dirname(path))
     descriptor = os.open(
@@ -236,6 +239,9 @@ def write_text_owner_only(path: str, content: str) -> None:
         os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _OPEN_FLAGS,
         FILE_MODE,
     )
+    if os.name == "posix":
+        # Descriptor-based, unlike `os.chmod`: there is no path to race with.
+        os.fchmod(descriptor, FILE_MODE)
     with os.fdopen(descriptor, "w", encoding="utf-8") as f:
         f.write(content)
 
