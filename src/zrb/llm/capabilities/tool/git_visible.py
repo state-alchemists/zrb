@@ -28,6 +28,14 @@ def git_visible_files(dir_path: str) -> set[str] | None:
                 "git",
                 "-C",
                 dir_path,
+                # A model-chosen directory carries configuration zrb did not
+                # write, and both of these name a program git will run for us:
+                # `core.fsmonitor` its monitor, a hooks path its hooks. Probe
+                # with them off; `-c` must precede the subcommand.
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.hooksPath=/dev/null",
                 "ls-files",
                 "--cached",
                 "--others",

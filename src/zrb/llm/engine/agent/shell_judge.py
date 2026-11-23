@@ -288,7 +288,19 @@ def uncommitted_files(directory: str) -> str:
     """How many paths `git status` reports, or why that could not be read."""
     try:
         completed = subprocess.run(
-            ["git", "status", "--porcelain"],
+            [
+                "git",
+                # The judge runs in a model-chosen directory: `core.fsmonitor`
+                # and a hooks path there name programs git would run for us.
+                # Both are off for this probe, and `-c` must precede the
+                # subcommand.
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "status",
+                "--porcelain",
+            ],
             cwd=directory,
             capture_output=True,
             text=True,

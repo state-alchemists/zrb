@@ -102,7 +102,7 @@ async def no_force_push(ui, call, next_handler):
 
 chat.prepend_tool_policy(
     no_force_push,
-    auto_approve("Shell", {"command": r"^(git status|git diff|ls)\b"}),
+    auto_approve("Shell", {"command": r"^(ls|pwd)\b"}),
 )
 ```
 
