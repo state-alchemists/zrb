@@ -37,9 +37,13 @@ class ExtensionState:
 
     extended: bool = False
     return_extended: bool = False
-    # The model's output before an extension replaced it — see TurnCursor.output.
-    original_output: Any = None
-    original_history: History | None = None
+    # The pair to return when the latest extension did not replace the
+    # response, frozen at that extension. Each non-replacing extension
+    # refreshes it, so a side-effect run after an accepted continuation (a
+    # block or a replaceResponse=True transform) returns that continuation
+    # instead of the answer from before it.
+    answer_output: Any = None
+    answer_history: History | None = None
     block_count: int = 0
     system_message_count: int = 0
 
@@ -57,15 +61,6 @@ class ExtensionOutcome:
     new_message: PromptMessage = None
     new_history: History | None = None
     blocked: bool = False
-
-
-def _capture_original(
-    state: ExtensionState, result_output: Any, run_history: History
-) -> None:
-    """Snapshot the pre-extension output/history before the first extension."""
-    if not state.extended:
-        state.original_output = result_output
-        state.original_history = run_history
 
 
 def apply_turn_end_extension(
@@ -97,7 +92,6 @@ def apply_turn_end_extension(
         message = block.reason or "Please continue."
         if block.additional_context:
             message = f"{message}\n\n{block.additional_context}"
-        _capture_original(state, result_output, run_history)
         state.extended = True
         # The continuation is what the user asked the hook to force, so it is the
         # answer we return.
@@ -129,9 +123,14 @@ def apply_turn_end_extension(
         f"STOP hook returned systemMessage, continuing turn: {message[:100]}..."
     )
     CFG.LOGGER.debug(f"STOP hook replace_response={replace_response}")
-    _capture_original(state, result_output, run_history)
     state.extended = True
     state.return_extended = replace_response
+    if not replace_response:
+        # A side-effect run: its output is not the answer. Freeze the current
+        # pair — which may already include a block or transform continuation —
+        # so a later `false` cannot resurrect the pre-continuation answer.
+        state.answer_output = result_output
+        state.answer_history = run_history
     print_fn(f"\n[SYSTEM] {message}\n")
     return ExtensionOutcome(
         should_continue=True,
@@ -145,11 +144,17 @@ def resolve_extended_return(
     result_output: Any,
     run_history: History,
 ) -> tuple[Any, History]:
-    """Pick (output, history) to return based on the last `replace_response`."""
+    """Pick (output, history) to return based on the last extension.
+
+    No extension returns the current pair. A replacing extension (a block or
+    `replace_response=True`) returns it too. A non-replacing extension returns
+    the pair frozen when it started, so a continuation accepted before it is
+    not discarded.
+    """
     if not state.extended:
         return result_output, run_history
     if state.return_extended:
         CFG.LOGGER.debug("Returning extended response (replace_response=True)")
         return result_output, run_history
-    CFG.LOGGER.debug("Returning original response (replace_response=False)")
-    return state.original_output, state.original_history or []
+    CFG.LOGGER.debug("Returning frozen response (replace_response=False)")
+    return state.answer_output, state.answer_history or []
