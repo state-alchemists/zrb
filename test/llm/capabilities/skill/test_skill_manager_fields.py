@@ -177,6 +177,23 @@ user-invocable: false
     assert skill.user_invocable is False
 
 
+def test_scan_markdown_bom_does_not_hide_frontmatter(manager, tmp_path):
+    """A UTF-8 BOM before the opening `---` must not skip the skill's
+    frontmatter: the skill loads under the name the block declares."""
+    (tmp_path / "SKILL.md").write_bytes(
+        b"\xef\xbb\xbf---\n"
+        b"name: bom-skill\n"
+        b"description: From a BOM header\n"
+        b"---\n"
+    )
+
+    manager.scan(search_dirs=[tmp_path])
+
+    skill = manager.get_skill("bom-skill")
+    assert skill is not None
+    assert skill.description == "From a BOM header"
+
+
 def test_scan_markdown_allowed_tools_as_list(manager, tmp_path):
     (tmp_path / "SKILL.md").write_text(
         "---\nname: lt\nallowed-tools: [A, B]\n---\n",
