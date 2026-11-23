@@ -69,6 +69,60 @@ def test_an_expired_auto_named_conversation_takes_its_backup_directory(
     assert not os.path.exists(backup_dir)
 
 
+def _age_tree(path: str, age_seconds: float) -> None:
+    """Backdate a directory tree, so a backup set reads as *age_seconds* old."""
+    stamp = time.time() - age_seconds
+    for root, _, files in os.walk(path):
+        for name in files:
+            os.utime(os.path.join(root, name), (stamp, stamp))
+    os.utime(path, (stamp, stamp))
+
+
+def _save_with_backup(manager: FileHistoryManager, name: str) -> None:
+    manager.update(name, [ModelRequest(parts=[UserPromptPart(content="hi")])])
+    manager.save(name)
+
+
+def test_an_orphaned_auto_named_backup_set_is_pruned_only_when_stale(
+    history_dir, retention
+):
+    """A transcript renamed or removed outside the manager orphans its backup set.
+
+    Retention read only the root `.json` files, so nothing ever collected
+    `backups/<name>/` once its live file was gone. The set is now collected by
+    the same cutoff — its own newest backup decides the age — and kept while it
+    is fresh. A user-named conversation is never pruned, so its backup set is
+    not retention's to delete either.
+    """
+    retention.LLM_HISTORY_BACKUP_RETAIN = 1
+    manager = FileHistoryManager(str(history_dir))
+    for name in ("bold-arch-1234", "calm-atom-5678", "my-project"):
+        _save_with_backup(manager, name)
+
+    backups_dir = os.path.join(history_dir, "backups")
+    stale_orphan = os.path.join(backups_dir, "bold-arch-1234")
+    fresh_orphan = os.path.join(backups_dir, "calm-atom-5678")
+    named_orphan = os.path.join(backups_dir, "my-project")
+
+    # The live files disappear from under the manager: one renamed elsewhere,
+    # the others removed.
+    os.rename(
+        os.path.join(history_dir, "bold-arch-1234.json"),
+        os.path.join(history_dir, "bold-arch-1234-greetings.json"),
+    )
+    os.remove(os.path.join(history_dir, "calm-atom-5678.json"))
+    os.remove(os.path.join(history_dir, "my-project.json"))
+
+    _age_tree(stale_orphan, 3 * 86400)
+    _age_tree(named_orphan, 3 * 86400)
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert not os.path.exists(stale_orphan)
+    assert os.path.exists(fresh_orphan)
+    assert os.path.exists(named_orphan)
+
+
 def test_an_expired_topic_named_conversation_is_pruned_too(history_dir, retention):
     old = _write(history_dir, "bold-arch-1234-greetings", age_seconds=3 * 86400)
     old_backup = _write(

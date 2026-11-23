@@ -609,6 +609,7 @@ class FileHistoryManager(AnyHistoryManager):
                     self._remove_backups(base)
             except OSError:
                 continue
+        self._prune_orphan_backups(cutoff, protected)
         self._prune_unreferenced_archives(cutoff, current)
 
     def _remove_backups(self, conversation_name: str) -> None:
@@ -617,6 +618,36 @@ class FileHistoryManager(AnyHistoryManager):
         if not directory:
             return
         shutil.rmtree(directory, ignore_errors=True)
+
+    def _prune_orphan_backups(self, cutoff: float, protected: set[str]) -> None:
+        """Drop a stale backup set whose live transcript is gone.
+
+        Retention walks the live files, so it can only collect a backup set
+        through the conversation that owns it. A transcript renamed or removed
+        outside this manager — another process, a manual `mv`, a crash between
+        the unlink and the cleanup — leaves `backups/<name>/` behind with no
+        live file to reach it from, and nothing would ever collect it. Such a
+        set goes here, on the same cutoff, and its own newest backup decides
+        the age so a set written moments ago for a save still in flight is kept.
+
+        Only auto-named sets are collected: retention never prunes a
+        conversation the user named, so its backup set is not retention's to
+        delete either. Delegated transcripts are left to the count-based
+        sub-agent pruning that owns them.
+        """
+        for directory in self._backup_directories():
+            name = os.path.basename(directory)
+            if (
+                not has_random_name_prefix(name)
+                or parse_delegated_session(name) is not None
+                or name in protected
+            ):
+                continue
+            if os.path.exists(self._get_file_path(name)):
+                continue
+            if _newest_mtime(directory) >= cutoff:
+                continue
+            shutil.rmtree(directory, ignore_errors=True)
 
     def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
         """Delete archives and tool-result directories nothing points at.
