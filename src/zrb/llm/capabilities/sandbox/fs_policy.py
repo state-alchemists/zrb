@@ -53,6 +53,25 @@ def is_read_allowed(path: str, policy: SandboxPolicy) -> bool:
     return check_read(path, policy) is None
 
 
+def contains_denied_read_root(path: str, policy: SandboxPolicy) -> str | None:
+    """The deny-read root ``path`` contains, or ``None``.
+
+    A recursive reader opens every file beneath the path it is given, and
+    ``Grep``'s ripgrep subprocess matches file contents before the per-file
+    filter can drop a result. A path that contains a deny-read root therefore
+    has to be refused up front, not filtered afterwards. Returns the root so the
+    gate can name it; a disabled policy contains nothing, matching
+    ``is_read_allowed``.
+    """
+    if not policy.enabled:
+        return None
+    real = resolve_real(path)
+    for root in resolved_deny_read_roots(policy):
+        if is_within(root, real):
+            return root
+    return None
+
+
 def check_write(path: str, policy: SandboxPolicy) -> str | None:
     """Return an error message if writing ``path`` is blocked, else ``None``.
 

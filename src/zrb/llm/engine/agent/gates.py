@@ -38,6 +38,7 @@ from zrb.llm.capabilities.permission import (
 from zrb.llm.capabilities.sandbox import (
     check_read,
     check_write,
+    contains_denied_read_root,
     get_effective_sandbox_policy,
 )
 from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
@@ -157,6 +158,17 @@ def sandbox_gate(
             error = check_read(value, policy)
             if error is not None:
                 return _blocked(error)
+            # A directory can contain a deny-read root without being inside it.
+            # A recursive reader (`Grep` via ripgrep, `AnalyzeCode`) would open
+            # that root's files before the per-file check sees their results,
+            # so the path is refused before the reader runs.
+            contained_root = contains_denied_read_root(value, policy)
+            if contained_root is not None:
+                return _blocked(
+                    f"'{value}' contains the protected directory "
+                    f"'{contained_root}', which a recursive read would open "
+                    "before any per-file check; pass a narrower path"
+                )
     if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
         for key in _SANDBOX_WRITE_KEYS:
             value = args.get(key)

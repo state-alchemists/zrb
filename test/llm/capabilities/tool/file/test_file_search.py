@@ -460,3 +460,28 @@ def test_a_disabled_policy_leaves_the_scan_unchanged(tmp_path):
 
     assert any(entry["file"].endswith("settings.py") for entry in result["results"])
     assert "warning" not in result
+
+
+@pytest.mark.asyncio
+async def test_grep_of_a_parent_of_a_deny_root_never_starts_ripgrep(tmp_path):
+    """`Grep(path=parent)` used to hand the whole root to rg, which matched a
+    deny-root file's content before the per-file filter could drop it."""
+    from zrb.llm.engine.agent.common import create_safe_wrapper
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "keep.py").write_text("needle here\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("needle and TOP_SECRET_KEY\n")
+
+    wrapped = create_safe_wrapper(search_files)
+    with (
+        _sandboxed(project, secrets),
+        patch.object(file_search_mod, "_search_with_ripgrep") as ripgrep,
+    ):
+        result = await wrapped("needle", path=str(tmp_path))
+
+    assert result.metadata.get("blocked") is True
+    assert "secrets" in result.return_value
+    ripgrep.assert_not_called()
