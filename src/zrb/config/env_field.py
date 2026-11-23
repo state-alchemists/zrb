@@ -284,14 +284,18 @@ class EnvField(Generic[T]):
         # would walk its characters instead (`",".join`), not its value.
         raw = value if isinstance(value, str) else self._serialize(value)
         try:
-            round_tripped = self._cast(raw)
+            # `convert`, not `cast`: a transform runs on every read, so it must
+            # run here too or the assignment can store a value every later read
+            # rejects, or one that reads back as something else.
+            round_tripped = self.convert(raw, obj)
         except (ValueError, TypeError) as error:
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not valid: it stores "
                 f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
             ) from error
-        # A str is the canonical env form, so coercing it ("INFO" -> 20) is
-        # fine; a non-str value that reads back differently is rejected.
+        # A str is the canonical env form, so coercing or transforming it
+        # ("INFO" -> 20, "boom" -> "Boom") is fine; a non-str value that reads
+        # back differently is rejected.
         if round_tripped != value and not isinstance(value, str):
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not a value this field can "

@@ -27,6 +27,27 @@ def test_assigning_an_uncastable_value_raises_at_the_assignment():
     assert "LLM_MAX_REQUEST_PER_MINUTE" in str(excinfo.value)
 
 
+def test_assigning_a_banner_the_transform_rejects_fails_at_the_assignment():
+    """`CFG.BANNER = "ASCII art: {zrb}"` used to be accepted and then raise on
+    every later read; the setter validates with the same cast + transform."""
+    cfg = Config()
+    key = f"{cfg.ENV_PREFIX}_BANNER"
+    original = os.environ.get(key)
+    with pytest.raises(ValueError, match="is not valid"):
+        cfg.BANNER = "ASCII art: {zrb}"
+    assert os.environ.get(key) == original
+
+
+def test_a_string_normalized_by_the_transform_is_stored_as_written(monkeypatch):
+    """A str is the env text: the transform applies on read, not on write."""
+    cfg = Config()
+    key = f"{cfg.ENV_PREFIX}_LLM_ASSISTANT_NAME"
+    monkeypatch.setenv(key, "")
+    cfg.LLM_ASSISTANT_NAME = "boom"
+    assert os.environ[key] == "boom"
+    assert cfg.LLM_ASSISTANT_NAME == "Boom"
+
+
 def test_a_read_write_property_is_still_assignable():
     cfg = Config()
     cfg.ROOT_GROUP_NAME = "myproject"

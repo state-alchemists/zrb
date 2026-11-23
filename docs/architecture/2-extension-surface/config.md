@@ -51,6 +51,7 @@ Each one fails silently if broken: zrb keeps running on a value the user did not
 | Aliases are read in order, and the first one set wins | A deployment still exporting the old name gets the default | `test/config/test_env_field.py::test_alias_read_order` |
 | Assigning an unknown uppercase name raises, with a suggestion | `CFG.LLM_MODELL = ...` looks accepted and does nothing | `test/config/test_config_assignment_safety.py::test_assigning_an_unknown_uppercase_knob_raises_and_suggests` |
 | A value that cannot be cast fails at the assignment | The bad value is stored and a later, unrelated read crashes | `test/config/test_config_assignment_safety.py::test_assigning_an_uncastable_value_raises_at_the_assignment` |
+| A value a transform rejects fails at the assignment | `CFG.BANNER = "ASCII art: {zrb}"` is stored and every later read crashes | `test/config/test_config_assignment_safety.py::test_assigning_a_banner_the_transform_rejects_fails_at_the_assignment` |
 | Every setting declares its default; `fallback` answers a bad value, never an unset one | `zrb config explain` shows an empty default for a setting that holds 20, and a white label cannot override it through `DEFAULT_<NAME>` | `test/config/test_env_field_defaults.py::test_a_value_the_cast_rejects_when_empty_is_none_or_has_a_declared_default` |
 | A computed default is recomputed on each read | A derived path or theme colour keeps its import-time value | **unpinned** |
 | No module reads `CFG` while it is being imported | A `zrb_init.py` assignment is silently ignored for that value | `test/architecture/test_deferred_config_reads.py::test_no_cfg_read_happens_at_import_time` |
@@ -101,7 +102,7 @@ Two details matter. An empty variable (`export ZRB_WEB_HTTP_PORT=`) counts as un
 
 Callers read `CFG` where the value is used, not at import. The tool-result cap is read by `SafeToolsetWrapper` in `src/zrb/llm/engine/agent/common.py` each time a result comes back, so a `zrb_init.py` change made after import still applies.
 
-**Writing a value.** `CFG.NAME = value` serializes the value, casts it back to check it round-trips, and writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
+**Writing a value.** `CFG.NAME = value` serializes the value, converts it back the way a read would — `cast`, then `transform` — to check it round-trips, and writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
 
 **Adding a setting.** In the owning mixin, set `self.DEFAULT_<NAME>` in `__init__` and declare `<NAME> = EnvField(cast, doc=...)` next to its siblings. With no `aliases` and no `no_prefix`, the environment key is the prefix plus the name — for this example, ZRB_LLM_MAX_TOOL_RESULT_CHARS. Then read `CFG.<NAME>` in the code that owns the behaviour, and document it in `docs/configuration/`. A boolean follows the naming rule in [ADR-0026](../../adr/adr-0026.md).
 

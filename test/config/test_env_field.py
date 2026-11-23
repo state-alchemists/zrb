@@ -16,6 +16,7 @@ from zrb.config.env_field import (
     path_list_join,
 )
 from zrb.util.string.conversion import to_boolean
+from zrb.util.string.format import fstring_format
 
 
 class _Host:
@@ -42,6 +43,18 @@ class _Host:
         transform=lambda v, h: v * 2,
         default="5",
         doc="int doubled via transform",
+    )
+    NORMALIZED = EnvField(
+        str,
+        transform=lambda v, h: (v[0].upper() + v[1:]) if v else v,
+        default="",
+        doc="str capitalized via transform",
+    )
+    FRAGILE = EnvField(
+        str,
+        transform=lambda v, h: fstring_format(v, {"VERSION": "1.0"}),
+        default="v{VERSION}",
+        doc="str formatted via transform; an unknown placeholder raises",
     )
     BARE = EnvField(str, no_prefix=True, default="fallback")
     BARE_ALIASED = EnvField(
@@ -196,6 +209,30 @@ def test_a_non_string_that_reads_back_differently_is_refused(host):
     with pytest.raises(ValueError, match="round-trip"):
         host.CMDS = ("/x", "/y")
     assert "TESTCFG_CMDS" not in os.environ
+
+
+def test_a_non_string_changed_by_the_transform_is_refused(host):
+    """The round trip includes the transform: assigning 7 to a field that
+    doubles on read used to store "7" and read back 14."""
+    with pytest.raises(ValueError, match="round-trip"):
+        host.TRANSFORMED = 7
+    assert "TESTCFG_TRANSFORMED" not in os.environ
+
+
+def test_a_transform_that_would_raise_on_read_is_refused_at_assignment(host):
+    """Validating with the cast alone accepted a banner whose placeholder made
+    every later read raise; the assignment itself has to fail."""
+    with pytest.raises(ValueError, match="is not valid"):
+        host.FRAGILE = "ASCII art: {zrb}"
+    assert "TESTCFG_FRAGILE" not in os.environ
+
+
+def test_a_string_normalized_by_the_transform_is_stored_as_written(host):
+    """A str is the env text, so the transform runs on read: the round-trip
+    guard that compares a value does not apply to strings."""
+    host.NORMALIZED = "boom"
+    assert os.environ["TESTCFG_NORMALIZED"] == "boom"
+    assert host.NORMALIZED == "Boom"
 
 
 def test_expanduser_path_list_expands_home():
