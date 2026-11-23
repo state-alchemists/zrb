@@ -87,7 +87,7 @@ def test_the_block_reports_what_the_core_spends(store_dir, monkeypatch):
     block = render_memory_block()
     assert block is not None
     budget = render.core_budget(store.load_facts(), 1_000)
-    assert f"Core: {budget.chars} of 1000 characters" in block
+    assert f"Core as of this block: {budget.chars} of 1000 characters" in block
     assert "1 pinned claim and 1 open loop" in block
     assert "nothing cut" in block
 

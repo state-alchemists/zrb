@@ -127,11 +127,19 @@ def core_budget(facts: Sequence[Fact], cap: int) -> CoreBudget:
 
 
 def render_core_note(budget: CoreBudget) -> str:
-    """One line: how full the core is, and whether the cap is already cutting.
+    """One line: how full the core was, and whether the cap was already cutting.
 
     A claim the cap dropped leaves no trace in the block — it is absent —
     so a session planning a pin cannot tell whether the room exists. The refusal
     at write time is the backstop; this is the same fact, before the write.
+
+    The figures are the core as it stood when the block was rendered, and the
+    line says so. The block rides the conversation's first turn and is never
+    rewritten — rewriting a message already in the transcript would invalidate
+    every cached token after it — so a claim pinned or forgotten since arrives in
+    the `<memory-delta>` instead. Unsigned, the number reads as a live
+    measurement, and a stale one is worse than no number at all: it is a figure
+    the reader can quote back with confidence and be wrong.
     """
     ratio = budget.chars / budget.cap if budget.cap > 0 else 0.0
     if budget.cut == 0:
@@ -139,7 +147,7 @@ def render_core_note(budget: CoreBudget) -> str:
     else:
         cut = f"{_plural(budget.cut, 'claim')} cut by the cap"
     return (
-        f"Core: {budget.chars} of {budget.cap} characters ({ratio:.0%}), "
+        f"Core as of this block: {budget.chars} of {budget.cap} characters ({ratio:.0%}), "
         f"{_plural(budget.pinned, 'pinned claim')} and "
         f"{_plural(budget.loops, 'open loop')}, {cut}."
     )
