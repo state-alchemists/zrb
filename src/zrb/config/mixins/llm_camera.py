@@ -56,7 +56,6 @@ class LLMCameraMixin:
 
     LLM_CAMERA_TOOL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_CAMERA_ENABLE_TOOL"],
         serialize=on_off,
         doc=(
             "Give the agent a TakePhoto tool, so it can look through the "

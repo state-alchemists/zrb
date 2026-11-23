@@ -54,16 +54,6 @@ def test_a_switch_is_not_named_for_what_it_turns_off():
     assert offenders == []
 
 
-def test_every_old_shape_is_still_an_alias_of_its_new_name():
-    """A rename that drops the old name breaks an environment file silently."""
-    for klass in type(Config).__mro__:
-        for name, value in vars(klass).items():
-            if not isinstance(value, EnvField):
-                continue
-            for old in value.deprecated_aliases:
-                assert old != name, f"{name} lists itself as deprecated"
-
-
 def test_only_a_switch_carries_enabled_in_its_name():
     """`_ENABLED` is the suffix on a switch, never a word inside one.
 

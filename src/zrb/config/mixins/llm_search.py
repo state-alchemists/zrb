@@ -59,7 +59,6 @@ class LLMSearchMixin:
 
     LLM_SEARCH_PROJECT_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SEARCH_PROJECT"],
         serialize=on_off,
         doc=(
             "Enable/disable project directory search (traversal from filesystem "
@@ -69,7 +68,6 @@ class LLMSearchMixin:
 
     LLM_SEARCH_HOME_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SEARCH_HOME"],
         serialize=on_off,
         doc="Enable/disable home directory search (~/.claude/, ~/.zrb/).",
     )
@@ -113,7 +111,6 @@ class LLMSearchMixin:
 
     LLM_BUILTIN_SKILLS_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_BUILTIN_SKILLS"],
         serialize=on_off,
         doc=(
             "Enable/disable the builtin utility skills (src/zrb/llm_plugin/skills). "
@@ -124,7 +121,6 @@ class LLMSearchMixin:
 
     LLM_BUILTIN_AGENTS_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_ENABLE_BUILTIN_AGENTS"],
         serialize=on_off,
         doc=(
             "Enable/disable the builtin sub-agents (src/zrb/llm_plugin/agents). "

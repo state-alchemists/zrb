@@ -60,14 +60,12 @@ class LLMPromptMixin:
 
     LLM_SHOW_TOOL_CALL_DETAIL_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SHOW_TOOL_CALL_DETAIL"],
         serialize=on_off,
         doc="Show tool call arguments in the UI alongside the tool name.",
     )
 
     LLM_SHOW_TOOL_CALL_RESULT_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SHOW_TOOL_CALL_RESULT"],
         serialize=on_off,
         doc="Show the full tool call result in the UI.",
     )
@@ -80,7 +78,6 @@ class LLMPromptMixin:
 
     LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_INJECT_PROJECT_INSTRUCTIONS"],
         serialize=on_off,
         doc=(
             "When on, the project's AGENTS.md / CLAUDE.md / GEMINI.md content is "

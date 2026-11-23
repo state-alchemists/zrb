@@ -97,13 +97,6 @@ class EnvField(Generic[T]):
     aliases:
         Env-var names (without prefix) to try in order on read. Defaults to
         ``[attribute_name]``.
-    deprecated_aliases:
-        Env-var names (without prefix) this setting used to be called. They are
-        still read, after ``aliases``, so an existing environment file keeps
-        working; the first read that finds one logs a line naming the current
-        name, once per alias. The same names are accepted as config attributes
-        (``CFG.<old>``), which is how a `zrb_init.py` written for the old name
-        keeps working.
     write_key:
         Env-var name (without prefix) the setter writes to. Defaults to the
         attribute name. Use this when read and write keys differ.
@@ -143,7 +136,6 @@ class EnvField(Generic[T]):
         transform: Callable[[T, Any], T] | None = None,
         serialize: Callable[[Any], str] = str,
         aliases: list[str] | None = None,
-        deprecated_aliases: list[str] | None = None,
         write_key: str | None = None,
         default: Any = _UNSET,
         default_factory: Callable[[Any], str] | None = None,
@@ -157,8 +149,6 @@ class EnvField(Generic[T]):
         self._transform = transform
         self._serialize = serialize
         self._aliases = aliases
-        self._deprecated_aliases = list(deprecated_aliases or [])
-        self._warned_deprecated: set[str] = set()
         self._write_key = write_key
         self._default = default
         self._default_factory = default_factory
@@ -171,30 +161,12 @@ class EnvField(Generic[T]):
     def __set_name__(self, owner: type, name: str) -> None:
         self._name = name
         self._read_names = self._aliases if self._aliases is not None else [name]
-        self._read_names = [
-            *self._read_names,
-            *[old for old in self._deprecated_aliases if old not in self._read_names],
-        ]
         self._write_name = self._write_key if self._write_key is not None else name
         if self._write_name in self._read_names:
             self._read_names = [
                 self._write_name,
                 *[alias for alias in self._read_names if alias != self._write_name],
             ]
-
-    @property
-    def deprecated_aliases(self) -> list[str]:
-        """Names this setting used to have, still read and warned about."""
-        return list(self._deprecated_aliases)
-
-    def deprecated_env_keys(self, prefix: str) -> dict[str, str]:
-        """Each deprecated variable that is set, mapped to the current one."""
-        current = self.env_key(prefix)
-        return {
-            f"{prefix}_{old}": current
-            for old in self._deprecated_aliases
-            if f"{prefix}_{old}" in os.environ
-        }
 
     @property
     def secret(self) -> bool:
@@ -261,15 +233,7 @@ class EnvField(Generic[T]):
                 if value is not None:
                     return value
             return default
-        self._warn_for_deprecated_alias(obj.ENV_PREFIX)
         return get_env(self._read_names, default, obj.ENV_PREFIX)
-
-    def _warn_for_deprecated_alias(self, prefix: str) -> None:
-        """Log each set old name once, naming the setting that replaced it."""
-        for key in self.deprecated_env_keys(prefix):
-            if key not in self._warned_deprecated:
-                self._warned_deprecated.add(key)
-                warn_deprecated(key, self.env_key(prefix))
 
     def _resolve_default(self, obj: Any) -> str:
         if self._default_factory is not None:

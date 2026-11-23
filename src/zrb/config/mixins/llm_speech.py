@@ -187,7 +187,6 @@ class LLMSpeechMixin:
 
     LLM_SPEECH_BLOCK_NOTICE_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED"],
         serialize=on_off,
         doc=(
             "Tell the model, on the turn after one, that its last reply opened "

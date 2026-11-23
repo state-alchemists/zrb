@@ -47,7 +47,6 @@ class LLMUIRuntimeMixin:
 
     LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_UI_SHOW_RUNTIME_TIMERS"],
         serialize=on_off,
         doc="Show how long zrb has been working on the current turn, and how "
         "long the running tool call has taken, in the status bar.",

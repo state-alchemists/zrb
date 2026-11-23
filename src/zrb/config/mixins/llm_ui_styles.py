@@ -232,7 +232,6 @@ class LLMUIStylesMixin:
 
     LLM_UI_MARKDOWN_MATH_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_UI_ENABLE_MARKDOWN_MATH"],
         serialize=on_off,
         doc=(
             "Convert LaTeX math ($...$ / $$...$$) to Unicode when rendering "
@@ -243,7 +242,6 @@ class LLMUIStylesMixin:
 
     LLM_UI_MARKDOWN_MERMAID_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["LLM_UI_ENABLE_MARKDOWN_MERMAID"],
         serialize=on_off,
         doc=(
             "Render ```mermaid fenced blocks as Unicode diagram art when "
