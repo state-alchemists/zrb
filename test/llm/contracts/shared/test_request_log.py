@@ -239,7 +239,9 @@ def test_the_two_logs_share_a_directory_without_mixing(usage_dir):
     assert read_records() == []
 
 
-def test_a_log_that_cannot_be_written_costs_only_its_rows(usage_dir, monkeypatch, caplog):
+def test_a_log_that_cannot_be_written_costs_only_its_rows(
+    usage_dir, monkeypatch, caplog
+):
     """A read-only home must not fail the turn that produced the numbers."""
 
     blocked = usage_dir / "blocked"
