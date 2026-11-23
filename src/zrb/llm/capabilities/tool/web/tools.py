@@ -486,26 +486,23 @@ async def _install_page_request_guard(page) -> None:
     handed to `page.goto` is not necessarily a URL finally fetched. Routing every
     request through the same guard closes that gap for the main frame (a redirect
     or an iframe) and for subresources. A guard that cannot answer aborts rather
-    than lets the request through. The `scheme://host` memo keeps a page's many
-    subresources from re-resolving the same host.
+    than lets the request through.
+
+    Every request is checked: a `scheme://host` that passed once is not
+    remembered, because DNS rebinding can later point the same name at a
+    private address and a cached verdict would wave it through.
     """
-    allowed_origins: set[str] = set()
 
     async def guard(route) -> None:
-        request_url = route.request.url
-        parsed_url = urlsplit(request_url)
-        origin = f"{parsed_url.scheme.lower()}://{parsed_url.hostname or ''}"
-        if origin not in allowed_origins:
-            try:
-                await run_blocking(
-                    refuse_unsafe_web_url,
-                    request_url,
-                    timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
-                )
-            except Exception:  # noqa: BLE001 - a guard that cannot answer fails closed
-                await route.abort()
-                return
-            allowed_origins.add(origin)
+        try:
+            await run_blocking(
+                refuse_unsafe_web_url,
+                route.request.url,
+                timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
+            )
+        except Exception:  # noqa: BLE001 - a guard that cannot answer fails closed
+            await route.abort()
+            return
         await route.continue_()
 
     await page.route("**/*", guard)

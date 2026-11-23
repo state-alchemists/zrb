@@ -9,6 +9,7 @@ from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.web import open_web_page
 from zrb.llm.capabilities.tool.web.tools import (
     UnsafeWebUrlError,
+    _install_page_request_guard,
     get_web_page_response,
     refuse_unsafe_web_url,
 )
@@ -292,3 +293,33 @@ async def test_browser_page_guard_aborts_private_requests_and_allows_public_ones
     await guard(public_route)
     public_route.continue_.assert_awaited_once()
     public_route.abort.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_browser_page_guard_revalidates_a_host_whose_dns_answer_changes():
+    """DNS rebinding: a host allowed once must be checked again. The second
+    request for the same `scheme://host` is aborted when the resolver now
+    answers a private address instead of reusing the first verdict."""
+    page = MagicMock()
+    page.route = AsyncMock()
+    await _install_page_request_guard(page)
+    guard = page.route.call_args.args[1]
+
+    def answer(address: str):
+        return [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (address, 0))
+        ]
+
+    with patch(
+        "socket.getaddrinfo",
+        side_effect=[answer("93.184.216.34"), answer("10.1.2.3")],
+    ):
+        first_route = _FakeRoute("https://rebind.example.com/app.js")
+        await guard(first_route)
+        second_route = _FakeRoute("https://rebind.example.com/app.js")
+        await guard(second_route)
+
+    first_route.continue_.assert_awaited_once()
+    first_route.abort.assert_not_awaited()
+    second_route.abort.assert_awaited_once()
+    second_route.continue_.assert_not_awaited()
