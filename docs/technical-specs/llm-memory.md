@@ -448,7 +448,7 @@ Three tools. Two of them write.
 | Tool | Capability | Signature |
 |---|---|---|
 | `search` | `READ` | `search(query, scope="facts", limit=10)` |
-| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
+| `remember` | `EDIT` | `remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None, body_digest=None)` |
 | `forget` | `EDIT` | `forget(id, reason)` where `reason ∈ {wrong, stale, done}` |
 
 There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or `list` tool. Each is either already possible (`read`) or is a `remember` call with a different `kind` (diary, handover).
@@ -457,7 +457,7 @@ There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or
 
 ```
 remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
-         source=None, handover=None, body=None, body_mode=None):
+         source=None, handover=None, body=None, body_mode=None, body_digest=None):
     require kind in {fact, loop, diary}
     require one_sentence(claim, max=160) unless claim is None
     if kind == "diary":
@@ -479,6 +479,12 @@ remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
     fields = merge(old.fields, given)                # unspecified fields keep their old values
     body   = old.body + "\n\n" + body if body_mode == "a" else (body or old.body)
     require body_mode != "a" or len(body) <= DIARY_MAX         # the whole it becomes
+    if body_mode == "w" and old is not None:                   # a replace of an existing day
+        require body_digest == digest(old.body)                # the page this caller read
+        require len(body) < COMPACT_AT                         # a rewrite lands under the point
+        opened = first_hour(old.body)
+        require opened is None or first_hour(body) is None     # and keeps the morning it opened
+                          or first_hour(body) >= opened
     fields.status = "active"; fields.updated = now()
     core   = render_core(load_all() + this fact)     # computed BEFORE anything is written
     if len(core) > CORE_MAX:
@@ -489,6 +495,14 @@ remember(id, claim=None, kind="fact", pin=False, tags=None, applies_when=None,
         git_commit(f"remember: {id}")
     return f"Remembered {id} ({len(core)}/{CORE_MAX} chars)"
 ```
+
+A replace of an existing day is the only write that can lose another session's
+paragraph, so it carries three requirements and refuses rather than repairs: the
+digest names the body the caller read, the rewrite lands below the compaction
+point from either side, and it does not open the day later than the day opened.
+Each is checked under the lock, against the body being replaced, and a refusal
+returns the day as it now stands so the caller merges instead of overwriting.
+The length rules above are the ones a replace would otherwise skip.
 
 The append join runs inside the lock, not before it: the day it is joining is the
 store's to read, and a session that reads it itself pays for the whole body in
