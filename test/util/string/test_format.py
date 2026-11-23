@@ -74,3 +74,17 @@ def test_fstring_format_allows_single_underscore_attribute():
 def test_fstring_format_allows_safe_builtins_and_calls():
     data = {"items": ["b", "a"]}
     assert fstring_format("{len(items)}/{sorted(items)[0]}", data) == "2/a"
+
+
+def test_fstring_format_escaped_braces_around_an_expression():
+    """`{{{x}}}` is an escaped brace, the expression, then an escaped brace."""
+    assert fstring_format("{{{x}}}", {"x": 42}) == "{42}"
+
+
+def test_fstring_format_adjacent_escapes_and_expressions():
+    assert fstring_format("{{{x}}}{{literal}}", {"x": 42}) == "{42}{literal}"
+    assert fstring_format("{{{a}}}{{{b}}}", {"a": 1, "b": 2}) == "{1}{2}"
+
+
+def test_fstring_format_escaped_braces_only():
+    assert fstring_format("{{literal}}", {}) == "{literal}"

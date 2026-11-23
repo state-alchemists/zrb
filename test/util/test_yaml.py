@@ -280,3 +280,20 @@ def test_yaml_dump_does_not_change_how_other_code_dumps_multiline_strings():
     """`yaml_dump` renders multiline strings as `|` blocks for itself only."""
     yaml_dump({"message": "a\nb"})
     assert yaml.dump({"message": "a\nb"}) == "message: 'a\n\n  b'\n"
+
+
+def test_yaml_dump_multiline_with_trailing_whitespace_round_trips():
+    """`yaml_dump` edits tool arguments, so it must not rewrite the value.
+
+    The block presenter used to rstrip every line and rejoin them, dropping
+    trailing spaces, a trailing tab and the final newline; the dump then read
+    back as a different string. PyYAML now falls back to a quoted (lossless)
+    scalar for content a `|` block cannot carry.
+    """
+    obj = {"a": "line  \nnext\t\n"}
+    assert yaml.safe_load(yaml_dump(obj)) == obj
+
+
+def test_yaml_dump_multiline_keeps_trailing_blank_lines():
+    obj = {"a": "first\nsecond\n\n"}
+    assert yaml.safe_load(yaml_dump(obj)) == obj

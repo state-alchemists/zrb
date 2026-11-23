@@ -1,6 +1,6 @@
 import pytest
 
-from zrb.util.markdown import get_first_heading
+from zrb.util.markdown import demote_markdown_headers, get_first_heading
 
 
 @pytest.mark.parametrize(
@@ -68,3 +68,22 @@ def test_get_first_heading_backticks_in_the_info_string_do_not_open_a_fence():
 
 def test_get_first_heading_a_tilde_info_string_may_contain_backticks():
     assert get_first_heading("~~~ a `b`\n# code\n~~~\n# Title") == "Title"
+
+
+def test_demote_markdown_headers_a_fence_run_with_an_info_string_is_code():
+    """An inner ```python does not close the outer block: only a fence run with
+    nothing but whitespace after it closes one.
+
+    Regression: any line starting with a fence run popped the open fence, so the
+    block closed early, its content was demoted as prose, and the heading after
+    it was left undemoted.
+    """
+    content = "```\n```python\n# Not a heading\n```\n# Real Title\n"
+    expected = "```\n```python\n# Not a heading\n```\n## Real Title"
+    assert demote_markdown_headers(content) == expected
+
+
+def test_demote_markdown_headers_nested_fence_then_heading():
+    content = "````\n```python\n# code\n```\n````\n# Real Title\n"
+    expected = "````\n```python\n# code\n```\n````\n## Real Title"
+    assert demote_markdown_headers(content) == expected

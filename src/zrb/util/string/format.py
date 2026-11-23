@@ -1,5 +1,5 @@
 import ast
-import re
+from collections.abc import Callable
 from typing import Any
 
 # Safe builtins for template expression evaluation.
@@ -35,6 +35,8 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
     Format a string template using f-string-like syntax with data from a dictionary.
 
     Expressions within curly braces `{}` are evaluated using the provided data.
+    A doubled brace is a literal one (`{{` → `{`, `}}` → `}`), so `{{{x}}}`
+    renders `{` + the value of `x` + `}`.
 
     **The template is the trust boundary, not ``data``.** Values in ``data`` are
     only bound as names, so untrusted values are harmless — but the template
@@ -49,21 +51,51 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
         ValueError: If an expression in the template fails to evaluate, uses a
             dunder name, or the template is invalid.
     """
-    # Park escaped braces as sentinels so the expression regex skips them.
-    template = template.replace("{{", "\u0000").replace("}}", "\u0001")
-
     eval_globals: dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
 
-    def eval_expr(match: re.Match) -> str:
-        expr = match.group(1)
+    def eval_expr(expr: str) -> str:
         try:
             return str(eval(_compile_expression(expr), eval_globals, data))
         except Exception as e:
             raise ValueError(f"Error evaluating expression '{expr}': {e}")
 
-    rendered = re.sub(r"\{([^{}]+)\}", eval_expr, template)
+    return _render_template(template, eval_expr)
 
-    return rendered.replace("\u0000", "{").replace("\u0001", "}")
+
+def _render_template(template: str, eval_expr: Callable[[str], str]) -> str:
+    """Walk *template* once, unescaping `{{`/`}}` and evaluating `{...}`.
+
+    A single pass is what makes `{{{x}}}` work: the first two braces are an
+    escaped `{`, the last two an escaped `}`, and the expression between them is
+    evaluated. Parking each escape as a sentinel first turned that template into
+    one expression whose text ended in the sentinel, which raised.
+    """
+    rendered: list[str] = []
+    index = 0
+    length = len(template)
+    while index < length:
+        char = template[index]
+        if char == "{" and template.startswith("{{", index):
+            rendered.append("{")
+            index += 2
+            continue
+        if char == "}" and template.startswith("}}", index):
+            rendered.append("}")
+            index += 2
+            continue
+        if char == "{":
+            close = template.find("}", index + 1)
+            expression = template[index + 1 : close] if close != -1 else ""
+            # `{}` and an unclosed `{` stay literal, as do nested braces: an
+            # expression is a single brace-free span, the same rule the regex
+            # this replaced enforced.
+            if close != -1 and expression and "{" not in expression:
+                rendered.append(eval_expr(expression))
+                index = close + 1
+                continue
+        rendered.append(char)
+        index += 1
+    return "".join(rendered)
 
 
 def _compile_expression(expr: str) -> Any:
