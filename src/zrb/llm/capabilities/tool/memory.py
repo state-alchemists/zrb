@@ -50,6 +50,7 @@ from zrb.llm.contracts.memory.model import (
     is_date_shaped,
     reason_error,
     rewrite_not_compacted,
+    rewrite_starts_later,
 )
 from zrb.llm.contracts.shared.usage_log import current_component
 from zrb.util.file_lock import FileLockTimeout
@@ -172,8 +173,9 @@ def remember(
         str | None,
         Field(
             description=(
-                "Diary only: the state of play for the next session, at most 700 "
-                "characters. It replaces the day's previous handover."
+                "Diary only: the state of play for the next session, at most the "
+                "handover cap this tool's description states. It replaces the "
+                "day's previous handover."
             )
         ),
     ] = None,
@@ -182,8 +184,8 @@ def remember(
         Field(
             description=(
                 "Evidence: quotes, links, what was tried. Never injected, so it "
-                "may be as long as a page (8,000 characters; a diary's page is "
-                "shorter, and that cap is a setting)."
+                "may be as long as a page; the lengths this run enforces are in "
+                "this tool's description."
             )
         ),
     ] = None,
@@ -194,7 +196,10 @@ def remember(
                 "Diary only: 'w' replaces the body (the default); 'a' appends this "
                 "paragraph to the one already stored, so adding to a day does not "
                 "mean reading it back and sending it again. An append is measured "
-                "against the diary body cap as the whole it becomes."
+                "against the diary body cap as the whole it becomes, and a replace "
+                "of a day that exists needs `body_digest`: a whole page can always "
+                "be shortened, so only the digest tells a compaction from an "
+                "erasure."
             )
         ),
     ] = None,
@@ -202,11 +207,14 @@ def remember(
         str | None,
         Field(
             description=(
-                "Diary only, with body_mode='w': the digest shown beside the body "
-                "you read. A rewrite whose digest no longer matches the stored day "
-                "is refused instead of overwriting a paragraph written after you "
-                "read it; the refusal carries the day as it is now, so you can "
-                "merge and send it once more."
+                "Diary only, with body_mode='w', and required to replace a day that "
+                "already exists: the digest shown beside the body you read. A "
+                "rewrite naming no page is refused, because a first write of a day "
+                "has read nothing and would otherwise replace the day's morning with "
+                "its own evening. A digest that no longer matches the stored day is "
+                "refused instead of overwriting a paragraph written after you read "
+                "it; either refusal carries the day as it is now, with the digest "
+                "that answers it."
             )
         ),
     ] = None,
@@ -249,6 +257,27 @@ def remember(
             "SUGGESTION]: re-send with the sentence."
         )
     return _remember_fact(id, claim, wanted_kind, pin, tags, applies_when, source, body)
+
+
+def _remember_description() -> str:
+    """`remember`'s description with the lengths this run actually enforces.
+
+    A description is text a model reads, and a number typed into it has to be
+    maintained twice: the diary's page moved from 8,000 to 12,000 in the same
+    week this file still said 8,000. It is read here rather than at import
+    because `zrb_init.py` loads after the modules do (R3, ADR-0090), and because
+    a page length is a setting, not a constant.
+    """
+    return (
+        f"{remember.__doc__ or ''}\n\n"
+        f"A page holds {body_limit(KIND_FACT)} characters for a fact and "
+        f"{body_limit(KIND_DIARY)} for a day, and the day is compacted from "
+        f"{compact_at(KIND_DIARY)}; a handover holds "
+        f"{CFG.LLM_MEMORY_HANDOVER_MAX_CHARS}."
+    )
+
+
+setattr(remember, "__description__", _remember_description)
 
 
 @requires_purpose
@@ -669,6 +698,27 @@ def _stale_rewrite(day: str, old: "Diary | None", expected_digest: str) -> str |
     )
 
 
+def _unread_rewrite_refusal(old: "Diary") -> str:
+    """Why a rewrite must name the page it read, with the day it would replace.
+
+    A session's first write of a day has read nothing, so it has no digest to send,
+    and a replace carrying none cannot be told from a compaction by a page it never
+    opened: on 2026-11-23 a fresh session replaced a 6,073-character day with its
+    own 658 characters of evening, and no check anywhere compared the two. Naming
+    the page costs one read, and it is what lets the store refuse a replace it
+    cannot measure instead of losing a day it cannot recover.
+    """
+    digest = digest_body(old.body)
+    return (
+        "This rewrite replaces a page it does not name, so nothing here can tell a "
+        "compaction from an erasure. Nothing was written. The day reads:"
+        f"\n\n{old.body}\n\n"
+        "[SYSTEM SUGGESTION]: merge your paragraph into that body and send the "
+        f'whole back with body_digest="{digest}"; or add a paragraph to the day as '
+        'it stands with body_mode="a".'
+    )
+
+
 def _append_to_a_full_page(old: "Diary | None", body: str) -> str | None:
     """Why this paragraph has to wait for the day to be compacted, or ``None``.
 
@@ -688,7 +738,7 @@ def _append_to_a_full_page(old: "Diary | None", body: str) -> str | None:
 
 
 def _rewrite_that_frees_nothing(old: "Diary | None", body: str) -> str | None:
-    """Why a rewrite of this day has to cut further, or ``None``."""
+    """Why this rewrite has to land under the threshold, or ``None``."""
     if old is None:
         return None
     problem = rewrite_not_compacted(old.body, body)
@@ -697,9 +747,39 @@ def _rewrite_that_frees_nothing(old: "Diary | None", body: str) -> str | None:
     return _compaction_refusal(
         old,
         problem,
-        "cut further: a compaction lands under the threshold, not on the "
-        "ceiling it started from.",
+        "land under the threshold: a page below it grows one paragraph at a "
+        "time, and a page above it has to come out shorter rather than the "
+        "same length.",
     )
+
+
+def _rewrite_that_opens_later(old: "Diary | None", body: str) -> str | None:
+    """Why this rewrite has kept less of the day than a compaction, or ``None``."""
+    if old is None:
+        return None
+    problem = rewrite_starts_later(old.body, body)
+    if problem is None:
+        return None
+    return _compaction_refusal(
+        old,
+        problem,
+        "compress the day it read and keep the hour it opened at, rather than "
+        "starting the page at the moment you arrived.",
+    )
+
+
+def _rewrite_refusal(old: "Diary | None", body: str) -> str | None:
+    """Why this rewrite may not replace the day, or ``None``.
+
+    Two shapes of one loss: a rewrite that frees nothing leaves the page as stuck
+    as it was, and one that opens the day later has dropped the morning instead of
+    compressing it. Both are asked here because a rewrite is the one diary write
+    that can lose another writer's paragraph.
+    """
+    refused = _rewrite_that_frees_nothing(old, body)
+    if refused is not None:
+        return refused
+    return _rewrite_that_opens_later(old, body)
 
 
 def _compaction_refusal(old: "Diary", problem: str, next_step: str) -> str:
@@ -744,6 +824,25 @@ def _diary_entry_after(
     )
 
 
+def _rewrite_digest_refusal(
+    day: str, old: "Diary | None", expected_digest: str | None, replaces: bool
+) -> str | None:
+    """Why this write may not replace the day, or ``None``.
+
+    Two questions about one danger, asked in the order the caller can answer them.
+    A digest that no longer matches means the day moved while it was being read.
+    No digest at all on a replace means the page was never read, and that is the
+    write that turned a 6,073-character day into 658 characters of evening: a
+    session's first write of a day has nothing to name, and the optional digest
+    read the silence as permission.
+    """
+    if expected_digest is not None:
+        return _stale_rewrite(day, old, expected_digest)
+    if replaces and old is not None:
+        return _unread_rewrite_refusal(old)
+    return None
+
+
 def _remember_diary_locked(
     day: str,
     claim: str | None,
@@ -760,10 +859,11 @@ def _remember_diary_locked(
             "it was rather than what happened (the log holds that). "
             "[SYSTEM SUGGESTION]: nothing was written."
         )
-    if expected_digest is not None:
-        problem = _stale_rewrite(day, old, expected_digest)
-        if problem:
-            return problem
+    refused = _rewrite_digest_refusal(
+        day, old, expected_digest, body is not None and not append
+    )
+    if refused:
+        return refused
     claim = _claim_to_store(claim, old)
     if claim is None:
         return (
@@ -785,7 +885,7 @@ def _remember_diary_locked(
     elif body is None:
         refused = None
     else:
-        refused = _rewrite_that_frees_nothing(old, body_text)
+        refused = _rewrite_refusal(old, body_text)
     if refused:
         return refused
     entry = _diary_entry_after(old, day, claim, handover, source, body_text)

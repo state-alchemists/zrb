@@ -247,6 +247,19 @@ def create_safe_wrapper(
         annotations["purpose"] = Purpose
         setattr(wrapper, "__signature__", add_optional_purpose(signature))
     setattr(wrapper, "__annotations__", annotations)
+
+    # A tool may declare `__description__` as a callable, and it is called here
+    # rather than where the tool is written: the description reaches the model as
+    # this wrapper's docstring, so a description that states a setting's value
+    # cannot be a constant without freezing a number that `zrb_init.py` may
+    # change (R3, ADR-0090). A tool is built per agent, after that file has run.
+    # `wraps` copied the static docstring above; this replaces it only when the
+    # tool asked for a live one.
+    describe = getattr(func, "__description__", None)
+    if callable(describe):
+        live = describe()
+        if isinstance(live, str) and live.strip():
+            wrapper.__doc__ = live
     return wrapper
 
 

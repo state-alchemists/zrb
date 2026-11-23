@@ -5,7 +5,7 @@ every turn compacted, nothing freed, and the page sat there for hours while the
 next writer — usually the assistant itself, appending in the foreground — was the
 one refused. Two refusals make a compaction a compaction, and both live in the
 tool because a prompt can only ask: an append may not cross the point, and a
-rewrite that starts past it may not land past it.
+rewrite may not land at or past it from either side.
 """
 
 import pytest
@@ -74,6 +74,31 @@ def test_a_rewrite_from_a_full_page_has_to_land_under_the_point(store_dir):
     assert entry is not None and entry.body == body
     assert "Nothing was written" in message
     assert "freed nothing" in message
+
+
+def test_a_rewrite_may_not_grow_a_page_past_the_point(store_dir):
+    """A page under the point grows one paragraph at a time, not by a rewrite.
+
+    A rewrite is the one write nothing measures against the whole it makes: from
+    a page of 520 it can land at 980 under a 1,000-character cap, and the append
+    that comes next is refused against a page no append ever grew into.
+    """
+    body = "x" * 520
+    remember("2026-11-07", "A day.", kind="diary", body=body)
+
+    message = remember(
+        "2026-11-07",
+        None,
+        kind="diary",
+        body="x" * 980,
+        body_mode="w",
+        body_digest=digest_body(body),
+    )
+
+    entry = store.load_diary("2026-11-07")
+    assert entry is not None and entry.body == body
+    assert "Nothing was written" in message
+    assert "may not jump it to the ceiling" in message
 
 
 def test_a_handover_alone_is_written_on_a_full_page(store_dir):
