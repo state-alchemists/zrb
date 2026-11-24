@@ -6,7 +6,8 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
     """Parse one cron field (e.g. `"*"`, `"1-5"`, `"1,3,5"`, `"*/10"`, `"1-10/2"`)
     into the set of integer values it matches, bounded by `min_value`/`max_value`.
 
-    Raises `ValueError` on out-of-range values or non-positive steps.
+    Raises `ValueError` on out-of-range values, reversed ranges, or non-positive
+    steps.
     """
     values: set[int] = set()
     # Parse per list item so a wildcard step inside a list ("1,*/5") works.
@@ -21,12 +22,15 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
             if range_part == "*":
                 start, end = min_value, max_value
             elif "-" in range_part:
-                start, end = map(int, range_part.split("-"))
+                start, end = _parse_cron_range(range_part, field, min_value, max_value)
             else:
                 start, end = int(range_part), max_value
+                # Without this, "70/5" built an empty range and silently
+                # matched nothing instead of reporting the invalid bound.
+                _check_cron_value(start, field, min_value, max_value)
             values.update(range(start, end + 1, step))
         elif "-" in part:
-            start, end = map(int, part.split("-"))
+            start, end = _parse_cron_range(part, field, min_value, max_value)
             values.update(range(start, end + 1))
         else:
             values.add(int(part))
@@ -37,6 +41,29 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
             f"(allowed: {min_value}-{max_value})"
         )
     return values
+
+
+def _parse_cron_range(
+    part: str, field: str, min_value: int, max_value: int
+) -> tuple[int, int]:
+    """`start-end` bounds checked; a reversed range is an error, not an empty set."""
+    start, end = map(int, part.split("-"))
+    _check_cron_value(start, field, min_value, max_value)
+    _check_cron_value(end, field, min_value, max_value)
+    if start > end:
+        raise ValueError(
+            f"Cron field '{field}' has a reversed range '{part}' "
+            f"(start must not be greater than end)"
+        )
+    return start, end
+
+
+def _check_cron_value(value: int, field: str, min_value: int, max_value: int) -> None:
+    if value < min_value or value > max_value:
+        raise ValueError(
+            f"Cron field '{field}' has out-of-range value {value} "
+            f"(allowed: {min_value}-{max_value})"
+        )
 
 
 def _is_yearly(dt: datetime.datetime) -> bool:

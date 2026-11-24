@@ -206,3 +206,17 @@ def test_parse_cron_field_day_of_week_seven_is_valid():
     """match_cron parses day-of-week with max 7 (cron's Sunday alias)."""
     sunday = datetime.datetime(2024, 5, 12, 0, 0)
     assert match_cron("0 0 * * 7", sunday) is True
+
+
+def test_parse_cron_field_out_of_range_step_start_raises():
+    """`70/5` used to build an empty range and silently match nothing."""
+    with pytest.raises(ValueError, match="out-of-range"):
+        parse_cron_field("70/5", 0, 59)
+
+
+def test_parse_cron_field_reversed_range_raises():
+    """`5-1` used to build an empty range and silently match nothing."""
+    with pytest.raises(ValueError, match="reversed"):
+        parse_cron_field("5-1", 0, 59)
+    with pytest.raises(ValueError, match="reversed"):
+        parse_cron_field("10-5/2", 0, 59)

@@ -4,32 +4,39 @@ import re
 def _adjust_markdown_headers(md: str, level_change: int) -> str:
     lines = md.split("\n")
     new_lines = []
-    fence_stack = []
+    # The open fence run (e.g. "```"), or "" outside a fenced block. One value,
+    # not a stack: CommonMark does not nest fences — a fence run inside a block
+    # is its content until a run of the same character, at least as long, with
+    # nothing but whitespace after it closes the block.
+    fence = ""
     for line in lines:
-        stripped_line = line.strip()
-        fence_match = re.match(r"^([`~]{3,})", stripped_line)
+        fence_match = re.match(r"(`{3,}|~{3,})(.*)", line.strip())
         if fence_match:
-            current_fence = fence_match.group(1)
-            if (
-                fence_stack
-                and fence_stack[-1][0] == current_fence[0]
-                and len(current_fence) >= len(fence_stack[-1])
-            ):
-                fence_stack.pop()
-            else:
-                fence_stack.append(current_fence)
-            new_lines.append(line)
-        elif fence_stack:
-            new_lines.append(line)
-        else:
-            match = re.match(r"^(#{1,6})(\s)", line)
-            if match:
-                current_level = len(match.group(1))
-                new_level = max(1, current_level + level_change)
-                new_header = "#" * new_level + line[current_level:]
-                new_lines.append(new_header)
-            else:
+            marker, rest = fence_match.groups()
+            if not fence:
+                fence = marker
                 new_lines.append(line)
+                continue
+            if marker[0] == fence[0] and len(marker) >= len(fence) and not rest.strip():
+                # A closing fence carries nothing but whitespace after it; a
+                # fence run with an info string (` ```python `) is code inside
+                # the block, so it must not close the block early.
+                fence = ""
+                new_lines.append(line)
+                continue
+            new_lines.append(line)
+            continue
+        if fence:
+            new_lines.append(line)
+            continue
+        match = re.match(r"^(#{1,6})(\s)", line)
+        if match:
+            current_level = len(match.group(1))
+            new_level = max(1, current_level + level_change)
+            new_header = "#" * new_level + line[current_level:]
+            new_lines.append(new_header)
+        else:
+            new_lines.append(line)
     return "\n".join(new_lines).rstrip()
 
 

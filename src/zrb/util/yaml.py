@@ -4,7 +4,9 @@ from typing import Any
 
 def yaml_dump(obj: Any, key: str = "") -> str:
     """Rules:
-    - Any non-first level multiline string should be rendered as block (using `|`)
+    - Any non-first level multiline string is rendered as a block (using `|`)
+      when PyYAML can carry it losslessly that way; a value with trailing
+      whitespace on a line is quoted instead, so nothing is dropped
     - None values are rendered correctly (not omitted)
     - Non-primitive/list/dict/set objects are ignored
     """
@@ -91,11 +93,16 @@ def _multiline_dumper() -> type:
 
 
 def _multiline_string_presenter(dumper, data):
-    """Custom representer for multiline strings."""
+    """Custom representer for multiline strings.
+
+    The value is passed through unchanged, and `|` is only a request: PyYAML
+    drops the block style for a quoted scalar by itself when the content cannot
+    survive a block losslessly (trailing spaces, a trailing tab). The lines used
+    to be rstripped and rejoined first, which ate trailing whitespace and the
+    final newline of a value `yaml_dump` is also used to edit.
+    """
     if "\n" in data:
-        lines = [line.rstrip() for line in data.splitlines()]
-        clean_data = "\n".join(lines)
-        return dumper.represent_scalar("tag:yaml.org,2002:str", clean_data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
     return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
 
