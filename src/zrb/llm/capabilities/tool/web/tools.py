@@ -5,7 +5,7 @@ import ipaddress
 import json
 import socket
 import threading
-from typing import Annotated, Any
+from typing import Annotated
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -483,7 +483,7 @@ class _PinnedAddressAdapter(HTTPAdapter):
         _, tls_pool_kwargs = self.build_connection_pool_key_attributes(
             request, True if verify is None else verify, cert
         )
-        pool_kwargs: dict[str, Any] = dict(tls_pool_kwargs)
+        pool_kwargs = dict(tls_pool_kwargs)
         if scheme == "https" and parsed_url.hostname:
             hostname = _ascii_host(parsed_url.hostname)
             pool_kwargs["server_hostname"] = hostname
