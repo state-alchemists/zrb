@@ -304,7 +304,7 @@ async def _fetch_page_content(url: str) -> tuple:
         await run_blocking(refuse_unsafe_web_url, url, timeout=fetch_timeout)
         # .pdf shortcut skips the browser; plain HTTP can be refused (Cloudflare,
         # JS wall) where the browser succeeds, so failure falls through to it.
-        if url.split("?")[0].lower().endswith(".pdf"):
+        if _is_pdf_url(url):
             try:
                 return await run_blocking(
                     _fetch_pdf_content, url, user_agent, timeout=fetch_timeout
@@ -350,15 +350,17 @@ def refuse_unsafe_web_url(url: str) -> None:
     _assert_public_addresses(hostname)
 
 
-def resolve_validated_address(
+def resolve_validated_addresses(
     url: str,
-) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
-    """The public address a connection to *url* must use.
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Every public address a connection to *url* may use, validated together.
 
-    The caller pins its socket to this address, so the hostname is resolved
-    once and cannot move to a private address before the connection opens.
+    Returning the whole list lets the fetch fall back to the next address when
+    the first cannot be reached (a dual-stack host with no IPv6 route); any
+    non-public answer still refuses the name. The caller pins each socket to
+    one of these addresses, so no second lookup can move it after validation.
     """
-    return _assert_public_addresses(_validated_hostname(url))[0]
+    return _assert_public_addresses(_validated_hostname(url))
 
 
 def _validated_hostname(url: str) -> str:
@@ -501,19 +503,35 @@ def _get_pinned_response(
     session: requests.Session,
     url: str,
     user_agent: str,
-    address: ipaddress.IPv4Address | ipaddress.IPv6Address,
+    addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address],
 ) -> requests.Response:
-    """GET one hop on *session* over a connection pinned to *address*."""
-    adapter = _PinnedAddressAdapter(str(address))
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session.get(
-        url,
-        # urllib3 otherwise writes the pinned IP into `Host`: the socket
-        # address must not become the request's virtual host.
-        headers={"User-Agent": user_agent, "Host": _host_header(url)},
-        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
-        allow_redirects=False,
+    """GET one hop on *session*, trying each validated *address* until one connects.
+
+    A dual-stack host can answer with an unreachable family first (IPv6 with no
+    route); the next validated address gets the request instead. Only the
+    addresses the guard returned are ever tried, so a private answer cannot
+    sneak in through the fallback.
+    """
+    last_error: Exception | None = None
+    for address in addresses:
+        adapter = _PinnedAddressAdapter(str(address))
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        try:
+            return session.get(
+                url,
+                # urllib3 otherwise writes the pinned IP into `Host`: the
+                # socket address must not become the request's virtual host.
+                headers={"User-Agent": user_agent, "Host": _host_header(url)},
+                timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+                allow_redirects=False,
+            )
+        except requests.exceptions.ConnectionError as e:
+            last_error = e
+    if last_error is not None:
+        raise last_error
+    raise UnsafeWebUrlError(
+        f"Refusing to open {url}: it has no validated address to connect to."
     )
 
 
@@ -530,8 +548,8 @@ def get_pinned_web_page_response(url: str, user_agent: str) -> requests.Response
     session = requests.Session()
     try:
         while True:
-            address = resolve_validated_address(current_url)
-            response = _get_pinned_response(session, current_url, user_agent, address)
+            addresses = resolve_validated_addresses(current_url)
+            response = _get_pinned_response(session, current_url, user_agent, addresses)
             if not response.is_redirect:
                 return response
             redirects += 1
@@ -666,6 +684,11 @@ def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
     return _response_to_page_content(url, get_pinned_web_page_response(url, user_agent))
 
 
+def _is_pdf_url(url: str) -> bool:
+    """Whether *url*'s path names a PDF, whatever its Content-Type turns out to be."""
+    return urlsplit(url).path.lower().endswith(".pdf")
+
+
 def _response_to_page_content(url: str, response: requests.Response) -> tuple:
     """Turn a fetched response into ``(content, links, is_pdf)``."""
     # lazy: heavy third-party
@@ -673,7 +696,9 @@ def _response_to_page_content(url: str, response: requests.Response) -> tuple:
 
     response.raise_for_status()
     content_type = response.headers.get("Content-Type", "").lower()
-    if "application/pdf" in content_type:
+    # A `.pdf` path is a PDF even when the server sends no Content-Type or a
+    # wrong one (octet-stream, an HTML error page); the suffix is the promise.
+    if "application/pdf" in content_type or _is_pdf_url(url):
         return _extract_pdf_text(response.content), [], True
     if "charset" not in content_type:
         # requests decodes text/* with no header charset as ISO-8859-1, which

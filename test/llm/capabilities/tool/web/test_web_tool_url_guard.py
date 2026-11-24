@@ -336,7 +336,10 @@ class _FakePinnedSession:
     def get(self, url: str, **kwargs):
         self.requests.append((url, self.adapter.address))
         self.headers = kwargs.get("headers", {})
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def close(self) -> None:
         pass
@@ -451,3 +454,56 @@ def test_pinned_fetch_writes_the_hostname_into_the_host_header():
         get_pinned_web_page_response("https://example.com:8443/page", "agent")
 
     assert sessions[0].headers["Host"] == "example.com:8443"
+
+
+def test_pinned_fetch_tries_the_next_validated_address_when_the_first_fails(
+    monkeypatch,
+):
+    """Dual-stack host: an unreachable first address must not fail the fetch.
+    The next validated address is tried, and only validated ones are used."""
+    patcher, sessions = _patch_pinned_sessions(
+        [
+            requests.exceptions.ConnectionError("no route to host"),
+            _ok_response(),
+        ]
+    )
+
+    def fake_getaddrinfo(hostname, port, *args, **kwargs):
+        return [_address_info("93.184.216.34"), _address_info("93.184.216.35")]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    with patcher:
+        response = get_pinned_web_page_response("https://dual.example/", "agent")
+
+    assert response is not None
+    assert sessions[0].requests == [
+        ("https://dual.example/", "93.184.216.34"),
+        ("https://dual.example/", "93.184.216.35"),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers",
+    [{}, {"Content-Type": "text/html"}, {"Content-Type": "application/octet-stream"}],
+)
+async def test_a_pdf_path_is_extracted_without_a_pdf_content_type(headers):
+    """The `.pdf` suffix is the promise: a missing or wrong Content-Type must
+    not turn a PDF into an HTML parse."""
+    fake_page = MagicMock()
+    fake_page.extract_text.return_value = "PDF body text"
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [fake_page]
+    fake_pdf.__enter__.return_value = fake_pdf
+
+    response = MagicMock(is_redirect=False)
+    response.headers = headers
+    response.content = b"%PDF-1.4 ..."
+    patcher, _sessions = _patch_pinned_sessions([response])
+
+    with patcher, patch("pdfplumber.open", return_value=fake_pdf) as mock_pdf_open:
+        result = await open_web_page("https://example.com/doc.pdf", summarize=False)
+
+    assert "PDF body text" in result["content"]
+    assert result["links_on_page"] == []
+    mock_pdf_open.assert_called_once()
