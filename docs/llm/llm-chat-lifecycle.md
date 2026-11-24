@@ -133,7 +133,7 @@ Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approv
 - If neither decided and `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs.
 - A `PermissionRequest` hook may decide next.
 - When the approval channel or the terminal prompt produces an answer, the observe-only `PermissionResolved` hook fires.
-- Otherwise the call goes to `current_approval_channel` if one is set, else to `current_tool_confirmation` (the terminal prompt). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
+- Otherwise the call goes to `current_approval_channel` if one is set, else to `current_tool_confirmation` (the terminal prompt). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt. A call that neither mechanism answers is denied rather than left unresolved: every deferred approval carries a real verdict, because `DeferredToolResults` accepts only `bool`, `ToolApproved`, or `ToolDenied`.
 
 UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/presentation/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 

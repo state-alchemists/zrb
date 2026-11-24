@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.approval.any_approval_channel import ApprovalContext
@@ -122,7 +122,7 @@ async def process_deferred_requests(
                 _discard_denied_call(current_results, call.tool_call_id)
                 continue
 
-            result: "ToolApproved | ToolDenied | None" = (
+            result: "ToolApproved | ToolDenied" = (
                 ToolApproved()
                 if pre.allow
                 else await _resolve_approval(
@@ -134,12 +134,7 @@ async def process_deferred_requests(
                     force_ask=pre.force_prompt,
                 )
             )
-            # A path that resolved nothing stores None: pydantic-ai reads that as
-            # "no verdict", which is what the approval cascade means by falling
-            # through without one.
-            current_results.approvals[call.tool_call_id] = cast(
-                "ToolApproved | ToolDenied", result
-            )
+            current_results.approvals[call.tool_call_id] = result
             _record_override_if_edited(call, result)
 
             if isinstance(result, ToolDenied):
@@ -211,7 +206,7 @@ async def _resolve_approval(
     approval_channel: "AnyApprovalChannel | None",
     hook_manager: "HookManager | None" = None,
     force_ask: bool = False,
-) -> "ToolApproved | ToolDenied | None":
+) -> "ToolApproved | ToolDenied":
     """Run the approval cascade for a single deferred call.
 
     Precedence:
@@ -231,7 +226,8 @@ async def _resolve_approval(
 
     ``force_ask`` (PreToolUse ``permissionDecision: "ask"``) skips the
     auto-approvals at 1-3 but still honors DENY and priority 0. Each stage
-    returns a verdict, or None to fall through.
+    returns a verdict, or None to fall through; the call left unanswered by
+    every stage is denied, so this always returns a real verdict.
     """
     verdict = _approve_always_auto_approve_tools(call)
     if verdict is not None:
@@ -273,21 +269,22 @@ async def _resolve_approval(
         return verdict
 
     verdict = await _confirm_via_cli(call, ui, effective_tool_confirmation)
-    # Before the fall-through: with no verdict the policy decides next, and the wait is over
-    # either way. Nothing else reports this moment — see _announce_permission_resolved.
-    await _announce_permission_resolved(call, verdict, hook_manager)
-    if verdict is not None:
-        return verdict
-
-    # No approval mechanism: a required ASK must not silently approve.
-    if policy_decision == ASK or force_ask:
+    # No approval mechanism answered the call, so it cannot run: approving it
+    # silently is the one outcome the cascade exists to prevent. The verdict has
+    # to be real — `DeferredToolResults` accepts only `bool`, `ToolApproved`, or
+    # `ToolDenied`, and a `None` here kills the resumed turn and loses the call.
+    # It is decided before the announcement, so the hook hears the verdict that
+    # is stored instead of the `None` the fall-through replaces.
+    if verdict is None:
         # lazy: heavy third-party
         from pydantic_ai import ToolDenied
 
-        return ToolDenied(
-            "Policy requires approval but no approval channel is configured"
+        verdict = ToolDenied(
+            "Policy requires approval but no approval mechanism is configured"
         )
-    return None
+    # Nothing else reports this moment — see _announce_permission_resolved.
+    await _announce_permission_resolved(call, verdict, hook_manager)
+    return verdict
 
 
 def _approve_always_auto_approve_tools(call: "ToolCallPart") -> "ToolApproved | None":
@@ -518,10 +515,12 @@ async def _announce_permission_resolved(
     """Tell the hooks the wait is over, once the answer is known.
 
     Only the paths that reached an interactive approval call this, so a tool the policy
-    approved outright fires nothing. ``approved`` is True, False, or None when the channel
-    gave no verdict and the policy is about to answer — "the user was asked and did not
-    say", which is not the same as "denied". Observe-only: whatever a hook returns here is
-    ignored, so a listener cannot change what was decided.
+    approved outright fires nothing. ``approved`` is True for an approval and False for a
+    denial — the CLI fall-through denies the call nobody answered *before* this call, so a
+    listener hears the verdict that is stored. None remains for an approval channel that
+    returns no verdict: "the user was asked and did not say", which is not the same as
+    "denied". Observe-only: whatever a hook returns here is ignored, so a listener cannot
+    change what was decided.
     """
     if hook_manager is None:
         return
