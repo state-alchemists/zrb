@@ -4,9 +4,13 @@ from typing import Protocol
 
 
 class AnyLiveSubAgentSession(Protocol):
+    session_id: str
+    history: list[object]
     run_scope: str
     active_task: object | None
     cancelled_by_human: bool
+
+    def is_turn_owner(self) -> bool: ...
 
     def consume_cancelled_flag(self) -> object: ...
 
