@@ -99,6 +99,8 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
         counts["unpinned"] = unpinned
         counts["converted"] = converted
         store.write_core()
+        if counts["unreadable"]:
+            _report_unreadable(counts["unreadable"])
         store.git_commit("migrate: notes")
     return counts
 
@@ -126,8 +128,22 @@ def convert_if_needed() -> None:
         counts["unpinned"] = unpinned
         counts["converted"] = converted
         store.write_core()
-        paths.mark_converted()
+        if counts["unreadable"]:
+            # Readable notes are already written. Keep the directory
+            # unconverted so an unreadable note that becomes readable later is
+            # retried; a marker would make this the last run that ever tries.
+            _report_unreadable(counts["unreadable"])
+        else:
+            paths.mark_converted()
         store.git_commit("memory: convert the notes on first use")
+
+
+def _report_unreadable(count: int) -> None:
+    """Say what the pass could not read; the next start tries those notes again."""
+    CFG.LOGGER.warning(
+        f"Memory migration could not read {count} note(s); valid notes were "
+        "migrated, and the unreadable ones will be retried on the next start."
+    )
 
 
 def _fit_core() -> tuple[int, int]:
@@ -175,12 +191,16 @@ def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
     # slugify alike still both arrive, the second under its category's prefix.
     existing = {fact.id for fact in store.load_facts(include_retired=True)}
     taken: set[str] = set()
+    unreadable: set[str] = set()
     for category in NOTE_CATEGORIES:
-        written = _migrate_category(source, category, taken, existing, dry_run)
+        written = _migrate_category(
+            source, category, taken, existing, dry_run, unreadable
+        )
         counts["facts"] += written["facts"]
         counts["retired"] += written["retired"]
-    counts.update(_migrate_log(source, dry_run))
-    counts.update(_migrate_handovers(source, dry_run))
+    counts.update(_migrate_log(source, dry_run, unreadable))
+    counts.update(_migrate_handovers(source, dry_run, unreadable))
+    counts["unreadable"] = len(unreadable)
     return counts
 
 
@@ -190,6 +210,7 @@ def _migrate_category(
     taken: set[str],
     existing: set[str],
     dry_run: bool,
+    unreadable: set[str],
 ) -> dict[str, int]:
     """One category's notes as facts. *taken* spans every category: an id is a
     subject, and two categories may hold one."""
@@ -202,7 +223,11 @@ def _migrate_category(
     for name in names:
         if not name.endswith(".md") or name == "index.md":
             continue
-        text = store.read_document(os.path.join(directory, name))
+        path = os.path.join(directory, name)
+        text = store.read_document_strict(path)
+        if text is None:
+            unreadable.add(path)
+            continue
         fact = _fact_from_note(text, category, taken, existing)
         if fact is None:
             continue
@@ -326,7 +351,7 @@ def _body_of(body: str) -> str:
     return text[:MAX_FACT_BODY_CHARS]
 
 
-def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
+def _migrate_log(source: str, dry_run: bool, unreadable: set[str]) -> dict[str, int]:
     """Every activity line, one log file per day."""
     written = {"log_lines": 0}
     root = os.path.join(source, "activity-log")
@@ -335,13 +360,12 @@ def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
             day = name.removesuffix(".md")
             if name == "index.md" or not _is_date(day):
                 continue
-            lines = [
-                line
-                for line in store.read_document(
-                    os.path.join(directory, name)
-                ).splitlines()
-                if _LOG_LINE.match(line)
-            ]
+            path = os.path.join(directory, name)
+            text = store.read_document_strict(path)
+            if text is None:
+                unreadable.add(path)
+                continue
+            lines = [line for line in text.splitlines() if _LOG_LINE.match(line)]
             if not lines:
                 continue
             added = len(_new_lines(day, lines)) if dry_run else _write_log(day, lines)
@@ -410,7 +434,9 @@ def _normalise_log_line(line: str) -> str:
     return f"- {stamp} — {text}."
 
 
-def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
+def _migrate_handovers(
+    source: str, dry_run: bool, unreadable: set[str]
+) -> dict[str, int]:
     """A day file's handover paragraph, as that day's diary entry."""
     written = {"diary": 0}
     root = os.path.join(source, "activity-log")
@@ -419,7 +445,11 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
             day = name.removesuffix(".md")
             if name == "index.md" or not _is_date(day):
                 continue
-            text = store.read_document(os.path.join(directory, name))
+            path = os.path.join(directory, name)
+            text = store.read_document_strict(path)
+            if text is None:
+                unreadable.add(path)
+                continue
             handover = _handover_of(text)
             if not handover:
                 continue

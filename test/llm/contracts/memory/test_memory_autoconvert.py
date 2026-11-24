@@ -88,3 +88,21 @@ def test_an_interrupted_conversion_continues_without_duplicating(notes_tree):
     paths.prepare()
     assert len(store.load_facts()) == 1
     assert os.path.exists(str(notes_tree / ".version"))
+
+
+def test_an_unreadable_note_is_not_marked_converted_and_is_retried(notes_tree):
+    """An unreadable note must not be written off. The valid note still
+    migrates, `.version` stays absent so the next start tries again, and once
+    the note is readable it lands in the store and the marker is written."""
+    broken = notes_tree / "technical" / "broken.md"
+    broken.write_bytes(b"\xff\xfe---\nslug: broken\n---\n# broken\n")
+    paths.prepare()
+
+    assert store.load_fact("windows-ci-red-at-install-dependencies") is not None
+    assert not os.path.exists(str(notes_tree / ".version"))
+
+    broken.write_text(NOTE.replace("windows-ci", "recovered-ci"), encoding="utf-8")
+    paths.prepare()
+
+    assert store.load_fact("recovered-ci-red-at-install-dependencies") is not None
+    assert os.path.exists(str(notes_tree / ".version"))

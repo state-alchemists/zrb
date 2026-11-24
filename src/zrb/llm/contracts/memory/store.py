@@ -73,6 +73,21 @@ def now() -> str:
     return format_stamp()
 
 
+def read_document_strict(path: str) -> str | None:
+    """The file's text, or ``None`` when it cannot be read.
+
+    A migration must tell an empty note from an unreadable one: it may not mark
+    the notes directory converted while a note is still unread, or that note is
+    never retried. Everything else wants `read_document`, which degrades an
+    unreadable file to "absent" so a turn never fails over it.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except (OSError, UnicodeError):
+        return None
+
+
 def read_document(path: str) -> str:
     """The file's text, or ``""`` when it cannot be read.
 
@@ -80,11 +95,8 @@ def read_document(path: str) -> str:
     corrupted or wrongly-encoded file must degrade to "absent" rather than take a
     turn down through `render_memory_block` or a search.
     """
-    try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
-    except (OSError, UnicodeError):
-        return ""
+    text = read_document_strict(path)
+    return "" if text is None else text
 
 
 def write_document(path: str, content: str) -> None:
@@ -542,6 +554,7 @@ __all__ = [
     "now",
     "prune_logs",
     "read_document",
+    "read_document_strict",
     "recent_log_lines",
     "save_diary",
     "save_fact",
