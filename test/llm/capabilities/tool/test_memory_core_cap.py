@@ -5,13 +5,15 @@ the refusal is decided on: the text the block will actually carry, not the file'
 day-free rendering of it.
 """
 
+from datetime import date, timedelta
+
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.memory import remember
 from zrb.llm.contracts.memory import paths, store
 from zrb.llm.contracts.memory.model import Fact
-from zrb.llm.contracts.memory.render import render_core
+from zrb.llm.contracts.memory.render import cut_lines, render_core
 
 
 @pytest.fixture
@@ -74,3 +76,46 @@ def test_the_cap_is_measured_on_the_block_which_dates_a_dormant_loop(
     message = remember("fresh", "A fresh claim.", pin=True)
     assert "Nothing was written" in message
     assert store.load_fact("fresh") is None
+
+
+def _room_today_costs(claim: str) -> int:
+    """The cap a loop's line needs the day it is written: it carries no age yet."""
+    return len(render_core([Fact(id="owed", claim=claim, kind="loop")], store.today()))
+
+
+def test_a_loop_the_cap_keeps_is_still_in_the_block_a_week_later(
+    store_dir, monkeypatch
+):
+    """The cap is checked on a render that draws no age; the block is read later.
+
+    A loop written today is untouched for no days, so that render is the smallest
+    its line will ever be. A cap set to exactly that size accepts the claim, and
+    seven days on the same line is five characters longer and `cut_lines` drops
+    it — with nobody measuring, and without the delta saying it went: a claim
+    accepted at the cap disappears from the block by ageing. Either the cap keeps
+    room for the marker the line will wear, or it may not keep the claim at all.
+    """
+    claim = "I owe a staging cert rotation."
+    cap = _room_today_costs(claim)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", cap, raising=False)
+    message = remember("owed", claim, kind="loop")
+    week_later = (date.fromisoformat(store.today()) + timedelta(days=7)).isoformat()
+    drawn = cut_lines(render_core(store.load_facts(), week_later), cap)
+    assert "Nothing was written" in message or "[owed] · 7d" in drawn
+
+
+def test_a_loop_that_fits_only_until_it_ages_is_refused(store_dir, monkeypatch):
+    """The refusal has to count the marker, or it refuses nothing a week early.
+
+    The room a loop is given is the room its line will need for as long as the
+    claim is carried — which is wider than it is today, by the age marker it
+    will wear. The number reported is the number the decision was made on, so a
+    refusal cannot claim nothing is over.
+    """
+    claim = "I owe a staging cert rotation."
+    cap = _room_today_costs(claim)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", cap, raising=False)
+    message = remember("owed", claim, kind="loop")
+    assert "Nothing was written" in message
+    assert store.load_fact("owed") is None
+    assert "0 over" not in message

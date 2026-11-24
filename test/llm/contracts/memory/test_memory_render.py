@@ -15,6 +15,7 @@ from zrb.llm.contracts.memory.render import (
     render_core_note,
     render_recent,
     render_store_note,
+    render_widest_core,
 )
 
 
@@ -408,3 +409,33 @@ def test_the_budget_counts_a_dated_loop_as_shown():
     ]
     budget = core_budget(facts, 4_000, "2026-11-15")
     assert (budget.loops, budget.cut) == (1, 0)
+
+
+def test_the_widest_core_is_as_wide_as_every_day_it_can_be_drawn_on():
+    """The cap is decided on this render, so it has to bound every other one.
+
+    A marker grows with the age it reports, and its digits are all the room it
+    takes: a store measured here must still fit the day a claim has been asleep
+    for years, which is what stops a write accepted today from being cut later.
+    """
+    facts = [
+        _fact("asleep", "An old thread.", kind="loop", updated="2026-11-03T10:00:00"),
+        _fact("ancient", "A thread nobody moved.", kind="loop", updated="0001-01-01"),
+        _fact("belief", "A belief.", pin=True, updated="2026-01-01T10:00:00"),
+    ]
+    widest = render_widest_core(facts)
+    for day in ("", "2026-11-04", "2026-11-15", "2030-01-01", "9999-12-31"):
+        assert len(render_core(facts, day)) <= len(widest)
+
+
+def test_a_store_of_beliefs_costs_the_same_widest_or_not():
+    """A pinned fact draws no age, so nothing is reserved for one."""
+    facts = [_fact("belief", "A belief.", pin=True, updated="2026-01-01T10:00:00")]
+    assert render_widest_core(facts) == render_core(facts, "2026-11-15")
+
+
+def test_a_loop_with_no_readable_date_reserves_no_room():
+    """Nothing is drawn for it on any day, so nothing is held back for it."""
+    for updated in ("", "not a date"):
+        facts = [_fact("loop", "Claim.", kind="loop", updated=updated)]
+        assert render_widest_core(facts) == render_core(facts)
