@@ -359,3 +359,116 @@ async def test_a_failed_delegation_releases_its_live_session(mock_sub_agent_mana
 
     assert messages[-1] == "keep going"
     assert session.state == "idle"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_parent_does_not_start_a_queued_continuation(
+    mock_sub_agent_manager,
+):
+    """Cancelling the parent must not drain a queued message into a
+    continuation detached from the run that was cancelled."""
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    started = asyncio.Event()
+    calls = []
+
+    async def blocking_run_agent(**kwargs):
+        calls.append(kwargs["message"])
+        started.set()
+        await asyncio.Event().wait()  # never finishes on its own
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=blocking_run_agent,
+        ):
+            parent = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "queued while running"
+            )
+            assert session.pending_queue == ["queued while running"]
+
+            parent.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await parent
+            for _ in range(20):
+                if session.state == "idle":
+                    break
+                await asyncio.sleep(0.01)
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert session.state == "idle"
+    assert session.active_task is None
+    assert session.pending_queue == []
+    # The queued message was dropped, not turned into a second run.
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_successful_turn_still_drains_its_queued_messages(
+    mock_sub_agent_manager,
+):
+    """A successful completion still delivers messages queued during the turn."""
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    continuation_started = asyncio.Event()
+    release_continuation = asyncio.Event()
+    calls = []
+
+    async def gated_run_agent(**kwargs):
+        calls.append(kwargs["message"])
+        if len(calls) == 1:
+            first_started.set()
+            await release_first.wait()
+        else:
+            continuation_started.set()
+            await release_continuation.wait()
+        return "done", []
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=gated_run_agent,
+        ):
+            parent = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await first_started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "queued while running"
+            )
+            assert session.pending_queue == ["queued while running"]
+
+            release_first.set()
+            result = await parent
+            assert "completed" in result
+
+            await asyncio.wait_for(continuation_started.wait(), timeout=5)
+            assert calls[-1] == "queued while running"
+            continuation = session.active_task
+            assert continuation is not None
+            release_continuation.set()
+            await continuation
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert session.state == "idle"
+    assert session.pending_queue == []

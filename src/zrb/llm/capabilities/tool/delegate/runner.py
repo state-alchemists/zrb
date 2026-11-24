@@ -223,10 +223,13 @@ async def run_agent_task(
             # A failed or cancelled turn must release ownership and go idle
             # like a successful one; leaving the session "running" with no
             # task queues every later message behind a turn that no longer
-            # exists. `mark_turn_finished` keeps the history it already has
-            # and drains messages queued during the turn.
+            # exists. No drain here: a continuation started from a failed or
+            # cancelled run is detached from the run that would report it.
             get_live_session_registry().mark_turn_finished(
-                session.session_id, agent_id, session.history
+                session.session_id,
+                agent_id,
+                session.history,
+                drain_pending=False,
             )
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)

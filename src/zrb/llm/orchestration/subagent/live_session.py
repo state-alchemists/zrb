@@ -150,8 +150,21 @@ class LiveSubAgentSessionRegistry:
         sub-agent stays selectable for the rest of the chat session."""
         return list(self._sessions.get(session_id, {}).values())
 
-    def mark_turn_finished(self, session_id: str, agent_id: str, history: list) -> None:
-        """Record the just-finished turn's resulting history and go idle."""
+    def mark_turn_finished(
+        self,
+        session_id: str,
+        agent_id: str,
+        history: list,
+        drain_pending: bool = True,
+    ) -> None:
+        """Record the just-finished turn's resulting history and go idle.
+
+        *drain_pending* starts a continuation for messages queued during the
+        turn. A successful turn passes True; a turn that failed or whose
+        parent was cancelled passes False and drops the queue instead: a
+        continuation started from an abnormally ended run is detached from
+        the run that would have reported it.
+        """
         entry = self.get(session_id, agent_id)
         if entry is None:
             return
@@ -159,6 +172,9 @@ class LiveSubAgentSessionRegistry:
         entry.state = "idle"
         if entry.is_turn_owner():
             entry.active_task = None
+        if not drain_pending:
+            entry.pending_queue.clear()
+            return
         if entry.pending_queue and _current_task() is not None:
             # Messages arrived while the finished turn was between rounds,
             # where there was no live run to steer them into: that turn is
