@@ -19,7 +19,7 @@ One `SandboxPolicy` (`zrb/llm/capabilities/sandbox/`) drives two enforcement lay
 
 The sandbox isolates the **filesystem only** — network stays open (commands like `git pull` and `pip install` keep working).
 
-On Linux, the private PID namespace also changes what the shell tool can keep alive: the sandbox's processes die when it exits, and their PIDs are namespace-local, so `Shell(background=True)` is refused and a command that outruns its `timeout` is killed instead of being moved to the background. Run such a command in the foreground, or set `ZRB_LLM_SANDBOX_OS_SHELL=off` to restore background shells.
+On Linux, the private PID namespace also changes what the shell tool can keep alive: the sandbox's processes die when it exits, and their PIDs are namespace-local, so `Shell(background=True)` is refused, a command that outruns its `timeout` is killed instead of being moved to the background, and no background PIDs are reported (they would be namespace-local, not host PIDs). Run such a command in the foreground, or set `ZRB_LLM_SANDBOX_OS_SHELL=off` to restore background shells and PID reports.
 
 ## Platform Matrix
 

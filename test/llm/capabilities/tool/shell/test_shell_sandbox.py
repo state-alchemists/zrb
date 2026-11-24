@@ -123,3 +123,18 @@ async def test_background_shell_is_refused_in_a_private_pid_namespace(monkeypatc
     assert f"{CFG.ENV_PREFIX}_LLM_SANDBOX_OS_SHELL=off" in result
     assert "Handle:" not in result
     assert started == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_private_pid_namespace_hides_background_pids(monkeypatch):
+    """A namespace-local PID is not a host PID, so reporting it would let the
+    model signal an unrelated process."""
+    monkeypatch.setattr(
+        shell_mod, "uses_private_pid_namespace", lambda policy, skip=False: True
+    )
+
+    result = await run_shell_command("sleep 1 & echo started")
+
+    assert "started" in result
+    assert "Background PIDs: (none)" in result

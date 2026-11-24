@@ -114,9 +114,10 @@ async def run_shell_command(
     not lost and no second copy has to be started. A command that begins with
     ``sleep`` is the exception — a delay is the work, so it is still killed.
     While the Linux sandbox gives a command its own PID namespace, background
-    shells are refused and a timed-out command is killed instead (its
-    namespace-local PIDs cannot be tracked from outside); run it in the
-    foreground, or set the OS shell sandbox to off to use background shells.
+    shells are refused, a timed-out command is killed instead, and its
+    namespace-local PIDs are not reported as background PIDs (they are not
+    host PIDs). Run it in the foreground, or set the OS shell sandbox to off
+    to use those features.
 
     Prefer the bounded form: ``git diff --stat`` before ``git diff``,
     ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
@@ -132,8 +133,16 @@ async def run_shell_command(
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
-    # Background-PID discovery needs POSIX process groups + pgrep/ps.
-    use_pid_tracking = platform.system() != "Windows" and shell_flag == "-c"
+    private_pid_namespace = uses_private_pid_namespace(
+        get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
+    )
+    # Background-PID discovery needs POSIX process groups + pgrep/ps, and a
+    # PID namespace's pids are not host pids: reporting them would mislead.
+    use_pid_tracking = (
+        platform.system() != "Windows"
+        and shell_flag == "-c"
+        and not private_pid_namespace
+    )
 
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
@@ -155,9 +164,7 @@ async def run_shell_command(
     # A command inside bwrap's PID namespace cannot outlive the sandbox, and
     # its PIDs are namespace-local, so it is killed at the timeout instead of
     # being adopted by the background registry.
-    allow_adopt = not uses_private_pid_namespace(
-        get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
-    )
+    allow_adopt = not private_pid_namespace
     # Set when a timeout moved the command to the background instead of
     # killing it; the pipe then belongs to the registry, not to this call.
     handle: "str | None" = None
