@@ -458,9 +458,19 @@ def agent_not_found_message(
 
 
 async def _git_output(cwd: str, *args: str) -> tuple[int, str]:
-    """Run ``git *args`` in *cwd*; return (returncode, stripped stdout)."""
+    """Run ``git *args`` in *cwd*; return (returncode, stripped stdout).
+
+    The worktree is a model-chosen directory, and its configuration can name a
+    program git runs for us: `core.fsmonitor` its monitor, a hooks path its
+    hooks. Both are off for every probe here — `status`, `rev-parse`,
+    `rev-list` — and `-c` must precede the subcommand.
+    """
     proc = await asyncio.create_subprocess_exec(
         "git",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
         *args,
         cwd=cwd,
         stdout=asyncio.subprocess.PIPE,

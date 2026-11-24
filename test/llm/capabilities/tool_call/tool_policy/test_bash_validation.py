@@ -20,10 +20,19 @@ class TestIsSafeCommand:
         assert is_safe_command("ls -la") is True
         assert is_safe_command("ls /tmp") is True
 
-    def test_safe_command_git_status(self):
-        """Test that git status is recognized as safe."""
-        assert is_safe_command("git status") is True
-        assert is_safe_command("git status -s") is True
+    def test_git_commands_are_not_auto_approved(self):
+        """A repository's own configuration can make a read-only git command run code.
+
+        `core.fsmonitor` names a program `git status` runs; `diff.external` and
+        textconv drivers do the same for `git diff`/`log`/`show`. None of that
+        is a command-line flag, so an option check cannot keep up — these are
+        approved by a person or the judge, never auto-approved.
+        """
+        assert is_safe_command("git status") is False
+        assert is_safe_command("git status -s") is False
+        assert is_safe_command("git diff") is False
+        assert is_safe_command("git log --oneline") is False
+        assert is_safe_command("git show HEAD") is False
 
     def test_safe_command_cat(self):
         """Test that cat is recognized as safe."""
@@ -119,7 +128,7 @@ class TestIsSafeCommand:
         """Test that safe commands are case-insensitive."""
         assert is_safe_command("LS") is True
         assert is_safe_command("LS -la") is True
-        assert is_safe_command("GIT STATUS") is True
+        assert is_safe_command("GREP needle") is True
 
     def test_safe_command_with_leading_spaces(self):
         """Test that leading spaces are handled."""
@@ -301,15 +310,6 @@ _FLAG_LEAKS = [
     "rg --pre-glob=*.txt pattern",
     "rg --hostname-bin=hostname pattern",
     "rg pattern --pre ./evil.sh",
-    "git log --output=out.txt",
-    "git diff --output out.txt",
-    "git show --output=out.txt HEAD",
-    "git diff --out=out.txt",
-    "git diff --ext-diff",
-    "git log --ext-diff -p",
-    "git show --textconv HEAD:file",
-    "git log -p --textconv",
-    "git diff --ext HEAD",
     "sort -o out.txt in.txt",
     "sort -uo out.txt in.txt",
     "sort -oout.txt in.txt",
@@ -346,16 +346,6 @@ _HARMLESS_FORMS = [
     "rg --no-pre pattern",
     "rg --pretty pattern",
     "rg -e pattern -- --pre",
-    "git diff",
-    "git diff HEAD~1 -- src",
-    "git diff --stat",
-    "git diff --no-ext-diff",
-    "git diff --no-textconv",
-    "git diff --output-indicator-new=+",
-    "git log --oneline -n 5",
-    "git log HEAD@{1}..HEAD",
-    "git show HEAD:README.md",
-    "git show --stat",
     "sort file",
     "sort -n -r file",
     "sort -u -k 2,2 file",

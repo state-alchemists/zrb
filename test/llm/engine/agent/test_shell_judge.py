@@ -328,3 +328,25 @@ async def test_the_call_is_written_to_the_usage_log(tmp_path, monkeypatch):
     assert [record.component for record in read_records(directory=str(tmp_path))] == [
         COMPONENT_SHELL_JUDGE
     ]
+
+
+def test_uncommitted_files_probe_disables_fsmonitor_and_hooks(tmp_path, monkeypatch):
+    """The judge runs in a model-chosen directory, whose git config can name a
+    program `git status` would run; both settings are forced off for the probe."""
+    calls = []
+    completed = SimpleNamespace(returncode=0, stdout="")
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return completed
+
+    monkeypatch.setattr("zrb.llm.engine.agent.shell_judge.subprocess.run", fake_run)
+
+    assert uncommitted_files(str(tmp_path)) == "0"
+
+    argv, kwargs = calls[0]
+    assert argv[0] == "git"
+    assert "core.fsmonitor=false" in argv
+    assert "core.hooksPath=/dev/null" in argv
+    assert argv.index("-c") < argv.index("status")
+    assert kwargs["cwd"] == str(tmp_path)

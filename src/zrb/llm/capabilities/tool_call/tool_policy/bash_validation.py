@@ -19,12 +19,14 @@ if TYPE_CHECKING:
 _DANGEROUS_SUBSTRINGS = (">", "|", ";", "&", "`", "$(", "<(", "\n", "\r")
 
 # Read-only prefixes, matched case-insensitively and followed by end, space or tab.
+#
+# No git command is here. Even `git status`, `git diff`, `git log` and
+# `git show` can run a program the repository itself configures —
+# `core.fsmonitor` for status, `diff.external` and textconv drivers for the
+# diff family — with no flag on the command line to inspect. They still run;
+# the approval prompt or the judge decides them, and neither can be forged from
+# a flag list that has to stay ahead of git's own option parser.
 _SAFE_PREFIXES = (
-    # Git: only universally read-only subcommands
-    "git status",
-    "git diff",
-    "git log",
-    "git show",
     # File / directory listing
     "ls",
     "ll",
@@ -83,13 +85,11 @@ _SAFE_PREFIXES = (
 )
 
 # Long options that run a program or write a file, per allowlisted command. An
-# option matches by its exact name or by any prefix of it, because git and GNU
-# sort/file accept unambiguous abbreviations (`git log --out=x`).
+# option matches by its exact name or by any prefix of it, because GNU sort and
+# file accept unambiguous abbreviations (`sort --out=out.txt`).
 _RG_UNSAFE_LONG_OPTIONS = ("pre", "pre-glob", "hostname-bin")
-_GIT_UNSAFE_LONG_OPTIONS = ("output", "ext-diff", "textconv")
 _SORT_UNSAFE_LONG_OPTIONS = ("output", "compress-program")
 _FILE_UNSAFE_LONG_OPTIONS = ("compile",)
-_GIT_CHECKED_SUBCOMMANDS = ("diff", "log", "show")
 # `uniq` long options whose value may be the next word.
 _UNIQ_VALUE_LONG_OPTIONS = ("skip-fields", "skip-chars", "check-chars")
 
@@ -166,19 +166,11 @@ def _has_expansion_hiding_option(args: list[str]) -> bool:
 def _has_flag_that_runs_or_writes(command: str) -> bool:
     """True when an allowlisted command carries an option that runs a program or writes a file."""
     head = command.lower().split(None, 2)
-    if not head:
+    if not head or head[0] not in ("rg", "sort", "uniq", "file"):
         return False
     name = head[0]
-    if name == "git":
-        if len(head) < 2 or head[1] not in _GIT_CHECKED_SUBCOMMANDS:
-            return False
-        skipped = 2
-    elif name in ("rg", "sort", "uniq", "file"):
-        skipped = 1
-    else:
-        return False
     try:
-        args = shlex.split(command)[skipped:]
+        args = shlex.split(command)[1:]
     except ValueError:
         # Unbalanced quotes: the words cannot be read reliably.
         return True
@@ -186,8 +178,6 @@ def _has_flag_that_runs_or_writes(command: str) -> bool:
         return True
     if name == "rg":
         return _has_unsafe_option(args, _RG_UNSAFE_LONG_OPTIONS, "", "")
-    if name == "git":
-        return _has_unsafe_option(args, _GIT_UNSAFE_LONG_OPTIONS, "", "")
     if name == "sort":
         return _has_unsafe_option(args, _SORT_UNSAFE_LONG_OPTIONS, "o", "kSTt")
     if name == "file":
