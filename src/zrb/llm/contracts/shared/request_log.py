@@ -259,7 +259,7 @@ def _say_unfiled(why: str) -> None:
         f"Request log: no rows written for this round ({why}). The turn is "
         f"unaffected, but a per-request report cannot explain it. The file is "
         f"`request-YYYY-MM.jsonl` under {CFG.LLM_USAGE_DIR} "
-        f"(`ZRB_LLM_USAGE_DIR`)."
+        f"(`{CFG.ENV_PREFIX}_LLM_USAGE_DIR`)."
     )
 
 
@@ -384,7 +384,7 @@ def record_requests(records: Iterable[RequestRecord]) -> list[RequestRecord]:
             CFG.LOGGER.warning(
                 f"Request log not written: {path}. The rows for these requests are "
                 f"lost, and the turn is unaffected. Check that the directory "
-                f"(`ZRB_LLM_USAGE_DIR`) exists and that its disk has room.",
+                f"(`{CFG.ENV_PREFIX}_LLM_USAGE_DIR`) exists and that its disk has room.",
                 exc_info=True,
             )
             continue

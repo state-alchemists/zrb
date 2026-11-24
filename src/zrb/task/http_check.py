@@ -59,7 +59,10 @@ class HttpCheck(BaseTask):
             source, interval = "`interval`", self._interval
         else:
             configured = CFG.HTTP_CHECK_INTERVAL
-            source = f"`ZRB_HTTP_CHECK_INTERVAL` (milliseconds, currently {configured})"
+            source = (
+                f"`{CFG.ENV_PREFIX}_HTTP_CHECK_INTERVAL` "
+                f"(milliseconds, currently {configured})"
+            )
             interval = configured / 1000
         reject_non_positive_interval("HttpCheck", source, interval)
         return interval

@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.tcp_check import TcpCheck
@@ -136,8 +137,13 @@ async def test_tcp_check_rejects_a_non_positive_interval(mock_session, interval)
 async def test_tcp_check_rejects_a_non_positive_configured_interval(
     mock_session, monkeypatch, raw_interval
 ):
-    """The CFG-backed interval is rejected too, naming the setting."""
-    monkeypatch.setenv("ZRB_TCP_CHECK_INTERVAL", raw_interval)
+    """The CFG-backed interval is rejected too, naming the setting.
+
+    Under the deployment's own prefix: a white label renames it, and a message
+    that says `ZRB_` sends its user to a variable nothing reads.
+    """
+    monkeypatch.setattr(CFG, "ENV_PREFIX", "ACME", raising=False)
+    monkeypatch.setenv("ACME_TCP_CHECK_INTERVAL", raw_interval)
 
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
@@ -146,7 +152,7 @@ async def test_tcp_check_rejects_a_non_positive_configured_interval(
         await tcp_check.exec(mock_session)
 
     message = str(exc_info.value)
-    assert "ZRB_TCP_CHECK_INTERVAL" in message
+    assert "ACME_TCP_CHECK_INTERVAL" in message
     assert raw_interval in message
 
 
