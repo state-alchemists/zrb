@@ -123,6 +123,13 @@ class TestSelectTodoTask:
         result = select_todo_task(todo_list, "abc")
         assert result == task1
 
+    def test_empty_keyword_selects_no_task(self, sample_task):
+        """`""` is contained in every id and description; it must select none."""
+        assert select_todo_task([sample_task], "") is None
+
+    def test_whitespace_keyword_selects_no_task(self, sample_task):
+        assert select_todo_task([sample_task], "   ") is None
+
 
 class TestLoadTodoList:
     """Tests for load_todo_list edge cases."""

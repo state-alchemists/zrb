@@ -267,8 +267,9 @@ class TestOptionInputPromptCli:
             patch("builtins.input", return_value="  red  "),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
-            # Whitespace stripped value should match an option
-            assert result.strip() == "red"
+            # The prompt accepts the stripped value, so it must return the
+            # stripped value rather than padding the context rejects later.
+            assert result == "red"
 
     def test_prompt_cli_str_non_tty_multiple_invalid_inputs(self):
         """Test multiple invalid inputs before valid one."""

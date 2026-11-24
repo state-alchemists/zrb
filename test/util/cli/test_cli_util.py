@@ -1,4 +1,7 @@
+import tempfile
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from zrb.util.cli.subcommand import SubCommand, get_group_subcommands
 from zrb.util.cli.text import edit_text
@@ -68,12 +71,45 @@ def test_subcommand_init_defaults():
 
 
 @patch("subprocess.call")
-@patch("zrb.util.cli.text.read_file")
-def test_edit_text(mock_read_file, mock_subprocess_call):
-    mock_read_file.return_value = "edited content"
+@patch("zrb.util.cli.text.read_text_file")
+def test_edit_text(mock_read_text_file, mock_subprocess_call):
+    mock_read_text_file.return_value = "edited content"
     mock_subprocess_call.return_value = 0
 
     result = edit_text(prompt_message="Prompt", value="initial", editor="mock-editor")
 
     assert result == "edited content"
     mock_subprocess_call.assert_called()
+
+
+def test_edit_text_removes_the_temp_file_when_the_editor_is_missing(
+    tmp_path, monkeypatch
+):
+    """A crashed editor must not leave the prompt and current value on disk."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    with pytest.raises(FileNotFoundError):
+        edit_text(
+            prompt_message="Prompt",
+            value="initial",
+            editor=str(tmp_path / "no-such-editor"),
+        )
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_edit_text_raises_on_non_utf8_editor_output_and_removes_the_temp_file(
+    tmp_path, monkeypatch
+):
+    """Binary editor output is an error, not base64 handed back as the value."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    def write_binary(editor_args):
+        with open(editor_args[1], "wb") as edited_file:
+            edited_file.write(b"\xff\xfe\x00")
+
+    with patch("zrb.util.cli.text.subprocess.call", side_effect=write_binary):
+        with pytest.raises(UnicodeDecodeError):
+            edit_text(prompt_message="Prompt", value="initial", editor="mock-editor")
+
+    assert list(tmp_path.iterdir()) == []

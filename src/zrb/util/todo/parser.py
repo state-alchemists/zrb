@@ -32,6 +32,10 @@ def select_todo_task(
 ) -> "TodoTaskModel | None":
     """Pick a todo task by ID or description: exact match first, then partial."""
     k = keyword.lower().strip()
+    # An empty keyword is contained in every id and description; selecting on
+    # it would complete whichever task happens to come first.
+    if k == "":
+        return None
     for todo_task in todo_list:
         if k == todo_task.keyval.get("id", "").lower().strip():
             return todo_task
