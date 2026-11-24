@@ -1,5 +1,6 @@
 import datetime
 import os
+import tempfile
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -33,10 +34,19 @@ class FileSessionStateLogger(AnySessionStateLogger):
         self._pruned_dirs: set[str] = set()
 
     def get_session_log_dir(self) -> str:
-        """The session log directory, calling `session_log_dir` if callable."""
+        """The session log directory, calling `session_log_dir` if callable.
+
+        ``~`` is expanded here, once, so every path this logger builds agrees:
+        the JSON file, its atomic temp file, the timeline entry, listing and
+        pruning. Expanding only in the writer would leave ``list`` and pruning
+        looking at a literal ``~`` directory while the log landed in the home
+        directory.
+        """
         if callable(self.session_log_dir_param):
-            return self.session_log_dir_param()
-        return self.session_log_dir_param
+            directory = self.session_log_dir_param()
+        else:
+            directory = self.session_log_dir_param
+        return os.path.expanduser(directory)
 
     def write(self, session_log: "SessionStateLog"):
         session_log_dir = self.get_session_log_dir()
@@ -47,7 +57,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
             os.makedirs(session_dir_path, exist_ok=True)
-        write_file(session_file_path, session_log.model_dump_json())
+        _write_json_atomically(session_file_path, session_log.model_dump_json())
         start_time = session_log.start_time
         if start_time == "":
             return
@@ -79,9 +89,13 @@ class FileSessionStateLogger(AnySessionStateLogger):
                 session_name = os.path.splitext(file_name)[0]
                 try:
                     session_log = self.read(session_name)
-                except FileNotFoundError:
-                    continue  # pruned meanwhile, by this process or another
-                start_time = self._get_start_time(session_log)
+                    start_time = self._get_start_time(session_log)
+                except (OSError, ValueError):
+                    # Pruned meanwhile by this process or another, caught
+                    # mid-write, or corrupt. `ValueError` covers pydantic's
+                    # `ValidationError`. One unreadable entry must not turn the
+                    # whole listing into a 500.
+                    continue
                 if start_time and min_start_time <= start_time <= max_start_time:
                     matching_sessions.append((start_time, session_log))
         matching_sessions.sort(key=lambda x: x[0], reverse=True)
@@ -189,6 +203,27 @@ def _is_expired(path: str, cutoff: float) -> bool:
         return os.path.getmtime(path) < cutoff
     except OSError:
         return True
+
+
+def _write_json_atomically(file_path: str, content: str) -> None:
+    """Replace *file_path* with *content* without exposing a partial file.
+
+    The web UI polls these logs, so a reader must see either the previous log
+    or the finished one. The content goes to a unique temp file beside the
+    target and `os.replace` swaps it in; a crashed write leaves a temp file,
+    never a broken log.
+    """
+    dir_path = os.path.dirname(file_path)
+    descriptor, temp_path = tempfile.mkstemp(
+        dir=dir_path, prefix=f".{os.path.basename(file_path)}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(temp_path, file_path)
+    except BaseException:
+        delete_file_quietly(temp_path)
+        raise
 
 
 def _state_log_models():

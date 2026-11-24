@@ -428,6 +428,39 @@ def test_as_state_log_masks_secret_input():
     assert state_log.input["plain"] == "visible"
 
 
+def test_as_state_log_masks_hyphenated_secret_input_alias():
+    """`BaseInput.update_shared_context` stores a hyphenated input under its
+    snake_case alias as well as its declared name; masking only the declared
+    name wrote the secret to the state log under the alias."""
+    from zrb.context.shared_context import SharedContext
+    from zrb.input.password_input import PasswordInput
+    from zrb.util.secret import SECRET_MASK
+
+    shared_ctx = SharedContext()
+    password_input = PasswordInput(name="db-password")
+    password_input.update_shared_context(shared_ctx, str_value="s3cr3t")
+    assert shared_ctx.input["db-password"] == "s3cr3t"
+    assert shared_ctx.input["db_password"] == "s3cr3t"
+
+    task = MagicMock(spec=AnyTask)
+    task.name = "mytask"
+    task.readiness_checks = []
+    task.successors = []
+    task.fallbacks = []
+    task.upstreams = []
+    task.color = None
+    task.icon = None
+    task.inputs = [password_input]
+
+    session = Session(shared_ctx=shared_ctx)
+    session.register_task(task)
+    state_log = session.as_state_log()
+
+    assert state_log.input["db-password"] == SECRET_MASK
+    assert state_log.input["db_password"] == SECRET_MASK
+    assert "s3cr3t" not in str(state_log.input)
+
+
 def test_as_state_log_with_non_serializable_input():
     """Test as_state_log handles non-JSON-serializable inputs."""
     from zrb.context.shared_context import SharedContext

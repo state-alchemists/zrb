@@ -325,6 +325,114 @@ class TestFileSessionStateLoggerTimeline:
             assert result.total == 3
             assert len(result.data) == 3
 
+    def test_list_skips_an_entry_it_cannot_read(self, tmp_path):
+        """A log caught mid-write, or one that cannot be read, is skipped.
+
+        `list` used to let pydantic's `ValidationError` (an empty log) or the
+        `OSError` of an unreadable file escape, so one broken entry turned the
+        whole web route into a 500.
+        """
+        from zrb.session_state_log.session_state_log import (
+            SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
+        )
+
+        logger = FileSessionStateLogger(str(tmp_path))
+        logger.write(
+            SessionStateLog(
+                name="readable",
+                start_time="2024-01-15 10:30:00.123456",
+                main_task_name="task",
+                path=["group"],
+                input={},
+                final_result="",
+                finished=False,
+                log=[],
+                task_status={},
+            )
+        )
+        timeline_dir = (
+            tmp_path / "_timeline" / "group" / "2024" / "1" / "15" / "10" / "30" / "0"
+        )
+        # Still being written: the timeline entry exists, the log is empty.
+        (tmp_path / "empty.json").write_text("", encoding="utf-8")
+        (timeline_dir / "empty").write_text("", encoding="utf-8")
+        # Unreadable: a directory sits where a log file is expected.
+        (tmp_path / "unreadable.json").mkdir()
+        (timeline_dir / "unreadable").write_text("", encoding="utf-8")
+
+        result = logger.list(
+            task_path=["group"],
+            min_start_time=datetime(2024, 1, 1),
+            max_start_time=datetime(2024, 12, 31),
+        )
+
+        assert result.total == 1
+        assert [session_log.name for session_log in result.data] == ["readable"]
+
+    def test_write_swaps_a_finished_file_in_place(self, tmp_path):
+        """A reader polling the log must never see it truncated.
+
+        The new content goes to a unique temp file beside the target, and
+        `os.replace` swaps it in, so the target holds either the previous
+        complete log or the new one.
+        """
+        from zrb.session_state_log.session_state_log import (
+            SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
+        )
+
+        logger = FileSessionStateLogger(str(tmp_path))
+        session_file = tmp_path / "atomic.json"
+        session_file.write_text(
+            SessionStateLog(
+                name="previous",
+                start_time="2024-01-15 10:30:00.123456",
+                main_task_name="task",
+                path=[],
+                input={},
+                final_result="",
+                finished=False,
+                log=[],
+                task_status={},
+            ).model_dump_json(),
+            encoding="utf-8",
+        )
+        observed_at_swap = []
+        real_replace = os.replace
+
+        def observe_replace(source, destination):
+            # The target still holds the previous complete log at swap time.
+            observed_at_swap.append(session_file.read_text(encoding="utf-8"))
+            assert os.path.dirname(source) == os.path.dirname(destination)
+            real_replace(source, destination)
+
+        session_log = SessionStateLog(
+            name="atomic",
+            start_time="2024-01-15 10:30:00.123456",
+            main_task_name="task",
+            path=[],
+            input={},
+            final_result="",
+            finished=False,
+            log=[],
+            task_status={},
+        )
+        with patch("os.replace", side_effect=observe_replace):
+            logger.write(session_log)
+
+        assert observed_at_swap, "write must swap the file in, not rewrite in place"
+        assert all(
+            isinstance(json.loads(content), dict) for content in observed_at_swap
+        )
+        session_file_content = session_file.read_text(encoding="utf-8")
+        assert json.loads(session_file_content)["name"] == "atomic"
+        assert not list(tmp_path.glob(".atomic.json.*.tmp"))
+
     def test_list_sessions_pagination(self, tmp_path):
         """Test list pagination."""
         from zrb.session_state_log.session_state_log import (

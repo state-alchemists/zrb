@@ -38,6 +38,7 @@ from zrb.util.cli.style import (
 )
 from zrb.util.run import cancel_and_settle, gather_isolated
 from zrb.util.secret import SECRET_MASK
+from zrb.util.string.conversion import to_snake_case
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -209,13 +210,20 @@ class Session(AnySession):
         return sanitized_input
 
     def _get_secret_input_names(self) -> set[str]:
-        """Collect names of secret inputs declared by every registered task."""
-        return {
-            task_input.name
-            for task in self._task_status
-            for task_input in task.inputs
-            if task_input.is_secret
-        }
+        """Collect names of secret inputs declared by every registered task.
+
+        `BaseInput.update_shared_context` also stores a hyphenated input under
+        its snake_case alias, so masking only the declared name would persist
+        the value under the alias.
+        """
+        secret_names: set[str] = set()
+        for task in self._task_status:
+            for task_input in task.inputs:
+                if not task_input.is_secret:
+                    continue
+                secret_names.add(task_input.name)
+                secret_names.add(to_snake_case(task_input.name))
+        return secret_names
 
     def as_state_log(self) -> "SessionStateLog":
         """Snapshot this session as a serializable log (polled by the web UI, persisted by the state logger)."""

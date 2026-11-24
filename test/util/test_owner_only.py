@@ -19,6 +19,7 @@ from zrb.util.owner_only import (
     marker_path,
     reject_symlinked_ancestors,
     tighten_once,
+    write_text_owner_only,
 )
 
 needs_posix_modes = pytest.mark.skipif(
@@ -225,6 +226,35 @@ def test_a_symlink_planted_between_the_check_and_mkdir_is_caught(tmp_path):
     with patch("os.mkdir", side_effect=racy_mkdir):
         with pytest.raises(PermissionError, match="symlink"):
             makedirs_owner_only(str(target))
+
+
+@needs_posix_modes
+def test_writing_an_existing_world_readable_file_narrows_its_mode(tmp_path):
+    """`os.open`'s mode argument applies only when it creates the file, so an
+    existing 0644 note used to keep that mode while receiving private text."""
+    note = tmp_path / "note.md"
+    note.write_text("public draft", encoding="utf-8")
+    os.chmod(note, 0o644)
+
+    write_text_owner_only(str(note), "private line")
+
+    assert stat.S_IMODE(os.stat(note).st_mode) == FILE_MODE
+    assert note.read_text(encoding="utf-8") == "private line"
+
+
+@needs_posix_modes
+def test_a_failed_fchmod_does_not_truncate_the_existing_file(tmp_path):
+    """`O_TRUNC` ran before the mode was narrowed, so a `fchmod` the
+    filesystem refuses destroyed the old bytes and leaked the descriptor."""
+    note = tmp_path / "note.md"
+    note.write_text("public draft", encoding="utf-8")
+    os.chmod(note, 0o644)
+
+    with patch("os.fchmod", side_effect=PermissionError("not permitted")):
+        with pytest.raises(PermissionError):
+            write_text_owner_only(str(note), "private line")
+
+    assert note.read_text(encoding="utf-8") == "public draft"
 
 
 @needs_posix_modes
