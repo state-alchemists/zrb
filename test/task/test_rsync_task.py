@@ -211,15 +211,15 @@ async def test_rsync_task_brackets_an_ipv6_host(mock_session):
     assert "remote-user@[2001:db8::1]:/remote/path" in scripts[0]
 
 
-async def _script(task: RsyncTask) -> str:
-    """The generated command, captured through the public exec path."""
-    scripts: list[str] = []
+async def _run_rsync(task: RsyncTask) -> tuple[str, dict[str, str]]:
+    """The generated command and run environment, through the public exec path."""
+    captured: dict = {}
     session = Session(shared_ctx=SharedContext())
     session.register_task(task)
 
     def mock_run_command(*args, **kwargs):
         async def _coro():
-            scripts.append(kwargs["cmd"][2])
+            captured.update(kwargs)
             return (None, 0)
 
         return _coro()
@@ -228,7 +228,13 @@ async def _script(task: RsyncTask) -> str:
         "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await task.exec(session)
-    return scripts[0]
+    return captured["cmd"][2], captured["env_map"]
+
+
+async def _script(task: RsyncTask) -> str:
+    """The generated command, captured through the public exec path."""
+    script, _ = await _run_rsync(task)
+    return script
 
 
 @pytest.mark.asyncio
@@ -367,20 +373,40 @@ async def test_password_auth_preserves_sshpass_e():
 
 
 @pytest.mark.asyncio
-async def test_local_to_local_ignores_remote_password():
-    """No remote side means no sshpass (and no SSHPASS it would read)."""
+async def test_remote_execution_exports_sshpass():
+    task = RsyncTask(
+        name="test_rsync",
+        local_source_path="/local/path",
+        remote_destination_path="/remote/path",
+        remote_host="remote-host",
+        remote_user="remote-user",
+        remote_password="s3cret",
+    )
+
+    _, env_map = await _run_rsync(task)
+
+    assert env_map["SSHPASS"] == "s3cret"
+
+
+@pytest.mark.asyncio
+async def test_local_to_local_ignores_remote_host_and_password():
+    """No remote side means no sshpass and no SSHPASS, even when the task
+    carries SSH settings for a copy that never leaves the machine."""
     task = RsyncTask(
         name="test_rsync",
         local_source_path="/local/source",
         local_destination_path="/local/destination",
+        remote_host="remote-host",
+        remote_user="remote-user",
         remote_password="s3cret",
     )
 
-    script = await _script(task)
+    script, env_map = await _run_rsync(task)
 
     assert script.startswith("rsync ")
     assert "sshpass" not in script
     assert "s3cret" not in script
+    assert "SSHPASS" not in env_map
 
 
 @pytest.mark.asyncio

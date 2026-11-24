@@ -73,6 +73,18 @@ class RsyncTask(CmdTask):
         self._local_destination_path = local_destination_path
         self._exclude_from = exclude_from
 
+    def _get_remote_execution_password(self, ctx: AnyContext) -> str:
+        """No SSH (and no ``SSHPASS``) when neither side is remote.
+
+        A local-to-local copy may still carry ``remote_host`` and
+        ``remote_password``; the generated command is plain ``rsync``, so
+        exporting the password would be a secret the run cannot use.
+        """
+        source_is_remote, destination_is_remote = self._validate_paths(ctx)
+        if source_is_remote or destination_is_remote:
+            return super()._get_remote_execution_password(ctx)
+        return ""
+
     def _get_source_path(self, ctx: AnyContext) -> str:
         local_source_path = self._get_local_source_path(ctx)
         if local_source_path != "":

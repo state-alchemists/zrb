@@ -192,11 +192,20 @@ class CmdTask(BaseTask):
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
         # SSHPASS only for remote execution, so local commands never see it.
-        remote_password = self._get_remote_password(ctx)
+        remote_password = self._get_remote_execution_password(ctx)
         if self._remote_host is not None and remote_password != "":
             envs["SSHPASS"] = remote_password
         envs["PYTHONUNBUFFERED"] = "1"
         return envs
+
+    def _get_remote_execution_password(self, ctx: AnyContext) -> str:
+        """The password to export as ``SSHPASS`` for this command, if any.
+
+        A subclass whose generated command can stay local even with
+        ``remote_host`` set overrides this to return ``""`` when the command
+        will not actually run over SSH.
+        """
+        return self._get_remote_password(ctx)
 
     def _get_shell(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._shell, CFG.SHELL)
