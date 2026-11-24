@@ -231,6 +231,45 @@ def test_a_retired_day_is_tombstoned_once(store_dir):
     assert render_memory_delta() is None
 
 
+def test_a_day_forgotten_before_the_block_leaves_no_line_behind(store_dir):
+    """`forget` on a day is undone if the block reads the retired entry back.
+
+    Verified end to end before the fix: remember a day, forget it as `wrong`, and
+    the block still carried `- Today (...)` — so the forget existed in the file
+    and nowhere in the prompt.
+    """
+    remember("anchor", "An anchor claim.", pin=True)
+    day = store.today()
+    remember(day, "Spent the day on memory.", kind="diary", body="x")
+    forget(day, "wrong")
+
+    # The day is still on disk, retired — the block filters it, nothing deleted it.
+    assert store.load_diary(day, include_retired=False) is None
+    assert store.load_diary(day) is not None
+
+    block = render_memory_block()
+
+    assert block is not None
+    assert f"Today ({day})" not in block
+    assert "Spent the day on memory." not in block
+
+
+def test_a_day_forgotten_before_the_block_earns_no_tombstone(store_dir):
+    """A retired day the block never showed is not a claim the model was given.
+
+    The block recorded the retired day as its baseline, so the next delta said
+    `Forget the day ...` about a line the block had just printed — a correction
+    for something never shown, and a contradiction of the block beside it.
+    """
+    remember("anchor", "An anchor claim.", pin=True)
+    day = store.today()
+    remember(day, "Spent the day on memory.", kind="diary", body="x")
+    forget(day, "wrong")
+
+    assert render_memory_block() is not None
+    assert render_memory_delta() is None
+
+
 def test_a_diary_written_after_the_block_reaches_the_next_turn(store_dir):
     """A day is not a fact: the delta must carry it too, or the reviewer's work is
     invisible until a compaction."""

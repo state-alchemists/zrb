@@ -53,11 +53,15 @@ def render_memory_block() -> str | None:
         return None
     core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
     today_day = store.today()
+    # The block may only show a day the store still remembers. `forget` keeps the
+    # file, so a plain read here would print the day the tools had just retired —
+    # the block undoing the forget on the next render.
+    today_entry = store.load_diary(today_day, include_retired=False)
     core = render.cut_lines(render.render_core(facts, today_day), core_cap)
     recent = render.cut_lines(
         render.render_recent(
             store.latest_handover(today_day),
-            store.load_diary(today_day),
+            today_entry,
             store.recent_log_lines(CFG.LLM_MEMORY_RECENT_LOG_LINES),
             previous_entry=store.latest_diary_before(today_day),
             week_note=store.latest_week_note(today_day),
@@ -76,11 +80,14 @@ def render_memory_block() -> str | None:
     # tombstone because it was never in the block either.
     rendered = set(core.splitlines())
     shown = _shown_so_far(_core_claim_ids(facts, rendered, today_day))
-    today_entry = store.load_diary(store.today())
+    # The diary key is the version the block could show, so a day already retired
+    # leaves none. The delta's `Forget the day` is for a day the model was told
+    # about; recording a retired one here would announce a forget of a line the
+    # block had just printed, which contradicts the block beside it.
     _write_state(
         [render.claim_key(fact) for fact in facts],
         shown,
-        render.diary_key(today_entry) if today_entry is not None else "",
+        render.diary_key(today_entry),
     )
     if not core.strip() and not recent.strip():
         return None
@@ -103,7 +110,8 @@ def render_memory_delta() -> str | None:
         # an upgrade; answering with nothing is what an upgrade used to look like.
         return render_memory_block()
     known, shown, diary = state
-    today_entry = store.load_diary(store.today())
+    # Retired included: this is the path that has to be able to report a forget.
+    today_entry = store.load_diary(store.today(), include_retired=True)
     try:
         facts = store.load_facts(include_retired=True)
     except OSError:

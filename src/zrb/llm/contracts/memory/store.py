@@ -177,12 +177,22 @@ def load_facts(include_retired: bool = False) -> list[Fact]:
     return facts
 
 
-def load_diary(day: str) -> Diary | None:
+def load_diary(day: str, include_retired: bool = True) -> Diary | None:
+    """The day's entry, or ``None``.
+
+    A retired day is returned by default, like `load_fact`: `forget` keeps the
+    file, and the delta is a caller that must see it in order to report the
+    forget. A caller that renders — the block — asks for an active day and
+    filters here, because reading a retired one back would undo the forget in
+    the very prompt that is meant to stop relying on it.
+    """
     try:
         entry = Diary.from_markdown(read_document(paths.diary_path(day)))
     except ValueError:
         return None
     if entry is None or entry.id != day:
+        return None
+    if not include_retired and not entry.is_active:
         return None
     return entry
 

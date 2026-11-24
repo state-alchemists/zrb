@@ -260,6 +260,7 @@ def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:
     """The newest state of play, dated unless it is the same day as `Today`."""
     if (
         handover is None
+        or not handover.is_active
         or not handover.handover.strip()
         or not _is_injectable(handover.handover)
     ):
@@ -273,7 +274,17 @@ def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:
 
 
 def _today_line(today_entry: Diary | None) -> str:
-    if today_entry is None or not _is_injectable(today_entry.claim):
+    """The day as it stands, unless the store has retired it.
+
+    A retired day stays on disk with its claim untouched, so the injection check
+    alone let it back into the block a moment after `forget` took it out: the
+    tools said the day was forgotten and the next prompt said it again.
+    """
+    if (
+        today_entry is None
+        or not today_entry.is_active
+        or not _is_injectable(today_entry.claim)
+    ):
         return ""
     return (
         f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}"
@@ -288,11 +299,14 @@ def _previous_line(
 
     One day can be both the newest state of play and the last day written, and
     its file is named once: a second reference to the same file says nothing the
-    first did not.
+    first did not. A retired day is not the last day written — it is a page the
+    user took back, and naming it here would put it in front of a model that has
+    no reason to trust it.
     """
     if (
         previous_entry is None
         or previous_entry.id == today_id
+        or not previous_entry.is_active
         or not _is_injectable(previous_entry.claim)
     ):
         return ""
