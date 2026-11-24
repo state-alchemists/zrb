@@ -152,7 +152,12 @@ async def test_tcp_check_rejects_a_non_positive_configured_interval(
 
 @pytest.mark.asyncio
 async def test_tcp_check_bounds_a_hanging_connect_and_retries(mock_session):
-    """A blackholed host must hit the probe timeout, not wait on the OS."""
+    """A blackholed host must hit the probe timeout, not wait on the OS.
+
+    The real one-second bound runs here rather than a patched-down constant, so
+    the test exercises the value the task ships with: the first connect is
+    cancelled by `asyncio.wait_for`, and the retry still succeeds.
+    """
     call_count = 0
     mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
 
@@ -173,7 +178,6 @@ async def test_tcp_check_bounds_a_hanging_connect_and_retries(mock_session):
     with (
         mock.patch("asyncio.open_connection", mock_open_connection),
         mock.patch("asyncio.sleep", mock_sleep),
-        mock.patch("zrb.task.tcp_check._MIN_PROBE_TIMEOUT", 0.01),
     ):
         result = await tcp_check.exec(mock_session)
 
