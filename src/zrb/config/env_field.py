@@ -284,19 +284,29 @@ class EnvField(Generic[T]):
         # would walk its characters instead (`",".join`), not its value.
         raw = value if isinstance(value, str) else self._serialize(value)
         try:
-            round_tripped = self._cast(raw)
+            cast_value = self._cast(raw)
         except (ValueError, TypeError) as error:
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not valid: it stores "
                 f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
             ) from error
-        # A str is the canonical env form, so coercing it ("INFO" -> 20) is
-        # fine; a non-str value that reads back differently is rejected.
-        if round_tripped != value and not isinstance(value, str):
+        # A non-str value must read back as itself through serialize + cast.
+        # The transform is checked separately: it may legitimately normalize or
+        # clamp (a token threshold against its cap), so its result is allowed to
+        # differ from the assigned value.
+        if cast_value != value and not isinstance(value, str):
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not a value this field can "
-                f"round-trip: it serializes to {raw!r} but reads back as "
-                f"{round_tripped!r}. Assign a {self._cast.__name__}-shaped "
+                f"round-trip: it serializes to {raw!r}, which reads back as "
+                f"{cast_value!r}. Assign a {self._cast.__name__}-shaped "
                 "value instead (e.g. a model name string, not a Model object)."
             )
+        if self._transform is not None:
+            try:
+                self._transform(cast_value, obj)
+            except (ValueError, TypeError) as error:
+                raise ValueError(
+                    f"CFG.{self._name} = {value!r} is not valid: its "
+                    f"transform fails on {raw!r} ({error})."
+                ) from error
         os.environ[key] = raw

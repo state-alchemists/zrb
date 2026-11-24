@@ -27,6 +27,45 @@ def test_assigning_an_uncastable_value_raises_at_the_assignment():
     assert "LLM_MAX_REQUEST_PER_MINUTE" in str(excinfo.value)
 
 
+def test_assigning_a_banner_the_transform_rejects_fails_at_the_assignment():
+    """`CFG.BANNER = "ASCII art: {zrb}"` used to be accepted and then raise on
+    every later read; the setter validates with the same transform, and says
+    the transform failed rather than blaming the cast."""
+    cfg = Config()
+    key = f"{cfg.ENV_PREFIX}_BANNER"
+    original = os.environ.get(key)
+    with pytest.raises(ValueError, match="transform fails") as excinfo:
+        cfg.BANNER = "ASCII art: {zrb}"
+    assert "str() rejects" not in str(excinfo.value)
+    assert os.environ.get(key) == original
+
+
+def test_a_clamped_token_threshold_assignment_is_accepted_and_reads_back_clamped():
+    """A transform that clamps is not a rejection: 100,000 assigned under a
+    50,000 cap stores the raw value and reads back 50,000."""
+    cfg = Config()
+    cfg.LLM_MAX_TOKEN_PER_MINUTE = 125_000
+    cfg.LLM_MAX_TOKEN_PER_REQUEST = 125_000
+    field = type(cfg).LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
+    key = field.env_key(cfg.ENV_PREFIX)
+    os.environ.pop(key, None)
+
+    cfg.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = 100_000
+
+    assert os.environ[key] == "100000"
+    assert cfg.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD == 50_000
+
+
+def test_a_string_normalized_by_the_transform_is_stored_as_written(monkeypatch):
+    """A str is the env text: the transform applies on read, not on write."""
+    cfg = Config()
+    key = f"{cfg.ENV_PREFIX}_LLM_ASSISTANT_NAME"
+    monkeypatch.setenv(key, "")
+    cfg.LLM_ASSISTANT_NAME = "boom"
+    assert os.environ[key] == "boom"
+    assert cfg.LLM_ASSISTANT_NAME == "Boom"
+
+
 def test_a_read_write_property_is_still_assignable():
     cfg = Config()
     cfg.ROOT_GROUP_NAME = "myproject"
