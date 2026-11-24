@@ -500,7 +500,11 @@ async def _install_page_request_guard(page) -> None:
                 route.request.url,
                 timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
             )
-        except Exception:  # noqa: BLE001 - a guard that cannot answer fails closed
+        except (OSError, ValueError):
+            # A refusal is `UnsafeWebUrlError` (a ValueError); a resolver
+            # failure or the blocking call's timeout is an OSError. The route is
+            # never continued on these. Anything else — cancellation included,
+            # which is a BaseException — propagates while the page is torn down.
             await route.abort()
             return
         await route.continue_()
