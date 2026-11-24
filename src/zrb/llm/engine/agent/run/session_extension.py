@@ -37,9 +37,17 @@ class ExtensionState:
 
     extended: bool = False
     return_extended: bool = False
-    # The model's output before an extension replaced it — see TurnCursor.output.
-    original_output: Any = None
-    original_history: History | None = None
+    # The pair to return when the latest extension did not replace the
+    # response. `answer_captured` says whether it holds a frozen answer: a
+    # `None` output is a legitimate answer for a nullable output type, so the
+    # pair cannot use `None` as "not captured yet". A block clears both; a
+    # replacing extension records its output; the first side-effect extension
+    # freezes the pair and later side-effect extensions keep it. A second
+    # side-effect run must not overwrite the answer with its own
+    # acknowledgement.
+    answer_output: Any = None
+    answer_history: History | None = None
+    answer_captured: bool = False
     block_count: int = 0
     system_message_count: int = 0
 
@@ -57,15 +65,6 @@ class ExtensionOutcome:
     new_message: PromptMessage = None
     new_history: History | None = None
     blocked: bool = False
-
-
-def _capture_original(
-    state: ExtensionState, result_output: Any, run_history: History
-) -> None:
-    """Snapshot the pre-extension output/history before the first extension."""
-    if not state.extended:
-        state.original_output = result_output
-        state.original_history = run_history
 
 
 def apply_turn_end_extension(
@@ -97,11 +96,16 @@ def apply_turn_end_extension(
         message = block.reason or "Please continue."
         if block.additional_context:
             message = f"{message}\n\n{block.additional_context}"
-        _capture_original(state, result_output, run_history)
         state.extended = True
         # The continuation is what the user asked the hook to force, so it is the
         # answer we return.
         state.return_extended = True
+        # A block supersedes any answer frozen by an earlier extension; the
+        # continuation that runs next is the answer if a side-effect extension
+        # follows it.
+        state.answer_output = None
+        state.answer_history = None
+        state.answer_captured = False
         state.block_count += 1
         print_fn(f"\n[SYSTEM] {message}\n")
         return ExtensionOutcome(
@@ -129,9 +133,24 @@ def apply_turn_end_extension(
         f"STOP hook returned systemMessage, continuing turn: {message[:100]}..."
     )
     CFG.LOGGER.debug(f"STOP hook replace_response={replace_response}")
-    _capture_original(state, result_output, run_history)
     state.extended = True
     state.return_extended = replace_response
+    if replace_response:
+        # This hook runs before its continuation: `result_output` is the answer
+        # the replacement supersedes, not the replacement. Clear any earlier
+        # freeze; the first side-effect extension after the continuation will
+        # freeze that continuation's result.
+        state.answer_output = None
+        state.answer_history = None
+        state.answer_captured = False
+    elif not state.answer_captured:
+        # The first side-effect run freezes the answer it was asked to leave
+        # alone — `None` included, since a nullable output can legitimately be
+        # `None`. Later side-effect runs must not refresh it: doing so would
+        # replace the answer with the previous side-effect acknowledgement.
+        state.answer_output = result_output
+        state.answer_history = run_history
+        state.answer_captured = True
     print_fn(f"\n[SYSTEM] {message}\n")
     return ExtensionOutcome(
         should_continue=True,
@@ -145,11 +164,17 @@ def resolve_extended_return(
     result_output: Any,
     run_history: History,
 ) -> tuple[Any, History]:
-    """Pick (output, history) to return based on the last `replace_response`."""
+    """Pick (output, history) to return based on the last extension.
+
+    No extension returns the current pair. A replacing extension (a block or
+    `replace_response=True`) returns it too. A non-replacing extension returns
+    the pair frozen when it started, so a continuation accepted before it is
+    not discarded; a frozen `None` is a real output and is returned as such.
+    """
     if not state.extended:
         return result_output, run_history
     if state.return_extended:
         CFG.LOGGER.debug("Returning extended response (replace_response=True)")
         return result_output, run_history
-    CFG.LOGGER.debug("Returning original response (replace_response=False)")
-    return state.original_output, state.original_history or []
+    CFG.LOGGER.debug("Returning frozen response (replace_response=False)")
+    return state.answer_output, state.answer_history or []
