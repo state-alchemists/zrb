@@ -157,13 +157,22 @@ def _fit_core() -> tuple[int, int]:
     2. if only loops are left, the highest-id loop becomes a fact. A loop always
        renders, so there is no third step, and the claim itself is unchanged: a
        loop's text already says what is owed.
+
+    The measurement is the render the block uses — with today's day, because an
+    old loop carries its age in the block and not in `core.md`. A day-free
+    measurement underestimates the block by a few characters per aged loop, so a
+    store it calls a fit is one the block still cuts. The file written afterwards
+    stays day-free: the file records the claim, the block reports its age.
     """
     cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
+    # One day for the whole pass: the day is what the measured render is a
+    # function of, and a midnight halfway through must not answer two ways.
+    today = store.today()
     unpinned = 0
     converted = 0
     while True:
         facts = store.load_facts()
-        if len(render.render_core(facts)) <= cap:
+        if len(render.render_core(facts, today)) <= cap:
             return unpinned, converted
         pinned = sorted((fact for fact in facts if fact.pin), key=lambda f: f.id)
         if pinned:
