@@ -86,10 +86,12 @@ class Scaffolder(BaseTask):
     async def _exec_action(self, ctx: AnyContext):
         source_path = self._get_source_path(ctx)
         destination_path = self._get_destination_path(ctx)
-        self._copy_path(ctx, source_path, destination_path)
+        written_paths = self._copy_path(ctx, source_path, destination_path)
         transformers = self._get_content_transformers()
-        file_path_list = self._get_all_file_paths(destination_path)
-        for file_path in file_path_list:
+        # Two sources can map to one destination through `transform_path`; the
+        # later copy overwrites the earlier one, so transforming that file once
+        # is enough. First-seen order keeps the pass deterministic.
+        for file_path in dict.fromkeys(written_paths):
             for transformer in transformers:
                 if transformer.match(ctx, file_path):
                     try:
@@ -98,9 +100,18 @@ class Scaffolder(BaseTask):
                     except UnicodeDecodeError:
                         pass
 
-    def _copy_path(self, ctx: AnyContext, source_path: str, destination_path: str):
-        """Recursively copy a file or directory, transforming paths."""
+    def _copy_path(
+        self, ctx: AnyContext, source_path: str, destination_path: str
+    ) -> list[str]:
+        """Recursively copy a file or directory, transforming paths.
+
+        Returns the absolute destination paths this call wrote, so the content
+        pass rewrites exactly those files. Walking the destination instead
+        rewrote unrelated files already living there — a single file copied
+        into an existing directory, or a directory copied over one.
+        """
         if os.path.isdir(source_path):
+            written_paths: list[str] = []
             for root, dirs, files in os.walk(source_path):
                 rel_root = os.path.relpath(root, source_path)
                 dest_dir = os.path.join(
@@ -114,9 +125,16 @@ class Scaffolder(BaseTask):
                     )
                     ctx.log_info(f"Copying {src_file} to {dest_file}")
                     shutil.copy2(src_file, dest_file)
-        else:
-            ctx.log_info(f"Copying {source_path} to {destination_path}")
-            shutil.copy2(source_path, destination_path)
+                    written_paths.append(os.path.abspath(dest_file))
+            return written_paths
+        dest_file = destination_path
+        if os.path.isdir(destination_path):
+            # copy2 would place the file inside the directory under its own
+            # name; spell that out so the return names the file it wrote.
+            dest_file = os.path.join(destination_path, os.path.basename(source_path))
+        ctx.log_info(f"Copying {source_path} to {dest_file}")
+        shutil.copy2(source_path, dest_file)
+        return [os.path.abspath(dest_file)]
 
     def _transform_path(self, ctx: AnyContext, file_path: str):
         if callable(self._path_transformer):
@@ -127,14 +145,3 @@ class Scaffolder(BaseTask):
                 keyword, get_str_attr(ctx, replacement, "")
             )
         return new_file_path
-
-    def _get_all_file_paths(self, path):
-        """Return absolute paths of every file under `path`."""
-        if os.path.isfile(path):
-            return [os.path.abspath(path)]
-        file_paths = []
-        for root, _, files in os.walk(path):
-            for file in files:
-                absolute_path = os.path.abspath(os.path.join(root, file))
-                file_paths.append(absolute_path)
-        return file_paths
