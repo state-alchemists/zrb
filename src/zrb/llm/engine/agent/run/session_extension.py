@@ -38,10 +38,10 @@ class ExtensionState:
     extended: bool = False
     return_extended: bool = False
     # The pair to return when the latest extension did not replace the
-    # response, frozen at that extension. Each non-replacing extension
-    # refreshes it, so a side-effect run after an accepted continuation (a
-    # block or a replaceResponse=True transform) returns that continuation
-    # instead of the answer from before it.
+    # response. A block clears it; a replacing extension records its output;
+    # the first side-effect extension freezes the answer and later side-effect
+    # extensions keep it. A second side-effect run must not overwrite the
+    # answer with its own acknowledgement.
     answer_output: Any = None
     answer_history: History | None = None
     block_count: int = 0
@@ -96,6 +96,11 @@ def apply_turn_end_extension(
         # The continuation is what the user asked the hook to force, so it is the
         # answer we return.
         state.return_extended = True
+        # A block supersedes any answer frozen by an earlier extension; the
+        # continuation that runs next is the answer if a side-effect extension
+        # follows it.
+        state.answer_output = None
+        state.answer_history = None
         state.block_count += 1
         print_fn(f"\n[SYSTEM] {message}\n")
         return ExtensionOutcome(
@@ -125,10 +130,16 @@ def apply_turn_end_extension(
     CFG.LOGGER.debug(f"STOP hook replace_response={replace_response}")
     state.extended = True
     state.return_extended = replace_response
-    if not replace_response:
-        # A side-effect run: its output is not the answer. Freeze the current
-        # pair — which may already include a block or transform continuation —
-        # so a later `false` cannot resurrect the pre-continuation answer.
+    if replace_response:
+        # This run's output is the replacement answer. Record it so a later
+        # side-effect extension returns this answer rather than the side-effect
+        # run's acknowledgement.
+        state.answer_output = result_output
+        state.answer_history = run_history
+    elif state.answer_output is None:
+        # The first side-effect run freezes the answer it was asked to leave
+        # alone. Later side-effect runs must not refresh it: doing so would
+        # replace the answer with the previous side-effect acknowledgement.
         state.answer_output = result_output
         state.answer_history = run_history
     print_fn(f"\n[SYSTEM] {message}\n")

@@ -162,3 +162,72 @@ def test_a_replacing_extension_returns_the_current_pair():
 
     assert output == "summary"
     assert history == ["summary message"]
+
+
+def test_two_side_effect_extensions_keep_the_first_answer():
+    """side-effect -> side-effect must not freeze the first acknowledgement.
+
+    Each non-replacing extension used to refresh the frozen pair, so the second
+    one returned the first side-effect run's reply instead of the answer the
+    user actually received.
+    """
+    state = ExtensionState()
+    answer_history = ["the user's answer"]
+
+    first = apply_turn_end_extension(
+        [HookExecutionResult(success=True, system_message="record the decision")],
+        state,
+        "THE USER'S ANSWER",
+        answer_history,
+        _noop,
+    )
+    assert first.should_continue is True
+
+    second = apply_turn_end_extension(
+        [HookExecutionResult(success=True, system_message="record it again")],
+        state,
+        "SIDE-EFFECT REPLY 1",
+        ["side-effect message 1"],
+        _noop,
+    )
+    assert second.should_continue is True
+
+    output, history = resolve_extended_return(
+        state, "SIDE-EFFECT REPLY 2", ["side-effect message 2"]
+    )
+
+    assert output == "THE USER'S ANSWER"
+    assert history is answer_history
+
+
+def test_a_side_effect_after_a_replacing_extension_returns_the_replacement():
+    """A replacement answer survives the side-effect run that follows it."""
+    state = ExtensionState()
+    replacement_history = ["replacement message"]
+
+    replacing = apply_turn_end_extension(
+        [
+            HookExecutionResult(
+                success=True, system_message="summarize", replace_response=True
+            )
+        ],
+        state,
+        "REPLACEMENT ANSWER",
+        replacement_history,
+        _noop,
+    )
+    assert replacing.should_continue is True
+
+    side_effect = apply_turn_end_extension(
+        [HookExecutionResult(success=True, system_message="record the summary")],
+        state,
+        "SIDE-EFFECT REPLY",
+        ["side-effect message"],
+        _noop,
+    )
+    assert side_effect.should_continue is True
+
+    output, history = resolve_extended_return(state, "LATER REPLY", ["later message"])
+
+    assert output == "REPLACEMENT ANSWER"
+    assert history is replacement_history
