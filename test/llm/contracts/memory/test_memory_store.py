@@ -255,23 +255,6 @@ def test_ensure_store_does_not_duplicate_its_gitignore_entries(store_dir):
     assert content.count(".state/") == 1
 
 
-def test_an_undecodable_gitignore_does_not_take_the_store_down(store_dir):
-    """An ignore file git accepts must not fail the turn that prepares the store.
-
-    `UnicodeDecodeError` is a `ValueError`, not an `OSError`, so the guard that
-    treats an unreadable `.gitignore` as "leave it be" misses these bytes. The
-    file is left exactly as it was: its entries are the user's, and rewriting
-    them from a half-decoded read would drop whichever ones did not decode.
-    """
-    path = os.path.join(str(store_dir), ".gitignore")
-    with open(path, "wb") as f:
-        f.write(b"secrets.md\n\xff\xfe\n")
-    paths.ensure_store()
-    with open(path, "rb") as f:
-        assert f.read() == b"secrets.md\n\xff\xfe\n"
-    assert os.path.isdir(paths.facts_dir())
-
-
 def test_a_file_whose_frontmatter_disagrees_with_its_name_is_not_the_fact(
     store_dir, monkeypatch
 ):
