@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.http_check import HttpCheck
@@ -120,8 +121,13 @@ async def test_http_check_rejects_a_non_positive_interval(mock_session, interval
 async def test_http_check_rejects_a_non_positive_configured_interval(
     mock_session, monkeypatch, raw_interval
 ):
-    """The CFG-backed interval is rejected too, naming the setting."""
-    monkeypatch.setenv("ZRB_HTTP_CHECK_INTERVAL", raw_interval)
+    """The CFG-backed interval is rejected too, naming the setting.
+
+    The name is the deployment's own: `ENV_PREFIX` is what a white label changes,
+    and a message that says `ZRB_` tells its user to set a variable nothing reads.
+    """
+    monkeypatch.setattr(CFG, "ENV_PREFIX", "ACME", raising=False)
+    monkeypatch.setenv("ACME_HTTP_CHECK_INTERVAL", raw_interval)
     with patch("requests.request") as mock_request:
         http_check = HttpCheck(name="test_http_check")
         mock_session.register_task(http_check)
@@ -132,7 +138,7 @@ async def test_http_check_rejects_a_non_positive_configured_interval(
         mock_request.assert_not_called()
 
     message = str(exc_info.value)
-    assert "ZRB_HTTP_CHECK_INTERVAL" in message
+    assert "ACME_HTTP_CHECK_INTERVAL" in message
     assert raw_interval in message
 
 

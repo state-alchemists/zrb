@@ -58,7 +58,10 @@ class TcpCheck(BaseTask):
             source, interval = "`interval`", self._interval
         else:
             configured = CFG.TCP_CHECK_INTERVAL
-            source = f"`ZRB_TCP_CHECK_INTERVAL` (milliseconds, currently {configured})"
+            source = (
+                f"`{CFG.ENV_PREFIX}_TCP_CHECK_INTERVAL` "
+                f"(milliseconds, currently {configured})"
+            )
             interval = configured / 1000
         reject_non_positive_interval("TcpCheck", source, interval)
         return interval
