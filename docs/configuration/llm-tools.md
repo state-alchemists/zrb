@@ -11,6 +11,7 @@ The agent's tools and what feeds them: web search, hooks, skill and agent discov
   - [SerpAPI (Google)](#serpapi-google)
   - [Brave Search](#brave-search)
   - [SearXNG (Self-hosted)](#searxng-self-hosted)
+- [Web Fetch Configuration](#web-fetch-configuration)
 - [LLM Hooks Configuration](#llm-hooks-configuration)
 - [Skill & Agent Search Configuration](#skill--agent-search-configuration)
   - [Search Priority](#search-priority)
@@ -57,6 +58,22 @@ Free; reads the Google News RSS feed. No API key, Docker, or configuration neede
 | `ZRB_SEARXNG_BASE_URL` | Base URL | `http://localhost:8080` |
 | `ZRB_SEARXNG_LANG` | Language | `en-US` |
 | `ZRB_SEARXNG_SAFE` | Safe search | `0` |
+
+## Web Fetch Configuration
+
+`WebFetch` opens `http` and `https` URLs only, and only when the host resolves to a public address. The check runs before both the Playwright page and the plain-HTTP fallback. Without it a `file://` URL would return a local file to the model — the sandbox deny-read list is the reason the file tools cannot read it — and a loopback, private, link-local or cloud-metadata host would turn a fetch into a request into the local network.
+
+Every redirect hop is re-checked the same way, because a public URL can bounce a fetcher inward. The HTTP path follows at most five redirects by hand, validating each `Location`; the browser aborts any main-frame, iframe or subresource request whose URL fails the guard. Every browser request is checked on its own — a host that passed once is not remembered.
+
+By default `WebFetch` does not use the browser. Chromium resolves hostnames with its own resolver, so the address the guard validated is not necessarily the address Chromium connects to; a separate lookup between validation and connection is a DNS-rebinding window. The public-only path resolves each hop once and pins the connection to that address: the `Host` header and TLS SNI/certificate verification still name the URL's hostname, and every redirect hop is validated and pinned again. The plain-HTTP path connects directly, so an HTTP proxy in the environment is not used for it. With `ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS=on`, private destinations are intentional, so the Playwright page is used again for JavaScript-rendered pages (behind its per-request guard).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS` | Allow `WebFetch` to open a host that resolves to a loopback, private, link-local, multicast, reserved or unspecified address. Off reaches public hosts only; on suits a deployment that fetches from `localhost` or an intranet host. | `off` |
+
+```bash
+export ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS=on
+```
 
 ## LLM Hooks Configuration
 

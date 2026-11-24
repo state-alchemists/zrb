@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.tool.web import open_web_page, run_blocking, search_internet
+from zrb.llm.capabilities.tool.web import (
+    open_web_page,
+    run_blocking,
+    search_internet,
+)
+from zrb.llm.capabilities.tool.web import tools as web_tools
 
 
 @pytest.fixture
@@ -19,7 +24,7 @@ def mock_google_rss():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_truncates_oversized_page():
+async def test_open_web_page_truncates_oversized_page(browser_path):
     """A page larger than LLM_MAX_OUTPUT_CHARS is capped, so the rate limiter
     never sees an un-admittable request."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
@@ -49,7 +54,7 @@ async def test_open_web_page_truncates_oversized_page():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_summarizer_input_is_bounded():
+async def test_open_web_page_summarizer_input_is_bounded(browser_path):
     """The summarizer sub-agent must receive the capped content, not the raw
     page — this is the request the limiter would otherwise reject forever."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
@@ -136,7 +141,7 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_closes_browser_even_when_goto_fails():
+async def test_open_web_page_closes_browser_even_when_goto_fails(browser_path):
     """A launched browser closes even when page.goto raises."""
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
@@ -159,7 +164,7 @@ async def test_open_web_page_closes_browser_even_when_goto_fails():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_closes_browser_on_success():
+async def test_open_web_page_closes_browser_on_success(browser_path):
     """The success path closes the browser exactly once."""
     with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
         mock_p = AsyncMock()
@@ -244,7 +249,7 @@ def test_notify_swallows_a_broken_uis_exception():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_notifies_before_fetching():
+async def test_open_web_page_notifies_before_fetching(browser_path):
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
     with (
@@ -255,7 +260,7 @@ async def test_open_web_page_notifies_before_fetching():
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         mock_get.return_value = MagicMock(
             text="<html><body>hi</body></html>", headers={}
@@ -267,7 +272,9 @@ async def test_open_web_page_notifies_before_fetching():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
+async def test_open_web_page_notifies_on_playwright_to_fallback_transition(
+    browser_path,
+):
     """The user is told when a Playwright failure falls back to plain HTTP."""
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
@@ -279,7 +286,7 @@ async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
             "playwright.async_api.async_playwright",
             side_effect=RuntimeError("browser launch failed"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
         mock_get.return_value = MagicMock(
             text="<html><body>hi</body></html>", headers={}
@@ -369,3 +376,48 @@ async def test_search_internet_returns_promptly_even_if_backend_never_returns(
     never_return.set()
     assert elapsed < 2
     assert result["error"] is not None
+
+
+@pytest.mark.asyncio
+async def test_the_default_path_does_not_use_the_browser():
+    """Chromium has its own resolver, so the public-only path cannot hold it to
+    a validated address; it fetches over pinned HTTP connections instead."""
+    with (
+        patch.object(web_tools, "_fetch_via_browser") as browser,
+        patch.object(
+            web_tools,
+            "_fetch_pinned_page",
+            return_value=("pinned content", [], False),
+        ) as pinned,
+    ):
+        result = await open_web_page("https://example.com", summarize=False)
+
+    browser.assert_not_called()
+    pinned.assert_called_once()
+    assert "pinned content" in result["content"]
+
+
+def test_fetch_page_fallback_detects_pdf_from_the_final_redirect_url():
+    """A redirect may land on a `.pdf` the original URL did not name.
+
+    PDF detection must use the final response URL; using the requested URL parses
+    the bytes as HTML when the server sends no PDF Content-Type.
+    """
+    response = MagicMock()
+    response.url = "https://cdn.example.com/file.pdf"
+    response.headers = {"Content-Type": "text/html"}
+    response.content = b"%PDF-1.4"
+    response.raise_for_status.return_value = None
+
+    with (
+        patch.object(web_tools, "get_web_page_response", return_value=response),
+        patch("pdfplumber.open") as open_pdf,
+    ):
+        open_pdf.return_value.__enter__.return_value.pages = []
+        content, links, is_pdf = web_tools.fetch_page_fallback(
+            "https://example.com/download", "ua"
+        )
+
+    assert is_pdf is True
+    assert content == ""
+    assert links == []

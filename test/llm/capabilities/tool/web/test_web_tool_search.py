@@ -143,7 +143,7 @@ async def test_search_internet_brave_threads_page(mock_brave):
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_playwright_success():
+async def test_open_web_page_playwright_success(browser_path):
     # Mock playwright
     with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
         mock_p = AsyncMock()
@@ -177,14 +177,14 @@ async def test_open_web_page_playwright_success():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_requests_fallback():
+async def test_open_web_page_requests_fallback(browser_path):
     # Force playwright fail
     with (
         patch(
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
     ):
 
         mock_response = MagicMock()
@@ -204,7 +204,7 @@ async def test_open_web_page_requests_fallback():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_pdf_url_skips_playwright():
+async def test_open_web_page_pdf_url_skips_playwright(browser_path):
     # A .pdf URL must bypass Playwright and extract text via pdfplumber.
     fake_page = MagicMock()
     fake_page.extract_text.return_value = "PDF body text"
@@ -213,7 +213,7 @@ async def test_open_web_page_pdf_url_skips_playwright():
     fake_pdf.__enter__.return_value = fake_pdf
 
     with (
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
         patch("pdfplumber.open", return_value=fake_pdf) as mock_pdf_open,
         patch("playwright.async_api.async_playwright") as mock_playwright,
     ):
@@ -233,7 +233,9 @@ async def test_open_web_page_pdf_url_skips_playwright():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error():
+async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error(
+    browser_path,
+):
     # A PDF behind a Cloudflare / cookie / JS wall must fall through to the browser.
     fake_page = MagicMock()
     fake_page.extract_text.return_value = "Guarded PDF text"
@@ -242,7 +244,10 @@ async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error():
     fake_pdf.__enter__.return_value = fake_pdf
 
     with (
-        patch("requests.get", side_effect=Exception("403 Forbidden")),
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.get_web_page_response",
+            side_effect=Exception("403 Forbidden"),
+        ),
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch("pdfplumber.open", return_value=fake_pdf),
     ):
@@ -264,7 +269,7 @@ async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_pdf_text_not_html_converted():
+async def test_open_web_page_pdf_text_not_html_converted(browser_path):
     # PDF text containing <...> sequences (code, generics, emails) must survive:
     # running it through the HTML→markdown converter eats them as tags.
     fake_page = MagicMock()
@@ -274,7 +279,7 @@ async def test_open_web_page_pdf_text_not_html_converted():
     fake_pdf.__enter__.return_value = fake_pdf
 
     with (
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
         patch("pdfplumber.open", return_value=fake_pdf),
     ):
         mock_response = MagicMock()
@@ -287,7 +292,7 @@ async def test_open_web_page_pdf_text_not_html_converted():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_extensionless_pdf_via_playwright():
+async def test_open_web_page_extensionless_pdf_via_playwright(browser_path):
     # e.g. arxiv.org/pdf/2604.03136 — no .pdf extension, so it goes through
     # Playwright; Content-Type on the goto response must route it to pdfplumber.
     fake_page = MagicMock()
@@ -321,7 +326,7 @@ async def test_open_web_page_extensionless_pdf_via_playwright():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_pdf_content_type_in_fallback():
+async def test_open_web_page_pdf_content_type_in_fallback(browser_path):
     # A PDF served at a non-.pdf URL is caught by Content-Type in the fallback.
     fake_page = MagicMock()
     fake_page.extract_text.return_value = "Fallback PDF text"
@@ -334,7 +339,7 @@ async def test_open_web_page_pdf_content_type_in_fallback():
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
         ),
-        patch("requests.get") as mock_get,
+        patch("zrb.llm.capabilities.tool.web.tools.get_web_page_response") as mock_get,
         patch("pdfplumber.open", return_value=fake_pdf),
     ):
         mock_response = MagicMock()
@@ -349,12 +354,15 @@ async def test_open_web_page_pdf_content_type_in_fallback():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_error():
+async def test_open_web_page_error(browser_path):
     with (
         patch(
             "playwright.async_api.async_playwright", side_effect=Exception("Major fail")
         ),
-        patch("requests.get", side_effect=Exception("Requests fail")),
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.get_web_page_response",
+            side_effect=Exception("Requests fail"),
+        ),
     ):
 
         result = await open_web_page("https://example.com")
@@ -363,19 +371,24 @@ async def test_open_web_page_error():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_error_has_suggestion():
+async def test_open_web_page_error_has_suggestion(browser_path):
     with (
         patch(
             "playwright.async_api.async_playwright", side_effect=Exception("Major fail")
         ),
-        patch("requests.get", side_effect=Exception("Requests fail")),
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.get_web_page_response",
+            side_effect=Exception("Requests fail"),
+        ),
     ):
         result = await open_web_page("https://example.com")
         assert "[SYSTEM SUGGESTION]" in result["error"]
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
+async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch(
+    browser_path,
+):
     # A conversion/summarizer failure must not be reported as "Failed to fetch",
     # which would send the agent retrying a URL that was never the problem.
     with (
@@ -402,7 +415,7 @@ async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_with_summarization():
+async def test_open_web_page_with_summarization(browser_path):
     # Mock playwright and LLM orchestrators
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
@@ -411,7 +424,10 @@ async def test_open_web_page_with_summarization():
             "zrb.llm.capabilities.tool.web.tools.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         # The HTTP fallback must never be reached; fail loudly on a network escape.
-        patch("requests.get", side_effect=AssertionError("network escape")),
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.get_web_page_response",
+            side_effect=AssertionError("network escape"),
+        ),
     ):
 
         mock_p = AsyncMock()
@@ -455,7 +471,10 @@ def test_fetch_page_fallback_decodes_a_meta_declared_utf8_page():
     response.raw = io.BytesIO(body.encode("utf-8"))
     response.encoding = requests.utils.get_encoding_from_headers(response.headers)
 
-    with patch("requests.get", return_value=response):
+    with patch(
+        "zrb.llm.capabilities.tool.web.tools.get_web_page_response",
+        return_value=response,
+    ):
         content, _, _ = fetch_page_fallback("https://example.com", "agent")
 
     assert "Café 日本語" in content
