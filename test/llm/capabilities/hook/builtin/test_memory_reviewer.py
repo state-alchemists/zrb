@@ -135,6 +135,34 @@ def test_the_turn_becomes_a_log_line_with_its_project(store_dir):
     assert "Details below" not in lines[0]
 
 
+def test_a_day_that_cannot_be_read_costs_the_line_not_the_turn(store_dir):
+    """The guard reaches the hook as the write failure it already ignores.
+
+    Every turn runs this hook, so a refusal that escaped would fail the Stop of a
+    chat whose reply was already delivered — and one corrupt day file would do it
+    on every turn until someone fixed the file by hand.
+    """
+    day_path = paths.log_path(store.today())
+    original = (
+        b"# a day\n"
+        b"- 09:00 \xe2\x80\x94 An event\n"
+        b"- 10:00 \xe2\x80\x94 caf\xe9\n"  # latin-1 `é`: not UTF-8
+    )
+    with open(day_path, "wb") as f:
+        f.write(original)
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Replaced the journal with a memory store.",
+        cwd="/home/gofrendi/zrb",
+    )
+
+    _append_event_line(context)
+
+    with open(day_path, "rb") as f:
+        assert f.read() == original
+
+
 def test_the_log_is_committed_under_the_store_lock(store_dir, monkeypatch):
     """The log hook and the reviewer run as two tasks on one `Stop`.
 

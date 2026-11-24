@@ -99,6 +99,34 @@ def read_document(path: str) -> str:
     return "" if text is None else text
 
 
+class UnreadableLogDay(OSError):
+    """A log day that cannot be read, so the append that needed it was refused.
+
+    It is an `OSError` because its callers already answer one that way: a log
+    line that could not be written is a missing line, never a failed turn.
+    """
+
+
+def read_log_day(path: str) -> str:
+    """The day's whole text for a read-modify-write, or `UnreadableLogDay`.
+
+    `read_document` degrades an unreadable file to "absent" so no reader fails
+    over it, which a writer cannot afford: it would then write the day back from
+    nothing, and everything the day held would be gone. A day that does not exist
+    yet is empty — the one case a writer may take for a file to start.
+    """
+    text = read_document_strict(path)
+    if text is not None:
+        return text
+    if not os.path.exists(path):
+        return ""
+    raise UnreadableLogDay(
+        f"{path} could not be read, so the append was refused and the day keeps "
+        "the bytes it already had. Fix or move that file, and the next event "
+        "appends to a day that can be read."
+    )
+
+
 def write_document(path: str, content: str) -> None:
     """Write *content* to *path* atomically, owner-only.
 
@@ -334,6 +362,10 @@ def append_log(text: str, tags: str = "", day: str | None = None) -> str:
     the file already ends with a newline, so pasting another one in front of the
     event left a gap under every appended line. A blank line an older writer or a
     hand edit left is dropped on the way out, so an old day heals as it grows.
+
+    The read is strict, because this write returns the whole day: a day the store
+    could not read is refused and left as it was, where `read_document`'s empty
+    answer would have written the new line over it. See `read_log_day`.
     """
     entry_day = day or today()
     body = " ".join(text.split())
@@ -341,7 +373,7 @@ def append_log(text: str, tags: str = "", day: str | None = None) -> str:
     suffix = f" ({tags})" if tags.strip() else ""
     line = f"- {stamp} — {body}{suffix}"
     path = paths.log_path(entry_day)
-    kept = [old for old in read_document(path).splitlines() if old.strip()]
+    kept = [old for old in read_log_day(path).splitlines() if old.strip()]
     if not kept:
         kept = [f"# {entry_day}"]
     write_document(path, "\n".join([*kept, line]) + "\n")
@@ -552,6 +584,7 @@ __all__ = [
     "KIND_DIARY",
     "STATUS_ACTIVE",
     "STATUS_RETIRED",
+    "UnreadableLogDay",
     "append_log",
     "git_commit",
     "latest_handover",
@@ -565,6 +598,7 @@ __all__ = [
     "prune_logs",
     "read_document",
     "read_document_strict",
+    "read_log_day",
     "recent_log_lines",
     "save_diary",
     "save_fact",

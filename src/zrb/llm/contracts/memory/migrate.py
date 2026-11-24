@@ -139,10 +139,14 @@ def convert_if_needed() -> None:
 
 
 def _report_unreadable(count: int) -> None:
-    """Say what the pass could not read; the next start tries those notes again."""
+    """Say what the pass could not read; the next start tries those files again.
+
+    A file here is a note or a log day: both are read before they are written,
+    so both are reported rather than overwritten.
+    """
     CFG.LOGGER.warning(
-        f"Memory migration could not read {count} note(s); valid notes were "
-        "migrated, and the unreadable ones will be retried on the next start."
+        f"Memory migration could not read {count} file(s); the readable ones "
+        "were migrated, and the unreadable ones will be retried on the next start."
     )
 
 
@@ -368,7 +372,11 @@ def _migrate_log(source: str, dry_run: bool, unreadable: set[str]) -> dict[str, 
             lines = [line for line in text.splitlines() if _LOG_LINE.match(line)]
             if not lines:
                 continue
-            added = len(_new_lines(day, lines)) if dry_run else _write_log(day, lines)
+            added = (
+                len(_new_lines(day, lines))
+                if dry_run
+                else _write_log(day, lines, unreadable)
+            )
             written["log_lines"] += added
     return written
 
@@ -387,20 +395,31 @@ def _new_lines(day: str, lines: list[str]) -> list[str]:
     return fresh
 
 
-def _write_log(day: str, lines: list[str]) -> int:
+def _write_log(day: str, lines: list[str], unreadable: set[str]) -> int:
     """Merge the journal's lines into the day's log; return how many are new.
 
     The reviewer writes events into the same files. A migration that rewrote a
     day would delete everything the memory system had already logged for it, so
     the day is read first and only lines it does not already hold are added — and
     only those are counted, because a second run changes nothing.
+
+    That read is the store's strict one: `log_lines` reports a day it could not
+    read as empty, and this merge would then write the journal's lines over it.
+    Such a day is reported beside the files the pass could not read, and keeps
+    the bytes it has.
     """
+    path = paths.log_path(day)
+    try:
+        store.read_log_day(path)
+    except store.UnreadableLogDay:
+        unreadable.add(path)
+        return 0
     fresh = _new_lines(day, lines)
     if not fresh:
         return 0
     merged = sorted(store.log_lines(day) + fresh, key=_clock_key)
     content = "\n".join([f"# {day}", *merged])
-    store.write_document(paths.log_path(day), content + "\n")
+    store.write_document(path, content + "\n")
     return len(fresh)
 
 

@@ -201,6 +201,26 @@ def test_an_existing_log_day_is_merged_not_replaced(journal):
     assert any("Replaced the journal" in line for line in lines)
 
 
+def test_an_unreadable_log_day_is_reported_and_kept(journal):
+    """The merge reads the day it writes, so a day it could not read is left alone."""
+    paths.ensure_store()
+    day_path = paths.log_path("2026-11-03")
+    original = (
+        b"# 2026-11-03\n"
+        b"- 08:00 \xe2\x80\x94 A memory event\n"
+        b"- 09:00 \xe2\x80\x94 caf\xe9\n"  # latin-1 `é`: not UTF-8
+    )
+    with open(day_path, "wb") as f:
+        f.write(original)
+
+    counts = migrate(str(journal))
+
+    assert counts["log_lines"] == 0
+    assert counts["unreadable"] == 1
+    with open(day_path, "rb") as f:
+        assert f.read() == original
+
+
 def test_a_memory_fact_is_never_replaced_by_a_migration(journal):
     """The store's claim is newer than the journal's once a session wrote it."""
     paths.ensure_store()
