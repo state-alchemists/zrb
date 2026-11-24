@@ -268,7 +268,9 @@ class SkillManager:
                 return f"Error executing skill factory: {e}"
 
         try:
-            with open(skill.path, "r", encoding="utf-8") as f:
+            # `utf-8-sig` drops a leading BOM; a BOM in a `SKILL.md` would
+            # otherwise hide its opening `---` and silently skip frontmatter.
+            with open(skill.path, "r", encoding="utf-8-sig") as f:
                 return f.read()
         except Exception as e:
             return f"Error reading skill file: {e}"
@@ -438,7 +440,9 @@ class SkillManager:
 
     def _load_skill_from_markdown(self, full_path: str):
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
+            # `utf-8-sig` drops a leading BOM; a BOM in a `SKILL.md` would
+            # otherwise hide its opening `---` and silently skip frontmatter.
+            with open(full_path, "r", encoding="utf-8-sig") as f:
                 content = f.read()
             fields = _parse_skill_frontmatter(content, full_path)
             # Precedence: frontmatter `name`, then the first H1, then the
@@ -492,6 +496,9 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
         "agent": None,
         "preload": [],
     }
+    # A leading BOM is metadata, not content: tolerate it here too, so a caller
+    # that read the file as plain UTF-8 still gets its frontmatter.
+    content = content.removeprefix("\ufeff")
     if not content.startswith("---"):
         return fields
     try:

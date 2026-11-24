@@ -8,6 +8,7 @@ at complexity 18.
 import pytest
 import yaml
 
+from zrb.util.file import read_text_file
 from zrb.util.frontmatter import parse_frontmatter
 
 
@@ -60,6 +61,51 @@ def test_a_delimiter_inside_a_quoted_value_does_not_close_the_block():
     frontmatter, body = parse_frontmatter(content)
 
     assert frontmatter == {"description": "Use --- in examples"}
+    assert body == "# Body"
+
+
+def test_an_indented_delimiter_inside_a_block_scalar_does_not_close_the_block():
+    """The `---` in a block scalar is indented content, not a closer. A
+    stripped check closed the block there and leaked the rest of the YAML into
+    the body."""
+    content = (
+        "---\n"
+        "description: |\n"
+        "  first line\n"
+        "  ---\n"
+        "  still the description\n"
+        "name: review\n"
+        "---\n"
+        "# Body\n"
+    )
+
+    frontmatter, body = parse_frontmatter(content)
+
+    assert frontmatter == {
+        "description": "first line\n---\nstill the description\n",
+        "name": "review",
+    }
+    assert body == "# Body"
+
+
+def test_a_leading_utf8_bom_does_not_hide_the_frontmatter():
+    frontmatter, body = parse_frontmatter("\ufeff---\nname: review\n---\n# Body\n")
+
+    assert frontmatter == {"name": "review"}
+    assert body == "# Body"
+
+
+def test_a_bom_read_from_a_definition_file_does_not_hide_the_frontmatter(tmp_path):
+    """A definition written with a UTF-8 BOM must load its frontmatter: the
+    BOM otherwise makes the opener `"\ufeff---"`, which no delimiter matches."""
+    path = tmp_path / "SKILL.md"
+    path.write_bytes(b"\xef\xbb\xbf---\nname: review\n---\n# Body\n")
+
+    content = read_text_file(str(path))
+    frontmatter, body = parse_frontmatter(content)
+
+    assert content.startswith("---")
+    assert frontmatter == {"name": "review"}
     assert body == "# Body"
 
 
