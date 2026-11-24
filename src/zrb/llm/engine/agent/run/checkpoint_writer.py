@@ -66,22 +66,26 @@ class CheckpointWriter:
         """Wait for every write this writer owes, the last snapshot included.
 
         A write that failed before it could reach `_latest` is awaited here:
-        that is where its failure is retrieved, rather than left to the event
-        loop's garbage collector, and the snapshot still waiting gets the
-        attempt the failed write never made.
+        `return_exceptions` hands its failure back as a result, so it is
+        retrieved (rather than left to the event loop's garbage collector), and
+        the snapshot still waiting gets the attempt the failed write never made.
+        A cancellation of this drain is not swallowed.
         """
         task = self._in_flight
         if task is None:
             return
         try:
-            await task
-        except Exception as e:
-            CFG.LOGGER.warning(f"Checkpoint save failed: {e}")
-            if self._latest is not None:
-                try:
-                    await self._write_until_caught_up()
-                except Exception as retry_error:
-                    CFG.LOGGER.warning(f"Checkpoint save failed: {retry_error}")
+            results = await asyncio.gather(task, return_exceptions=True)
+            error = results[0]
+            if isinstance(error, Exception):
+                CFG.LOGGER.warning(f"Checkpoint save failed: {error}")
+                if self._latest is not None:
+                    retry_results = await asyncio.gather(
+                        self._write_until_caught_up(), return_exceptions=True
+                    )
+                    retry_error = retry_results[0]
+                    if isinstance(retry_error, Exception):
+                        CFG.LOGGER.warning(f"Checkpoint save failed: {retry_error}")
         finally:
             self._in_flight = None
 
