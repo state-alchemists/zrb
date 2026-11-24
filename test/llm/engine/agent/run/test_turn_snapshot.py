@@ -79,9 +79,11 @@ def test_a_directory_over_the_budget_is_reported_once(tmp_path, monkeypatch, cap
     assert caplog.text.count("more than 1 files outside any git repository") == 1
 
 
-def test_a_directory_too_large_to_snapshot_in_time_is_not_tried_again(
-    tmp_path, monkeypatch
+def test_a_directory_that_times_out_is_tried_again_on_a_later_turn(
+    tmp_path, monkeypatch, caplog
 ):
+    """A timeout says the directory was slow, not impossible: a later turn must
+    be allowed to try again instead of the workdir being blacklisted."""
     workdir = _repo(tmp_path / "huge")
     calls: list = []
     real_run = subprocess.run
@@ -93,11 +95,15 @@ def test_a_directory_too_large_to_snapshot_in_time_is_not_tried_again(
         return real_run(argv, *args, **kwargs)
 
     monkeypatch.setattr(subprocess, "run", run)
-    TurnSnapshot().take(str(workdir))
-    tried = len(calls)
+    with caplog.at_level("WARNING", logger="zrb.llm.engine.agent.run.turn_snapshot"):
+        TurnSnapshot().take(str(workdir))
+        tried = len(calls)
+        assert "timed out" in caplog.text
 
-    snapshot = TurnSnapshot()
-    snapshot.take(str(workdir))
+        snapshot = TurnSnapshot()
+        snapshot.take(str(workdir))
 
     assert snapshot.payload() is None
-    assert len(calls) == tried
+    # A second attempt was made, with its own report.
+    assert len(calls) > tried
+    assert caplog.text.count("git update-index timed out after 30s") == 2
