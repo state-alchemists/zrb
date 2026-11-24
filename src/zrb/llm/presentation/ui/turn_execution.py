@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Any, Union, cast
 from zrb.context.shared_context import SharedContext
 from zrb.llm.capabilities.permission.state import (
     AgentMode,
+    enter_agent_mode_scope,
+    exit_agent_mode_scope,
     get_current_agent_mode,
     set_current_agent_mode,
 )
@@ -80,13 +82,20 @@ async def run_turn(
         ui.append_to_output(f"\n🤖 {timestamp} >>\n")
         session = build_turn_session(ui, user_message, attachments)
         ui.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
-        # The agent inherits the mode `/plan` left on the UI.
-        set_current_agent_mode(
-            AgentMode.PLAN if ui.plan_mode_active else AgentMode.BUILD
-        )
-        llm_task.set_ui(ui)
-        llm_task.tool_confirmation = cast(Any, ui.confirm_tool_execution)
-        result_data = await llm_task.async_run(session)
+        # The agent inherits the mode `/plan` left on the UI. The turn-local
+        # scope keeps this run's mode off the process-wide state, so two
+        # interleaved turns cannot inherit each other's; closing it copies the
+        # run's final mode back for the badge below.
+        mode_token, parent_mode_state = enter_agent_mode_scope()
+        try:
+            set_current_agent_mode(
+                AgentMode.PLAN if ui.plan_mode_active else AgentMode.BUILD
+            )
+            llm_task.set_ui(ui)
+            llm_task.tool_confirmation = cast(Any, ui.confirm_tool_execution)
+            result_data = await llm_task.async_run(session)
+        finally:
+            exit_agent_mode_scope(mode_token, parent_mode_state)
         # Tools like EnterPlanMode change the mode in-run; keep the badge in step.
         ui.plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
         if isinstance(result_data, str):

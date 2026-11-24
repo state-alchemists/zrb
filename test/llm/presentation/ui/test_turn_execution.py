@@ -180,6 +180,81 @@ async def test_plan_mode_on_the_ui_reaches_the_run():
 
 
 @pytest.mark.asyncio
+async def test_an_in_run_mode_switch_is_copied_back_to_the_badge():
+    """EnterPlanMode/ExitPlanMode change the turn-local mode; the badge must
+    still show the mode the run ended in."""
+    ui = _ui()
+    ui.plan_mode_active = False
+
+    async def _answer(*args, **kwargs):
+        set_current_agent_mode(AgentMode.PLAN)  # EnterPlanMode mid-run
+        return "planned"
+
+    task = MagicMock()
+    task.async_run = _answer
+    try:
+        await run_turn(ui, task, "hello")
+    finally:
+        set_current_agent_mode(AgentMode.BUILD)
+
+    assert ui.plan_mode_active is True
+
+
+@pytest.mark.asyncio
+async def test_interleaved_turns_keep_their_own_mode_and_copy_the_final_one_back():
+    """Two turns running concurrently in one process must not inherit each
+    other's mode: the setter writes a turn-local state, and each badge gets
+    the mode its own run ended in."""
+    plan_ui = _ui()
+    plan_ui.plan_mode_active = True
+    build_ui = _ui()
+    build_ui.plan_mode_active = False
+
+    plan_started = asyncio.Event()
+    build_started = asyncio.Event()
+    plan_seen: list[AgentMode] = []
+    build_seen: list[AgentMode] = []
+
+    async def plan_answer(*args, **kwargs):
+        plan_seen.append(get_current_agent_mode())
+        plan_started.set()
+        await build_started.wait()
+        # The build turn flipped its own mode in between; this run must not see it.
+        plan_seen.append(get_current_agent_mode())
+        set_current_agent_mode(AgentMode.BUILD)  # ExitPlanMode mid-run
+        return "planned"
+
+    async def build_answer(*args, **kwargs):
+        await plan_started.wait()
+        build_seen.append(get_current_agent_mode())
+        set_current_agent_mode(AgentMode.PLAN)  # EnterPlanMode mid-run
+        build_started.set()
+        await asyncio.sleep(0)
+        # The plan turn resumed and flipped its own mode; this run keeps PLAN.
+        build_seen.append(get_current_agent_mode())
+        return "built"
+
+    plan_task = MagicMock()
+    plan_task.async_run = plan_answer
+    build_task = MagicMock()
+    build_task.async_run = build_answer
+    try:
+        await asyncio.gather(
+            run_turn(plan_ui, plan_task, "plan"),
+            run_turn(build_ui, build_task, "build"),
+        )
+    finally:
+        # The write-back leaves the shared default mutated; reset for other tests.
+        set_current_agent_mode(AgentMode.BUILD)
+
+    assert plan_seen == [AgentMode.PLAN, AgentMode.PLAN]
+    assert build_seen == [AgentMode.BUILD, AgentMode.PLAN]
+    # Each badge shows the mode its own run ended in.
+    assert plan_ui.plan_mode_active is False
+    assert build_ui.plan_mode_active is True
+
+
+@pytest.mark.asyncio
 async def test_a_finished_turn_offers_the_conversation_for_auto_naming():
     ui = _ui()
     ui.conversation.schedule_auto_name = MagicMock()
