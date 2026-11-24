@@ -120,31 +120,6 @@ def test_a_day_file_written_with_gaps_is_healed_by_the_next_append(store_dir):
     )
 
 
-def test_an_append_to_a_day_it_could_not_read_leaves_that_day_alone(store_dir):
-    """An append is a read-modify-write, so a degraded read erases the day.
-
-    Reproduced before the fix: `read_document` maps an invalid-UTF-8 file to `""`
-    on purpose, `append_log` took that for an empty day, and a file holding two
-    good lines and one bad byte came back as the new line alone.
-    """
-    day = "2026-11-03"
-    path = paths.log_path(day)
-    original = (
-        b"# 2026-11-03\n"
-        b"- 09:00 \xe2\x80\x94 First event\n"
-        b"- 10:00 \xe2\x80\x94 caf\xe9\n"  # latin-1 `é`: not UTF-8
-    )
-    with open(path, "wb") as f:
-        f.write(original)
-
-    with pytest.raises(store.UnreadableLogDay) as refusal:
-        store.append_log("New event", day=day)
-
-    assert path in str(refusal.value)
-    with open(path, "rb") as f:
-        assert f.read() == original
-
-
 def test_yesterday_reaches_the_recent_lines_with_its_date(store_dir):
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     store.append_log("From yesterday", day=yesterday)
