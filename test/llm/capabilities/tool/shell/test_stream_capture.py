@@ -99,3 +99,61 @@ def test_head_text_of_an_unavailable_spill_is_empty_not_an_error(monkeypatch):
 
     assert cap.text != ""
     assert cap.head_text(10) == ""
+
+
+def test_feed_stops_writing_to_the_spill_file_at_the_cap(monkeypatch):
+    """A background process has no deadline, so the spill file is capped.
+
+    Past the cap the on-disk copy stops; `total_chars` keeps counting and the
+    in-memory tail behaves as before.
+    """
+    from zrb.llm.capabilities.tool.shell import capture
+
+    monkeypatch.setattr(capture, "SPILL_MAX_CHARS", 100)
+    cap = StreamCapture(retain=10, echo=0)
+    cap.feed("A" * 60)  # opens the spill file
+    cap.feed("B" * 1000)  # fills it to the cap, then stops
+
+    assert cap.is_spill_capped
+    assert cap.spill_max_chars == 100
+    assert cap.total_chars == 1060
+    assert cap.text == "B" * 10
+
+    cap.flush()
+    with open(cap.spill_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert content.count("A") == 60
+    assert content.count("B") == 40
+    assert "capped at 100 characters" in content
+    cap.discard()
+
+
+def test_a_spill_file_under_the_cap_is_not_marked_capped():
+    cap = StreamCapture(retain=5, echo=0)
+    cap.feed("A" * 500)
+
+    assert cap.is_spill_capped is False
+    assert cap.spill_max_chars == 256 * 1024 * 1024
+    cap.discard()
+
+
+def test_an_uncapped_capture_writes_past_the_spill_cap(monkeypatch):
+    """A foreground capture is bounded by its command's timeout, not by the
+    background spill cap, so its spill file is the whole stream and the dump
+    built from it can claim completeness."""
+    from zrb.llm.capabilities.tool.shell import capture
+
+    monkeypatch.setattr(capture, "SPILL_MAX_CHARS", 50)
+    cap = StreamCapture(retain=10, echo=0, cap_spill=False)
+    cap.feed("A" * 60)
+    cap.feed("B" * 1000)
+
+    assert cap.is_spill_capped is False
+    assert cap.spill_max_chars is None
+    assert cap.total_chars == 1060
+
+    cap.flush()
+    with open(cap.spill_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert content == "A" * 60 + "B" * 1000
+    cap.discard()

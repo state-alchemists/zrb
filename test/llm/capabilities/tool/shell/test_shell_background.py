@@ -126,6 +126,54 @@ async def test_cancel_for_session_only_kills_that_sessions_processes(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_a_web_session_cannot_read_or_kill_anothers_handle(tmp_path):
+    """A handle belongs to the web chat session that started it.
+
+    `summary` and `cancel_for_session` already honored the owner; `poll`,
+    `collect` and `kill` let any session read or kill another session's
+    process by naming its handle.
+    """
+    with scoped(current_chat_session_id, "session-a-id"):
+        handle = await _start_bg("sleep 30", "a", str(tmp_path))
+        registry = get_shell_background_registry()
+        assert "running" in registry.poll(handle)
+
+    monitor = create_monitor_process_tool()
+    with scoped(current_chat_session_id, "session-b-id"):
+        assert "Unknown handle" in registry.poll(handle)
+        assert "Unknown handle" in await monitor(handle)
+        assert "Unknown handle" in await monitor(handle, wait=0.2)
+        assert "Unknown handle" in await monitor(handle, kill=True)
+
+    # The refused kill left the owner's process alone.
+    with scoped(current_chat_session_id, "session-a-id"):
+        assert "running" in registry.poll(handle)
+        assert "Killed" in await monitor(handle, kill=True)
+
+
+@pytest.mark.asyncio
+async def test_a_handle_started_outside_a_web_session_stays_reachable(tmp_path):
+    """A CLI start has an empty owner, and an empty owner is never foreign."""
+    handle = await _start_bg("sleep 30", "cli", str(tmp_path))
+    registry = get_shell_background_registry()
+
+    with scoped(current_chat_session_id, "session-b-id"):
+        assert "running" in registry.poll(handle)
+        assert "Killed" in await create_monitor_process_tool()(handle, kill=True)
+
+
+@pytest.mark.asyncio
+async def test_a_web_handle_stays_reachable_without_a_current_session(tmp_path):
+    """Only two differing non-empty ids are refused; an empty caller id is not."""
+    with scoped(current_chat_session_id, "session-a-id"):
+        handle = await _start_bg("sleep 30", "a", str(tmp_path))
+    registry = get_shell_background_registry()
+
+    assert "running" in registry.poll(handle)
+    assert "Killed" in await create_monitor_process_tool()(handle, kill=True)
+
+
+@pytest.mark.asyncio
 @pytest.mark.skipif(
     os.name != "posix",
     reason="`$$` under a Windows POSIX shell is an MSYS pid, not an OS one",
@@ -230,6 +278,118 @@ async def test_poll_reuses_same_spill_path_across_polls(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_long_single_line_is_read_with_the_foreground_limit(tmp_path):
+    """A 1MB line sits between asyncio's default 64KB limit and the 8MB the
+    foreground allows; the background reader must capture it, not die on it."""
+    handle = await _start_bg(
+        "head -c 1000000 /dev/zero | tr '\\0' 'A'", "flood", str(tmp_path)
+    )
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "1000000 chars total" in result
+    assert "pipe read limit" not in result
+
+
+@pytest.mark.asyncio
+async def test_a_line_over_the_pipe_limit_is_reported_as_truncation(
+    tmp_path, monkeypatch
+):
+    """When even the 8MB ceiling is outrun, the reader says so and ends cleanly
+    instead of dying with an unretrieved ValueError."""
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 1024)
+    handle = await _start_bg(
+        "head -c 4096 /dev/zero | tr '\\0' 'A'", "flood", str(tmp_path)
+    )
+    result = await _poll_until(
+        get_shell_background_registry(), handle, "pipe read limit"
+    )
+
+    assert "stdout truncated" in result
+
+
+@pytest.mark.asyncio
+async def test_an_over_limit_line_is_drained_so_the_child_can_exit(
+    tmp_path, monkeypatch
+):
+    """Stopping at readline's ValueError leaves the child blocked on a full
+    pipe, so it never exits and `MonitorProcess(wait)` never returns. The rest
+    of the stream must be read in bounded chunks until EOF instead."""
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 1024)
+    handle = await _start_bg(
+        "head -c 1048576 /dev/zero | tr '\\0' 'A'; echo; echo DONE",
+        "flood",
+        str(tmp_path),
+    )
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "DONE" in result
+    assert "stdout truncated" in result
+
+
+@pytest.mark.asyncio
+async def test_an_over_limit_stderr_line_is_drained_too(tmp_path, monkeypatch):
+    """The stderr reader drains an over-limit line the same way stdout's does."""
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 1024)
+    handle = await _start_bg(
+        "head -c 1048576 /dev/zero | tr '\\0' 'B' 1>&2; echo 1>&2; "
+        "echo STDERR-DONE 1>&2",
+        "flood",
+        str(tmp_path),
+    )
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "STDERR-DONE" in result
+    assert "stderr truncated" in result
+
+
+@pytest.mark.asyncio
+async def test_a_multibyte_character_split_across_chunks_is_decoded_once(
+    tmp_path, monkeypatch
+):
+    """The drain reads bytes, and a UTF-8 character can straddle two chunks.
+    Decoding each chunk on its own would turn one character into two
+    replacement marks."""
+    import shlex
+    import sys
+    from pathlib import Path
+
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 16)
+    monkeypatch.setattr(background, "_DRAIN_CHUNK_SIZE", 1)
+    script = tmp_path / "flood.py"
+    # The multibyte characters are written after readline's own buffered
+    # discard, so the drain is what decodes them.
+    script.write_text(
+        "import sys, time\n"
+        "sys.stdout.buffer.write(b'A' * 40)\n"
+        "sys.stdout.buffer.flush()\n"
+        "time.sleep(0.2)\n"
+        "sys.stdout.buffer.write("
+        "'\\u00e9'.encode('utf-8') * 4 + b'\\nDONE\\n')\n",
+        encoding="utf-8",
+    )
+    command = (
+        f"{shlex.quote(Path(sys.executable).as_posix())} "
+        f"{shlex.quote(script.as_posix())}"
+    )
+    handle = await _start_bg(command, "flood", str(tmp_path))
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "éééé" in result
+    assert "\ufffd" not in result
+
+
+@pytest.mark.asyncio
 async def test_spill_file_survives_after_handle_consumed(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
     handle = await _start_bg(
@@ -249,6 +409,23 @@ async def test_spill_file_survives_after_handle_consumed(tmp_path, monkeypatch):
     # discard()) — a further poll must still report it as unknown, unchanged.
     result2 = await monitor(handle)
     assert "Unknown handle" in result2
+
+
+@pytest.mark.asyncio
+async def test_poll_reports_a_capped_spill_file(tmp_path, monkeypatch):
+    """A background run has no deadline, so the spill file stops at its cap and
+    the poll says the on-disk copy is not the whole stream."""
+    from zrb.llm.capabilities.tool.shell import capture
+
+    monkeypatch.setattr(capture, "SPILL_MAX_CHARS", 50)
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
+    handle = await _start_bg(
+        "head -c 500 /dev/zero | tr '\\0' 'A'", "flood", str(tmp_path)
+    )
+    result = await create_monitor_process_tool()(handle, wait=5)
+
+    assert "spill file was capped" in result
+    assert "saved up to 50 chars" in result
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import codecs
 import os
 import time
 from dataclasses import dataclass, field
@@ -40,6 +41,19 @@ if TYPE_CHECKING:
     from zrb.llm.presentation.ui.any_ui import AnyUI
 
 
+#: asyncio's default 64KB `StreamReader` limit makes `readline()` raise on a
+#: single long line (minified JS, one-line JSON logs), losing all output. The
+#: foreground `start_process` uses the same 8MB ceiling; `_read_pipe` turns the
+#: over-limit case into a visible truncation notice and keeps draining the
+#: stream, so the child is never left blocked on a full pipe.
+_PIPE_LIMIT = 8 * 1024 * 1024
+
+#: Bytes read per `read()` once a line has overrun `_PIPE_LIMIT`. `read(n)` is
+#: not subject to the line limit, so this is how the rest of the stream keeps
+#: moving while the capture's own budgets bound what is kept.
+_DRAIN_CHUNK_SIZE = 64 * 1024
+
+
 class BackgroundProcessRow(TypedDict):
     """One background process as `summary` reports it, for the live context."""
 
@@ -51,7 +65,9 @@ class BackgroundProcessRow(TypedDict):
 
 def _new_capture() -> StreamCapture:
     # echo=0: background output is never mirrored to the console.
-    return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
+    # cap_spill: a background process has no deadline, so its spill file stops
+    # at `SPILL_MAX_CHARS`; a foreground capture is bounded by its timeout.
+    return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0, cap_spill=True)
 
 
 @dataclass
@@ -93,7 +109,13 @@ class _BackgroundProcess:
 
 
 class _ShellBackgroundRegistry:
-    """Process-lifetime registry of background shell tasks keyed by handle."""
+    """Process-lifetime registry of background shell tasks keyed by handle.
+
+    A web chat session only sees the handles it started: `poll`, `collect`
+    and `kill` report another session's handle as unknown. Handles started
+    outside a web run (an empty owner) and callers with an empty session stay
+    reachable, so the CLI is unaffected.
+    """
 
     def __init__(self) -> None:
         self._procs: dict[str, _BackgroundProcess] = {}
@@ -122,6 +144,7 @@ class _ShellBackgroundRegistry:
             stdin=asyncio.subprocess.DEVNULL,
             cwd=effective_cwd,
             start_new_session=True,
+            limit=_PIPE_LIMIT,
         )
         bp = _BackgroundProcess(
             process=proc,
@@ -221,7 +244,24 @@ class _ShellBackgroundRegistry:
     ) -> None:
         """Feed *stream* line by line into the handle's `name` capture."""
         while stream and not stream.at_eof():
-            line = await stream.readline()
+            try:
+                line = await stream.readline()
+            except ValueError:
+                # A single line past `_PIPE_LIMIT`. `readline` has already
+                # discarded its first `_PIPE_LIMIT` bytes, and every later
+                # `readline` would raise again, so report it once and then keep
+                # reading in bounded chunks. A reader that stops here leaves
+                # the child writing into a full pipe: it never exits, and the
+                # exit `MonitorProcess(wait)` waits for never comes.
+                notice = (
+                    f"\n[{name} truncated: a single line exceeded the "
+                    f"{_PIPE_LIMIT}-byte pipe read limit; its first "
+                    f"{_PIPE_LIMIT} bytes were dropped, and the rest of the "
+                    "stream was still read]\n"
+                )
+                self._feed_text(handle, name, notice)
+                await self._drain_pipe(handle, name, stream)
+                return
             if not line:
                 break
             self._feed(handle, name, line)
@@ -230,12 +270,36 @@ class _ShellBackgroundRegistry:
             if remaining:
                 self._feed(handle, name, remaining)
 
+    async def _drain_pipe(
+        self, handle: str, name: str, stream: asyncio.StreamReader
+    ) -> None:
+        """Read *stream* to EOF in bounded chunks after an over-limit line.
+
+        The capture's own retention and spill budgets bound what is kept; this
+        only has to keep the pipe moving until the child exits, so an over-limit
+        line costs the start of that line, not the process. A multibyte
+        character can straddle a chunk boundary, so the chunks are decoded
+        incrementally instead of one `decode()` each.
+        """
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        while True:
+            chunk = await stream.read(_DRAIN_CHUNK_SIZE)
+            if not chunk:
+                tail = decoder.decode(b"", final=True)
+                if tail:
+                    self._feed_text(handle, name, tail)
+                return
+            self._feed_text(handle, name, decoder.decode(chunk))
+
     def _feed(self, handle: str, name: str, data: bytes) -> None:
+        self._feed_text(handle, name, data.decode(errors="replace"))
+
+    def _feed_text(self, handle: str, name: str, text: str) -> None:
         bp = self._procs.get(handle)
         if bp is None:
             return
         cap = bp.stdout_cap if name == "stdout" else bp.stderr_cap
-        cap.feed(data.decode(errors="replace"))
+        cap.feed(text)
 
     async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         rc = await proc.wait()
@@ -301,7 +365,9 @@ class _ShellBackgroundRegistry:
         interrupted, keeping the process as it is for the retry.
         """
         bp = self._procs.get(handle)
-        if bp is not None and bp.returncode is None and wait > 0:
+        if bp is None or _is_foreign_session(bp):
+            return _unknown_handle_message(handle)
+        if bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
             bp.waiters += 1
             try:
@@ -320,7 +386,7 @@ class _ShellBackgroundRegistry:
 
     def poll(self, handle: str) -> str:
         bp = self._procs.get(handle)
-        if bp is None:
+        if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
         stdout = bp.stdout_cap.text
         stderr = bp.stderr_cap.text
@@ -389,7 +455,7 @@ class _ShellBackgroundRegistry:
 
     async def kill(self, handle: str) -> str:
         bp = self._procs.get(handle)
-        if bp is None:
+        if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
         if bp.process.returncode is not None:
             return (
@@ -444,6 +510,22 @@ def _unknown_handle_message(handle: str) -> str:
     )
 
 
+def _is_foreign_session(bp: _BackgroundProcess) -> bool:
+    """Whether *bp* belongs to another web chat session than this caller's.
+
+    A handle started outside a web run has an empty owner, and a caller with
+    no current chat session has an empty id: neither is refused, which keeps
+    CLI and empty-session behavior. Two non-empty, different ids are two web
+    sessions, and one must not read or kill the other's process.
+    """
+    current_session_id = get_current_chat_session_id()
+    return (
+        bool(bp.owner_session_id)
+        and bool(current_session_id)
+        and bp.owner_session_id != current_session_id
+    )
+
+
 async def _stop_process(bp: _BackgroundProcess) -> None:
     """Terminate *bp* if still running, then release it."""
     if bp.process.returncode is None:
@@ -466,9 +548,16 @@ def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> st
     for name, cap in (("stdout", stdout_cap), ("stderr", stderr_cap)):
         if cap.truncated:
             cap.flush()
+            saved = f"full {name} saved to {cap.spill_path}"
+            if cap.is_spill_capped:
+                saved = (
+                    f"{name} saved up to {cap.spill_max_chars} chars at "
+                    f"{cap.spill_path} (the spill file was capped, so later "
+                    "output is not on disk)"
+                )
             parts.append(
                 f"{name} truncated (kept the tail, {cap.total_chars} chars "
-                f"total) — full {name} saved to {cap.spill_path}"
+                f"total) — {saved}"
             )
     return (
         "[SYSTEM SUGGESTION]: "

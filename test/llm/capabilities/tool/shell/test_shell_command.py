@@ -354,6 +354,29 @@ async def test_full_output_survives_bounded_memory_retention(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_foreground_dump_is_complete_past_the_background_spill_cap(monkeypatch):
+    """The spill cap protects a deadline-less background process. A foreground
+    run is bounded by its timeout, so its dump holds the whole stream and the
+    note may call it full even where the cap would have stopped a background
+    capture."""
+    monkeypatch.setattr(capture_mod, "SPILL_MAX_CHARS", 50)
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 40)
+    mock_proc = _make_mock_process(stdout_lines=[f"line-{i:04d}\n" for i in range(500)])
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=mock_proc),
+    )
+
+    res = await run_shell_command("emit", shell="node")
+
+    assert "Full stdout/stderr saved" in res
+    dump_path = res.split("saved to ")[1].split(" ")[0]
+    dumped = open(dump_path, encoding="utf-8").read()
+    assert "line-0000" in dumped and "line-0499" in dumped
+
+
+@pytest.mark.asyncio
 async def test_console_echo_stops_at_the_display_cap(monkeypatch):
     """Console echo is capped independently from captured output."""
     printed: list[str] = []

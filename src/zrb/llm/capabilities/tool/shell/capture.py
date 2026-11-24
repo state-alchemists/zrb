@@ -10,6 +10,13 @@ from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_muted
 
+#: Characters a capped spill file holds before it stops accepting more. A
+#: background process has no deadline, so without a cap the file could grow for
+#: as long as the process runs. The in-memory tail and `total_chars` are not
+#: affected. A foreground capture is bounded by its command's timeout and is
+#: created uncapped, so its dump is the whole stream.
+SPILL_MAX_CHARS = 256 * 1024 * 1024
+
 
 class StreamCapture:
     """Bounded capture of one output stream.
@@ -20,12 +27,21 @@ class StreamCapture:
       so it has its own, smaller budget.
     * the spill file — the complete stream, opened when the first character
       would be dropped, so ``text`` is the whole stream while ``spill_path``
-      is ``None``.
+      is ``None``. With ``cap_spill`` its size stops at `SPILL_MAX_CHARS` and
+      the capture records why, while the tail stays in memory; without it the
+      file grows until the stream ends.
     """
 
-    def __init__(self, retain: int, echo: int, print_live: bool = True) -> None:
+    def __init__(
+        self,
+        retain: int,
+        echo: int,
+        print_live: bool = True,
+        cap_spill: bool = True,
+    ) -> None:
         self._retain = max(retain, 0)
         self._echo_budget = max(echo, 0)
+        self._cap_spill = cap_spill
         # False: `echo()` tracks the budget and `echoed_text` but doesn't
         # print, for a caller with its own live display (`update_shell_output`).
         self._print_live = print_live
@@ -36,6 +52,8 @@ class StreamCapture:
         self._echoed_chunks: list[str] = []
         self._spill: TextIO | None = None
         self._spill_failed = False
+        self._spilled = 0
+        self._spill_capped = False
         self.total_chars = 0
         self.spill_path: str | None = None
 
@@ -52,6 +70,16 @@ class StreamCapture:
     @property
     def truncated(self) -> bool:
         return self.total_chars > self._held
+
+    @property
+    def is_spill_capped(self) -> bool:
+        """Whether the spill file stopped at `SPILL_MAX_CHARS`."""
+        return self._spill_capped
+
+    @property
+    def spill_max_chars(self) -> int | None:
+        """The character cap for the spill file, or None when it is uncapped."""
+        return SPILL_MAX_CHARS if self._cap_spill else None
 
     def head_text(self, limit: int) -> str:
         """The first *limit* characters of the stream, read back from the spill.
@@ -72,8 +100,7 @@ class StreamCapture:
 
     def feed(self, chunk: str) -> None:
         self.total_chars += len(chunk)
-        if self._spill is not None:
-            self._spill.write(chunk)
+        self._write_to_spill(chunk)
         self._chunks.append(chunk)
         self._held += len(chunk)
         if self._held > self._retain:
@@ -148,12 +175,47 @@ class StreamCapture:
             fd, path = tempfile.mkstemp(prefix="zrb_shell_part_", suffix=".log")
             self._spill = os.fdopen(fd, "w", encoding="utf-8")
             self.spill_path = path
-            self._spill.write("".join(self._chunks))
+            self._write_to_spill("".join(self._chunks))
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to open spill file: {e}")
             self._spill_failed = True
             self._spill = None
             self.spill_path = None
+
+    def _write_to_spill(self, text: str) -> None:
+        """Append *text* to the spill file, stopping at the cap when it has one.
+
+        `total_chars` and the in-memory tail keep working past the cap; only
+        the on-disk copy stops, and the file says why so a later reader does
+        not mistake a capped file for the whole stream.
+        """
+        if self._spill is None or self._spill_capped or not text:
+            return
+        if not self._cap_spill:
+            self._spill.write(text)
+            self._spilled += len(text)
+            return
+        remaining = SPILL_MAX_CHARS - self._spilled
+        if remaining <= 0:
+            self._record_spill_cap()
+            return
+        written = text[:remaining]
+        self._spill.write(written)
+        self._spilled += len(written)
+        if len(written) < len(text):
+            self._record_spill_cap()
+
+    def _record_spill_cap(self) -> None:
+        """Mark the spill file capped, leaving the reason inside it."""
+        if self._spill_capped:
+            return
+        self._spill_capped = True
+        if self._spill is None:
+            return
+        self._spill.write(
+            f"\n[spill file capped at {SPILL_MAX_CHARS} characters; "
+            "later output was not saved to disk]\n"
+        )
 
     def _trim(self) -> None:
         """Drop from the head until the retention budget holds, tail-exact."""
