@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -81,20 +80,6 @@ class ApprovalOutcome(TypedDict, total=False):
     handled: bool
     type: str
     error: str
-
-
-# A backup written beside its live transcript before the `backups/<name>/`
-# layout: `<live name>-YYYY-MM-DD-HH-MM-SS` (the seconds group optional, the
-# shape the old timestamp stripping recognized).
-_LEGACY_FLAT_BACKUP_SUFFIX = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
-
-
-def _legacy_flat_backup_base(session_name: str) -> str:
-    """The live conversation a pre-`backups/` flat backup belongs to, or ``""``."""
-    match = _LEGACY_FLAT_BACKUP_SUFFIX.search(session_name)
-    if match is None:
-        return ""
-    return session_name[: match.start()]
 
 
 @dataclass
@@ -187,10 +172,10 @@ class ChatSessionManager:
         `backups/<name>/`, so a timestamp in a name is part of the name —
         `standup-2026-11-20-09-00` and `standup-2026-11-20-10-00` are two
         conversations, not one `standup` row whose transcript does not exist.
-        A timestamp-suffixed file is a legacy flat backup, and skipped, only
-        when its live `<base>.json` sits in the same directory; with no base
-        file it is a live conversation whose name happens to end in a
-        timestamp. Also scans delegated sub-agent transcripts under
+        A pre-`backups/` flat backup is indistinguishable from a live
+        timestamp-named conversation by its filename, so it is listed under its
+        exact name rather than guessed away and potentially hiding a real
+        conversation. Also scans delegated sub-agent transcripts under
         ``subagent/{agent_type}/``.
         """
         if not CFG.LLM_HISTORY_DIR:
@@ -209,13 +194,6 @@ class ChatSessionManager:
                     if not entry.name.endswith(".json"):
                         continue
                     session_name = entry.name[: -len(".json")]
-                    base_name = _legacy_flat_backup_base(session_name)
-                    if base_name and os.path.isfile(
-                        os.path.join(directory, f"{base_name}.json")
-                    ):
-                        # A backup written beside its live transcript before
-                        # the `backups/` layout; the live file is the session.
-                        continue
                     try:
                         mtime = entry.stat().st_mtime
                     except OSError:

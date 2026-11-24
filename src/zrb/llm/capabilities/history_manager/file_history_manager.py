@@ -727,23 +727,45 @@ class FileHistoryManager(AnyHistoryManager):
         data: object,
     ) -> str | None:
         """Write the backup inside the conversation directory *directory_fd*."""
-        name = _backup_file_name(
-            timestamp,
-            lambda candidate: _has_entry(directory_fd, candidate),
-        )
         tmp_name: "str | None" = None
         try:
             descriptor, tmp_name = _create_backup_temp_file(directory_fd)
             with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
                 json.dump(data, stream, indent=2)
-            os.replace(
-                tmp_name,
-                name,
-                src_dir_fd=directory_fd,
-                dst_dir_fd=directory_fd,
-            )
-            tmp_name = None
-            return name
+            while True:
+                name = _backup_file_name(
+                    timestamp,
+                    lambda candidate: _has_entry(directory_fd, candidate),
+                )
+                try:
+                    # A hard link publishes atomically and refuses an existing
+                    # destination; two saves in the same second cannot both
+                    # select the same name and overwrite one another.
+                    os.link(
+                        tmp_name,
+                        name,
+                        src_dir_fd=directory_fd,
+                        dst_dir_fd=directory_fd,
+                    )
+                    try:
+                        os.unlink(tmp_name, dir_fd=directory_fd)
+                    except OSError:
+                        pass
+                    tmp_name = None
+                    return name
+                except FileExistsError:
+                    continue
+                except OSError:
+                    # Filesystems without hard links still get the backup;
+                    # the exclusive `link` above is unavailable there.
+                    os.replace(
+                        tmp_name,
+                        name,
+                        src_dir_fd=directory_fd,
+                        dst_dir_fd=directory_fd,
+                    )
+                    tmp_name = None
+                    return name
         except OSError as e:
             return self._report_backup_failure(conversation_name, e)
         finally:

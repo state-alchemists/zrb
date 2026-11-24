@@ -286,3 +286,31 @@ def test_a_directory_swapped_during_the_save_cannot_receive_the_backup(
     assert os.listdir(outside) == []
     assert not swapped
     assert list((history_dir / "backups" / "hello").glob("*.json"))
+
+
+def test_two_backups_in_the_same_second_are_both_kept(tmp_path):
+    """Two saves with the same clock second must not publish one backup name."""
+    from datetime import datetime as real_datetime
+    from unittest.mock import patch
+
+    history_dir = str(tmp_path)
+    first = FileHistoryManager(history_dir)
+    second = FileHistoryManager(history_dir)
+    first.update("same-second", [ModelRequest(parts=[UserPromptPart(content="first")])])
+    second.update(
+        "same-second", [ModelRequest(parts=[UserPromptPart(content="second")])]
+    )
+    fixed = real_datetime(2026, 1, 1, 10, 0, 0)
+
+    class FixedDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    with patch.object(history_module, "datetime", FixedDatetime):
+        first.save("same-second")
+        second.save("same-second")
+
+    backups = sorted((tmp_path / "backups" / "same-second").glob("*.json"))
+    assert len(backups) == 2
+    assert backups[0].name != backups[1].name

@@ -344,11 +344,12 @@ class TestChatSessionManagerListing:
             "standup-2026-11-20-10-00",
         }
 
-    def test_scan_sessions_skips_a_legacy_flat_backup_beside_its_live_file(
+    def test_scan_sessions_lists_every_root_transcript_by_its_exact_name(
         self, tmp_path
     ):
-        """A pre-`backups/` timestamped copy beside its live transcript is not a
-        session; the same shape with no live base is a live conversation."""
+        """A filename cannot distinguish a legacy flat backup from a live
+        timestamp-named conversation, so every root `.json` is listed rather
+        than guessing and potentially hiding a real conversation."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
@@ -364,9 +365,10 @@ class TestChatSessionManagerListing:
 
         assert {session_name for session_name, _, _ in sessions} == {
             "standup",
+            "standup-2024-01-15-10-30-45",
             "retro-2026-11-20-09-00",
         }
-        assert len(sessions) == 2
+        assert len(sessions) == 3
 
     @pytest.mark.asyncio
     async def test_get_sessions_includes_active_without_history(self):
