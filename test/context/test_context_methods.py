@@ -38,6 +38,16 @@ def test_render_types(mock_shared_ctx):
     assert ctx.render_float("12.34") == 12.34
 
 
+def test_render_uses_the_task_context_not_the_shared_one(mock_shared_ctx):
+    """The task's own env is applied here, not to the shared context that
+    `Context.render` used to delegate to."""
+    ctx = Context(mock_shared_ctx, "task1", 32, "icon")
+    ctx.update_task_env({"MY_VAR": "hello"})
+
+    assert ctx.render("{ctx.env.MY_VAR}") == "hello"
+    mock_shared_ctx.render.assert_not_called()
+
+
 def test_update_task_env(mock_shared_ctx):
     ctx = Context(mock_shared_ctx, "task1", 32, "icon")
     ctx.update_task_env({"NEW_VAR": "val"})

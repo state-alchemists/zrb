@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.shared_context import render_template
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.util.cli.style import (
     remove_style,
@@ -103,7 +104,13 @@ class Context(AnyContext):
         return self._shared_ctx.get_logging_level()
 
     def render(self, template: str) -> str:
-        return self._shared_ctx.render(template=template)
+        """Render *template* against this task's context.
+
+        Unlike `SharedContext.render`, the helper data binds `ctx` to the task
+        context, so a `Tpl` reaches `ctx.env` after the task's own `Env` values
+        were applied there.
+        """
+        return render_template(template, self)
 
     def render_bool(self, template: str | bool) -> bool:
         if isinstance(template, bool):

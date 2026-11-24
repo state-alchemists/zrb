@@ -25,6 +25,30 @@ if TYPE_CHECKING:
     from zrb.session.any_session import AnySession
 
 
+def render_template(template: str, ctx: AnySharedContext) -> str:
+    """Render *template* as an f-string against *ctx*.
+
+    One set of helper names serves both contexts: `SharedContext.render` passes
+    itself for input and env defaults, which are resolved before a task context
+    exists, and `Context.render` passes the task context so `{ctx.env...}` sees
+    the task's own envs.
+    """
+    return fstring_format(
+        template=template,
+        data={
+            "ctx": ctx,
+            "datetime": datetime,
+            "to_boolean": to_boolean,
+            "to_camel_case": to_camel_case,
+            "to_human_case": to_human_case,
+            "to_kebab_case": to_kebab_case,
+            "to_pascal_case": to_pascal_case,
+            "to_snake_case": to_snake_case,
+            "double_quote": double_quote,
+        },
+    )
+
+
 class SharedContext(AnySharedContext):
     def __init__(
         self,
@@ -118,20 +142,7 @@ class SharedContext(AnySharedContext):
         return self.__logging_level
 
     def render(self, template: str) -> str:
-        return fstring_format(
-            template=template,
-            data={
-                "ctx": self,
-                "datetime": datetime,
-                "to_boolean": to_boolean,
-                "to_camel_case": to_camel_case,
-                "to_human_case": to_human_case,
-                "to_kebab_case": to_kebab_case,
-                "to_pascal_case": to_pascal_case,
-                "to_snake_case": to_snake_case,
-                "double_quote": double_quote,
-            },
-        )
+        return render_template(template, self)
 
     def shared_print(
         self,
