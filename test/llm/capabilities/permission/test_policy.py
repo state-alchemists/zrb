@@ -13,6 +13,7 @@ from zrb.llm.capabilities.permission import (
     Rule,
     resolve_policy,
 )
+from zrb.llm.capabilities.permission.policy import PATH_ARG_KEYS
 
 # --- decide(): matching precedence and fallthrough -----------------------
 
@@ -128,25 +129,12 @@ def test_resolve_garbage_string_returns_none():
 # --- arg_pattern: the spellings an MCP server or plugin uses ----------------
 
 
-@pytest.mark.parametrize(
-    "key",
-    [
-        "filePath",
-        "filepath",
-        "dir_path",
-        "directory",
-        "root",
-        "source",
-        "target",
-        "destination",
-        "dest",
-    ],
-)
+@pytest.mark.parametrize("key", PATH_ARG_KEYS)
 def test_arg_pattern_matches_a_key_an_mcp_tool_declares(key):
-    """A rule written against an MCP-style spelling used to match nothing.
+    """Every shared path spelling is visible to `arg_pattern` matching.
 
-    `filePath` was invisible to `_SALIENT_ARG_KEYS`, so the deny rule fell
-    through to the later allow and the call ran.
+    `filePath`/`sourcePath` used to be missing, so the deny rule fell through
+    to the later allow and the call ran.
     """
     policy = PermissionPolicy(
         (
@@ -177,6 +165,52 @@ def test_a_deny_rule_it_cannot_judge_fails_closed(caplog):
 
     assert decision == DENY
     assert "failing closed" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "unknown_path",
+    ["/home/u/.ssh/id_rsa", r"..\u\.ssh\id_rsa", "~/secrets", ".env.local"],
+)
+def test_a_path_under_an_unknown_key_fails_closed_even_with_a_judged_command(
+    unknown_path,
+):
+    """`command` is salient, but the path under an unknown spelling could be the
+    one the deny rule was written for, so the rule still cannot be ruled out."""
+    policy = PermissionPolicy(
+        (
+            Rule("*", DENY, arg_pattern="*/.ssh/*"),
+            Rule("*", ALLOW),
+        )
+    )
+    decision = policy.decide(
+        "McpWrite",
+        Capability.UNKNOWN,
+        {"unknownPath": unknown_path, "command": "ls"},
+    )
+    assert decision == DENY
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        # `purpose` is narrator prose the wrapper adds; it may name a path.
+        {"path": "/repo/main.py", "purpose": "Fix the import in /repo/main.py"},
+        # `new_text` is code, not an argument path.
+        {"path": "/repo/main.py", "new_text": "from . import b"},
+        # A key that does not read as a path is not one.
+        {"path": "/repo/main.py", "extra": "a/b"},
+    ],
+)
+def test_only_path_shaped_unknown_keys_make_a_deny_rule_unjudgeable(args):
+    """Prose and unknown non-path arguments are still judged: a slash inside
+    them must not fail an unrelated deny rule closed."""
+    policy = PermissionPolicy(
+        (
+            Rule("Edit", DENY, arg_pattern="**/.env"),
+            Rule("Edit", ALLOW),
+        )
+    )
+    assert policy.decide("Edit", Capability.EDIT, args) == ALLOW
 
 
 def test_a_deny_rule_with_no_arguments_still_falls_through():

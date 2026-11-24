@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.permission.policy import PATH_ARG_KEYS
 from zrb.llm.capabilities.sandbox import SandboxPolicy, current_sandbox_policy
 
 
@@ -27,36 +28,13 @@ def _enabled_policy(tmp_path, **kwargs):
 # --- gate: argument spellings an MCP server or plugin uses ------------------
 #
 # zrb's own tools declare snake_case (`file_path`, `src`, `dst`); an MCP server
-# or plugin may declare `filePath`, `directory`, `target`, and so on. A key the
-# gate does not know is a call it never checks, so the common spellings are
-# covered one by one.
-
-_MCP_PATH_KEYS = (
-    "filePath",
-    "filepath",
-    "file_name",
-    "dir",
-    "dir_path",
-    "dirPath",
-    "directory",
-    "directory_path",
-    "root",
-    "root_path",
-    "source",
-    "source_path",
-)
-_MCP_WRITE_KEYS = _MCP_PATH_KEYS + (
-    "dst",
-    "dest",
-    "destination",
-    "destination_path",
-    "target",
-    "target_path",
-)
+# or plugin may declare `filePath`, `sourcePath`, `directory`, `target`, and so
+# on. A key the gate does not know is a call it never checks, so every spelling
+# in the shared `PATH_ARG_KEYS` list is covered here one by one.
 
 
 @pytest.mark.parametrize("capability", [Capability.EDIT, Capability.UNKNOWN])
-@pytest.mark.parametrize("key", _MCP_WRITE_KEYS)
+@pytest.mark.parametrize("key", PATH_ARG_KEYS)
 @pytest.mark.asyncio
 async def test_gate_write_checks_an_mcp_style_path_key(
     tmp_path, outside_root, key, capability
@@ -83,7 +61,7 @@ async def test_gate_write_checks_an_mcp_style_path_key(
     assert calls == []
 
 
-@pytest.mark.parametrize("key", _MCP_PATH_KEYS)
+@pytest.mark.parametrize("key", PATH_ARG_KEYS)
 @pytest.mark.asyncio
 async def test_gate_read_checks_an_mcp_style_path_key(tmp_path, key):
     """A READ tool whose path key is an MCP-style spelling is denied too."""
@@ -106,6 +84,33 @@ async def test_gate_read_checks_an_mcp_style_path_key(tmp_path, key):
         current_sandbox_policy.reset(token)
 
     assert result.metadata.get("blocked") is True
+
+
+@pytest.mark.parametrize("capability", [Capability.EDIT, Capability.UNKNOWN])
+@pytest.mark.asyncio
+async def test_gate_write_checks_source_path_outside_writable_roots(
+    tmp_path, outside_root, capability
+):
+    """`sourcePath` was in neither list, so a copy out of the workspace ran."""
+    from zrb.llm.engine.agent.common import create_safe_wrapper
+
+    calls = []
+
+    def copy_file(sourcePath: str = ""):
+        calls.append(sourcePath)
+        return "did it"
+
+    tag(copy_file, capability)
+    wrapped = create_safe_wrapper(copy_file)
+
+    token = current_sandbox_policy.set(_enabled_policy(tmp_path))
+    try:
+        result = await wrapped(sourcePath=str(outside_root / "x.txt"))
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert result.metadata.get("blocked") is True
+    assert calls == []
 
 
 @pytest.mark.asyncio

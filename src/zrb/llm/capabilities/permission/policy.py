@@ -19,14 +19,16 @@ ALLOW = "allow"
 ASK = "ask"
 DENY = "deny"
 
-# Argument keys a rule's ``arg_pattern`` is matched against, across tools.
+# Path-shaped argument spellings, shared with the sandbox gate
+# (``zrb.llm.engine.agent.gates``) so the two layers cannot drift: a spelling
+# missing from here is a call neither layer checks.
 #
 # The snake_case spellings are what zrb's own tools declare; the camelCase and
 # single-word ones are what an MCP server or a plugin declares, and a rule
-# written against `filePath` used to match nothing at all. The path-shaped
-# spellings here mirror the sandbox gate's key lists in
-# ``zrb.llm.engine.agent.gates`` — a spelling added there belongs here too.
-_SALIENT_ARG_KEYS = (
+# written against `filePath` — or a gate that never saw `sourcePath` — used to
+# let the call through unchecked. An unlisted spelling is a fail-open, so the
+# common ones are listed rather than discovered at run time.
+PATH_ARG_KEYS = (
     "path",
     "file",
     "file_path",
@@ -34,29 +36,42 @@ _SALIENT_ARG_KEYS = (
     "filepath",
     "filename",
     "file_name",
+    "fileName",
     "dir",
     "dir_path",
     "dirPath",
     "directory",
     "directory_path",
+    "directoryPath",
     "root",
     "root_path",
+    "rootPath",
     "src",
     "source",
     "source_path",
+    "sourcePath",
     "dst",
     "dest",
     "destination",
     "destination_path",
+    "destinationPath",
     "target",
     "target_path",
+    "targetPath",
+    # ExitWorktree's deletion target; both worktree tools must stay inside the
+    # writable boundary (EnterWorktree computes its own repository root).
+    "worktree_path",
+    "worktreePath",
+)
+
+# Keys a rule's ``arg_pattern`` is matched against: the path-shaped spellings
+# above, plus the non-path arguments a rule can name.
+_SALIENT_ARG_KEYS = PATH_ARG_KEYS + (
     "command",
     "cmd",
     "pattern",
     "url",
     "agent_name",
-    # ExitWorktree's deletion target (EnterWorktree computes its own).
-    "worktree_path",
 )
 
 
@@ -79,11 +94,12 @@ class PermissionPolicy:
         """Return the first matching rule's action, or ``None`` if none match.
 
         A deny rule carrying an ``arg_pattern`` fails closed when the call has
-        arguments but none of them is a salient key: the pattern could neither
-        match nor be ruled out, and falling through to a later allow would let
-        an argument spelling this layer does not recognize walk past a rule
-        written to stop it. A call with no arguments at all still falls through
-        — there is nothing in it for the pattern to describe.
+        arguments but none it can judge: no salient key carries a string, or a
+        path-like string sits under an unrecognized path-shaped key. The pattern
+        could neither match nor be ruled out, and falling through to a later
+        allow would let a spelling this layer does not recognize walk past a
+        rule written to stop it. A call with no arguments at all still falls
+        through — there is nothing in it for the pattern to describe.
         """
         args = args or {}
         for rule in self.rules:
@@ -108,8 +124,9 @@ def _warn_unjudged_deny(tool_name: str, arg_pattern: str, args: dict) -> None:
     """
     CFG.LOGGER.warning(
         f"permission: denying '{tool_name}' because the deny rule's arg_pattern "
-        f"'{arg_pattern}' matched no salient argument (keys: {sorted(args)}); "
-        f"failing closed rather than allowing a call it could not judge"
+        f"'{arg_pattern}' could not judge the call's arguments (keys: "
+        f"{sorted(args)}); failing closed rather than allowing a call it could "
+        f"not judge"
     )
 
 
@@ -122,12 +139,39 @@ def _key_matches(key: str, tool_name: str, capability: Capability) -> bool:
     return key == cap_value
 
 
+# An unrecognized argument key still reads as a path when its name names one
+# (`unknownPath`, `filePathh`, a plugin's `sourcePath`) and its value is shaped
+# like a path. The key name is required: prose arguments (`purpose`,
+# `new_text`) contain slashes too, and treating those as paths would fail every
+# deny rule closed on an ordinary edit.
+_PATH_LIKE_KEY = re.compile(
+    r"path|file|dir|folder|root|src|source|dst|dest|target|worktree"
+)
+_PATH_LIKE_VALUE = re.compile(r"[\\/]|^[~.]")
+
+
+def _has_unrecognized_path_arg(args: dict) -> bool:
+    """Whether an unknown key carries a path the deny rule could have meant.
+
+    `_arg_matches` only sees salient keys, so an unrecognized spelling of a
+    path argument can slip past a rule while a recognized non-path argument
+    (`command`) makes the call look judged.
+    """
+    for key, value in args.items():
+        if key in _SALIENT_ARG_KEYS or not isinstance(value, str):
+            continue
+        if _PATH_LIKE_KEY.search(key.lower()) and _PATH_LIKE_VALUE.search(value):
+            return True
+    return False
+
+
 def _arg_matches(pattern: str, args: dict) -> tuple[bool, bool]:
     """Return ``(matched, judged)`` for *pattern* against the call's arguments.
 
-    ``judged`` is False when no salient argument carried a string: the pattern
-    could neither match nor be ruled out, because the call's path-like key is
-    spelled in a way this list does not know.
+    ``judged`` is False when no salient argument carried a string, or when an
+    unrecognized path-shaped key carries a path-like string: the pattern could
+    neither match nor be ruled out, because the call's path argument is spelled
+    in a way this list does not know.
     """
     judged = False
     for key in _SALIENT_ARG_KEYS:
@@ -137,6 +181,8 @@ def _arg_matches(pattern: str, args: dict) -> tuple[bool, bool]:
         judged = True
         if fnmatch(value, pattern):
             return True, True
+    if _has_unrecognized_path_arg(args):
+        return False, False
     return False, judged
 
 
