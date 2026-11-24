@@ -115,6 +115,8 @@ sync_local = cli.add_task(
 )
 ```
 
+At most one side may be remote, and a remote side requires `remote_host`. Two remote paths, or a side that sets both its local and remote path, raise `ValueError` before the command runs; a local-to-local pair needs no host.
+
 ### Local to Remote Sync (Push via SSH)
 
 You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also supports password authentication.

@@ -1,3 +1,4 @@
+import shlex
 from typing import Unpack
 
 from zrb.attr.type import StrAttr
@@ -6,6 +7,23 @@ from zrb.context.any_context import AnyContext
 from zrb.task.base.params import CmdTaskParams, reject_non_rsync_params
 from zrb.task.cmd_task import CmdTask
 from zrb.util.attr import get_str_attr
+
+
+def _quote_for_remote_shell(value: str) -> str:
+    """Double-quote *value* for the shell rsync's `-e` command runs.
+
+    That shell is not the parent: rsync splits the `-e` string itself before
+    handing it on, so a single-quoted value does not survive. An apostrophe is
+    literal inside double quotes; only backslash, double quote, dollar and
+    backtick need escaping.
+    """
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "\\$")
+        .replace("`", "\\`")
+    )
+    return f'"{escaped}"'
 
 
 class RsyncTask(CmdTask):
@@ -22,10 +40,13 @@ class RsyncTask(CmdTask):
     ):
         """Define a task that copies files with `rsync`, locally or over SSH.
 
-        Exactly one side may be remote. Pair `local_source_path` with
-        `remote_destination_path` to upload, or `remote_source_path` with
-        `local_destination_path` to download. The SSH connection reuses `CmdTask`'s
-        `remote_*` parameters.
+        At most one side may be remote: pair `local_source_path` with
+        `remote_destination_path` to upload, `remote_source_path` with
+        `local_destination_path` to download, or two local paths to sync
+        locally. Two remote sides, or a side that sets both its local and
+        remote path, are refused before anything runs; a remote side requires
+        `remote_host`. The SSH connection reuses `CmdTask`'s `remote_*`
+        parameters.
 
         Every value below is a literal unless it is a `Tpl` or a callable, in
         which case it is resolved against the task context at run time.
@@ -52,23 +73,81 @@ class RsyncTask(CmdTask):
         self._local_destination_path = local_destination_path
         self._exclude_from = exclude_from
 
+    def _get_remote_execution_password(self, ctx: AnyContext) -> str:
+        """No SSH (and no ``SSHPASS``) when neither side is remote.
+
+        A local-to-local copy may still carry ``remote_host`` and
+        ``remote_password``; the generated command is plain ``rsync``, so
+        exporting the password would be a secret the run cannot use.
+        """
+        source_is_remote, destination_is_remote = self._validate_paths(ctx)
+        if source_is_remote or destination_is_remote:
+            return super()._get_remote_execution_password(ctx)
+        return ""
+
     def _get_source_path(self, ctx: AnyContext) -> str:
         local_source_path = self._get_local_source_path(ctx)
         if local_source_path != "":
             return local_source_path
-        remote_source_path = self._get_remote_source_path(ctx)
-        host = self._get_remote_host(ctx)
-        user = self._get_remote_user(ctx)
-        return f"{user}@{bracket_ipv6(host)}:{remote_source_path}"
+        return self._get_remote_path(ctx, self._get_remote_source_path(ctx))
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
         local_destination_path = self._get_local_destination_path(ctx)
         if local_destination_path != "":
             return local_destination_path
-        remote_destination_path = self._get_remote_destination_path(ctx)
-        host = self._get_remote_host(ctx)
+        return self._get_remote_path(ctx, self._get_remote_destination_path(ctx))
+
+    def _get_remote_path(self, ctx: AnyContext, path: str) -> str:
         user = self._get_remote_user(ctx)
-        return f"{user}@{bracket_ipv6(host)}:{remote_destination_path}"
+        user_prefix = f"{user}@" if user != "" else ""
+        return f"{user_prefix}{bracket_ipv6(self._get_remote_host(ctx))}:{path}"
+
+    def _validate_paths(self, ctx: AnyContext) -> tuple[bool, bool]:
+        """Validate the pair and report whether each side is remote.
+
+        Each side must name exactly one path; two remote sides are refused,
+        while two local sides are a valid local copy. A remote side also
+        requires `remote_host`. Runs before the command is built, so a bad
+        pair never reaches the shell.
+        """
+        source_is_remote = self._is_remote_side(
+            "source",
+            self._get_local_source_path(ctx),
+            self._get_remote_source_path(ctx),
+        )
+        destination_is_remote = self._is_remote_side(
+            "destination",
+            self._get_local_destination_path(ctx),
+            self._get_remote_destination_path(ctx),
+        )
+        if source_is_remote and destination_is_remote:
+            raise ValueError(
+                f"RsyncTask({self.name!r}) cannot run remote-to-remote: at "
+                "most one of the source and destination may be remote."
+            )
+        if (source_is_remote or destination_is_remote) and (
+            self._get_remote_host(ctx) == ""
+        ):
+            raise ValueError(
+                f"RsyncTask({self.name!r}) has a remote path but no "
+                "remote_host; set remote_host to the SSH server."
+            )
+        return source_is_remote, destination_is_remote
+
+    def _is_remote_side(self, side: str, local: str, remote: str) -> bool:
+        if local != "" and remote != "":
+            raise ValueError(
+                f"RsyncTask({self.name!r}) sets both local_{side}_path and "
+                f"remote_{side}_path; set exactly one."
+            )
+        if local != "":
+            return False
+        if remote != "":
+            return True
+        raise ValueError(
+            f"RsyncTask({self.name!r}) needs either local_{side}_path or "
+            f"remote_{side}_path."
+        )
 
     def _get_remote_source_path(self, ctx: AnyContext) -> str:
         return get_str_attr(
@@ -106,20 +185,34 @@ class RsyncTask(CmdTask):
         ).strip()
         if exclude_from == "":
             return ""
-        return f"--exclude-from='{exclude_from}'"
+        return shlex.quote(f"--exclude-from={exclude_from}")
+
+    def _get_ssh_command(self, ctx: AnyContext) -> str:
+        """The `ssh` command for rsync's `-e`, quoted for both shells.
+
+        `_quote_for_remote_shell` protects the key inside the command rsync
+        runs (double quotes, so an apostrophe survives rsync's own split);
+        `shlex.quote` then protects the whole argument from the parent shell.
+        """
+        port = self._get_remote_port(ctx)
+        key = self._get_remote_ssh_key(ctx)
+        parts = ["ssh"]
+        if key != "":
+            parts += ["-i", _quote_for_remote_shell(key)]
+        parts += ["-p", str(port)]
+        return shlex.quote(" ".join(parts))
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:
-        port = self._get_remote_port(ctx)
+        source_is_remote, destination_is_remote = self._validate_paths(ctx)
+        uses_remote = source_is_remote or destination_is_remote
         password = self._get_remote_password(ctx)
-        key = self._get_remote_ssh_key(ctx)
-        src = self._get_source_path(ctx)
-        dst = self._get_destination_path(ctx)
+        ssh_command = self._get_ssh_command(ctx)
         exclude_from = self._get_exclude_from_param(ctx)
         exclude_from_with_space = f"{exclude_from} " if exclude_from != "" else ""
-        if key != "" and password != "":
-            return f'sshpass -e rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        if key != "":
-            return f'rsync --mkpath -avz -e "ssh -i {key} -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        if password != "":
-            return f'sshpass -e rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'  # noqa
-        return f'rsync --mkpath -avz -e "ssh -p {port}" {exclude_from_with_space}{src} {dst}'
+        src = shlex.quote(self._get_source_path(ctx))
+        dst = shlex.quote(self._get_destination_path(ctx))
+        sshpass = "sshpass -e " if password != "" and uses_remote else ""
+        return (
+            f"{sshpass}rsync --mkpath -avz -e {ssh_command} "
+            f"{exclude_from_with_space}{src} {dst}"
+        )
