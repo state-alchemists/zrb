@@ -269,7 +269,7 @@ async def test_a_private_pid_namespace_disables_adoption(tmp_path, monkeypatch):
     host PID, so keeping it under a handle would report work the registry
     cannot reach."""
     monkeypatch.setattr(
-        shell_mod, "uses_private_pid_namespace", lambda policy, skip=False: True
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
     )
 
     result = await run_shell_command(_ticker_command(tmp_path), timeout=1)

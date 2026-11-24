@@ -82,7 +82,7 @@ def build_sandboxed_argv(
     return _fallback(plain, policy, f"no OS sandbox mechanism exists on {system}")
 
 
-def uses_private_pid_namespace(policy: SandboxPolicy, skip: bool = False) -> bool:
+def has_private_pid_namespace(policy: SandboxPolicy, skip: bool = False) -> bool:
     """Whether the shell will run in bwrap's private PID namespace.
 
     True exactly when :func:`build_sandboxed_argv` selects the Linux bwrap

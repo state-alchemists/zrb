@@ -22,7 +22,7 @@ from zrb.llm.capabilities.sandbox import get_effective_sandbox_policy
 from zrb.llm.capabilities.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
-    uses_private_pid_namespace,
+    has_private_pid_namespace,
 )
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.llm.capabilities.tool.shell.capture import StreamCapture
@@ -133,16 +133,10 @@ async def run_shell_command(
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
-    private_pid_namespace = uses_private_pid_namespace(
+    private_pid_namespace = has_private_pid_namespace(
         get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
     )
-    # Background-PID discovery needs POSIX process groups + pgrep/ps, and a
-    # PID namespace's pids are not host pids: reporting them would mislead.
-    use_pid_tracking = (
-        platform.system() != "Windows"
-        and shell_flag == "-c"
-        and not private_pid_namespace
-    )
+    use_pid_tracking = _can_track_pids(shell_flag, private_pid_namespace)
 
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
 
@@ -249,7 +243,7 @@ async def _start_background_shell(
     dangerously_skip_sandbox: bool,
 ) -> str:
     """Hand the command to the background registry and report its handle."""
-    if uses_private_pid_namespace(
+    if has_private_pid_namespace(
         get_effective_sandbox_policy(), skip=dangerously_skip_sandbox
     ):
         return _background_pid_namespace_refusal()
@@ -400,6 +394,20 @@ def _finish_shell_output(
         ui.finish_shell_output(key, collapsed, _format_live_shell_output(full))
     except Exception as e:  # noqa: BLE001
         CFG.LOGGER.debug(f"Final shell output capture failed: {e}")
+
+
+def _can_track_pids(shell_flag: str, private_pid_namespace: bool) -> bool:
+    """Whether the wrapper may report background PIDs for this command.
+
+    Discovery needs POSIX process groups plus pgrep/ps, and a PID namespace's
+    pids are not host pids: reporting them would let the model signal an
+    unrelated process.
+    """
+    return (
+        platform.system() != "Windows"
+        and shell_flag == "-c"
+        and not private_pid_namespace
+    )
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:

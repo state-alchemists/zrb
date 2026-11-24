@@ -113,7 +113,7 @@ async def test_background_shell_is_refused_in_a_private_pid_namespace(monkeypatc
         lambda: _Registry(),
     )
     monkeypatch.setattr(
-        shell_mod, "uses_private_pid_namespace", lambda policy, skip=False: True
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
     )
 
     result = await run_shell_command("sleep 1", background=True)
@@ -131,7 +131,7 @@ async def test_private_pid_namespace_hides_background_pids(monkeypatch):
     """A namespace-local PID is not a host PID, so reporting it would let the
     model signal an unrelated process."""
     monkeypatch.setattr(
-        shell_mod, "uses_private_pid_namespace", lambda policy, skip=False: True
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
     )
 
     result = await run_shell_command("sleep 1 & echo started")

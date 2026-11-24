@@ -9,11 +9,9 @@ from zrb.llm.capabilities.sandbox import (
     SandboxPolicy,
     SandboxUnavailableError,
     build_sandboxed_argv,
+    has_private_pid_namespace,
 )
 from zrb.llm.capabilities.sandbox import os_sandbox as os_sandbox_module
-from zrb.llm.capabilities.sandbox import (
-    uses_private_pid_namespace,
-)
 
 PLAIN = ["bash", "-c", "echo hi"]
 
@@ -154,14 +152,14 @@ def test_private_pid_namespace_needs_linux_bwrap_and_an_enabled_policy(monkeypat
         os_sandbox_module.shutil, "which", lambda name: "/usr/bin/bwrap"
     )
 
-    assert uses_private_pid_namespace(SandboxPolicy(enabled=True)) is True
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is True
 
 
 def test_private_pid_namespace_is_off_without_bwrap(monkeypatch):
     monkeypatch.setattr(os_sandbox_module.platform, "system", lambda: "Linux")
     monkeypatch.setattr(os_sandbox_module.shutil, "which", lambda name: None)
 
-    assert uses_private_pid_namespace(SandboxPolicy(enabled=True)) is False
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is False
 
 
 def test_private_pid_namespace_is_off_off_linux_or_when_shell_wrapping_is_off(
@@ -171,11 +169,11 @@ def test_private_pid_namespace_is_off_off_linux_or_when_shell_wrapping_is_off(
         os_sandbox_module.shutil, "which", lambda name: "/usr/bin/bwrap"
     )
     monkeypatch.setattr(os_sandbox_module.platform, "system", lambda: "Darwin")
-    assert uses_private_pid_namespace(SandboxPolicy(enabled=True)) is False
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is False
 
     _patch_platform(monkeypatch, "Linux")
-    assert uses_private_pid_namespace(SandboxPolicy(enabled=False)) is False
+    assert has_private_pid_namespace(SandboxPolicy(enabled=False)) is False
     assert (
-        uses_private_pid_namespace(SandboxPolicy(enabled=True, os_shell="off")) is False
+        has_private_pid_namespace(SandboxPolicy(enabled=True, os_shell="off")) is False
     )
-    assert uses_private_pid_namespace(SandboxPolicy(enabled=True), skip=True) is False
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True), skip=True) is False
