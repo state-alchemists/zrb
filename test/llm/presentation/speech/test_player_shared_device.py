@@ -194,3 +194,27 @@ def test_drain_plays_a_sentence_queued_behind_another_session(lock_file):
     holder.join(5)
 
     assert backend.played == ["drained"]
+
+
+def test_a_sentence_that_stops_being_wanted_as_the_lock_is_taken_is_dropped(
+    lock_file,
+):
+    """The wait ends with a second look, once the device is ours.
+
+    The predicate is checked, then the lock is taken. An interrupt, a newer turn
+    or a narration whose call ended can land between those two instants; the
+    sentence is not wanted any more, and it must not be read out because the
+    check that asked was a moment too early.
+    """
+    backend = FakeBackend()
+    utterance = backend.create_utterance("stale")
+    looks = []
+
+    def still_wanted() -> bool:
+        looks.append(1)
+        return len(looks) == 1
+
+    play(utterance, _config(backend, lock_file), still_wanted)
+
+    assert backend.played == []
+    assert len(looks) == 2

@@ -948,6 +948,15 @@ def play(
                 # Another session has the device: wait for the next turn.
                 pass
             else:
+                if not is_still_wanted():
+                    # The device is ours, and the sentence stopped being wanted
+                    # while we were taking it: an interrupt, a newer turn, a
+                    # narration whose call has ended. Checking only before the
+                    # take leaves exactly that window, and a sentence spoken into
+                    # it is one the caller asked to drop. This second look is
+                    # inside the lock, where no other session can take the device
+                    # from under us, so it costs nothing and re-opens no gap.
+                    return
                 _speak_under_the_lock(utterance, config)
                 return
         if not announced:
