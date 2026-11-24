@@ -22,6 +22,7 @@ from zrb.cmd.command import (
     kill_pid,
     resolve_shell,
     terminate_process,
+    wait_for_exit,
 )
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
@@ -212,11 +213,16 @@ class _ShellBackgroundRegistry:
     def _expire(self, handle: str) -> None:
         """Stop an adopted process that has used up its time in the background.
 
+        What still owes the deadline a stop is not the shell on its own: the
+        exit code is recorded the moment the shell exits, while a child it left
+        running keeps the pipes — and the work — open. `_is_still_running`
+        answers for both.
+
         The entry stays registered and says why, so a poll that arrives after
         the kill explains itself instead of reporting an unknown handle.
         """
         bp = self._procs.get(handle)
-        if bp is None or bp.process.returncode is not None:
+        if bp is None or not _is_still_running(bp):
             return
         bp.deadline = None
         seconds = CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS
@@ -302,7 +308,10 @@ class _ShellBackgroundRegistry:
         cap.feed(text)
 
     async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
-        rc = await proc.wait()
+        # Not `proc.wait()`: that waits for the pipes to close as well, so a
+        # child the shell left running (`server &`) holds the exit code back
+        # until it ends, and the handle says "running" for a shell that is gone.
+        rc = await wait_for_exit(proc)
         bp = self._procs.get(handle)
         if bp is not None:
             bp.returncode = rc
@@ -457,7 +466,7 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
-        if bp.process.returncode is not None:
+        if not _is_still_running(bp):
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
@@ -526,14 +535,30 @@ def _is_foreign_session(bp: _BackgroundProcess) -> bool:
     )
 
 
+def _is_still_running(bp: _BackgroundProcess) -> bool:
+    """Whether anything *bp* took on may still be working.
+
+    The shell's exit code stops being the whole answer once it is recorded the
+    moment the shell exits: a child that outlived the shell holds the pipes
+    open, so the readers are still going until it lets go. `poll` calls a
+    handle finished on the same two facts, which keeps the deadline and the
+    report from disagreeing about what is running.
+    """
+    return bp.process.returncode is None or any(not task.done() for task in bp.tasks)
+
+
 async def _stop_process(bp: _BackgroundProcess) -> None:
-    """Terminate *bp* if still running, then release it."""
-    if bp.process.returncode is None:
-        await terminate_process(
-            bp.process,
-            CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-            print_method=CFG.LOGGER.warning,
-        )
+    """Stop what is left of *bp*'s process tree, then release it.
+
+    `terminate_process` returns at once when nothing is left to signal, so this
+    is also where a child that outlived its shell is stopped: the group the
+    shell led is the only name that child still has.
+    """
+    await terminate_process(
+        bp.process,
+        CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+        print_method=CFG.LOGGER.warning,
+    )
     _release_process(bp)
 
 
