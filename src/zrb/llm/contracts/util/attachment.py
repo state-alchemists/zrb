@@ -46,7 +46,10 @@ def normalize_attachments(
             try:
                 if media_type == "application/pdf":
                     pdf_text = extract_pdf_text(path)
-                    if pdf_text is not None:
+                    # An empty string means the PDF has no extractable text
+                    # (an image-only scan). Appending it would drop the PDF
+                    # from the prompt, so fall through to attaching it binary.
+                    if pdf_text:
                         final_attachments.append(pdf_text)
                         continue
                     print_fn("Failed to extract text from PDF — attaching as binary")
