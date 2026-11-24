@@ -85,7 +85,7 @@ class LiveSubAgentSession:
         """Set the task driving this session's run, if any."""
         self.active_task = task
 
-    def owns_the_turn(self) -> bool:
+    def is_turn_owner(self) -> bool:
         """Whether the task calling this is the session's current owner."""
         task = _current_task()
         return task is not None and self.active_task is task
@@ -157,7 +157,7 @@ class LiveSubAgentSessionRegistry:
             return
         entry.history = history
         entry.state = "idle"
-        if entry.owns_the_turn():
+        if entry.is_turn_owner():
             entry.active_task = None
         if entry.pending_queue and _current_task() is not None:
             # Messages arrived while the finished turn was between rounds,
@@ -412,7 +412,7 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
         # replacement turn before the cancelled one handles its
         # CancelledError: that cancelled turn must not idle the replacement,
         # mark <Done> in its view, or report its stale reply to the main agent.
-        if entry.owns_the_turn():
+        if entry.is_turn_owner():
             entry.active_task = None
             # Always back to idle, even on CancelledError (not an
             # `Exception`), or a later message would queue forever behind
