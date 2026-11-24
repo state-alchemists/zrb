@@ -34,10 +34,19 @@ class FileSessionStateLogger(AnySessionStateLogger):
         self._pruned_dirs: set[str] = set()
 
     def get_session_log_dir(self) -> str:
-        """The session log directory, calling `session_log_dir` if callable."""
+        """The session log directory, calling `session_log_dir` if callable.
+
+        ``~`` is expanded here, once, so every path this logger builds agrees:
+        the JSON file, its atomic temp file, the timeline entry, listing and
+        pruning. Expanding only in the writer would leave ``list`` and pruning
+        looking at a literal ``~`` directory while the log landed in the home
+        directory.
+        """
         if callable(self.session_log_dir_param):
-            return self.session_log_dir_param()
-        return self.session_log_dir_param
+            directory = self.session_log_dir_param()
+        else:
+            directory = self.session_log_dir_param
+        return os.path.expanduser(directory)
 
     def write(self, session_log: "SessionStateLog"):
         session_log_dir = self.get_session_log_dir()

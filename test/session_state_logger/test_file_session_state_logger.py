@@ -157,6 +157,25 @@ class TestFileSessionStateLogger:
         result = logger.get_session_log_dir()
         assert result == "/custom/path"
 
+    def test_get_session_log_dir_expands_a_tilde_once(self):
+        """Every path the logger builds must agree on the expanded directory.
+
+        `write`, `list`, `read` and pruning all call `get_session_log_dir`; a
+        literal `~` there means the JSON is written under the literal
+        directory while listing looks under `$HOME` (or the reverse).
+        """
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
+        )
+
+        expanded = os.path.expanduser("~/zrb-session-log-test")
+        logger = FileSessionStateLogger("~/zrb-session-log-test")
+
+        assert logger.get_session_log_dir() == expanded
+        assert logger.get_session_file_path("session") == os.path.join(
+            expanded, "session.json"
+        )
+
 
 class TestFileSessionStateLoggerWriteRead:
     """Test write/read operations."""
