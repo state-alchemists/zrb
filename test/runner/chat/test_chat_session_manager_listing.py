@@ -67,8 +67,12 @@ class TestChatSessionManagerListing:
 
             try:
                 sessions = manager.get_sessions()
-                # Should include the session from history
-                assert any(s["session_name"] == "test-session" for s in sessions)
+                # The filename is the name: a live transcript whose name ends
+                # in a timestamp is not a backup of a shorter one.
+                assert any(
+                    s["session_name"] == "test-session-2024-01-15-10-30"
+                    for s in sessions
+                )
             finally:
                 manager.set_history_manager(original_hm)
 
@@ -100,7 +104,11 @@ class TestChatSessionManagerListing:
 
             try:
                 sessions = manager.get_sessions()
-                entry = next(s for s in sessions if s["session_name"] == "test-session")
+                entry = next(
+                    s
+                    for s in sessions
+                    if s["session_name"] == "test-session-2024-01-15-10-30"
+                )
                 assert entry["parent_session_id"] is None
                 assert entry["agent_name"] is None
             finally:
@@ -306,6 +314,61 @@ class TestChatSessionManagerListing:
         with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
             mock_cfg.LLM_HISTORY_DIR = str(tmp_path / "missing")
             assert manager.scan_sessions() == []
+
+    def test_scan_sessions_keeps_two_timestamp_named_conversations_apart(
+        self, tmp_path
+    ):
+        """Each root `.json` name is the exact conversation name.
+
+        Backups live under `backups/<name>/` now, so nothing beside a live
+        transcript is a timestamped copy of another. Stripping the timestamp
+        folded `standup-2026-11-20-09-00` and `standup-2026-11-20-10-00` into
+        one `standup` row whose transcript does not exist, so selecting it
+        loaded nothing.
+        """
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        (history_dir / "standup-2026-11-20-09-00.json").write_text("[]")
+        (history_dir / "standup-2026-11-20-10-00.json").write_text("[]")
+
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            sessions = manager.scan_sessions()
+
+        assert len(sessions) == 2
+        assert {session_name for session_name, _, _ in sessions} == {
+            "standup-2026-11-20-09-00",
+            "standup-2026-11-20-10-00",
+        }
+
+    def test_scan_sessions_lists_every_root_transcript_by_its_exact_name(
+        self, tmp_path
+    ):
+        """A filename cannot distinguish a legacy flat backup from a live
+        timestamp-named conversation, so every root `.json` is listed rather
+        than guessing and potentially hiding a real conversation."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        (history_dir / "standup.json").write_text("[]")
+        (history_dir / "standup-2024-01-15-10-30-45.json").write_text("[]")
+        (history_dir / "retro-2026-11-20-09-00.json").write_text("[]")
+
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            sessions = manager.scan_sessions()
+
+        assert {session_name for session_name, _, _ in sessions} == {
+            "standup",
+            "standup-2024-01-15-10-30-45",
+            "retro-2026-11-20-09-00",
+        }
+        assert len(sessions) == 3
 
     @pytest.mark.asyncio
     async def test_get_sessions_includes_active_without_history(self):

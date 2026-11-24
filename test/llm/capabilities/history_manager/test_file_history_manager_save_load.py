@@ -315,9 +315,7 @@ def test_file_history_manager_filter_empty_responses_via_load(temp_history_dir):
 
 
 def test_save_with_timestamped_session_name(temp_history_dir):
-    "Test that save() correctly handles session names with timestamps."
-    import re
-
+    "A timestamped name is a conversation; its backup goes to its own set."
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -332,25 +330,15 @@ def test_save_with_timestamped_session_name(temp_history_dir):
         ModelResponse(parts=[TextPart(content="hi")]),
     ]
 
-    manager.update("my-session-2024-03-18-10-30-00", messages)
-    manager.save("my-session-2024-03-18-10-30-00")
+    name = "my-session-2024-03-18-10-30-00"
+    manager.update(name, messages)
+    manager.save(name)
 
-    main_file = os.path.join(temp_history_dir, "my-session-2024-03-18-10-30-00.json")
-    assert os.path.exists(main_file)
+    assert os.path.exists(os.path.join(temp_history_dir, f"{name}.json"))
 
-    files = os.listdir(temp_history_dir)
-
-    backup_pattern = re.compile(
-        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json"
-    )
-    backup_files = [f for f in files if backup_pattern.match(f)]
-
-    timestamp_pattern = re.compile(
-        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json"
-    )
-    main_files = [f for f in files if timestamp_pattern.match(f)]
-
-    assert len(main_files) == 2, f"Expected 2 files (main + backup), found: {files}"
+    backup_files = os.listdir(os.path.join(temp_history_dir, "backups", name))
+    assert len(backup_files) == 1
+    assert backup_files[0].endswith(".json")
 
 
 def test_rotation_never_deletes_timestamped_main_file(temp_history_dir, monkeypatch):

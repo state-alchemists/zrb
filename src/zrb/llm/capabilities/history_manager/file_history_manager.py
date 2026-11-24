@@ -1,10 +1,11 @@
 import json
 import os
-import re
 import shutil
+import tempfile
 import time
 import warnings
 from collections import OrderedDict
+from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -28,18 +29,24 @@ from zrb.llm.contracts.util.subagent_session_naming import (
     subagent_history_directories,
 )
 from zrb.util.match import fuzzy_match
-from zrb.util.owner_only import FILE_MODE, makedirs_owner_only, tighten_once
+from zrb.util.owner_only import (
+    DIR_MODE,
+    FILE_MODE,
+    makedirs_owner_only,
+    tighten_once,
+)
 from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
 
-# Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
-_TIMESTAMP_PATTERN = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
+BACKUP_DIR_NAME = "backups"
+"""Subdirectory of the history directory holding timestamped backups.
 
-# Pattern to match a timestamped backup filename for a given base name.
-# Captures: "<base>-YYYY-MM-DD-HH-MM[-SS][-N].json".
-_BACKUP_FILENAME_PATTERN = re.compile(
-    r"^(?P<base>.+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?(?:-\d+)?\.json$"
-)
+Backups live apart from live transcripts so rotation can never mistake a
+conversation whose name happens to end in a timestamp
+(`standup-2026-11-20-09-00`) for a backup of another one, and so search and
+session listing, which only read the history root and `subagent/`, never offer
+a backup as a conversation.
+"""
 
 # In-RAM cache bound: the most-recently-used conversations kept in memory.
 # Evicted entries reload losslessly from disk on next access, so the bound
@@ -92,6 +99,82 @@ def _newest_mtime(path: str) -> float:
     return newest
 
 
+def _is_within(directory: str, path: str) -> bool:
+    """Whether *path* stays inside *directory* after resolving symlinks.
+
+    A lexical prefix check is not enough: a symlinked entry inside the tree
+    resolves somewhere else without changing the spelling. `commonpath` over
+    both real paths compares what the OS would actually touch.
+    """
+    root = os.path.realpath(directory)
+    candidate = os.path.realpath(path)
+    try:
+        return os.path.commonpath([root, candidate]) == root
+    except ValueError:
+        # Different drives on Windows: no relative path between them.
+        return False
+
+
+def _open_owned_directory(parent_fd: int, name: str) -> int:
+    """Open (creating if missing) directory *name* under *parent_fd*, never a link.
+
+    `mkdir` and `open` are separate system calls, but `O_NOFOLLOW` on the open
+    makes a symlink planted in between fail with `ELOOP` instead of redirecting
+    the write. The descriptor returned is the directory the caller keeps using,
+    so no later rename of the pathname can change where it points.
+    """
+    try:
+        os.mkdir(name, DIR_MODE, dir_fd=parent_fd)
+    except FileExistsError:
+        pass
+    return os.open(
+        name,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+        dir_fd=parent_fd,
+    )
+
+
+def _has_entry(directory_fd: int, name: str) -> bool:
+    """Whether *name* exists in *directory_fd*; a symlink counts as present."""
+    try:
+        os.lstat(name, dir_fd=directory_fd)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def _backup_file_name(timestamp: datetime, exists: "Callable[[str], bool]") -> str:
+    """An unused `<timestamp>.json` backup name, as *exists* reports its dir."""
+    ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
+    candidate = f"{ts_str}.json"
+    if not exists(candidate):
+        return candidate
+    for counter in range(1, 1001):
+        candidate = f"{ts_str}-{counter}.json"
+        if not exists(candidate):
+            return candidate
+    # Fallback to using microseconds: two backups a second apart can share a
+    # name only under a clock that does not advance.
+    return f"{ts_str}-{timestamp.strftime('%f')}.json"
+
+
+def _create_backup_temp_file(directory_fd: int) -> "tuple[int, str]":
+    """Create an exclusive, unguessable temporary file in *directory_fd*."""
+    for _ in range(100):
+        name = f".zrb-history-backup-{os.urandom(8).hex()}.tmp"
+        try:
+            descriptor = os.open(
+                name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                FILE_MODE,
+                dir_fd=directory_fd,
+            )
+            return descriptor, name
+        except FileExistsError:
+            continue
+    raise OSError("could not create a unique temporary history backup file")
+
+
 def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
     """What the `.json` files directly in *directory* point at.
 
@@ -125,13 +208,17 @@ def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
 def _is_zrb_owned_history_entry(name: str) -> bool:
     """Whether *name*, a direct child of the history directory, is zrb's own.
 
-    A conversation's live file and its timestamped backups all end in
-    `.json`; sub-agent transcripts and verbatim archives sit in their own
-    dedicated, zrb-named subdirectories. Used both to create new entries
-    owner-only and to narrow a pre-existing history directory without
-    touching whatever else a user-configured path might already hold.
+    A conversation's live file ends in `.json`; backups and sub-agent
+    transcripts, and verbatim archives, sit in their own dedicated, zrb-named
+    subdirectories. Used both to create new entries owner-only and to narrow a
+    pre-existing history directory without touching whatever else a
+    user-configured path might already hold.
     """
-    return name.endswith(".json") or name in (SUBAGENT_HISTORY_SUBDIR, ARCHIVE_DIR_NAME)
+    return name.endswith(".json") or name in (
+        SUBAGENT_HISTORY_SUBDIR,
+        ARCHIVE_DIR_NAME,
+        BACKUP_DIR_NAME,
+    )
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -298,17 +385,13 @@ class FileHistoryManager(AnyHistoryManager):
             # call would fill the history dir with near-duplicates.
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
             if write_backup and backup_retain != 0:
-                base_name = self._extract_base_name(conversation_name)
                 timestamp = datetime.now()
-                backup_path = self._get_backup_file_path(base_name, timestamp)
-                if backup_path:
-                    self._save_data_to_file(backup_path, filtered_data)
+                if (
+                    self._write_backup(conversation_name, timestamp, filtered_data)
+                    is not None
+                ):
                     if backup_retain > 0:
-                        self._rotate_backups(
-                            base_name,
-                            keep=backup_retain,
-                            main_file_name=os.path.basename(file_path),
-                        )
+                        self._rotate_backups(conversation_name, keep=backup_retain)
 
         except ValidationError as e:
             zrb_print(
@@ -466,66 +549,237 @@ class FileHistoryManager(AnyHistoryManager):
             )
         return os.path.join(self._history_dir, f"{safe_name}.json")
 
-    def _extract_base_name(self, conversation_name: str) -> str:
-        """Remove a timestamp suffix from a session name."""
-        return _TIMESTAMP_PATTERN.sub("", conversation_name)
+    def _get_backup_directory(self, conversation_name: str) -> str:
+        """The directory holding *conversation_name*'s backups, or ``""``.
 
-    def _get_backup_file_path(self, base_name: str, timestamp: datetime) -> str:
-        """Return a conflict-free timestamped backup path."""
-        ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
-        base_path = os.path.join(
-            os.path.dirname(self._get_file_path(base_name)), f"{base_name}-{ts_str}"
+        Keyed by the sanitized name, so two conversations never share a backup
+        set — including one whose name carries a timestamp, which the old
+        layout folded into the conversation it looked like a backup of.
+
+        Empty means the name would point the backup outside the history tree
+        (`safe_segment` turns a path into one filename-safe segment, and the
+        dot segments `"."`/`".."` are refused outright). The containment check
+        is the second line of defence: `safe_segment` strips separators, so a
+        symlinked `backups/` entry is what could still resolve elsewhere. The
+        resolved backup *root* must stay inside the history directory too: a
+        `backups/` symlinked to an external directory would otherwise become
+        the trusted root for that check.
+        """
+        key = safe_segment(conversation_name)
+        if key in (".", ".."):
+            return ""
+        backup_root = self._get_backup_root()
+        if not backup_root:
+            return ""
+        directory = os.path.join(backup_root, key)
+        if not _is_within(backup_root, directory):
+            zrb_print(
+                f"Warning: Refusing to write history backups outside "
+                f"{backup_root}: {directory}",
+                plain=True,
+            )
+            return ""
+        return directory
+
+    def _get_backup_root(self) -> str:
+        """`backups/` when it resolves inside the history directory, else ``""``.
+
+        `backups/` itself can be a symlink. Resolving the per-conversation
+        directory against it would then treat the external target as its own
+        trusted root, so the resolved root is checked against the resolved
+        history directory first.
+        """
+        backup_root = os.path.join(self._history_dir, BACKUP_DIR_NAME)
+        if not _is_within(self._history_dir, backup_root):
+            zrb_print(
+                f"Warning: Refusing to use a history backup root outside "
+                f"{self._history_dir}: {backup_root}",
+                plain=True,
+            )
+            return ""
+        return backup_root
+
+    def _contained_backup_path(self, directory: str, filename: str) -> str:
+        """*filename* inside *directory*, or ``""`` if it escapes it."""
+        path = os.path.join(directory, filename)
+        if not _is_within(directory, path):
+            zrb_print(
+                f"Warning: Refusing to write a history backup outside "
+                f"{directory}: {path}",
+                plain=True,
+            )
+            return ""
+        return path
+
+    def _get_backup_file_path(self, conversation_name: str, timestamp: datetime) -> str:
+        """Return a conflict-free timestamped backup path, or ``""``.
+
+        The path-based writer's route (non-POSIX); the POSIX writer keeps the
+        same naming and containment relative to the directory descriptor it
+        opened. An unsafe or escaping name yields no path, so the save
+        continues without a backup rather than writing one outside the tree.
+        """
+        directory = self._get_backup_directory(conversation_name)
+        if not directory:
+            return ""
+        name = _backup_file_name(
+            timestamp,
+            lambda candidate: os.path.exists(os.path.join(directory, candidate)),
         )
-
-        candidate = f"{base_path}.json"
-        if not os.path.exists(candidate):
-            return candidate
-
-        counter = 1
-        while True:
-            candidate = f"{base_path}-{counter}.json"
-            if not os.path.exists(candidate):
-                return candidate
-            counter += 1
-            if counter > 1000:
-                # Fallback to using microseconds
-                ts_str_with_us = timestamp.strftime("%Y-%m-%d-%H-%M-%S-%f")
-                return f"{base_path}-{ts_str_with_us}.json"
+        return self._contained_backup_path(directory, name)
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
         """Atomically save filtered data; return whether the write succeeded.
 
-        The temporary file is created owner-only and refuses a symlink planted
-        at its path (`O_NOFOLLOW`) instead of the builtin `open`, which has no
-        way to request either; `os.replace` then carries that mode onto
-        *file_path* itself, whatever mode it had before. `makedirs_owner_only`
-        can raise `PermissionError` (an `OSError`) for a symlinked directory,
-        caught by the same handler as any other failed write: a transcript
-        this call cannot place safely is a failed save, not a crash.
+        The temporary file gets a unique name from `tempfile.mkstemp` in the
+        destination directory, so two concurrent saves of the same
+        conversation never open the same inode and publish each other's bytes
+        while both report success. `mkstemp` creates it owner-only and with
+        `O_EXCL`, so a symlink planted at its path is refused rather than
+        followed; `os.replace` then carries that mode onto *file_path* itself,
+        whatever mode it had before. `makedirs_owner_only` can raise
+        `PermissionError` (an `OSError`) for a symlinked directory, caught by
+        the same handler as any other failed write: a transcript this call
+        cannot place safely is a failed save, not a crash.
         """
-        tmp_path = f"{file_path}.tmp"
+        directory = os.path.dirname(file_path)
+        tmp_path: "str | None" = None
         try:
-            makedirs_owner_only(os.path.dirname(file_path))
-            descriptor = os.open(
-                tmp_path,
-                os.O_WRONLY
-                | os.O_CREAT
-                | os.O_TRUNC
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_BINARY", 0),
-                FILE_MODE,
+            makedirs_owner_only(directory)
+            descriptor, tmp_path = tempfile.mkstemp(
+                dir=directory, prefix=".zrb-history-", suffix=".tmp"
             )
             with os.fdopen(descriptor, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, file_path)
+            tmp_path = None
             return True
         except OSError as e:
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
             return False
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+
+    def _write_backup(
+        self, conversation_name: str, timestamp: datetime, data: object
+    ) -> str | None:
+        """Write one timestamped backup; return its name, or ``None`` on failure.
+
+        On POSIX the chain from the history root down to the conversation
+        directory is opened as `O_NOFOLLOW` directory descriptors, the temporary
+        file is created relative to the conversation descriptor, and the rename
+        is relative to it as well. A pathname the containment checks approved
+        can be swapped for a symlink before the write; a descriptor cannot.
+        Other platforms keep the path-based write, whose `makedirs_owner_only`
+        refuses a symlinked level.
+        """
+        if (
+            os.name != "posix"
+            or not hasattr(os, "O_DIRECTORY")
+            or not hasattr(os, "O_NOFOLLOW")
+        ):
+            path = self._get_backup_file_path(conversation_name, timestamp)
+            if not path:
+                return None
+            if not self._save_data_to_file(path, data):
+                return None
+            return os.path.basename(path)
+        # Check the root by name first, so a symlinked `backups/` reads as one
+        # clear warning instead of a failed write. The descriptor walk below is
+        # what makes it a boundary; this check is only the better message.
+        if not self._get_backup_root():
+            return None
+        key = safe_segment(conversation_name)
+        if key in (".", ".."):
+            return None
+        try:
+            history_fd = os.open(
+                self._history_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        try:
+            backups_fd = _open_owned_directory(history_fd, BACKUP_DIR_NAME)
+            try:
+                conversation_fd = _open_owned_directory(backups_fd, key)
+                try:
+                    return self._write_backup_at(
+                        conversation_fd, conversation_name, timestamp, data
+                    )
+                finally:
+                    os.close(conversation_fd)
+            finally:
+                os.close(backups_fd)
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        finally:
+            os.close(history_fd)
+
+    def _write_backup_at(
+        self,
+        directory_fd: int,
+        conversation_name: str,
+        timestamp: datetime,
+        data: object,
+    ) -> str | None:
+        """Write the backup inside the conversation directory *directory_fd*."""
+        tmp_name: "str | None" = None
+        try:
+            descriptor, tmp_name = _create_backup_temp_file(directory_fd)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                json.dump(data, stream, indent=2)
+            while True:
+                name = _backup_file_name(
+                    timestamp,
+                    lambda candidate: _has_entry(directory_fd, candidate),
+                )
+                try:
+                    # A hard link publishes atomically and refuses an existing
+                    # destination; two saves in the same second cannot both
+                    # select the same name and overwrite one another.
+                    os.link(
+                        tmp_name,
+                        name,
+                        src_dir_fd=directory_fd,
+                        dst_dir_fd=directory_fd,
+                    )
+                    try:
+                        os.unlink(tmp_name, dir_fd=directory_fd)
+                    except OSError:
+                        pass
+                    tmp_name = None
+                    return name
+                except FileExistsError:
+                    continue
+                except OSError:
+                    # Filesystems without hard links still get the backup;
+                    # the exclusive `link` above is unavailable there.
+                    os.replace(
+                        tmp_name,
+                        name,
+                        src_dir_fd=directory_fd,
+                        dst_dir_fd=directory_fd,
+                    )
+                    tmp_name = None
+                    return name
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        finally:
+            if tmp_name is not None:
+                try:
+                    os.unlink(tmp_name, dir_fd=directory_fd)
+                except OSError:
+                    pass
+
+    def _report_backup_failure(self, conversation_name: str, error: OSError) -> None:
+        zrb_print(
+            f"Error: Failed to save history backup for {conversation_name}: {error}",
+            plain=True,
+        )
 
     def _prune_expired(self, current: str) -> None:
         """Prune expired auto-named root histories; never fail the triggering save."""
@@ -541,8 +795,7 @@ class FileHistoryManager(AnyHistoryManager):
         for entry in entries:
             if not entry.name.endswith(".json"):
                 continue
-            match = _BACKUP_FILENAME_PATTERN.match(entry.name)
-            base = match.group("base") if match else entry.name[: -len(".json")]
+            base = entry.name[: -len(".json")]
             if (
                 not has_random_name_prefix(base)
                 or parse_delegated_session(base) is not None
@@ -552,9 +805,48 @@ class FileHistoryManager(AnyHistoryManager):
             try:
                 if entry.is_file() and entry.stat().st_mtime < cutoff:
                     os.remove(entry.path)
+                    self._remove_backups(base)
             except OSError:
                 continue
+        self._prune_orphan_backups(cutoff, protected)
         self._prune_unreferenced_archives(cutoff, current)
+
+    def _remove_backups(self, conversation_name: str) -> None:
+        """Drop the backup set that belonged to a pruned conversation."""
+        directory = self._get_backup_directory(conversation_name)
+        if not directory:
+            return
+        shutil.rmtree(directory, ignore_errors=True)
+
+    def _prune_orphan_backups(self, cutoff: float, protected: set[str]) -> None:
+        """Drop a stale backup set whose live transcript is gone.
+
+        Retention walks the live files, so it can only collect a backup set
+        through the conversation that owns it. A transcript renamed or removed
+        outside this manager — another process, a manual `mv`, a crash between
+        the unlink and the cleanup — leaves `backups/<name>/` behind with no
+        live file to reach it from, and nothing would ever collect it. Such a
+        set goes here, on the same cutoff, and its own newest backup decides
+        the age so a set written moments ago for a save still in flight is kept.
+
+        Only auto-named sets are collected: retention never prunes a
+        conversation the user named, so its backup set is not retention's to
+        delete either. Delegated transcripts are left to the count-based
+        sub-agent pruning that owns them.
+        """
+        for directory in self._backup_directories():
+            name = os.path.basename(directory)
+            if (
+                not has_random_name_prefix(name)
+                or parse_delegated_session(name) is not None
+                or name in protected
+            ):
+                continue
+            if os.path.exists(self._get_file_path(name)):
+                continue
+            if _newest_mtime(directory) >= cutoff:
+                continue
+            shutil.rmtree(directory, ignore_errors=True)
 
     def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
         """Delete archives and tool-result directories nothing points at.
@@ -660,6 +952,21 @@ class FileHistoryManager(AnyHistoryManager):
                 continue
             shutil.rmtree(path, ignore_errors=True)
 
+    def _backup_directories(self) -> "list[str]":
+        """Every per-conversation directory under `backups/`."""
+        backup_root = self._get_backup_root()
+        if not backup_root:
+            return []
+        try:
+            with os.scandir(backup_root) as entries:
+                return [
+                    entry.path
+                    for entry in entries
+                    if entry.is_dir(follow_symlinks=False)
+                ]
+        except OSError:
+            return []
+
     def _referenced_artifacts(self) -> "tuple[set[str], set[str]]":
         """What any transcript this manager can write points at.
 
@@ -667,45 +974,45 @@ class FileHistoryManager(AnyHistoryManager):
         one read of every transcript answers both questions. Every directory a
         transcript can live in, not just the root: a sub-agent's summary points
         at the same shared `verbatim/` directory as its parent's, so a pointer
-        inside `subagent/<agent-type>/` is just as load-bearing. Backups sit
-        beside their main file and are read here too, because a backup still
-        names the archive it was written against.
+        inside `subagent/<agent-type>/` is just as load-bearing. Backups live
+        under `backups/<conversation>/` and are read here too, because a backup
+        still names the archive it was written against. Legacy backups written
+        flat in the root before that layout are read by the root pass.
         """
         archives: set[str] = set()
         tool_results: set[str] = set()
-        for directory in subagent_history_directories(self._history_dir):
+        directories = subagent_history_directories(self._history_dir)
+        directories.extend(self._backup_directories())
+        for directory in directories:
             found_archives, found_tool_results = _references_named_in(directory)
             archives.update(found_archives)
             tool_results.update(found_tool_results)
         return archives, tool_results
 
-    def _rotate_backups(
-        self, base_name: str, keep: int, main_file_name: str | None = None
-    ) -> None:
-        """Keep the *keep* newest backups, excluding the live file."""
+    def _rotate_backups(self, conversation_name: str, keep: int) -> None:
+        """Keep the *keep* newest backups for *conversation_name*.
+
+        Only the conversation's own backup directory is listed, so a live
+        transcript — however its name is spelled — is never a rotation
+        candidate.
+        """
         if keep < 0:
             return
-        directory = os.path.dirname(self._get_file_path(base_name))
+        directory = self._get_backup_directory(conversation_name)
+        if not directory:
+            return
         try:
-            entries = os.listdir(directory)
+            names = [name for name in os.listdir(directory) if name.endswith(".json")]
         except OSError:
             return
-        backups: list[str] = []
-        for name in entries:
-            if main_file_name is not None and name == main_file_name:
-                continue
-            match = _BACKUP_FILENAME_PATTERN.match(name)
-            if match and match.group("base") == base_name:
-                backups.append(name)
-        if len(backups) <= keep:
+        if len(names) <= keep:
             return
         # Sort by filename descending (lexicographic = chronological for ISO-8601
         # timestamps). More deterministic than mtime on filesystems with coarse
         # granularity (FAT32, Docker overlayfs).
-        backups.sort(reverse=True)
-        for name in backups[keep:]:
-            full = os.path.join(directory, name)
+        names.sort(reverse=True)
+        for name in names[keep:]:
             try:
-                os.remove(full)
+                os.remove(os.path.join(directory, name))
             except OSError:
                 continue
