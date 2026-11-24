@@ -191,19 +191,27 @@ class StreamCapture:
         """
         if self._spill is None or self._spill_capped or not text:
             return
-        if not self._cap_spill:
-            self._spill.write(text)
-            self._spilled += len(text)
-            return
-        remaining = SPILL_MAX_CHARS - self._spilled
-        if remaining <= 0:
-            self._record_spill_cap()
-            return
-        written = text[:remaining]
-        self._spill.write(written)
-        self._spilled += len(written)
-        if len(written) < len(text):
-            self._record_spill_cap()
+        try:
+            if not self._cap_spill:
+                self._spill.write(text)
+                self._spilled += len(text)
+                return
+            remaining = SPILL_MAX_CHARS - self._spilled
+            if remaining <= 0:
+                self._record_spill_cap()
+                return
+            written = text[:remaining]
+            self._spill.write(written)
+            self._spilled += len(written)
+            if len(written) < len(text):
+                self._record_spill_cap()
+        except OSError as e:
+            # Spilling is best effort, like opening and reading it. A full
+            # disk must not take the reader down: that loses the tail too and
+            # leaves the child writing into a pipe nobody drains.
+            CFG.LOGGER.debug(f"Failed to write spill file: {e}")
+            self._spill_failed = True
+            self.discard()
 
     def _record_spill_cap(self) -> None:
         """Mark the spill file capped, leaving the reason inside it."""

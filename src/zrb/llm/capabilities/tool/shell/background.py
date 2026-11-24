@@ -573,13 +573,16 @@ def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> st
     for name, cap in (("stdout", stdout_cap), ("stderr", stderr_cap)):
         if cap.truncated:
             cap.flush()
-            saved = f"full {name} saved to {cap.spill_path}"
-            if cap.is_spill_capped:
-                saved = (
-                    f"{name} saved up to {cap.spill_max_chars} chars at "
-                    f"{cap.spill_path} (the spill file was capped, so later "
-                    "output is not on disk)"
-                )
+            if cap.spill_path is None:
+                saved = "the overflow was not saved to disk"
+            else:
+                saved = f"full {name} saved to {cap.spill_path}"
+                if cap.is_spill_capped:
+                    saved = (
+                        f"{name} saved up to {cap.spill_max_chars} chars at "
+                        f"{cap.spill_path} (the spill file was capped, so later "
+                        "output is not on disk)"
+                    )
             parts.append(
                 f"{name} truncated (kept the tail, {cap.total_chars} chars "
                 f"total) — {saved}"
