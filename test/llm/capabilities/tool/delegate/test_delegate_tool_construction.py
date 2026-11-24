@@ -59,7 +59,7 @@ def test_create_delegate_tool_docstring(mock_sub_agent_manager):
 
 
 def test_delegate_tool_description_says_when_to_delegate(mock_sub_agent_manager):
-    """The threshold and the parent's own check ride in the tool description, so
+    """The criterion and the parent's own check ride in the tool description, so
     they reach the model exactly when this tool does: the `minimal` profile drops
     the delegate tools whole, and a rule kept anywhere higher up would outlive it.
     """
@@ -68,7 +68,8 @@ def test_delegate_tool_description_says_when_to_delegate(mock_sub_agent_manager)
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
     description = Tool(tool).description or ""
 
-    assert "four or more independent units" in description
+    assert "fan out when you cannot hold the units at once" in description
+    assert "tens of times" in description
     assert "reproduce the finding that decides the verdict" in description
 
 
