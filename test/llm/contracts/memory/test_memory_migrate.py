@@ -1,5 +1,7 @@
 """The migration copies a journal into the store, and running it twice is safe."""
 
+from datetime import date, timedelta
+
 import pytest
 
 from zrb.config.config import CFG
@@ -331,6 +333,86 @@ def test_a_loop_over_the_cap_is_demoted_so_the_core_fits(tmp_path, monkeypatch):
     # The claim survives whatever the kind became.
     assert all(fact.claim.startswith("I owe task") for fact in facts)
     assert len([fact for fact in facts if fact.kind == "loop"]) < 3
+
+
+def _days_ago(days: int) -> str:
+    """A stamp *days* before today, so the loop's age is the same on every run."""
+    day = date.fromisoformat(store.today()) - timedelta(days=days)
+    return f"{day.isoformat()}T10:00:00"
+
+
+def test_a_loop_over_the_cap_only_by_its_age_is_demoted(tmp_path, monkeypatch):
+    """The block is capped on the dated render, so the fit is measured there.
+
+    A loop untouched for long enough carries its age in the block and not in the
+    file, so the block holds more text than `core.md` does. A migration that
+    measured the file would report a fit and leave the block cutting the very
+    loop it believed it had made room for.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "m"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    paths.ensure_store()
+    store.save_fact(
+        Fact(
+            id="owed-review",
+            claim="I owe the review of the migration.",
+            kind="loop",
+            updated=_days_ago(30),
+        )
+    )
+    facts = store.load_facts()
+    # Room for the file's core, not for the block's: the age marker is the 6
+    # characters the cap has no room for.
+    cap = len(render.render_core(facts)) + 3
+    assert len(render.render_core(facts, store.today())) > cap
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", cap, raising=False)
+    journal = tmp_path / "empty-journal"
+    journal.mkdir()
+
+    migrate(str(journal))
+
+    facts = store.load_facts()
+    dated = render.render_core(facts, store.today())
+    assert len(dated) <= cap
+    kept = set(render.cut_lines(dated, cap).splitlines())
+    lines = [render.core_line(fact, store.today()) for fact in facts]
+    assert all(line is None or line in kept for line in lines)
+
+
+def test_a_loop_over_the_cap_only_by_tomorrows_age_is_demoted(tmp_path, monkeypatch):
+    """Today's render is not the widest one, so the fit reserves the marker too.
+
+    A loop last touched six days ago has no marker today and gains ` · 7d`
+    tomorrow. A migration that measured today would report a fit and leave the
+    block cutting the loop the day after the migration, with nothing measuring.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "m"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    paths.ensure_store()
+    store.save_fact(
+        Fact(
+            id="owed-review",
+            claim="I owe the review of the migration.",
+            kind="loop",
+            updated=_days_ago(6),
+        )
+    )
+    facts = store.load_facts()
+    cap = len(render.render_core(facts, store.today())) + 3
+    assert len(render.render_core(facts, store.today())) <= cap
+    assert len(render.render_widest_core(facts)) > cap
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", cap, raising=False)
+    journal = tmp_path / "empty-journal"
+    journal.mkdir()
+
+    migrate(str(journal))
+
+    facts = store.load_facts()
+    widest = render.render_widest_core(facts)
+    assert len(widest) <= cap
+    kept = set(render.cut_lines(widest, cap).splitlines())
+    lines = [render.core_line(fact, date.max.isoformat()) for fact in facts]
+    assert all(line is None or line in kept for line in lines)
 
 
 def test_running_it_twice_writes_the_same_store(journal):

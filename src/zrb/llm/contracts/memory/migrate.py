@@ -161,13 +161,20 @@ def _fit_core() -> tuple[int, int]:
     2. if only loops are left, the highest-id loop becomes a fact. A loop always
        renders, so there is no third step, and the claim itself is unchanged: a
        loop's text already says what is owed.
+
+    The measurement is the widest render the block can ever make, with every
+    open loop's age marker drawn at the width it will reach. Today's dated
+    render is still a snapshot: a loop updated six days ago fits it and gains a
+    marker tomorrow, so a store migration called a fit is one the block cuts
+    later. The file written afterwards stays day-free: the file records the
+    claim, the block reports its age.
     """
     cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
     unpinned = 0
     converted = 0
     while True:
         facts = store.load_facts()
-        if len(render.render_core(facts)) <= cap:
+        if len(render.render_widest_core(facts)) <= cap:
             return unpinned, converted
         pinned = sorted((fact for fact in facts if fact.pin), key=lambda f: f.id)
         if pinned:
