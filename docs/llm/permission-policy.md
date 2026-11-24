@@ -210,7 +210,7 @@ with permission_policy(my_dynamic_policy):
 
 The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
-To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.capabilities.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained.
+To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.capabilities.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained. An action must be exactly `allow`, `ask` or `deny`; an unrecognised one raises `ValueError` instead of falling through to the next rule, so a typo cannot silently loosen the policy.
 
 ### Debugging decisions
 

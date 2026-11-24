@@ -227,3 +227,26 @@ def test_a_deny_rule_with_no_arguments_still_falls_through():
         )
     )
     assert policy.decide("Bash", Capability.EXECUTE, {}) == ALLOW
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Shell:deni",
+        [{"key": "Shell", "action": "deni"}],
+    ],
+)
+def test_an_unknown_action_is_refused(raw):
+    """A typo must fail closed rather than fall through to YOLO.
+
+    `decide` returns the first matching rule's action, and every consumer only
+    understands `allow`/`ask`/`deny`; an unrecognised string used to look like
+    "no decision" and let the call through.
+    """
+    with pytest.raises(ValueError, match="Unknown permission action"):
+        resolve_policy(raw)
+
+
+def test_an_unknown_action_is_refused_when_a_rule_is_built_directly():
+    with pytest.raises(ValueError, match="Unknown permission action"):
+        Rule("Shell", "deni")

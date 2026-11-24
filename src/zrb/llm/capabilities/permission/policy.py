@@ -83,6 +83,15 @@ class Rule:
     action: str
     arg_pattern: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.action in (ALLOW, ASK, DENY):
+            return
+        raise ValueError(
+            f"Unknown permission action {self.action!r}; a rule's action must be "
+            f"{ALLOW!r}, {ASK!r} or {DENY!r}. A mistyped action used to fall "
+            "through to the next rule, or to YOLO, and silently loosen the policy."
+        )
+
 
 @dataclass(frozen=True)
 class PermissionPolicy:
