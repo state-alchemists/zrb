@@ -9,6 +9,7 @@ from zrb.llm.capabilities.tool.web import open_web_page
 from zrb.llm.capabilities.tool.web.tools import (
     UnsafeWebUrlError,
     _fetch_pinned_page,
+    _host_header,
     _PinnedAddressAdapter,
     get_pinned_web_page_response,
     is_public_address,
@@ -228,3 +229,24 @@ def test_is_public_address_rejects_rfc6598_shared_space():
 
 def test_is_public_address_accepts_a_global_address():
     assert is_public_address(ipaddress.ip_address("93.184.216.34")) is True
+
+
+def test_pinned_fetch_idna_encodes_a_unicode_hostname():
+    """An IDN URL must reach the wire as an ASCII A-label in `Host` (and in the
+    TLS hostname), while IPv4/IPv6 literals stay verbatim."""
+    patcher, sessions = _patch_pinned_sessions([_ok_response()])
+    with patcher:
+        get_pinned_web_page_response("https://例え.テスト/page", "agent")
+
+    ascii_host = "xn--r8jz45g.xn--zckzah"
+    assert sessions[0].headers["Host"] == ascii_host
+
+    adapter = _PinnedAddressAdapter("93.184.216.34")
+    request = requests.Request("GET", "https://例え.テスト/page").prepare()
+    connection = adapter.get_connection_with_tls_context(request, verify=True)
+    assert connection.conn_kw["server_hostname"] == ascii_host
+    assert connection.assert_hostname == ascii_host
+
+    # IP literals are not IDNA-encoded; explicit ports and IPv6 brackets stay.
+    assert _host_header("http://93.184.216.34:8080/page") == "93.184.216.34:8080"
+    assert _host_header("http://[::1]:8080/page") == "[::1]:8080"

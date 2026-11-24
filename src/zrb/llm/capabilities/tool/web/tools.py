@@ -472,13 +472,14 @@ class _PinnedAddressAdapter(HTTPAdapter):
         return self._address
 
     def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
-        parsed_url = urlsplit(request.url)
+        parsed_url = urlsplit(str(request.url))
         scheme = parsed_url.scheme.lower()
         port = parsed_url.port or (443 if scheme == "https" else 80)
         pool_kwargs = {}
         if scheme == "https" and parsed_url.hostname:
-            pool_kwargs["server_hostname"] = parsed_url.hostname
-            pool_kwargs["assert_hostname"] = parsed_url.hostname
+            hostname = _ascii_host(parsed_url.hostname)
+            pool_kwargs["server_hostname"] = hostname
+            pool_kwargs["assert_hostname"] = hostname
         return self.poolmanager.connection_from_host(
             host=self._address,
             port=port,
@@ -487,12 +488,28 @@ class _PinnedAddressAdapter(HTTPAdapter):
         )
 
 
+def _ascii_host(host: str) -> str:
+    """*host* in its ASCII form: IP literals unchanged, names IDNA-encoded.
+
+    A Unicode hostname written verbatim into an HTTP header is not
+    latin-1-encodable and raises `UnicodeEncodeError`; the wire form of an IDN
+    is its IDNA A-label, which is also what TLS SNI must carry.
+    """
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host.encode("idna").decode("ascii")
+    return host
+
+
 def _host_header(url: str) -> str:
     """The `Host` header value for *url*, naming the hostname rather than the IP."""
     parsed_url = urlsplit(url)
     host = parsed_url.hostname or ""
     if ":" in host:  # an IPv6 literal needs brackets in a Host header
         host = f"[{host}]"
+    else:
+        host = _ascii_host(host)
     port = parsed_url.port
     default_port = 443 if parsed_url.scheme.lower() == "https" else 80
     if port is not None and port != default_port:
