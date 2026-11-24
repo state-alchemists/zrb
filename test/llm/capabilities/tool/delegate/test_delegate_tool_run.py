@@ -282,3 +282,193 @@ async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
         current_llm_limiter.reset(token)
 
     assert mock_run_agent.call_args.kwargs["limiter"] is run_limiter
+
+
+@pytest.mark.asyncio
+async def test_a_failing_agent_factory_is_reported_not_raised(mock_sub_agent_manager):
+    """A factory-only sub-agent whose factory raises is a delegation failure.
+
+    `create_agent` used to run before `run_agent_task`'s try, so the RuntimeError
+    escaped the tool instead of becoming the `Error:` line callers render.
+    """
+    mock_sub_agent_manager.create_agent.side_effect = RuntimeError(
+        "Sub-agent 'test-agent' could not be built: its agent factory failed: boom"
+    )
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.contracts.shared.subagent_turn.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        result = await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="t",
+            non_goals=[],
+        )
+
+    assert "Error:" in result
+    assert "agent factory failed: boom" in result
+    mock_run_agent.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_delegation_releases_its_live_session(mock_sub_agent_manager):
+    """A turn that fails after registering must go idle.
+
+    `run_agent_task` used to clear `active_task` but leave the session
+    "running", so every later message queued behind a turn that no longer
+    existed and no continuation was ever started.
+    """
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    messages = []
+
+    async def flaky_run_agent(**kwargs):
+        messages.append(kwargs["message"])
+        if len(messages) == 1:
+            raise RuntimeError("provider down")
+        return "recovered", []
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=flaky_run_agent,
+        ):
+            result = await tool(
+                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+            )
+            assert "Error: provider down" in result
+
+            [session] = live_subagent_session_registry.active("default")
+            assert session.state == "idle"
+            assert session.active_task is None
+
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "keep going"
+            )
+            continuation = session.active_task
+            assert continuation is not None
+            await continuation
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert messages[-1] == "keep going"
+    assert session.state == "idle"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_parent_does_not_start_a_queued_continuation(
+    mock_sub_agent_manager,
+):
+    """Cancelling the parent must not drain a queued message into a
+    continuation detached from the run that was cancelled."""
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    started = asyncio.Event()
+    calls = []
+
+    async def blocking_run_agent(**kwargs):
+        calls.append(kwargs["message"])
+        started.set()
+        await asyncio.Event().wait()  # never finishes on its own
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=blocking_run_agent,
+        ):
+            parent = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "queued while running"
+            )
+            assert session.pending_queue == ["queued while running"]
+
+            parent.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await parent
+            for _ in range(20):
+                if session.state == "idle":
+                    break
+                await asyncio.sleep(0.01)
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert session.state == "idle"
+    assert session.active_task is None
+    assert session.pending_queue == []
+    # The queued message was dropped, not turned into a second run.
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_successful_turn_still_drains_its_queued_messages(
+    mock_sub_agent_manager,
+):
+    """A successful completion still delivers messages queued during the turn."""
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    continuation_started = asyncio.Event()
+    release_continuation = asyncio.Event()
+    calls = []
+
+    async def gated_run_agent(**kwargs):
+        calls.append(kwargs["message"])
+        if len(calls) == 1:
+            first_started.set()
+            await release_first.wait()
+        else:
+            continuation_started.set()
+            await release_continuation.wait()
+        return "done", []
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=gated_run_agent,
+        ):
+            parent = asyncio.create_task(
+                tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
+            )
+            await first_started.wait()
+            [session] = live_subagent_session_registry.active("default")
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "queued while running"
+            )
+            assert session.pending_queue == ["queued while running"]
+
+            release_first.set()
+            result = await parent
+            assert "completed" in result
+
+            await asyncio.wait_for(continuation_started.wait(), timeout=5)
+            assert calls[-1] == "queued while running"
+            continuation = session.active_task
+            assert continuation is not None
+            release_continuation.set()
+            await continuation
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert session.state == "idle"
+    assert session.pending_queue == []

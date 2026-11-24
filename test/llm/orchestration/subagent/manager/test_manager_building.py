@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zrb.llm.orchestration.common_tools import apply_common_tools
 from zrb.llm.orchestration.subagent.manager.manager import (
     SubAgentDefinition,
@@ -133,6 +135,86 @@ def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
 def test_create_llm_chat_task_returns_none_for_unknown_agent():
     manager = SubAgentManager()
     assert manager.create_llm_chat_task("nope") is None
+
+
+def test_create_agent_reports_a_failed_factory_only_definition():
+    """A Python `get_agent` factory is that definition's only source: its
+    system_prompt/tools are empty. Falling through `create_agent` would hide a
+    transient factory failure behind a confident, promptless agent, so the
+    failure is reported instead."""
+    manager = SubAgentManager()
+    factory = MagicMock(side_effect=RuntimeError("model provider unavailable"))
+    manager.add_agent(
+        SubAgentDefinition(
+            name="factory-only",
+            path=".",
+            description="d",
+            system_prompt="",
+            agent_factory=factory,
+        )
+    )
+
+    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create:
+        with pytest.raises(RuntimeError, match="factory failed"):
+            manager.create_agent("factory-only")
+
+    factory.assert_called_once()
+    mock_create.assert_not_called()
+
+
+def test_create_agent_falls_back_to_the_markdown_prompt_when_factory_fails():
+    """A definition that also carries a markdown prompt/tools keeps them as the
+    fallback when its factory (an override) fails."""
+    manager = SubAgentManager()
+    factory = MagicMock(side_effect=RuntimeError("boom"))
+    manager.add_agent(
+        SubAgentDefinition(
+            name="factory-with-prompt",
+            path=".",
+            description="d",
+            system_prompt="You are the markdown fallback.",
+            agent_factory=factory,
+        )
+    )
+
+    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create:
+        manager.create_agent("factory-with-prompt")
+
+    prompt = mock_create.call_args.kwargs["system_prompt"]
+    assert "You are the markdown fallback." in prompt
+
+
+def test_create_agent_falls_back_to_tools_after_a_factory_failure():
+    """An empty prompt is not "no fallback": declared tools and inherited
+    sections still build a usable agent when the factory raises.
+
+    A Python `get_agent` definition often has no prompt of its own while still
+    naming the tools or sections its factory-free build needs.
+    """
+    manager = SubAgentManager()
+    apply_common_tools(manager)
+    factory = MagicMock(side_effect=RuntimeError("boom"))
+    manager.add_agent(
+        SubAgentDefinition(
+            name="factory-with-tools",
+            path=".",
+            description="d",
+            system_prompt="",
+            tools=["Read"],
+            inherit_sections=["system_context"],
+            agent_factory=factory,
+        )
+    )
+
+    with patch("zrb.llm.orchestration.subagent.building.create_agent") as mock_create:
+        manager.create_agent("factory-with-tools")
+
+    factory.assert_called_once()
+    resolved_tools = mock_create.call_args.kwargs["tools"]
+    names = {
+        getattr(tool, "name", getattr(tool, "__name__", "")) for tool in resolved_tools
+    }
+    assert "Read" in names
 
 
 def test_create_llm_chat_task_returns_none_for_agent_instance_definition():

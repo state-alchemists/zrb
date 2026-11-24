@@ -20,7 +20,11 @@ class AnyLiveSessionRegistry(Protocol):
     ) -> AnyLiveSubAgentSession: ...
 
     def mark_turn_finished(
-        self, session_id: str, agent_id: str, history: list[object]
+        self,
+        session_id: str,
+        agent_id: str,
+        history: list[object],
+        drain_pending: bool = True,
     ) -> None: ...
 
     def has_message_budget(self, session_id: str, agent_id: str) -> bool: ...

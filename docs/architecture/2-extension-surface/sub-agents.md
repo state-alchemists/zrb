@@ -45,7 +45,7 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/orchestration/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
+| A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/orchestration/subagent/test_live_session_registry_continuation.py::test_continue_live_session_uses_captured_authority_not_ambient` |
 | A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/contracts/shared/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 | A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/orchestration/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
 | Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/capabilities/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |

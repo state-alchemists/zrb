@@ -57,6 +57,21 @@ def _subagent_archive_name(name: str) -> "Callable[[], str | None]":
     return resolve
 
 
+def _has_fallback_configuration(definition: SubAgentDefinition) -> bool:
+    """Whether *definition* can build a usable agent without its factory.
+
+    A Python `get_agent` factory's definition often has an empty
+    `system_prompt` because the factory supplies the agent, but it may still
+    declare `tools` or `inherit_sections` that the fallback agent would use.
+    Only a definition with none of the three has nothing to fall back to.
+    """
+    return bool(
+        definition.system_prompt.strip()
+        or definition.tools
+        or definition.inherit_sections
+    )
+
+
 class SubAgentBuilding:
     """Builds a runnable sub-agent from a definition in the roster.
 
@@ -91,6 +106,19 @@ class SubAgentBuilding:
             try:
                 return definition.agent_factory()
             except Exception as e:
+                if not _has_fallback_configuration(definition):
+                    # Nothing but the factory can build this definition: no
+                    # prompt, no tools, no inherited sections. Falling through
+                    # would build an agent with no instructions and no tools,
+                    # turning a transient factory failure into confident,
+                    # broken delegation. Report it instead.
+                    raise RuntimeError(
+                        f"Sub-agent '{name}' could not be built: its agent "
+                        f"factory failed: {e}"
+                    ) from e
+                # A definition with a prompt, declared tools or inherited
+                # sections keeps them as a fallback when the factory, an
+                # override, fails.
                 CFG.LOGGER.debug(f"Sub-agent factory '{name}' failed: {e}")
 
         resolved = self.resolve_agent_build(definition, ctx, yolo)

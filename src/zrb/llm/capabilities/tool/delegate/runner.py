@@ -138,32 +138,38 @@ async def run_agent_task(
     yolo: bool | None = None,
 ) -> AgentTaskResult:
     """Run one sub-agent task. `yolo=None` inherits the parent's setting."""
-    sub_agent = sub_agent_manager.create_agent(agent_name, yolo=yolo)
-    if not sub_agent:
-        return AgentTaskResult(
-            agent_name,
-            None,
-            agent_not_found_message(agent_name, sub_agent_manager),
-        )
-
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
     agent_id = uuid.uuid4().hex[:8]
     # Per-session scope so the web runner's sessions don't share an activity panel.
     activity_session_id = get_session_ownership_key(get_current_tool_session())
-    _tracks_activity = _start_activity_tracking(
-        ui, agent_id, agent_name, deliverable or task, activity_session_id
-    )
-    session = _register_live_session(
-        ui,
-        activity_session_id,
-        agent_id,
-        agent_name,
-        sub_agent_manager,
-        yolo,
-        deliverable or task,
-    )
+    session = None
+    _tracks_activity = False
+    started = False
     try:
+        # Inside the try: a factory-only definition whose factory raises is
+        # this delegation's failure, reported like any other, not an uncaught
+        # error out of `create_agent`.
+        sub_agent = sub_agent_manager.create_agent(agent_name, yolo=yolo)
+        if not sub_agent:
+            return AgentTaskResult(
+                agent_name,
+                None,
+                agent_not_found_message(agent_name, sub_agent_manager),
+            )
+        _tracks_activity = _start_activity_tracking(
+            ui, agent_id, agent_name, deliverable or task, activity_session_id
+        )
+        session = _register_live_session(
+            ui,
+            activity_session_id,
+            agent_id,
+            agent_name,
+            sub_agent_manager,
+            yolo,
+            deliverable or task,
+        )
+        started = True
         # Inside the try so a cancel here goes through `consume_cancelled_flag`.
         await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_subagent_turn(
@@ -213,11 +219,23 @@ async def run_agent_task(
         # No [SYSTEM SUGGESTION]: there is no known fix to suggest.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
-        if session is not None and session.active_task is asyncio.current_task():
-            session.active_task = None
+        if session is not None and session.is_turn_owner():
+            # A failed or cancelled turn must release ownership and go idle
+            # like a successful one; leaving the session "running" with no
+            # task queues every later message behind a turn that no longer
+            # exists. No drain here: a continuation started from a failed or
+            # cancelled run is detached from the run that would report it.
+            get_live_session_registry().mark_turn_finished(
+                session.session_id,
+                agent_id,
+                session.history,
+                drain_pending=False,
+            )
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)
-        await fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+        # A delegation whose agent never started has no Stop to mirror.
+        if started:
+            await fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
 
 
 def _start_activity_tracking(
