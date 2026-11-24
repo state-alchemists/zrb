@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import codecs
 import os
 import time
 from dataclasses import dataclass, field
@@ -258,7 +259,7 @@ class _ShellBackgroundRegistry:
                     f"{_PIPE_LIMIT} bytes were dropped, and the rest of the "
                     "stream was still read]\n"
                 )
-                self._feed(handle, name, notice.encode())
+                self._feed_text(handle, name, notice)
                 await self._drain_pipe(handle, name, stream)
                 return
             if not line:
@@ -276,20 +277,29 @@ class _ShellBackgroundRegistry:
 
         The capture's own retention and spill budgets bound what is kept; this
         only has to keep the pipe moving until the child exits, so an over-limit
-        line costs the start of that line, not the process.
+        line costs the start of that line, not the process. A multibyte
+        character can straddle a chunk boundary, so the chunks are decoded
+        incrementally instead of one `decode()` each.
         """
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         while True:
             chunk = await stream.read(_DRAIN_CHUNK_SIZE)
             if not chunk:
+                tail = decoder.decode(b"", final=True)
+                if tail:
+                    self._feed_text(handle, name, tail)
                 return
-            self._feed(handle, name, chunk)
+            self._feed_text(handle, name, decoder.decode(chunk))
 
     def _feed(self, handle: str, name: str, data: bytes) -> None:
+        self._feed_text(handle, name, data.decode(errors="replace"))
+
+    def _feed_text(self, handle: str, name: str, text: str) -> None:
         bp = self._procs.get(handle)
         if bp is None:
             return
         cap = bp.stdout_cap if name == "stdout" else bp.stderr_cap
-        cap.feed(data.decode(errors="replace"))
+        cap.feed(text)
 
     async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         rc = await proc.wait()

@@ -351,6 +351,45 @@ async def test_an_over_limit_stderr_line_is_drained_too(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_multibyte_character_split_across_chunks_is_decoded_once(
+    tmp_path, monkeypatch
+):
+    """The drain reads bytes, and a UTF-8 character can straddle two chunks.
+    Decoding each chunk on its own would turn one character into two
+    replacement marks."""
+    import shlex
+    import sys
+    from pathlib import Path
+
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 16)
+    monkeypatch.setattr(background, "_DRAIN_CHUNK_SIZE", 1)
+    script = tmp_path / "flood.py"
+    # The multibyte characters are written after readline's own buffered
+    # discard, so the drain is what decodes them.
+    script.write_text(
+        "import sys, time\n"
+        "sys.stdout.buffer.write(b'A' * 40)\n"
+        "sys.stdout.buffer.flush()\n"
+        "time.sleep(0.2)\n"
+        "sys.stdout.buffer.write("
+        "'\\u00e9'.encode('utf-8') * 4 + b'\\nDONE\\n')\n",
+        encoding="utf-8",
+    )
+    command = (
+        f"{shlex.quote(Path(sys.executable).as_posix())} "
+        f"{shlex.quote(script.as_posix())}"
+    )
+    handle = await _start_bg(command, "flood", str(tmp_path))
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "éééé" in result
+    assert "\ufffd" not in result
+
+
+@pytest.mark.asyncio
 async def test_spill_file_survives_after_handle_consumed(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
     handle = await _start_bg(
