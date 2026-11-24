@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.tool.web import open_web_page, run_blocking, search_internet
+from zrb.llm.capabilities.tool.web import (
+    open_web_page,
+    run_blocking,
+    search_internet,
+)
+from zrb.llm.capabilities.tool.web import tools as web_tools
 
 
 @pytest.fixture
@@ -378,9 +383,10 @@ async def test_the_default_path_does_not_use_the_browser():
     """Chromium has its own resolver, so the public-only path cannot hold it to
     a validated address; it fetches over pinned HTTP connections instead."""
     with (
-        patch("zrb.llm.capabilities.tool.web.tools._fetch_via_browser") as browser,
-        patch(
-            "zrb.llm.capabilities.tool.web.tools._fetch_pinned_page",
+        patch.object(web_tools, "_fetch_via_browser") as browser,
+        patch.object(
+            web_tools,
+            "_fetch_pinned_page",
             return_value=("pinned content", [], False),
         ) as pinned,
     ):

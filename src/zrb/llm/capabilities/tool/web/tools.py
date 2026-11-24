@@ -463,6 +463,11 @@ class _PinnedAddressAdapter(HTTPAdapter):
         self._address = address
         super().__init__()
 
+    @property
+    def address(self) -> str:
+        """The address this adapter pins every connection to."""
+        return self._address
+
     def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
         parsed_url = urlsplit(request.url)
         scheme = parsed_url.scheme.lower()

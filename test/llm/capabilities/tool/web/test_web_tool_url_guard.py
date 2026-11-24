@@ -334,7 +334,7 @@ class _FakePinnedSession:
         self.adapter = adapter
 
     def get(self, url: str, **kwargs):
-        self.requests.append((url, self.adapter._address))
+        self.requests.append((url, self.adapter.address))
         self.headers = kwargs.get("headers", {})
         return self.responses.pop(0)
 
