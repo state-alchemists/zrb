@@ -157,3 +157,49 @@ def test_an_uncapped_capture_writes_past_the_spill_cap(monkeypatch):
         content = f.read()
     assert content == "A" * 60 + "B" * 1000
     cap.discard()
+
+
+def test_a_spill_write_error_keeps_the_tail_and_stops_the_spill(monkeypatch):
+    """Spilling is best effort: a full disk must not take the reader down.
+
+    The write used to be the only spill operation without a guard, so an
+    `ENOSPC` escaped `feed()` into the pipe reader. The reader died with the
+    chunk already counted but not retained, and a large-output child could then
+    block on a full pipe forever.
+    """
+    from zrb.llm.capabilities.tool.shell import capture
+
+    class _Spill:
+        def __init__(self):
+            self.writes = 0
+            self.fd = -1
+
+        def write(self, text):
+            self.writes += 1
+            if self.writes > 1:
+                raise OSError(28, "No space left on device")
+
+        def flush(self):
+            pass
+
+        def close(self):
+            if self.fd >= 0:
+                os.close(self.fd)
+                self.fd = -1
+
+    spill = _Spill()
+
+    def _fdopen(fd, *args, **kwargs):
+        spill.fd = fd
+        return spill
+
+    monkeypatch.setattr(capture.os, "fdopen", _fdopen)
+    cap = StreamCapture(retain=5, echo=0)
+    cap.feed("A" * 10)  # opens the spill and writes once
+    assert cap.spill_path is not None
+    cap.feed("B" * 10)  # the second write raises
+
+    assert cap.text == "B" * 5
+    assert cap.total_chars == 20
+    assert cap.truncated
+    assert cap.spill_path is None
