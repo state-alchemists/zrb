@@ -3,7 +3,8 @@ import importlib.util
 import os
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from importlib.abc import Loader
 from types import ModuleType
 
@@ -111,7 +112,8 @@ def load_file_with_result(path: str) -> tuple[ModuleType | None, Exception | Non
         if module is None or loader is None:
             return
         loaded.append(module)
-        loader.exec_module(module)
+        with _registered(module_name, module):
+            loader.exec_module(module)
 
     error = _execute(run)
     return (loaded[0] if loaded else None), error
@@ -119,7 +121,8 @@ def load_file_with_result(path: str) -> tuple[ModuleType | None, Exception | Non
 
 def load_module_from_path(name: str, path: str) -> ModuleType | None:
     """Load a Python module from a file path without touching `sys.path`
-    (imports inside the module may still need it)."""
+    (imports inside the module may still need it). The name is not kept once
+    the file's body has run."""
     if not os.path.exists(path):
         return None
     try:
@@ -145,23 +148,43 @@ def _prepare_file(path: str) -> tuple[str, str]:
 
 
 def _create_module(name: str, path: str) -> tuple[ModuleType | None, Loader | None]:
-    """Build module *name* from *path*, registered in `sys.modules` but unexec'd.
+    """Build module *name* from *path* and leave it unexec'd.
 
-    Registering before exec lets a module that imports itself during its own
-    body resolve. Returns `(None, None)` when the path yields no loader.
+    Returns `(None, None)` when the path yields no loader.
     """
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         return None, None
-    module = importlib.util.module_from_spec(spec)
+    return importlib.util.module_from_spec(spec), spec.loader
+
+
+@contextmanager
+def _registered(name: str, module: ModuleType) -> Iterator[None]:
+    """Hold *module* under *name* while the body runs, then give the name back.
+
+    A file loaded from disk is not the process's module for its bare name. A
+    hook file called `openai.py` used to answer every later `import openai`,
+    and every `zrb_init.py` leaves the name of the next one waiting behind it.
+    The entry exists only while the body runs, which is what lets a file import
+    itself during its own body; whatever held the name before is restored
+    afterwards, and a name that held nothing is dropped again.
+    """
+    previous = sys.modules.get(name)
     sys.modules[name] = module
-    return module, spec.loader
+    try:
+        yield
+    finally:
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
 
 
 def _exec_module_file(name: str, path: str) -> ModuleType | None:
-    """Exec *path* as module *name*, registered in `sys.modules`."""
+    """Exec *path* as module *name*, holding the name while the body runs."""
     module, loader = _create_module(name, path)
     if module is None or loader is None:
         return None
-    loader.exec_module(module)
+    with _registered(name, module):
+        loader.exec_module(module)
     return module
