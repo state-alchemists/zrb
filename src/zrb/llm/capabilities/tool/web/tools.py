@@ -625,7 +625,7 @@ def get_web_page_response(url: str, user_agent: str) -> requests.Response:
             refuse_unsafe_web_url(current_url)
 
 
-async def _resolve_proxy_addresses(host: str, port: int) -> list[str]:
+async def resolve_proxy_addresses(host: str, port: int) -> list[str]:
     """Addresses the loopback proxy may connect to for *host*.
 
     The browser no longer resolves the name; this is the one lookup, and the
@@ -635,6 +635,10 @@ async def _resolve_proxy_addresses(host: str, port: int) -> list[str]:
     when the guard ran can answer a private address now. That second lookup is
     the rebinding window the proxy exists to close. Under the private-host
     opt-in a private answer is the intent, so the lookup is taken as it comes.
+
+    Public because it is the proxy's seam: the resolver a `PinnedProxy` is
+    constructed with, and therefore the one place a test can drive a lookup
+    without launching a browser (ADR-0034).
     """
     lookup = (
         _get_host_addresses
@@ -660,7 +664,7 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
 
     from zrb.llm.capabilities.tool.web.pinned_proxy import PinnedProxy
 
-    proxy = PinnedProxy(_resolve_proxy_addresses)
+    proxy = PinnedProxy(resolve_proxy_addresses)
     browser = None
     try:
         port = await proxy.start()
