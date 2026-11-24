@@ -200,6 +200,43 @@ def test_two_side_effect_extensions_keep_the_first_answer():
     assert history is answer_history
 
 
+def test_two_side_effect_extensions_keep_a_frozen_none_answer():
+    """A nullable output's `None` is an answer, not "nothing captured yet".
+
+    The first side-effect extension freezes `None`; the second must return that
+    `None` rather than its own acknowledgement, which is what `is None` as the
+    "not captured" marker used to replace it with.
+    """
+    state = ExtensionState()
+    answer_history = ["the user's answer"]
+
+    first = apply_turn_end_extension(
+        [HookExecutionResult(success=True, system_message="record the decision")],
+        state,
+        None,
+        answer_history,
+        _noop,
+    )
+    assert first.should_continue is True
+    assert state.answer_captured is True
+
+    second = apply_turn_end_extension(
+        [HookExecutionResult(success=True, system_message="record it again")],
+        state,
+        "SIDE-EFFECT REPLY 1",
+        ["side-effect message 1"],
+        _noop,
+    )
+    assert second.should_continue is True
+
+    output, history = resolve_extended_return(
+        state, "SIDE-EFFECT REPLY 2", ["side-effect message 2"]
+    )
+
+    assert output is None
+    assert history is answer_history
+
+
 def test_a_side_effect_after_a_replacing_extension_returns_the_replacement():
     """A replacement answer survives the side-effect run that follows it."""
     state = ExtensionState()

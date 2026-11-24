@@ -38,12 +38,16 @@ class ExtensionState:
     extended: bool = False
     return_extended: bool = False
     # The pair to return when the latest extension did not replace the
-    # response. A block clears it; a replacing extension records its output;
-    # the first side-effect extension freezes the answer and later side-effect
-    # extensions keep it. A second side-effect run must not overwrite the
-    # answer with its own acknowledgement.
+    # response. `answer_captured` says whether it holds a frozen answer: a
+    # `None` output is a legitimate answer for a nullable output type, so the
+    # pair cannot use `None` as "not captured yet". A block clears both; a
+    # replacing extension records its output; the first side-effect extension
+    # freezes the pair and later side-effect extensions keep it. A second
+    # side-effect run must not overwrite the answer with its own
+    # acknowledgement.
     answer_output: Any = None
     answer_history: History | None = None
+    answer_captured: bool = False
     block_count: int = 0
     system_message_count: int = 0
 
@@ -101,6 +105,7 @@ def apply_turn_end_extension(
         # follows it.
         state.answer_output = None
         state.answer_history = None
+        state.answer_captured = False
         state.block_count += 1
         print_fn(f"\n[SYSTEM] {message}\n")
         return ExtensionOutcome(
@@ -136,12 +141,15 @@ def apply_turn_end_extension(
         # run's acknowledgement.
         state.answer_output = result_output
         state.answer_history = run_history
-    elif state.answer_output is None:
+        state.answer_captured = True
+    elif not state.answer_captured:
         # The first side-effect run freezes the answer it was asked to leave
-        # alone. Later side-effect runs must not refresh it: doing so would
+        # alone — `None` included, since a nullable output can legitimately be
+        # `None`. Later side-effect runs must not refresh it: doing so would
         # replace the answer with the previous side-effect acknowledgement.
         state.answer_output = result_output
         state.answer_history = run_history
+        state.answer_captured = True
     print_fn(f"\n[SYSTEM] {message}\n")
     return ExtensionOutcome(
         should_continue=True,
@@ -160,7 +168,7 @@ def resolve_extended_return(
     No extension returns the current pair. A replacing extension (a block or
     `replace_response=True`) returns it too. A non-replacing extension returns
     the pair frozen when it started, so a continuation accepted before it is
-    not discarded.
+    not discarded; a frozen `None` is a real output and is returned as such.
     """
     if not state.extended:
         return result_output, run_history
