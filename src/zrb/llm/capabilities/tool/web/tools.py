@@ -394,7 +394,7 @@ def _assert_public_addresses(
         raise UnsafeWebUrlError(
             f"Refusing to open {hostname}: it resolves to the non-public address "
             f"{address}. WebFetch reaches public hosts only; a local deployment "
-            "that must fetch a private host can set LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
+            "that must fetch a private host can set ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
             "[SYSTEM SUGGESTION]: Use a public URL, or use WebSearch instead."
         )
     return addresses
@@ -629,11 +629,20 @@ async def _resolve_proxy_addresses(host: str, port: int) -> list[str]:
     """Addresses the loopback proxy may connect to for *host*.
 
     The browser no longer resolves the name; this is the one lookup, and the
-    proxy connects to exactly these addresses. With the private-host opt-in the
-    guard allows them; without it the browser path is not used.
+    proxy connects to exactly these addresses. It validates them here rather
+    than trusting the answer the URL guard got a moment earlier: the proxy is
+    the second resolver on the same name, and a name that answered publicly
+    when the guard ran can answer a private address now. That second lookup is
+    the rebinding window the proxy exists to close. Under the private-host
+    opt-in a private answer is the intent, so the lookup is taken as it comes.
     """
+    lookup = (
+        _get_host_addresses
+        if CFG.LLM_WEB_ALLOW_PRIVATE_HOSTS
+        else _assert_public_addresses
+    )
     addresses = await run_blocking(
-        _get_host_addresses, host, timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS
+        lookup, host, timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS
     )
     return [str(address) for address in addresses]
 
