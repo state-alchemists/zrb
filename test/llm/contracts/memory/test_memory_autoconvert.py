@@ -68,6 +68,21 @@ def test_a_marker_this_build_does_not_know_is_left_alone(notes_tree):
         assert f.read().strip() == "2"
 
 
+def test_an_undecodable_marker_does_not_take_the_conversion_down(notes_tree):
+    """`.version` sits in the notes directory, where any byte can land in it.
+
+    `UnicodeDecodeError` is a `ValueError` rather than an `OSError`, so the guard
+    that reads a missing marker as "not converted yet" misses a corrupted one.
+    Nothing decodable says these notes were read, so they convert as they would
+    on first use, and the marker is then written back as text.
+    """
+    (notes_tree / ".version").write_bytes(b"\xff\xfe1\n")
+    paths.prepare()
+    assert store.load_fact("windows-ci-red-at-install-dependencies") is not None
+    with open(os.path.join(str(notes_tree), ".version"), encoding="utf-8") as f:
+        assert f.read().strip() == paths.NOTES_VERSION
+
+
 def test_a_store_outside_the_notes_directory_does_not_convert(
     notes_tree, tmp_path, monkeypatch
 ):

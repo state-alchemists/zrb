@@ -66,11 +66,16 @@ def is_converted() -> bool:
     Any marker counts. A value this build does not recognise belongs to a newer
     zrb, and reading those notes again with an older idea of them is the one
     mistake here that loses data.
+
+    A marker that will not decode as UTF-8 says nothing either way: it names no
+    version this build could trust, and a bad byte in the notes directory must
+    not take a turn down, so it reads as absent and the notes convert again —
+    a walk, not a duplicate.
     """
     try:
         with open(notes_version_path(), encoding="utf-8") as f:
             return bool(f.read().strip())
-    except OSError:
+    except (OSError, UnicodeError):
         return False
 
 
@@ -246,7 +251,11 @@ def _write_gitignore(root: str) -> None:
             existing = f.read()
     except FileNotFoundError:
         existing = ""
-    except OSError:
+    except (OSError, UnicodeError):
+        # An ignore file that cannot be read or decoded is left as it is: its
+        # entries are the user's bytes, and rewriting them from a half-decoded
+        # read would drop whichever ones did not decode. The store still works;
+        # only this file keeps whatever rules it already had.
         return
     present = {line.strip() for line in existing.splitlines()}
     missing = [entry for entry in _GITIGNORE_ENTRIES if entry not in present]
