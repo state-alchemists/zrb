@@ -5,7 +5,7 @@ import ipaddress
 import json
 import socket
 import threading
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -471,16 +471,19 @@ class _PinnedAddressAdapter(HTTPAdapter):
         """The address this adapter pins every connection to."""
         return self._address
 
-    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+    def get_connection_with_tls_context(
+        self, request, verify: bool | str | None, proxies=None, cert=None
+    ):
         parsed_url = urlsplit(str(request.url))
         scheme = parsed_url.scheme.lower()
         port = parsed_url.port or (443 if scheme == "https" else 80)
         # Ask requests for its normal TLS pool settings (`cert_reqs`, CA bundle,
         # client certificate) and keep them; replacing the pool must not trade
         # certificate verification for the address pin.
-        _, pool_kwargs = self.build_connection_pool_key_attributes(
-            request, verify, cert
+        _, tls_pool_kwargs = self.build_connection_pool_key_attributes(
+            request, True if verify is None else verify, cert
         )
+        pool_kwargs: dict[str, Any] = dict(tls_pool_kwargs)
         if scheme == "https" and parsed_url.hostname:
             hostname = _ascii_host(parsed_url.hostname)
             pool_kwargs["server_hostname"] = hostname
@@ -696,7 +699,9 @@ async def _install_page_request_guard(page) -> None:
 def fetch_page_fallback(url: str, user_agent: str) -> tuple:
     """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
     response = get_web_page_response(url, user_agent)
-    return _response_to_page_content(response.url or url, response)
+    response_url = getattr(response, "url", None)
+    final_url = response_url if isinstance(response_url, str) and response_url else url
+    return _response_to_page_content(final_url, response)
 
 
 def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
@@ -706,7 +711,9 @@ def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
     cannot be held to the address the guard validated.
     """
     response = get_pinned_web_page_response(url, user_agent)
-    return _response_to_page_content(response.url or url, response)
+    response_url = getattr(response, "url", None)
+    final_url = response_url if isinstance(response_url, str) and response_url else url
+    return _response_to_page_content(final_url, response)
 
 
 def _is_pdf_url(url: str) -> bool:
