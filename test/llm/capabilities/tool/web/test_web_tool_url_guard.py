@@ -1,3 +1,4 @@
+import ipaddress
 import socket
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,6 +15,7 @@ from zrb.llm.capabilities.tool.web.tools import (
     _PinnedAddressAdapter,
     get_pinned_web_page_response,
     get_web_page_response,
+    is_public_address,
     refuse_unsafe_web_url,
 )
 
@@ -60,6 +62,7 @@ def test_refuse_unsafe_web_url_rejects_a_url_without_a_hostname():
         "http://10.0.0.5/",
         "http://0.0.0.0/",
         "http://224.0.0.1/",
+        "http://100.64.0.1/",
     ],
 )
 def test_refuse_unsafe_web_url_rejects_non_public_literal_hosts(url):
@@ -507,3 +510,12 @@ async def test_a_pdf_path_is_extracted_without_a_pdf_content_type(headers):
     assert "PDF body text" in result["content"]
     assert result["links_on_page"] == []
     mock_pdf_open.assert_called_once()
+
+
+def test_is_public_address_rejects_rfc6598_shared_space():
+    """100.64.0.0/10 is not private by `ipaddress`, but it is not global either."""
+    assert is_public_address(ipaddress.ip_address("100.64.0.1")) is False
+
+
+def test_is_public_address_accepts_a_global_address():
+    assert is_public_address(ipaddress.ip_address("93.184.216.34")) is True

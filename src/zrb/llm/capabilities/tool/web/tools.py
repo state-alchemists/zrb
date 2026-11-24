@@ -438,15 +438,16 @@ def _get_host_addresses(
 
 
 def is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """True when `address` is routable on the public internet."""
-    return not (
-        address.is_loopback
-        or address.is_private
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-    )
+    """True when `address` is a globally routable public address.
+
+    `is_global` is stricter than excluding loopback/private/link-local/...: it
+    also rejects ranges such as the RFC 6598 shared address space
+    (100.64.0.0/10), which `is_private` does not cover. Multicast is excluded
+    explicitly because `is_global` counts it, and it is never a fetchable
+    destination. Only the `LLM_WEB_ALLOW_PRIVATE_HOSTS` opt-in admits a
+    non-global destination.
+    """
+    return address.is_global and not address.is_multicast
 
 
 class _PinnedAddressAdapter(HTTPAdapter):
