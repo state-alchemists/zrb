@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from zrb.llm.contracts.memory.model import (
     KIND_FACT,
@@ -49,6 +50,11 @@ MEMORY_CONTRACT = (
 # A handover is state of play, so it leads; then the day; then the log's tail.
 _DELTA_MAX_LINES = 3
 _DELTA_MAX_CHARS = 400
+
+# A loop untouched for this long carries the count on its own line. Nothing
+# expires at it: the count is there so a reader can tell a thread nobody has
+# moved from one written this morning, which is otherwise the same one line.
+_LOOP_AGE_MARKER_DAYS = 7
 
 
 # Said instead of the path when the configured root carries an instruction
@@ -106,23 +112,25 @@ class CoreBudget:
     cut: int
 
 
-def core_budget(facts: Sequence[Fact], cap: int) -> CoreBudget:
+def core_budget(facts: Sequence[Fact], cap: int, today: str = "") -> CoreBudget:
     """The core as it renders, and as the cap leaves it.
 
     A claim counts as cut when its own line is not among the lines the cap kept —
     the same membership rule the caller uses to record what the block showed, so
     the number reported to the model is the number the delta will catch up on.
+    *today* is the same day the caller rendered with, because a loop's line
+    depends on it and two renders that disagree would miscount every loop.
     """
     pinned = [fact for fact in facts if _is_pinned_fact(fact)]
     loops = [fact for fact in facts if _is_open_loop(fact)]
-    rendered = render_core(facts)
+    rendered = render_core(facts, today)
     kept = set(cut_lines(rendered, cap).splitlines())
     return CoreBudget(
         chars=len(rendered),
         cap=cap,
         pinned=len(pinned),
         loops=len(loops),
-        cut=sum(1 for fact in (*pinned, *loops) if _entry(fact) not in kept),
+        cut=sum(1 for fact in (*pinned, *loops) if _entry(fact, today) not in kept),
     )
 
 
@@ -157,12 +165,20 @@ def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
-def render_core(facts: Sequence[Fact]) -> str:
+def render_core(facts: Sequence[Fact], today: str = "") -> str:
     """`core.md`: pinned facts under `## Always`, open loops under `## Open loops`.
 
     Diary entries never reach it — a day is a page, not a standing belief — and a
     retired fact leaves it, which is what makes `forget` visible in the next
     prompt rather than only in the file.
+
+    *today* is an ISO day, and an open loop untouched for longer than
+    `_LOOP_AGE_MARKER_DAYS` says how many days that is. It is a parameter rather
+    than a call to `date.today()` so a render stays a pure function of its
+    arguments: the tests pin bytes, and the copy written to `core.md` passes no
+    day at all, because an age is something a reader of the block acts on and a
+    file does not. The count is derived from the claim's own `updated` and never
+    stored, so it cannot disagree with the file beside it.
     """
     pinned = sorted(
         (fact for fact in facts if _is_pinned_fact(fact)),
@@ -177,7 +193,7 @@ def render_core(facts: Sequence[Fact]) -> str:
     if pinned:
         blocks.append(_section(ALWAYS_HEADING, [_entry(fact) for fact in pinned]))
     if loops:
-        blocks.append(_section(LOOPS_HEADING, [_entry(fact) for fact in loops]))
+        blocks.append(_section(LOOPS_HEADING, [_entry(fact, today) for fact in loops]))
     return "\n\n".join(blocks)
 
 
@@ -544,15 +560,16 @@ def _is_injectable(text: str) -> bool:
     return injection_reason(_one_line(text)) is None
 
 
-def core_line(fact: Fact) -> str | None:
+def core_line(fact: Fact, today: str = "") -> str | None:
     """The line *fact* contributes to the core, or ``None`` when it contributes none.
 
     The caller uses this to tell "shown" from "rendered but cut": a pinned fact
     the cap dropped has not reached the model, so it must not be recorded as
-    seen.
+    seen. *today* must be the day the block was rendered with, or a loop's dated
+    line no longer matches the block's and every loop reads as unseen.
     """
     if _is_pinned_fact(fact) or _is_open_loop(fact):
-        return _entry(fact)
+        return _entry(fact, today)
     return None
 
 
@@ -589,9 +606,41 @@ def _is_open_loop(fact: Fact) -> bool:
     return fact.is_active and fact.kind == KIND_LOOP and _is_injectable(fact.claim)
 
 
-def _entry(fact: Fact) -> str:
-    """One rendered claim: the sentence, then the id that names its file."""
-    return f"- {_one_line(fact.claim)} [{fact.id}]"
+def _entry(fact: Fact, today: str = "") -> str:
+    """One rendered claim: the sentence, then the id that names its file.
+
+    An open loop untouched past the threshold also says how long, which is the
+    one thing its line cannot show on its own. It is a nudge and not a deadline:
+    nothing closes at the count, and the reader decides whether a thread that
+    stopped moving is finished or merely asleep.
+    """
+    line = f"- {_one_line(fact.claim)} [{fact.id}]"
+    days = _untouched_days(fact, today)
+    if days is None:
+        return line
+    return f"{line} · {days}d"
+
+
+def _untouched_days(fact: Fact, today: str) -> int | None:
+    """Whole days since *fact*'s claim was last written, or ``None`` to draw none.
+
+    No count for a pinned fact — a belief is not a thread to chase — and none
+    without a day to measure against. A `updated` that is empty, unreadable or
+    later than *today* also draws nothing: the frontmatter is a text file people
+    edit, and a wrong age in the block is worse than no age, which is what the
+    file itself already says.
+    """
+    if not _is_open_loop(fact) or not today:
+        return None
+    try:
+        written = date.fromisoformat(fact.updated.strip()[:10])
+        now = date.fromisoformat(today.strip()[:10])
+    except ValueError:
+        return None
+    days = (now - written).days
+    if days < _LOOP_AGE_MARKER_DAYS:
+        return None
+    return days
 
 
 def _section(heading: str, lines: Sequence[str]) -> str:
