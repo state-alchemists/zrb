@@ -74,7 +74,7 @@ flowchart TD
 | --- | --- | --- |
 | `Config`, `CFG` | `src/zrb/config/config.py` | The thin shell that composes every mixin, the one `CFG = Config()` instance, the unknown-name guard on assignment, and the lookup guide from a setting family to its mixin |
 | Domain mixins | `src/zrb/config/mixins/` | One file per area (`llm_core.py`, `llm_limits.py`, `web.py`, `theme.py`, ...). Each declares its `EnvField`s and sets its `DEFAULT_<NAME>` values in `__init__` |
-| `EnvField` | `src/zrb/config/env_field.py` | Reading (prefix, aliases, cast, transform, fallback), writing (serialize, round-trip check, `write_key`), and the cast helpers (`on_off`, `path_list`, `comma_list`, ...) |
+| `EnvField` | `src/zrb/config/env_field.py` | Reading (prefix, aliases, cast, transform, fallback), writing (serialize, cast round-trip, transform validation, `write_key`), and the cast helpers (`on_off`, `path_list`, `comma_list`, ...) |
 | `get_env` | `src/zrb/config/helper.py` | The prefixed environment lookup that tries names in order |
 | `RETIRED_SETTINGS` | `src/zrb/config/retired.py` | Removed names and what replaces them |
 | `get_retired_env_keys`, `get_mistyped_env_keys` | `src/zrb/config/config.py` | Finding retired and near-miss variables; `src/zrb/__main__.py` prints them at startup |
@@ -102,7 +102,7 @@ Two details matter. An empty variable (`export ZRB_WEB_HTTP_PORT=`) counts as un
 
 Callers read `CFG` where the value is used, not at import. The tool-result cap is read by `SafeToolsetWrapper` in `src/zrb/llm/engine/agent/common.py` each time a result comes back, so a `zrb_init.py` change made after import still applies.
 
-**Writing a value.** `CFG.NAME = value` serializes the value, converts it back the way a read would — `cast`, then `transform` — to check it round-trips, and writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
+**Writing a value.** `CFG.NAME = value` serializes the value, casts it back to check it round-trips, and runs the field's `transform` to reject a value every later read would reject. A transform that normalizes or clamps is not a rejection: the stored value is allowed to read back different (`LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = 100_000` under a 50,000 cap reads back as 50,000). It writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
 
 **Adding a setting.** In the owning mixin, set `self.DEFAULT_<NAME>` in `__init__` and declare `<NAME> = EnvField(cast, doc=...)` next to its siblings. With no `aliases` and no `no_prefix`, the environment key is the prefix plus the name — for this example, ZRB_LLM_MAX_TOOL_RESULT_CHARS. Then read `CFG.<NAME>` in the code that owns the behaviour, and document it in `docs/configuration/`. A boolean follows the naming rule in [ADR-0026](../../adr/adr-0026.md).
 

@@ -211,19 +211,21 @@ def test_a_non_string_that_reads_back_differently_is_refused(host):
     assert "TESTCFG_CMDS" not in os.environ
 
 
-def test_a_non_string_changed_by_the_transform_is_refused(host):
-    """The round trip includes the transform: assigning 7 to a field that
-    doubles on read used to store "7" and read back 14."""
-    with pytest.raises(ValueError, match="round-trip"):
-        host.TRANSFORMED = 7
-    assert "TESTCFG_TRANSFORMED" not in os.environ
+def test_a_non_string_normalized_by_the_transform_is_accepted(host):
+    """The transform may legitimately normalize or clamp; only its failure is
+    an error, not a result that differs from the assigned value."""
+    host.TRANSFORMED = 7
+    assert os.environ["TESTCFG_TRANSFORMED"] == "7"
+    assert host.TRANSFORMED == 14
 
 
 def test_a_transform_that_would_raise_on_read_is_refused_at_assignment(host):
     """Validating with the cast alone accepted a banner whose placeholder made
-    every later read raise; the assignment itself has to fail."""
-    with pytest.raises(ValueError, match="is not valid"):
+    every later read raise; the assignment itself has to fail, and the message
+    must blame the transform rather than the cast."""
+    with pytest.raises(ValueError, match="transform fails") as excinfo:
         host.FRAGILE = "ASCII art: {zrb}"
+    assert "str() rejects" not in str(excinfo.value)
     assert "TESTCFG_FRAGILE" not in os.environ
 
 
