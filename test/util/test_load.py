@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import types
 
 import pytest
 
@@ -46,6 +47,72 @@ def test_load_file_success(temp_script):
             os.environ["PYTHONPATH"] = original_pythonpath
         elif "PYTHONPATH" in os.environ:
             del os.environ["PYTHONPATH"]
+
+
+def test_load_file_leaves_the_name_its_stem_would_take_free():
+    """A loaded file is not the process's module for its bare name.
+
+    A `zrb_init.py`, or a hook file called `openai.py`, answered every later
+    `import openai` because the loader registered the file under its stem and
+    never put the name back.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("value = 1")
+        path = f.name
+    stem = os.path.splitext(os.path.basename(path))[0]
+    try:
+        assert load_file(path) is not None
+        assert stem not in sys.modules
+    finally:
+        os.remove(path)
+
+
+def test_load_file_restores_the_module_its_stem_would_have_shadowed():
+    """The name it borrowed is handed back, not replaced."""
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("value = 1")
+        path = f.name
+    stem = os.path.splitext(os.path.basename(path))[0]
+    existing = types.ModuleType(stem)
+    sys.modules[stem] = existing
+    try:
+        assert load_file(path) is not None
+        assert sys.modules[stem] is existing
+    finally:
+        sys.modules.pop(stem, None)
+        os.remove(path)
+
+
+def test_load_file_with_result_leaves_the_name_its_stem_would_take_free():
+    """The `zrb_init.py` path execs the file itself, and leaks the same entry."""
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("value = 1")
+        path = f.name
+    stem = os.path.splitext(os.path.basename(path))[0]
+    try:
+        module, error = load_file_with_result(path)
+        assert module is not None
+        assert error is None
+        assert stem not in sys.modules
+    finally:
+        os.remove(path)
+
+
+def test_load_file_lets_the_file_import_itself_during_its_own_body():
+    """The name is held while the body runs — that is what a self-import needs,
+    and only the entry left behind once the body ends is the defect."""
+    with tempfile.NamedTemporaryFile(
+        prefix="zrb_load_self_import_", suffix=".py", mode="w", delete=False
+    ) as f:
+        stem = os.path.splitext(os.path.basename(f.name))[0]
+        f.write(f"import {stem}\nvalue = {stem}\n")
+        path = f.name
+    try:
+        module = load_file(path)
+        assert module is not None
+        assert module.value is module
+    finally:
+        os.remove(path)
 
 
 def test_load_file_not_found():
