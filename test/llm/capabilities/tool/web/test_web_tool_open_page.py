@@ -421,3 +421,25 @@ def test_fetch_page_fallback_detects_pdf_from_the_final_redirect_url():
     assert is_pdf is True
     assert content == ""
     assert links == []
+
+
+@pytest.mark.asyncio
+async def test_the_browser_launches_through_a_loopback_connect_proxy(browser_path):
+    """Chromium must not resolve the target itself; it gets the proxy address."""
+    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
+        mock_p = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
+        mock_p.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = mock_page
+        mock_response = MagicMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_page.goto.return_value = mock_response
+        mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
+        mock_page.eval_on_selector_all.return_value = []
+
+        await open_web_page("https://example.com", summarize=False)
+
+    proxy = mock_p.chromium.launch.call_args.kwargs["proxy"]["server"]
+    assert proxy.startswith("http://127.0.0.1:")

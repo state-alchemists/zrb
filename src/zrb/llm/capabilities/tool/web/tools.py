@@ -625,16 +625,41 @@ def get_web_page_response(url: str, user_agent: str) -> requests.Response:
             refuse_unsafe_web_url(current_url)
 
 
+async def _resolve_proxy_addresses(host: str, port: int) -> list[str]:
+    """Addresses the loopback proxy may connect to for *host*.
+
+    The browser no longer resolves the name; this is the one lookup, and the
+    proxy connects to exactly these addresses. With the private-host opt-in the
+    guard allows them; without it the browser path is not used.
+    """
+    addresses = await run_blocking(
+        _get_host_addresses, host, timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS
+    )
+    return [str(address) for address in addresses]
+
+
 async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
-    """Fetch `url` via headless Chromium. Returns ``(content, links, is_pdf)``."""
+    """Fetch `url` via headless Chromium. Returns ``(content, links, is_pdf)``.
+
+    Chromium is pointed at a loopback CONNECT proxy that resolves and connects
+    to the validated address itself. That removes the browser's own resolver
+    from the decision, so routing every request through the URL guard is no
+    longer a check-then-connect gap.
+    """
     # lazy: heavy third-party
     from playwright.async_api import async_playwright
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        # Close even when goto/eval raises, or the headless Chromium process
-        # and its disk-backed profile leak per failed fetch.
-        try:
+    from zrb.llm.capabilities.tool.web.pinned_proxy import PinnedProxy
+
+    proxy = PinnedProxy(_resolve_proxy_addresses)
+    browser = None
+    try:
+        port = await proxy.start()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                proxy={"server": f"http://127.0.0.1:{port}"},
+            )
             page = await browser.new_page()
             await page.set_extra_http_headers({"User-Agent": user_agent})
             await _install_page_request_guard(page)
@@ -659,8 +684,10 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
                 url,
             )
             return content, links, False
-        finally:
+    finally:
+        if browser is not None:
             await browser.close()
+        await proxy.close()
 
 
 async def _install_page_request_guard(page) -> None:
