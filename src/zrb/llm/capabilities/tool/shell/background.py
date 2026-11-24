@@ -466,7 +466,7 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is None or _is_foreign_session(bp):
             return _unknown_handle_message(handle)
-        if bp.process.returncode is not None:
+        if not _is_still_running(bp):
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )

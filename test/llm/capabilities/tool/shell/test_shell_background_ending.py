@@ -65,6 +65,33 @@ async def test_a_child_that_outlives_the_shell_still_records_the_exit_code():
         "the shell led, and a process group is a POSIX idea"
     ),
 )
+async def test_a_child_that_outlives_the_shell_can_still_be_killed():
+    """The recorded shell exit does not make the handle finished while a child
+    it left behind still holds the pipes.
+
+    `kill` used to read `process.returncode` alone, so it answered "already
+    exited" and never signalled the group that still had the child in it. The
+    handle then stayed registered with its readers for the life of the process.
+    """
+    registry = get_shell_background_registry()
+    handle = await _start_bg("sleep 30 & echo SPAWNED", "leaves a child")
+    result = await create_monitor_process_tool()(handle, wait=1)
+    assert "exited (code 0)" in result
+
+    killed = await create_monitor_process_tool()(handle, kill=True)
+
+    assert "Killed process" in killed
+    assert handle not in [row["handle"] for row in registry.summary()]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason=(
+        "a child that outlived its shell is only reachable through the group "
+        "the shell led, and a process group is a POSIX idea"
+    ),
+)
 async def test_an_adopted_daemon_is_stopped_at_its_deadline(tmp_path, monkeypatch):
     """The shell's own exit is not the end of the time in the background.
 
