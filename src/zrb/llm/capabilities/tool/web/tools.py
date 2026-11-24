@@ -394,7 +394,8 @@ def _assert_public_addresses(
         raise UnsafeWebUrlError(
             f"Refusing to open {hostname}: it resolves to the non-public address "
             f"{address}. WebFetch reaches public hosts only; a local deployment "
-            "that must fetch a private host can set ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
+            "that must fetch a private host can set "
+            f"{CFG.ENV_PREFIX}_LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
             "[SYSTEM SUGGESTION]: Use a public URL, or use WebSearch instead."
         )
     return addresses

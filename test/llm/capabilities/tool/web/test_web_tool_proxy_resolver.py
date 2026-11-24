@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.web.tools import (
     UnsafeWebUrlError,
     resolve_proxy_addresses,
@@ -32,6 +33,20 @@ async def test_the_proxy_refuses_a_name_that_resolves_privately(monkeypatch):
     with _resolving_to(PRIVATE_ADDRESS):
         with pytest.raises(UnsafeWebUrlError):
             await resolve_proxy_addresses("intranet.example", 443)
+
+
+@pytest.mark.asyncio
+async def test_the_refusal_names_the_setting_under_the_labels_prefix(monkeypatch):
+    # `ENV_PREFIX` is what a white label changes. A message that spells `ZRB_`
+    # sends its user to a variable nothing reads, so following it changes
+    # nothing — the same defect as naming a setting the code never reads.
+    monkeypatch.setattr(CFG, "ENV_PREFIX", "ACME", raising=False)
+    with _resolving_to(PRIVATE_ADDRESS):
+        with pytest.raises(UnsafeWebUrlError) as refusal:
+            await resolve_proxy_addresses("intranet.example", 443)
+    text = str(refusal.value)
+    assert "ACME_LLM_WEB_ALLOW_PRIVATE_HOSTS=on" in text
+    assert " ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS" not in text
 
 
 @pytest.mark.asyncio
