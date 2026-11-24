@@ -58,6 +58,25 @@ def test_create_delegate_tool_docstring(mock_sub_agent_manager):
     assert "A test agent" in tool.__doc__
 
 
+def test_delegate_tool_description_says_when_to_delegate(mock_sub_agent_manager):
+    """The criterion and the parent's own check ride in the tool description, so
+    they reach the model exactly when this tool does: the `minimal` profile drops
+    the delegate tools whole, and a rule kept anywhere higher up would outlive it.
+    """
+    from pydantic_ai import Tool
+
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    description = Tool(tool).description or ""
+
+    assert "fan out when you cannot hold the units at once" in description
+    assert "tens of times" in description
+    assert "reproduce the finding that decides the verdict" in description
+    # Isolation is for writers that may collide, not for every writer: an
+    # isolated worktree keeps its branch unmerged, so a lone writing unit that
+    # is isolated hands the parent nothing it can use.
+    assert "only for concurrent units that may write the same files" in description
+
+
 def test_delegate_to_agent_params_carry_descriptions(mock_sub_agent_manager):
     """Not registered via common_tools.py (main-agent-only, added directly by
     LLMChatTask), so `test_every_registered_tool_parameter_carries_a_description`
