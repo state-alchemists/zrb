@@ -10,6 +10,8 @@ two saves of the same conversation shared one predictable `.tmp` inode.
 
 import json
 import os
+import shutil
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -222,3 +224,65 @@ def test_a_symlinked_backups_root_is_never_swept_by_retention(tmp_path, monkeypa
     _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
 
     assert os.path.exists(stale)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlinks need POSIX semantics")
+def test_a_conversation_directory_symlinked_after_a_save_is_refused(tmp_path):
+    """The descriptor writer opens `backups/<name>` with `O_NOFOLLOW`.
+
+    A link planted at the conversation directory after the first save cannot
+    receive the next backup: the second save refuses it and nothing is written
+    outside the history tree.
+    """
+    history_dir = tmp_path / "history"
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "hello")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    shutil.rmtree(history_dir / "backups" / "hello")
+    os.symlink(str(outside), str(history_dir / "backups" / "hello"))
+
+    _save(manager, "hello")
+
+    assert os.listdir(outside) == []
+    assert (history_dir / "backups" / "hello").is_symlink()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlinks need POSIX semantics")
+def test_a_directory_swapped_during_the_save_cannot_receive_the_backup(
+    tmp_path, monkeypatch
+):
+    """A link planted between the directory check and the temp file is followed
+    by a pathname write and refused by the descriptor writer.
+
+    The hook fires when a temporary file is about to be created through
+    `backups/hello` — the window a path-based write leaves open. The descriptor
+    writer never creates one through a pathname, so the backup lands inside the
+    tree and nothing appears outside.
+    """
+    history_dir = tmp_path / "history"
+    (history_dir / "backups" / "hello").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    real_mkstemp = tempfile.mkstemp
+    swapped = False
+
+    def swapping_mkstemp(*args, **kwargs):
+        nonlocal swapped
+        directory = kwargs.get("dir")
+        if (
+            not swapped
+            and directory is not None
+            and str(directory).endswith(os.path.join("backups", "hello"))
+        ):
+            swapped = True
+            shutil.rmtree(directory)
+            os.symlink(str(outside), str(directory))
+        return real_mkstemp(*args, **kwargs)
+
+    monkeypatch.setattr(tempfile, "mkstemp", swapping_mkstemp)
+    _save(FileHistoryManager(str(history_dir)), "hello")
+
+    assert os.listdir(outside) == []
+    assert not swapped
+    assert list((history_dir / "backups" / "hello").glob("*.json"))

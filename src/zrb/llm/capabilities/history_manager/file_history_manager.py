@@ -5,6 +5,7 @@ import tempfile
 import time
 import warnings
 from collections import OrderedDict
+from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -28,7 +29,12 @@ from zrb.llm.contracts.util.subagent_session_naming import (
     subagent_history_directories,
 )
 from zrb.util.match import fuzzy_match
-from zrb.util.owner_only import makedirs_owner_only, tighten_once
+from zrb.util.owner_only import (
+    DIR_MODE,
+    FILE_MODE,
+    makedirs_owner_only,
+    tighten_once,
+)
 from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
 
@@ -107,6 +113,66 @@ def _is_within(directory: str, path: str) -> bool:
     except ValueError:
         # Different drives on Windows: no relative path between them.
         return False
+
+
+def _open_owned_directory(parent_fd: int, name: str) -> int:
+    """Open (creating if missing) directory *name* under *parent_fd*, never a link.
+
+    `mkdir` and `open` are separate system calls, but `O_NOFOLLOW` on the open
+    makes a symlink planted in between fail with `ELOOP` instead of redirecting
+    the write. The descriptor returned is the directory the caller keeps using,
+    so no later rename of the pathname can change where it points.
+    """
+    try:
+        os.mkdir(name, DIR_MODE, dir_fd=parent_fd)
+    except FileExistsError:
+        pass
+    return os.open(
+        name,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+        dir_fd=parent_fd,
+    )
+
+
+def _entry_exists(directory_fd: int, name: str) -> bool:
+    """Whether *name* exists in *directory_fd*; a symlink counts as present."""
+    try:
+        os.lstat(name, dir_fd=directory_fd)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def _backup_file_name(timestamp: datetime, exists: "Callable[[str], bool]") -> str:
+    """An unused `<timestamp>.json` backup name, as *exists* reports its dir."""
+    ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
+    candidate = f"{ts_str}.json"
+    if not exists(candidate):
+        return candidate
+    for counter in range(1, 1001):
+        candidate = f"{ts_str}-{counter}.json"
+        if not exists(candidate):
+            return candidate
+    # Fallback to using microseconds: two backups a second apart can share a
+    # name only under a clock that does not advance.
+    return f"{ts_str}-{timestamp.strftime('%f')}.json"
+
+
+def _create_backup_temp_file(directory_fd: int) -> "tuple[int, str]":
+    """Create an exclusive, unguessable temporary file in *directory_fd*."""
+    for _ in range(100):
+        name = f".zrb-history-backup-{os.urandom(8).hex()}.tmp"
+        try:
+            descriptor = os.open(
+                name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                FILE_MODE,
+                dir_fd=directory_fd,
+            )
+            return descriptor, name
+        except FileExistsError:
+            continue
+    raise OSError("could not create a unique temporary history backup file")
 
 
 def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
@@ -320,9 +386,7 @@ class FileHistoryManager(AnyHistoryManager):
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
             if write_backup and backup_retain != 0:
                 timestamp = datetime.now()
-                backup_path = self._get_backup_file_path(conversation_name, timestamp)
-                if backup_path:
-                    self._save_data_to_file(backup_path, filtered_data)
+                if self._write_backup(conversation_name, timestamp, filtered_data):
                     if backup_retain > 0:
                         self._rotate_backups(conversation_name, keep=backup_retain)
 
@@ -547,27 +611,19 @@ class FileHistoryManager(AnyHistoryManager):
     def _get_backup_file_path(self, conversation_name: str, timestamp: datetime) -> str:
         """Return a conflict-free timestamped backup path, or ``""``.
 
-        An unsafe or escaping name yields no path, so the save continues
-        without a backup rather than writing one outside the backup tree.
+        The path-based writer's route (non-POSIX); the POSIX writer keeps the
+        same naming and containment relative to the directory descriptor it
+        opened. An unsafe or escaping name yields no path, so the save
+        continues without a backup rather than writing one outside the tree.
         """
         directory = self._get_backup_directory(conversation_name)
         if not directory:
             return ""
-        ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
-        candidate = self._contained_backup_path(directory, f"{ts_str}.json")
-        if not candidate or not os.path.exists(candidate):
-            return candidate
-        for counter in range(1, 1001):
-            candidate = self._contained_backup_path(
-                directory, f"{ts_str}-{counter}.json"
-            )
-            if not candidate or not os.path.exists(candidate):
-                return candidate
-        # Fallback to using microseconds: two backups a second apart can
-        # share a name only under a clock that does not advance.
-        return self._contained_backup_path(
-            directory, f"{ts_str}-{timestamp.strftime('%f')}.json"
+        name = _backup_file_name(
+            timestamp,
+            lambda candidate: os.path.exists(os.path.join(directory, candidate)),
         )
+        return self._contained_backup_path(directory, name)
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
         """Atomically save filtered data; return whether the write succeeded.
@@ -604,6 +660,100 @@ class FileHistoryManager(AnyHistoryManager):
                     os.remove(tmp_path)
                 except OSError:
                     pass
+
+    def _write_backup(
+        self, conversation_name: str, timestamp: datetime, data: Any
+    ) -> bool:
+        """Write one timestamped backup; ``False`` when it cannot be placed safely.
+
+        On POSIX the chain from the history root down to the conversation
+        directory is opened as `O_NOFOLLOW` directory descriptors, the temporary
+        file is created relative to the conversation descriptor, and the rename
+        is relative to it as well. A pathname the containment checks approved
+        can be swapped for a symlink before the write; a descriptor cannot.
+        Other platforms keep the path-based write, whose `makedirs_owner_only`
+        refuses a symlinked level.
+        """
+        if (
+            os.name != "posix"
+            or not hasattr(os, "O_DIRECTORY")
+            or not hasattr(os, "O_NOFOLLOW")
+        ):
+            path = self._get_backup_file_path(conversation_name, timestamp)
+            if not path:
+                return False
+            return self._save_data_to_file(path, data)
+        # Check the root by name first, so a symlinked `backups/` reads as one
+        # clear warning instead of a failed write. The descriptor walk below is
+        # what makes it a boundary; this check is only the better message.
+        if not self._get_backup_root():
+            return False
+        key = safe_segment(conversation_name)
+        if key in (".", ".."):
+            return False
+        try:
+            history_fd = os.open(
+                self._history_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        try:
+            backups_fd = _open_owned_directory(history_fd, BACKUP_DIR_NAME)
+            try:
+                conversation_fd = _open_owned_directory(backups_fd, key)
+                try:
+                    return self._write_backup_at(
+                        conversation_fd, conversation_name, timestamp, data
+                    )
+                finally:
+                    os.close(conversation_fd)
+            finally:
+                os.close(backups_fd)
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        finally:
+            os.close(history_fd)
+
+    def _write_backup_at(
+        self,
+        directory_fd: int,
+        conversation_name: str,
+        timestamp: datetime,
+        data: Any,
+    ) -> bool:
+        """Write the backup inside the conversation directory *directory_fd*."""
+        name = _backup_file_name(
+            timestamp,
+            lambda candidate: _entry_exists(directory_fd, candidate),
+        )
+        tmp_name: "str | None" = None
+        try:
+            descriptor, tmp_name = _create_backup_temp_file(directory_fd)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                json.dump(data, stream, indent=2)
+            os.replace(
+                tmp_name,
+                name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+            )
+            tmp_name = None
+            return True
+        except OSError as e:
+            return self._report_backup_failure(conversation_name, e)
+        finally:
+            if tmp_name is not None:
+                try:
+                    os.unlink(tmp_name, dir_fd=directory_fd)
+                except OSError:
+                    pass
+
+    def _report_backup_failure(self, conversation_name: str, error: OSError) -> bool:
+        zrb_print(
+            f"Error: Failed to save history backup for {conversation_name}: {error}",
+            plain=True,
+        )
+        return False
 
     def _prune_expired(self, current: str) -> None:
         """Prune expired auto-named root histories; never fail the triggering save."""
