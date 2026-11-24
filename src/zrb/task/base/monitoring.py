@@ -24,7 +24,12 @@ class BaseTaskMonitoring:
     async def monitor_task_readiness(
         self, session: AnySession, action_coro: asyncio.Task
     ):
-        """Re-check readiness periodically; restart the action past the threshold."""
+        """Re-check readiness periodically; restart the action past the threshold.
+
+        Stops once the monitored action is done: `Session.wait_deferred` waits
+        for every monitor before it terminates the session, so a monitor that
+        outlived a finite action would hang the run.
+        """
         task = self._task
         ctx = task.get_ctx(session)
         readiness_checks, check_period, fail_threshold, timeout = (
@@ -38,10 +43,10 @@ class BaseTaskMonitoring:
         failure_count = 0
         ctx.log_info("Starting readiness monitoring...")
 
-        while not session.is_terminated:
+        while not session.is_terminated and not action_coro.done():
             await asyncio.sleep(check_period)
 
-            if session.is_terminated:
+            if session.is_terminated or action_coro.done():
                 break
 
             if failure_count < fail_threshold:
@@ -133,19 +138,23 @@ class BaseTaskMonitoring:
     ) -> asyncio.Task:
         """Cancel the action, reset the task, and return the re-started action."""
         task = self._task
-        if action_coro and not action_coro.done():
-            ctx.log_info("Cancelling original task action...")
-            action_coro.cancel()
-            try:
-                await action_coro
-            except asyncio.CancelledError:
-                # Re-raise only if the monitor itself is being cancelled.
-                current = asyncio.current_task()
-                if current is not None and current.cancelling() > 0:
-                    raise
-            except Exception as e:
-                # Already handled by the retry loop.
-                ctx.log_debug(f"Cancelled action's own error handling: {e}")
+        if action_coro.done():
+            # Finished while the readiness check ran: restarting it would run a
+            # completed action again.
+            ctx.log_info("Action already finished; not restarting it.")
+            return action_coro
+        ctx.log_info("Cancelling original task action...")
+        action_coro.cancel()
+        try:
+            await action_coro
+        except asyncio.CancelledError:
+            # Re-raise only if the monitor itself is being cancelled.
+            current = asyncio.current_task()
+            if current is not None and current.cancelling() > 0:
+                raise
+        except Exception as e:
+            # Already handled by the retry loop.
+            ctx.log_debug(f"Cancelled action's own error handling: {e}")
 
         ctx.log_info("Resetting task status.")
         session.get_task_status(task).reset()
@@ -158,12 +167,17 @@ class BaseTaskMonitoring:
         return new_action_coro
 
     def get_readiness_config(self) -> tuple[list[AnyTask], float, int, float]:
-        """Return (checks, period, failure threshold, timeout)."""
+        """Return (checks, period, failure threshold, timeout).
+
+        The failure threshold is at least 1: with a non-positive value the
+        loop would skip every check (`failure_count < threshold` is false) and
+        then restart the action each period (`failure_count >= threshold`).
+        """
         task = self._task
         checks = task.readiness_checks
         return (
             checks,
             task.readiness_check_period,
-            task.readiness_failure_threshold,
+            max(1, task.readiness_failure_threshold),
             task.readiness_timeout,
         )

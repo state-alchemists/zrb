@@ -170,3 +170,22 @@ async def test_async_run_logs_error_without_error_queue(mock_session):
     assert result is None
     mock_logger.error.assert_called_once()
     assert "boom" in str(mock_logger.error.call_args)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [SystemExit(1), GeneratorExit()],
+    ids=["SystemExit", "GeneratorExit"],
+)
+@pytest.mark.asyncio
+async def test_async_run_propagates_shutdown_signals(
+    mock_task, mock_session, mock_parent_session, error
+):
+    """A shutdown request must not be published as a task error."""
+    mock_task.async_run.side_effect = error
+    callback = Callback(task=mock_task, input_mapping={}, error_queue="errors")
+
+    with pytest.raises(type(error)):
+        await callback.async_run(mock_parent_session, mock_session)
+
+    assert "errors" not in mock_parent_session.shared_ctx.xcom
