@@ -342,3 +342,69 @@ def test_a_handover_and_a_claim_from_one_day_are_both_kept():
     # One day, one file: the `Handover` line named it, so the last-day line does
     # not name it again.
     assert recent.count("[diary/2026-11-02.md") == 1
+
+
+def test_a_loop_untouched_for_a_fortnight_says_how_long():
+    """A dead thread and this morning's are the same line; the count is the
+    difference, and the count is all it does — nothing closes at it."""
+    facts = [
+        _fact("asleep", "An old thread.", kind="loop", updated="2026-11-03T10:00:00")
+    ]
+    assert (
+        render_core(facts, "2026-11-15")
+        == f"{LOOPS_HEADING}\n- An old thread. [asleep] · 12d"
+    )
+
+
+def test_a_loop_touched_since_the_threshold_carries_no_count():
+    facts = [
+        _fact("fresh", "A new thread.", kind="loop", updated="2026-11-12T10:00:00")
+    ]
+    assert (
+        render_core(facts, "2026-11-15") == f"{LOOPS_HEADING}\n- A new thread. [fresh]"
+    )
+
+
+def test_the_count_starts_at_the_seventh_day():
+    for updated, suffix in (
+        ("2026-11-09T10:00:00", ""),
+        ("2026-11-08T10:00:00", " · 7d"),
+    ):
+        facts = [_fact("loop", "Claim.", kind="loop", updated=updated)]
+        assert (
+            render_core(facts, "2026-11-15")
+            == f"{LOOPS_HEADING}\n- Claim. [loop]{suffix}"
+        )
+
+
+def test_without_a_day_the_core_carries_no_count():
+    """`core.md` on disk is written without one: an age is for whoever reads the
+    block, and the file is the same bytes whatever day it is written."""
+    facts = [
+        _fact("asleep", "An old thread.", kind="loop", updated="2026-11-03T10:00:00")
+    ]
+    assert render_core(facts) == f"{LOOPS_HEADING}\n- An old thread. [asleep]"
+
+
+def test_a_pinned_fact_is_never_dated():
+    facts = [_fact("belief", "A belief.", pin=True, updated="2026-01-01T10:00:00")]
+    assert render_core(facts, "2026-11-15") == f"{ALWAYS_HEADING}\n- A belief. [belief]"
+
+
+def test_a_date_that_cannot_be_read_or_lies_ahead_draws_nothing():
+    """Frontmatter is a text file people edit. No age reads better than a wrong
+    one, and the block is injected into a prompt, so it may not raise either."""
+    for updated in ("", "not a date", "2027-01-01T10:00:00"):
+        facts = [_fact("loop", "Claim.", kind="loop", updated=updated)]
+        assert "·" not in render_core(facts, "2026-11-15")
+
+
+def test_the_budget_counts_a_dated_loop_as_shown():
+    """The cut count compares a claim's own line with the block's. Measuring the
+    budget without the day would call every loop cut, and the block would report
+    claims it is showing as missing."""
+    facts = [
+        _fact("asleep", "An old thread.", kind="loop", updated="2026-11-03T10:00:00")
+    ]
+    budget = core_budget(facts, 4_000, "2026-11-15")
+    assert (budget.loops, budget.cut) == (1, 0)

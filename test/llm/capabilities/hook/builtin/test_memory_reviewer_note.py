@@ -299,3 +299,24 @@ def test_no_open_loop_leaves_the_day_alone(store_dir):
     assert "loops are open" not in _reviewer_note(
         HookContext(event=HookEvent.STOP, event_data={})
     )
+
+
+def test_a_dormant_loop_reaches_the_reviewer_with_its_age(store_dir):
+    """The count is for this reader most of all.
+
+    The reviewer is handed the loops so it can notice one that stopped mattering;
+    a line without the age leaves it the one thing the block already gave it and
+    could not show — which of these nobody has touched.
+    """
+    store.save_fact(
+        Fact(
+            id="asleep",
+            claim="I owe a cert rotation.",
+            kind=KIND_LOOP,
+            updated="2026-01-01T09:00:00",
+        )
+    )
+
+    note = _open_loops_note()
+
+    assert re.search(r"\[asleep\] · \d+d", note)

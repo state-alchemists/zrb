@@ -52,8 +52,8 @@ def render_memory_block() -> str | None:
         # turn must not fail because a directory could not be created.
         return None
     core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
-    core = render.cut_lines(render.render_core(facts), core_cap)
     today_day = store.today()
+    core = render.cut_lines(render.render_core(facts, today_day), core_cap)
     recent = render.cut_lines(
         render.render_recent(
             store.latest_handover(today_day),
@@ -75,7 +75,7 @@ def render_memory_block() -> str | None:
     # overflow is not in `shown`; an ordinary unpinned fact never earns a
     # tombstone because it was never in the block either.
     rendered = set(core.splitlines())
-    shown = _shown_so_far(_core_claim_ids(facts, rendered))
+    shown = _shown_so_far(_core_claim_ids(facts, rendered, today_day))
     today_entry = store.load_diary(store.today())
     _write_state(
         [render.claim_key(fact) for fact in facts],
@@ -87,7 +87,7 @@ def render_memory_block() -> str | None:
     # The block carries its own address and budget: it tells the model to read
     # `facts/<id>.md`, and a relative path with no root is one it cannot open.
     return render.compose_memory(
-        core, recent, store_root, render.core_budget(facts, core_cap)
+        core, recent, store_root, render.core_budget(facts, core_cap, today_day)
     )
 
 
@@ -172,16 +172,17 @@ def claims_in_the_core() -> frozenset[str]:
     except OSError:
         return frozenset()
     core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
-    core = render.cut_lines(render.render_core(facts), core_cap)
-    return frozenset(_core_claim_ids(facts, set(core.splitlines())))
+    today = store.today()
+    core = render.cut_lines(render.render_core(facts, today), core_cap)
+    return frozenset(_core_claim_ids(facts, set(core.splitlines()), today))
 
 
-def _core_claim_ids(facts: "list[Fact]", rendered: "set[str]") -> list[str]:
+def _core_claim_ids(facts: "list[Fact]", rendered: "set[str]", today: str) -> list[str]:
     """The ids whose core line survived the cap."""
     return [
         fact.id
         for fact in facts
-        if (line := render.core_line(fact)) is not None and line in rendered
+        if (line := render.core_line(fact, today)) is not None and line in rendered
     ]
 
 

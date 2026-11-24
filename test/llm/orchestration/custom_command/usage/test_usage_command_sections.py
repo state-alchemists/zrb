@@ -6,7 +6,9 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
+from zrb.llm.contracts.memory import store
 from zrb.llm.contracts.memory.model import Diary, Fact
+from zrb.llm.contracts.memory.render import render_core
 from zrb.llm.contracts.shared.usage_log import (
     COMPACTION_FORCED,
     COMPONENT_MAIN,
@@ -24,6 +26,7 @@ from zrb.llm.orchestration.custom_command.usage.command import (
     create_usage_commands,
     render_usage,
 )
+from zrb.llm.orchestration.custom_command.usage.memory import read_snapshot
 
 
 @pytest.fixture
@@ -397,3 +400,25 @@ def test_the_composition_survives_being_written_and_read_back(usage_dir):
     assert read_back.context == ContextComposition(
         prompt_tokens=4_000, history_tokens=28_000, message_tokens=1_000
     )
+
+
+def test_the_memory_section_counts_the_block_not_the_file(memory_dir):
+    """`/usage` reports the size the cap is decided on.
+
+    The block dates a loop nobody has touched; the file does not. A report that
+    measured the file would understate the core and disagree with the figure the
+    block states about itself one line above the loops.
+    """
+    _write_fact(
+        memory_dir,
+        "asleep",
+        "An old thread.",
+        kind="loop",
+        updated="2026-01-01T00:00:00",
+    )
+
+    snapshot = read_snapshot()
+
+    facts = store.load_facts()
+    assert snapshot.core_chars == len(render_core(facts, store.today()))
+    assert snapshot.core_chars > len(render_core(facts))
