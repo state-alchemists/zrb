@@ -9,6 +9,55 @@ _MISSING_KEY_MESSAGE = re.compile(r"Set the `\w+` environment variable")
 # The OpenAI SDK's wording, raised when its client is built before pydantic-ai checks.
 _OPENAI_SDK_MISSING_KEY_MESSAGE = re.compile(r"Missing credentials")
 
+# Explicit "no such tool" wording that names the tool. A bare
+# "tool ... invalid" is not enough: a 400 for "invalid function arguments" is a
+# malformed request, not a call to a nonexistent tool, and telling the model it
+# invented a tool name would send it chasing the wrong fix.
+_TOOL_WORD = r"(?:tool|function)"
+_TOOL_NAME = r"['\"`]?([A-Za-z_][A-Za-z0-9_.-]*)['\"`]?"
+_INVALID_TOOL_PATTERNS = (
+    re.compile(
+        rf"\b(?:unknown|unrecognized|unrecognised)\s+{_TOOL_WORD}"
+        rf"(?:\s+name)?\b\s*[:\-]?\s*{_TOOL_NAME}",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\b{_TOOL_WORD}(?:\s+name)?\b\s+{_TOOL_NAME}\s+(?:is|was)?\s*"
+        r"(?:not\s+(?:found|defined|recognized|recognised)|"
+        r"does\s+not\s+exist|unknown|missing)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\bno\s+such\s+{_TOOL_WORD}\b\s*[:\-]?\s*{_TOOL_NAME}",
+        re.IGNORECASE,
+    ),
+)
+
+# A token-limit phrase counts as context overflow only next to a word that ties
+# it to the request. A billing or validation error that merely says "token
+# limit" must not prune the conversation.
+_CONTEXT_OVERFLOW_PHRASES = (
+    "prompt too long",
+    "input too long",
+    "context too long",
+    "context length",
+    "context_length",
+    "context window",
+    "context_window",
+    "maximum context",
+    "max context",
+    "history too long",
+    "messages too long",
+)
+_TOKEN_LIMIT_PHRASES = (
+    "max tokens",
+    "maximum tokens",
+    "token limit",
+    "too many tokens",
+    "too many input tokens",
+)
+_REQUEST_CONTEXT_WORDS = ("context", "message", "history", "prompt", "input")
+
 
 def _typed_model_errors() -> dict[str, type[Exception]]:
     """pydantic-ai's typed model errors, imported on first use.
@@ -46,28 +95,41 @@ def _is_typed_model_error(e: BaseException, *kinds: str) -> bool:
 
 
 def is_prompt_too_long_error(e: Exception) -> bool:
-    """Returns True if the exception is a context length / token limit error."""
+    """Returns True if the exception is a context length / token limit error.
+
+    A typed `ModelContextWindowExceededError` is the provider's own answer. For
+    an untyped error, "max tokens"/"token limit" only means context overflow
+    when the request itself is named too: a billing or validation 400/429 may
+    use the same words without asking the conversation to shrink.
+    """
     if _is_typed_model_error(e, "context_window"):
         return True
     err_str = str(e).lower()
-    context_keywords = [
-        "prompt too long",
-        "context length",
-        "context window",
-        "max tokens",
-        "token limit",
-        "input too long",
-        "maximum context",
-    ]
-    return any(keyword in err_str for keyword in context_keywords)
+    if any(phrase in err_str for phrase in _CONTEXT_OVERFLOW_PHRASES):
+        return True
+    has_token_limit = any(phrase in err_str for phrase in _TOKEN_LIMIT_PHRASES)
+    return has_token_limit and any(word in err_str for word in _REQUEST_CONTEXT_WORDS)
 
 
-def _get_body_message(e: Exception) -> str:
-    """Extract the provider's error message from the body, falling back to str(e)."""
+def get_body_message(e: Exception) -> str:
+    """Extract the provider's error message from the body, falling back to str(e).
+
+    Providers disagree on the shape: OpenAI and OpenAI-compatible APIs use
+    ``{"message": ...}``, Anthropic nests it as ``{"error": {"message": ...}}``,
+    and Bedrock capitalises both keys as ``{"Error": {"Message": ...}}``.
+    """
     body = getattr(e, "body", None)
     if isinstance(body, dict):
-        msg = body.get("message") or ""
-        return msg
+        messages = [body.get("message")]
+        error = body.get("error")
+        if isinstance(error, dict):
+            messages.append(error.get("message"))
+        bedrock_error = body.get("Error")
+        if isinstance(bedrock_error, dict):
+            messages.append(bedrock_error.get("Message"))
+        for message in messages:
+            if isinstance(message, str) and message:
+                return message
     return str(e)
 
 
@@ -75,17 +137,15 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
     """Returns True if the exception is an HTTP 400 caused by an invalid/unknown tool name.
 
     Reads the body's message, not str(e), to avoid matching wrapper metadata
-    such as ``'type': 'invalid_request_error'``.
+    such as ``'type': 'invalid_request_error'``, and requires one of the
+    provider's explicit no-such-tool phrases to name the tool: "invalid
+    function arguments" is a malformed request, not a nonexistent tool.
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
         return False
-    err_str = _get_body_message(e).lower()
-    entity_keywords = ["tool", "function"]
-    problem_keywords = ["unknown", "invalid", "not defined", "not found"]
-    return any(k in err_str for k in entity_keywords) and any(
-        k in err_str for k in problem_keywords
-    )
+    message = get_body_message(e)
+    return any(pattern.search(message) for pattern in _INVALID_TOOL_PATTERNS)
 
 
 def is_missing_reasoning_content_error(e: Exception) -> bool:
@@ -227,12 +287,15 @@ def _token_for_status(e: Exception, status_code: int | None, msg: str) -> str | 
         if status_code == 529 or "overloaded" in msg:
             return "overloaded"
         return "server_error"
-    if is_prompt_too_long_error(e):
-        return "context_length"
+    # Credentials and a wrong model are decidable from the status alone, before
+    # any keyword: a 401 body that happens to say "token limit" is still an
+    # authentication failure, not a conversation to prune.
     if status_code in (401, 403):
         return "authentication_failed"
     if status_code == 404:
         return "model_not_found"
+    if is_prompt_too_long_error(e):
+        return "context_length"
     if status_code == 400:
         return "invalid_request"
     return None

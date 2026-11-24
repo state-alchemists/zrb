@@ -121,7 +121,7 @@ async def test_prompt_too_long_no_progress_does_not_retry():
 @pytest.mark.asyncio
 async def test_handle_stream_error_invalid_tool_call_with_string_message():
     state = RetryState(invalid_tool_retry_done=False)
-    exc = Exception("Unknown tool")
+    exc = Exception("Unknown tool 'ReadRead'")
     exc.status_code = 400
     current_history = ["msg1"]
     current_message = "hello"
@@ -155,9 +155,33 @@ async def test_handle_stream_error_invalid_tool_call_includes_name_from_body():
 
 
 @pytest.mark.asyncio
-async def test_handle_stream_error_invalid_tool_call_includes_name_from_history():
-    """For providers whose body is generic, scan history for the wrapper's
-    'Unknown tool name: X' rejection text."""
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"message": "Unknown tool 'foo'"}},  # Anthropic
+        {"Error": {"Message": "Unknown tool 'foo'"}},  # Bedrock
+    ],
+)
+async def test_handle_stream_error_invalid_tool_call_reads_nested_provider_bodies(body):
+    """The classifier accepts Anthropic/Bedrock bodies; the name must survive too."""
+    state = RetryState(invalid_tool_retry_done=False)
+    exc = Exception("body unused")
+    exc.status_code = 400
+    exc.body = body
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg"], "hello", [], print_fn)
+
+    assert outcome.should_retry is True
+    assert "`foo`" in outcome.new_message
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_generic_invalid_arguments_never_claims_a_missing_tool():
+    """A generic "invalid arguments" body is a malformed request, not an
+    invented tool name. Even when history holds the wrapper's "Unknown tool
+    name" rejection text, it is not evidence about this 400's cause, so the
+    opaque-400 path runs instead of the invalid-tool corrective."""
     state = RetryState(invalid_tool_retry_done=False)
     exc = Exception("body unused")
     exc.status_code = 400
@@ -185,13 +209,16 @@ async def test_handle_stream_error_invalid_tool_call_includes_name_from_history(
 
     outcome = await handle_stream_error(state, exc, history, "hello", [], print_fn)
 
-    assert "`ActivateSkillReadRead`" in outcome.new_message
+    assert outcome.should_retry is True
+    assert outcome.new_message == "hello"
+    assert "ActivateSkillReadRead" not in outcome.new_message
+    assert state.invalid_tool_retry_done is False
 
 
 @pytest.mark.asyncio
 async def test_handle_stream_error_invalid_tool_call_without_string_message():
     state = RetryState(invalid_tool_retry_done=False)
-    exc = Exception("Unknown tool")
+    exc = Exception("Unknown tool 'ReadRead'")
     exc.status_code = 400
     current_history = ["msg1"]
     current_message = None
