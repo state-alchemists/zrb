@@ -99,6 +99,42 @@ def test_recent_is_empty_with_nothing_to_show():
     assert render_recent(None, None, []) == ""
 
 
+def test_a_retired_day_carries_no_line_of_the_recent_block():
+    """`forget` retires the day and keeps the file, so a render may read it back.
+
+    The claim is untouched by retirement, so the injection check passed and the
+    block said `Today` and `Handover` about a page the user had just taken back.
+    """
+    retired = Diary(
+        id="2026-11-03",
+        claim="A day.",
+        handover="Ask about the DNS access first.",
+        status="retired",
+        reason="wrong",
+    )
+
+    assert render_recent(retired, retired, []) == ""
+    # The log is not a claim a forget can retire; it is unaffected.
+    assert "an event" in render_recent(retired, retired, ["- 09:00 — an event"])
+
+
+def test_a_retired_day_is_not_the_last_day_written():
+    """The last-day line reads a different entry, and it may be retired too."""
+    previous = Diary(
+        id="2026-11-02",
+        claim="Cut confidence and identity.",
+        status="retired",
+        reason="wrong",
+    )
+    today = Diary(id="2026-11-03", claim="Today.", updated="2026-11-03T09:00:00")
+
+    recent = render_recent(None, today, [], previous_entry=previous)
+
+    assert "Cut confidence and identity." not in recent
+    assert "- 2026-11-02:" not in recent
+    assert "- Today (2026-11-03):" in recent
+
+
 def test_cut_lines_keeps_whole_lines_only():
     text = "one\ntwo\nthree"
     assert cut_lines(text, len(text)) == text
