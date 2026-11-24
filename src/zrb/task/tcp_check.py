@@ -5,8 +5,17 @@ from zrb.attr.type import IntAttr, StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.base.base_task import BaseTask
-from zrb.task.base.params import CheckTaskParams, reject_non_check_params
+from zrb.task.base.params import (
+    CheckTaskParams,
+    reject_non_check_params,
+    reject_non_positive_interval,
+)
 from zrb.util.attr import get_int_attr, get_str_attr
+
+# `open_connection` has no timeout of its own, so a blackholed host would wait
+# for the OS (minutes). Bound each probe instead of relying on the parent's
+# readiness timeout, which an explicit 0 removes.
+_MIN_PROBE_TIMEOUT = 1.0
 
 
 class TcpCheck(BaseTask):
@@ -46,8 +55,13 @@ class TcpCheck(BaseTask):
 
     def _get_interval(self) -> float:
         if self._interval is not None:
-            return self._interval
-        return CFG.TCP_CHECK_INTERVAL / 1000
+            source, interval = "`interval`", self._interval
+        else:
+            configured = CFG.TCP_CHECK_INTERVAL
+            source = f"`ZRB_TCP_CHECK_INTERVAL` (milliseconds, currently {configured})"
+            interval = configured / 1000
+        reject_non_positive_interval("TcpCheck", source, interval)
+        return interval
 
     def _get_host(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._host, "localhost")
@@ -62,7 +76,10 @@ class TcpCheck(BaseTask):
         while True:
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
-                _, writer = await asyncio.open_connection(host, port)
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=_MIN_PROBE_TIMEOUT,
+                )
                 # Connecting is the signal; a close error must not force a retry.
                 try:
                     writer.close()
@@ -71,8 +88,10 @@ class TcpCheck(BaseTask):
                     ctx.log_info(f"Error closing probe connection: {close_error}")
                 ctx.log_info(f"Connection to {host}:{port} established successfully")
                 return True
-            except asyncio.TimeoutError as e:
-                ctx.log_info(f"Timeout error {e}")
+            except asyncio.TimeoutError:
+                ctx.log_info(
+                    f"No response from {host}:{port} within " f"{_MIN_PROBE_TIMEOUT}s"
+                )
             except Exception as e:
                 ctx.log_info(f"Error: {e}")
             await asyncio.sleep(interval)

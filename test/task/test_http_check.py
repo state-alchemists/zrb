@@ -97,14 +97,55 @@ async def test_http_check_exception(mock_session):
 
 
 @pytest.mark.asyncio
-async def test_http_check_probe_timeout_has_a_floor_for_a_zero_interval(mock_session):
+@pytest.mark.parametrize("interval", [0, -1])
+async def test_http_check_rejects_a_non_positive_interval(mock_session, interval):
+    """A non-positive interval would make asyncio.sleep spin, hammering the URL."""
+    with patch("requests.request") as mock_request:
+        http_check = HttpCheck(name="test_http_check", interval=interval)
+        mock_session.register_task(http_check)
+
+        with pytest.raises(ValueError) as exc_info:
+            await http_check.exec(mock_session)
+
+        mock_request.assert_not_called()
+
+    message = str(exc_info.value)
+    assert "HttpCheck" in message
+    assert "`interval`" in message
+    assert str(interval) in message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw_interval", ["0", "-500"])
+async def test_http_check_rejects_a_non_positive_configured_interval(
+    mock_session, monkeypatch, raw_interval
+):
+    """The CFG-backed interval is rejected too, naming the setting."""
+    monkeypatch.setenv("ZRB_HTTP_CHECK_INTERVAL", raw_interval)
+    with patch("requests.request") as mock_request:
+        http_check = HttpCheck(name="test_http_check")
+        mock_session.register_task(http_check)
+
+        with pytest.raises(ValueError) as exc_info:
+            await http_check.exec(mock_session)
+
+        mock_request.assert_not_called()
+
+    message = str(exc_info.value)
+    assert "ZRB_HTTP_CHECK_INTERVAL" in message
+    assert raw_interval in message
+
+
+@pytest.mark.asyncio
+async def test_http_check_probe_timeout_has_a_floor_for_a_short_interval(mock_session):
+    """A sub-second interval still bounds the blocking probe at the floor."""
     mock_response = MagicMock()
     mock_response.status_code = 200
 
     with patch("requests.request", return_value=mock_response) as mock_request:
-        http_check = HttpCheck(name="test_http_check", interval=0)
+        http_check = HttpCheck(name="test_http_check", interval=0.1)
         mock_session.register_task(http_check)
 
         await http_check.exec(mock_session)
 
-        assert mock_request.call_args.kwargs["timeout"] > 0
+        assert mock_request.call_args.kwargs["timeout"] == 1.0
