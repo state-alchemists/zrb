@@ -113,7 +113,7 @@ async def test_rsync_task_with_key(mock_session):
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
-        assert "-i /path/to/key" in cmd_script
+        assert '-i "/path/to/key"' in cmd_script
 
 
 @pytest.mark.asyncio
@@ -181,7 +181,7 @@ async def test_rsync_task_with_key_and_password(mock_session):
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
         assert "sshpass" in cmd_script
-        assert "-i /path/to/key" in cmd_script
+        assert '-i "/path/to/key"' in cmd_script
 
 
 @pytest.mark.asyncio
@@ -306,9 +306,31 @@ async def test_ssh_key_is_quoted_for_the_remote_shell():
     )
 
     tokens = shlex.split(await _script(task))
-    ssh_command = shlex.split(tokens[tokens.index("-e") + 1])
+    ssh_argument = tokens[tokens.index("-e") + 1]
 
-    assert ssh_command == ["ssh", "-i", key, "-p", "22"]
+    # Double quotes, not shlex's single quotes: rsync splits the -e string
+    # itself, and an apostrophe must survive that split.
+    assert ssh_argument == 'ssh -i "/keys/it\'s a key" -p 22'
+    assert shlex.split(ssh_argument) == ["ssh", "-i", key, "-p", "22"]
+
+
+@pytest.mark.asyncio
+async def test_ssh_key_escapes_double_quotes_and_backslashes():
+    key = '/keys/it\'s "quoted" \\ path'
+
+    task = RsyncTask(
+        name="test_rsync",
+        local_source_path="/local/path",
+        remote_destination_path="/remote/path",
+        remote_host="remote-host",
+        remote_user="remote-user",
+        remote_ssh_key=key,
+    )
+
+    tokens = shlex.split(await _script(task))
+    ssh_argument = tokens[tokens.index("-e") + 1]
+
+    assert shlex.split(ssh_argument) == ["ssh", "-i", key, "-p", "22"]
 
 
 @pytest.mark.asyncio
@@ -341,6 +363,23 @@ async def test_password_auth_preserves_sshpass_e():
     script = await _script(task)
 
     assert script.startswith("sshpass -e rsync ")
+    assert "s3cret" not in script
+
+
+@pytest.mark.asyncio
+async def test_local_to_local_ignores_remote_password():
+    """No remote side means no sshpass (and no SSHPASS it would read)."""
+    task = RsyncTask(
+        name="test_rsync",
+        local_source_path="/local/source",
+        local_destination_path="/local/destination",
+        remote_password="s3cret",
+    )
+
+    script = await _script(task)
+
+    assert script.startswith("rsync ")
+    assert "sshpass" not in script
     assert "s3cret" not in script
 
 

@@ -9,6 +9,23 @@ from zrb.task.cmd_task import CmdTask
 from zrb.util.attr import get_str_attr
 
 
+def _quote_for_remote_shell(value: str) -> str:
+    """Double-quote *value* for the shell rsync's `-e` command runs.
+
+    That shell is not the parent: rsync splits the `-e` string itself before
+    handing it on, so a single-quoted value does not survive. An apostrophe is
+    literal inside double quotes; only backslash, double quote, dollar and
+    backtick need escaping.
+    """
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "\\$")
+        .replace("`", "\\`")
+    )
+    return f'"{escaped}"'
+
+
 class RsyncTask(CmdTask):
     def __init__(
         self,
@@ -73,8 +90,8 @@ class RsyncTask(CmdTask):
         user_prefix = f"{user}@" if user != "" else ""
         return f"{user_prefix}{bracket_ipv6(self._get_remote_host(ctx))}:{path}"
 
-    def _validate_paths(self, ctx: AnyContext) -> None:
-        """Refuse a path combination `rsync` cannot run as configured.
+    def _validate_paths(self, ctx: AnyContext) -> tuple[bool, bool]:
+        """Validate the pair and report whether each side is remote.
 
         Each side must name exactly one path; two remote sides are refused,
         while two local sides are a valid local copy. A remote side also
@@ -103,6 +120,7 @@ class RsyncTask(CmdTask):
                 f"RsyncTask({self.name!r}) has a remote path but no "
                 "remote_host; set remote_host to the SSH server."
             )
+        return source_is_remote, destination_is_remote
 
     def _is_remote_side(self, side: str, local: str, remote: str) -> bool:
         if local != "" and remote != "":
@@ -160,26 +178,28 @@ class RsyncTask(CmdTask):
     def _get_ssh_command(self, ctx: AnyContext) -> str:
         """The `ssh` command for rsync's `-e`, quoted for both shells.
 
-        `shlex.quote(key)` protects the key inside the command rsync runs;
-        quoting the whole string then protects it from the parent shell.
+        `_quote_for_remote_shell` protects the key inside the command rsync
+        runs (double quotes, so an apostrophe survives rsync's own split);
+        `shlex.quote` then protects the whole argument from the parent shell.
         """
         port = self._get_remote_port(ctx)
         key = self._get_remote_ssh_key(ctx)
         parts = ["ssh"]
         if key != "":
-            parts += ["-i", shlex.quote(key)]
-        parts += ["-p", shlex.quote(str(port))]
+            parts += ["-i", _quote_for_remote_shell(key)]
+        parts += ["-p", str(port)]
         return shlex.quote(" ".join(parts))
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:
-        self._validate_paths(ctx)
+        source_is_remote, destination_is_remote = self._validate_paths(ctx)
+        uses_remote = source_is_remote or destination_is_remote
         password = self._get_remote_password(ctx)
         ssh_command = self._get_ssh_command(ctx)
         exclude_from = self._get_exclude_from_param(ctx)
         exclude_from_with_space = f"{exclude_from} " if exclude_from != "" else ""
         src = shlex.quote(self._get_source_path(ctx))
         dst = shlex.quote(self._get_destination_path(ctx))
-        sshpass = "sshpass -e " if password != "" else ""
+        sshpass = "sshpass -e " if password != "" and uses_remote else ""
         return (
             f"{sshpass}rsync --mkpath -avz -e {ssh_command} "
             f"{exclude_from_with_space}{src} {dst}"
