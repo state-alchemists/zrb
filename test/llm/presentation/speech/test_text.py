@@ -162,8 +162,10 @@ def test_match_tool_phrase_fills_only_text_arguments():
 
 
 def test_a_short_reply_needs_no_block():
-    """The rule already says a short answer needs none, so the check must not
-    quarrel with the rule it exists to enforce."""
+    """The prompt asks for a block on every reply; this check stays wider on
+    purpose. It decides what a missing block costs — a repair call and a notice
+    on the next turn — and a short reply in one voice is heard whole without
+    harm, so flagging it would charge the net to replies it was never for."""
     assert not needs_spoken_block("Fixed the parser. The tests pass.")
 
 

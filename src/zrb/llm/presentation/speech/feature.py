@@ -67,8 +67,8 @@ _VOLUME_STEP_PERCENT = 10
 # repaired, cut by a barge-in or muted between being written and being
 # listened to, and a notice that names a delivery would be wrong in some of those.
 _MISSED_BLOCK_NOTICE = (
-    "Your last reply opened no `<spoken>` block. Anything more than a short "
-    "answer needs one."
+    "Your last reply opened no `<spoken>` block. While speech is on, every "
+    "reply opens with one, before anything else."
 )
 
 
