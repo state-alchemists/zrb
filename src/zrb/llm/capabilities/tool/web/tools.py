@@ -690,7 +690,8 @@ async def _install_page_request_guard(page) -> None:
 
 def fetch_page_fallback(url: str, user_agent: str) -> tuple:
     """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
-    return _response_to_page_content(url, get_web_page_response(url, user_agent))
+    response = get_web_page_response(url, user_agent)
+    return _response_to_page_content(response.url or url, response)
 
 
 def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
@@ -699,7 +700,8 @@ def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
     This is the default public-only path: no browser, whose separate resolver
     cannot be held to the address the guard validated.
     """
-    return _response_to_page_content(url, get_pinned_web_page_response(url, user_agent))
+    response = get_pinned_web_page_response(url, user_agent)
+    return _response_to_page_content(response.url or url, response)
 
 
 def _is_pdf_url(url: str) -> bool:

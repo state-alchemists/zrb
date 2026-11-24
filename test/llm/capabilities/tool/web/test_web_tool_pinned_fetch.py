@@ -210,6 +210,7 @@ async def test_a_pdf_path_is_extracted_without_a_pdf_content_type(headers):
     fake_pdf.__enter__.return_value = fake_pdf
 
     response = MagicMock(is_redirect=False)
+    response.url = "https://example.com/doc.pdf"
     response.headers = headers
     response.content = b"%PDF-1.4 ..."
     patcher, _sessions = _patch_pinned_sessions([response])

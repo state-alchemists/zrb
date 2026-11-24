@@ -395,3 +395,29 @@ async def test_the_default_path_does_not_use_the_browser():
     browser.assert_not_called()
     pinned.assert_called_once()
     assert "pinned content" in result["content"]
+
+
+def test_fetch_page_fallback_detects_pdf_from_the_final_redirect_url():
+    """A redirect may land on a `.pdf` the original URL did not name.
+
+    PDF detection must use the final response URL; using the requested URL parses
+    the bytes as HTML when the server sends no PDF Content-Type.
+    """
+    response = MagicMock()
+    response.url = "https://cdn.example.com/file.pdf"
+    response.headers = {"Content-Type": "text/html"}
+    response.content = b"%PDF-1.4"
+    response.raise_for_status.return_value = None
+
+    with (
+        patch.object(web_tools, "get_web_page_response", return_value=response),
+        patch("pdfplumber.open") as open_pdf,
+    ):
+        open_pdf.return_value.__enter__.return_value.pages = []
+        content, links, is_pdf = web_tools.fetch_page_fallback(
+            "https://example.com/download", "ua"
+        )
+
+    assert is_pdf is True
+    assert content == ""
+    assert links == []
