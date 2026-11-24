@@ -10,9 +10,11 @@ from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_muted
 
-#: Characters the spill file holds before it stops accepting more. A background
-#: process has no deadline, so without a cap the file could grow for as long as
-#: the process runs. The in-memory tail and `total_chars` are not affected.
+#: Characters a capped spill file holds before it stops accepting more. A
+#: background process has no deadline, so without a cap the file could grow for
+#: as long as the process runs. The in-memory tail and `total_chars` are not
+#: affected. A foreground capture is bounded by its command's timeout and is
+#: created uncapped, so its dump is the whole stream.
 SPILL_MAX_CHARS = 256 * 1024 * 1024
 
 
@@ -25,13 +27,21 @@ class StreamCapture:
       so it has its own, smaller budget.
     * the spill file — the complete stream, opened when the first character
       would be dropped, so ``text`` is the whole stream while ``spill_path``
-      is ``None``. Its size is capped at `SPILL_MAX_CHARS`: past the cap it
-      stops growing and records why, while the tail stays in memory.
+      is ``None``. With ``cap_spill`` its size stops at `SPILL_MAX_CHARS` and
+      the capture records why, while the tail stays in memory; without it the
+      file grows until the stream ends.
     """
 
-    def __init__(self, retain: int, echo: int, print_live: bool = True) -> None:
+    def __init__(
+        self,
+        retain: int,
+        echo: int,
+        print_live: bool = True,
+        cap_spill: bool = True,
+    ) -> None:
         self._retain = max(retain, 0)
         self._echo_budget = max(echo, 0)
+        self._cap_spill = cap_spill
         # False: `echo()` tracks the budget and `echoed_text` but doesn't
         # print, for a caller with its own live display (`update_shell_output`).
         self._print_live = print_live
@@ -62,14 +72,14 @@ class StreamCapture:
         return self.total_chars > self._held
 
     @property
-    def spill_capped(self) -> bool:
+    def is_spill_capped(self) -> bool:
         """Whether the spill file stopped at `SPILL_MAX_CHARS`."""
         return self._spill_capped
 
     @property
-    def spill_max_chars(self) -> int:
-        """The character cap for the spill file."""
-        return SPILL_MAX_CHARS
+    def spill_max_chars(self) -> int | None:
+        """The character cap for the spill file, or None when it is uncapped."""
+        return SPILL_MAX_CHARS if self._cap_spill else None
 
     def head_text(self, limit: int) -> str:
         """The first *limit* characters of the stream, read back from the spill.
@@ -173,13 +183,17 @@ class StreamCapture:
             self.spill_path = None
 
     def _write_to_spill(self, text: str) -> None:
-        """Append *text* to the spill file, stopping at `SPILL_MAX_CHARS`.
+        """Append *text* to the spill file, stopping at the cap when it has one.
 
         `total_chars` and the in-memory tail keep working past the cap; only
         the on-disk copy stops, and the file says why so a later reader does
         not mistake a capped file for the whole stream.
         """
         if self._spill is None or self._spill_capped or not text:
+            return
+        if not self._cap_spill:
+            self._spill.write(text)
+            self._spilled += len(text)
             return
         remaining = SPILL_MAX_CHARS - self._spilled
         if remaining <= 0:

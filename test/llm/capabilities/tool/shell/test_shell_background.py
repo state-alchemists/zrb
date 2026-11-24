@@ -310,6 +310,47 @@ async def test_a_line_over_the_pipe_limit_is_reported_as_truncation(
 
 
 @pytest.mark.asyncio
+async def test_an_over_limit_line_is_drained_so_the_child_can_exit(
+    tmp_path, monkeypatch
+):
+    """Stopping at readline's ValueError leaves the child blocked on a full
+    pipe, so it never exits and `MonitorProcess(wait)` never returns. The rest
+    of the stream must be read in bounded chunks until EOF instead."""
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 1024)
+    handle = await _start_bg(
+        "head -c 1048576 /dev/zero | tr '\\0' 'A'; echo; echo DONE",
+        "flood",
+        str(tmp_path),
+    )
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "DONE" in result
+    assert "stdout truncated" in result
+
+
+@pytest.mark.asyncio
+async def test_an_over_limit_stderr_line_is_drained_too(tmp_path, monkeypatch):
+    """The stderr reader drains an over-limit line the same way stdout's does."""
+    from zrb.llm.capabilities.tool.shell import background
+
+    monkeypatch.setattr(background, "_PIPE_LIMIT", 1024)
+    handle = await _start_bg(
+        "head -c 1048576 /dev/zero | tr '\\0' 'B' 1>&2; echo 1>&2; "
+        "echo STDERR-DONE 1>&2",
+        "flood",
+        str(tmp_path),
+    )
+    result = await create_monitor_process_tool()(handle, wait=10)
+
+    assert "exited (code 0)" in result
+    assert "STDERR-DONE" in result
+    assert "stderr truncated" in result
+
+
+@pytest.mark.asyncio
 async def test_spill_file_survives_after_handle_consumed(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
     handle = await _start_bg(

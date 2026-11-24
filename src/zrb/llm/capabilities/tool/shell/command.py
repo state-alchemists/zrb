@@ -272,11 +272,27 @@ def _live_shell_ui(ui: object) -> "_LiveShellUI | None":
 def _build_stream_captures(
     max_chars: int, supports_live_collapse: bool
 ) -> tuple[StreamCapture, StreamCapture]:
-    """A stdout/stderr capture pair; no console echo when the UI shows a live line."""
+    """A stdout/stderr capture pair; no console echo when the UI shows a live line.
+
+    Capped only by the command's own timeout, so the full-output dump these
+    captures feed is the whole stream. The cap belongs to a background process,
+    which has no deadline; an adopted foreground capture keeps this one, and the
+    time it may then run in the background bounds it instead.
+    """
     echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
     return (
-        StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
-        StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
+        StreamCapture(
+            max_chars,
+            echo_cap,
+            print_live=not supports_live_collapse,
+            cap_spill=False,
+        ),
+        StreamCapture(
+            max_chars,
+            echo_cap,
+            print_live=not supports_live_collapse,
+            cap_spill=False,
+        ),
     )
 
 

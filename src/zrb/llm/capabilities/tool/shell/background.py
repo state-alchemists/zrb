@@ -43,8 +43,14 @@ if TYPE_CHECKING:
 #: asyncio's default 64KB `StreamReader` limit makes `readline()` raise on a
 #: single long line (minified JS, one-line JSON logs), losing all output. The
 #: foreground `start_process` uses the same 8MB ceiling; `_read_pipe` turns the
-#: over-limit case into a visible truncation notice instead of a dead reader.
+#: over-limit case into a visible truncation notice and keeps draining the
+#: stream, so the child is never left blocked on a full pipe.
 _PIPE_LIMIT = 8 * 1024 * 1024
+
+#: Bytes read per `read()` once a line has overrun `_PIPE_LIMIT`. `read(n)` is
+#: not subject to the line limit, so this is how the rest of the stream keeps
+#: moving while the capture's own budgets bound what is kept.
+_DRAIN_CHUNK_SIZE = 64 * 1024
 
 
 class BackgroundProcessRow(TypedDict):
@@ -58,7 +64,9 @@ class BackgroundProcessRow(TypedDict):
 
 def _new_capture() -> StreamCapture:
     # echo=0: background output is never mirrored to the console.
-    return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
+    # cap_spill: a background process has no deadline, so its spill file stops
+    # at `SPILL_MAX_CHARS`; a foreground capture is bounded by its timeout.
+    return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0, cap_spill=True)
 
 
 @dataclass
@@ -239,15 +247,19 @@ class _ShellBackgroundRegistry:
                 line = await stream.readline()
             except ValueError:
                 # A single line past `_PIPE_LIMIT`. `readline` has already
-                # discarded it and every later call would raise again, so make
-                # the loss visible and end this reader cleanly instead of
-                # dying with an unretrieved exception.
+                # discarded its first `_PIPE_LIMIT` bytes, and every later
+                # `readline` would raise again, so report it once and then keep
+                # reading in bounded chunks. A reader that stops here leaves
+                # the child writing into a full pipe: it never exits, and the
+                # exit `MonitorProcess(wait)` waits for never comes.
                 notice = (
                     f"\n[{name} truncated: a single line exceeded the "
-                    f"{_PIPE_LIMIT}-byte pipe read limit; the rest of this "
-                    "stream was not captured]\n"
+                    f"{_PIPE_LIMIT}-byte pipe read limit; its first "
+                    f"{_PIPE_LIMIT} bytes were dropped, and the rest of the "
+                    "stream was still read]\n"
                 )
                 self._feed(handle, name, notice.encode())
+                await self._drain_pipe(handle, name, stream)
                 return
             if not line:
                 break
@@ -256,6 +268,21 @@ class _ShellBackgroundRegistry:
             remaining = await stream.read()
             if remaining:
                 self._feed(handle, name, remaining)
+
+    async def _drain_pipe(
+        self, handle: str, name: str, stream: asyncio.StreamReader
+    ) -> None:
+        """Read *stream* to EOF in bounded chunks after an over-limit line.
+
+        The capture's own retention and spill budgets bound what is kept; this
+        only has to keep the pipe moving until the child exits, so an over-limit
+        line costs the start of that line, not the process.
+        """
+        while True:
+            chunk = await stream.read(_DRAIN_CHUNK_SIZE)
+            if not chunk:
+                return
+            self._feed(handle, name, chunk)
 
     def _feed(self, handle: str, name: str, data: bytes) -> None:
         bp = self._procs.get(handle)
@@ -512,7 +539,7 @@ def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> st
         if cap.truncated:
             cap.flush()
             saved = f"full {name} saved to {cap.spill_path}"
-            if cap.spill_capped:
+            if cap.is_spill_capped:
                 saved = (
                     f"{name} saved up to {cap.spill_max_chars} chars at "
                     f"{cap.spill_path} (the spill file was capped, so later "

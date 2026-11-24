@@ -114,7 +114,7 @@ def test_feed_stops_writing_to_the_spill_file_at_the_cap(monkeypatch):
     cap.feed("A" * 60)  # opens the spill file
     cap.feed("B" * 1000)  # fills it to the cap, then stops
 
-    assert cap.spill_capped
+    assert cap.is_spill_capped
     assert cap.spill_max_chars == 100
     assert cap.total_chars == 1060
     assert cap.text == "B" * 10
@@ -132,6 +132,28 @@ def test_a_spill_file_under_the_cap_is_not_marked_capped():
     cap = StreamCapture(retain=5, echo=0)
     cap.feed("A" * 500)
 
-    assert cap.spill_capped is False
+    assert cap.is_spill_capped is False
     assert cap.spill_max_chars == 256 * 1024 * 1024
+    cap.discard()
+
+
+def test_an_uncapped_capture_writes_past_the_spill_cap(monkeypatch):
+    """A foreground capture is bounded by its command's timeout, not by the
+    background spill cap, so its spill file is the whole stream and the dump
+    built from it can claim completeness."""
+    from zrb.llm.capabilities.tool.shell import capture
+
+    monkeypatch.setattr(capture, "SPILL_MAX_CHARS", 50)
+    cap = StreamCapture(retain=10, echo=0, cap_spill=False)
+    cap.feed("A" * 60)
+    cap.feed("B" * 1000)
+
+    assert cap.is_spill_capped is False
+    assert cap.spill_max_chars is None
+    assert cap.total_chars == 1060
+
+    cap.flush()
+    with open(cap.spill_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert content == "A" * 60 + "B" * 1000
     cap.discard()
