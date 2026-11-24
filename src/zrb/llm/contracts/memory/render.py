@@ -56,6 +56,11 @@ _DELTA_MAX_CHARS = 400
 # moved from one written this morning, which is otherwise the same one line.
 _LOOP_AGE_MARKER_DAYS = 7
 
+# The last day a block can be drawn on, and so the widest a marker can ever get:
+# a count is the difference between two days the calendar can name, and nothing
+# reads past `date.max`. See `render_widest_core`.
+_WIDEST_AGE_DAY = date.max.isoformat()
+
 
 # Said instead of the path when the configured root carries an instruction
 # marker. The root is not a claim, but it lands in the same prompt one does, and
@@ -178,7 +183,8 @@ def render_core(facts: Sequence[Fact], today: str = "") -> str:
     arguments: the tests pin bytes, and the copy written to `core.md` passes no
     day at all, because an age is something a reader of the block acts on and a
     file does not. The count is derived from the claim's own `updated` and never
-    stored, so it cannot disagree with the file beside it.
+    stored, so it cannot disagree with the file beside it. A caller deciding the
+    cap measures `render_widest_core`, since an age only grows.
     """
     pinned = sorted(
         (fact for fact in facts if _is_pinned_fact(fact)),
@@ -195,6 +201,26 @@ def render_core(facts: Sequence[Fact], today: str = "") -> str:
     if loops:
         blocks.append(_section(LOOPS_HEADING, [_entry(fact, today) for fact in loops]))
     return "\n\n".join(blocks)
+
+
+def render_widest_core(facts: Sequence[Fact]) -> str:
+    """The core drawn on its latest day: the widest this store can ever render.
+
+    An age marker is drawn from the day of the render rather than stored, so
+    today's render is the *smallest* the core will ever be, and a cap measured
+    against it accepts a write the block cuts a week later — when nothing is
+    measuring and the claim is gone, with no delta to say so. Drawing every
+    aging loop's marker at once, on the last day the calendar can name, makes the
+    measure an upper bound rather than a snapshot: no renderable day is later,
+    so no marker can be wider, and a write that fits here still fits however long
+    its claim is carried. A pinned fact draws no marker, so a store of beliefs
+    costs the same either way.
+
+    This is a measure, not a view. The ages in it are nobody's today, so what a
+    caller writes or injects stays `render_core` — with the real day for the
+    block, and with none for `core.md`.
+    """
+    return render_core(facts, _WIDEST_AGE_DAY)
 
 
 def render_recent(

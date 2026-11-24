@@ -434,11 +434,14 @@ def _remember_fact_locked(
     active = _with_fact(fact)
     occupied = fact.pin or fact.kind == KIND_LOOP
     # The cap is a promise about the block the model is handed, and that block
-    # dates a loop that has gone untouched. Measuring the day-free text would
-    # accept a write the injection then has to cut, which is the one outcome the
-    # refusal exists to prevent. `write_core` still writes the day-free copy: the
-    # file records the claim, the block reports its age.
-    core = render.render_core(active, store.today())
+    # dates a loop that has gone untouched — and a line only grows with age. The
+    # day-free text would accept a write the injection then has to cut; today's
+    # dated render is barely better, since a claim written now carries no marker
+    # yet and is cut once it has one. `render_widest_core` draws every marker at
+    # the width it will reach, so the room kept here is still there when the
+    # claim has aged. `write_core` still writes the day-free copy: the file
+    # records the claim, the block reports its age.
+    core = render.render_widest_core(active)
     if occupied and len(core) > CFG.LLM_MEMORY_CORE_MAX_CHARS:
         return _over_core(fact, core)
     path = paths.fact_path(fact.id)
@@ -517,13 +520,20 @@ def _over_core(fact: Fact, core: str) -> str:
     The core shown is the one *before* this write. Showing the rejected render
     would hand the model a document that does not exist on disk and ask it to
     decide what to drop from it.
+
+    *core* is the widest measure of the store, not the text below it: it counts
+    every open loop's age marker at the width it will reach, which is why the
+    count can be over while today's core still fits. The line says so, because a
+    number a reader cannot reconcile with the document under it is a number it
+    will distrust.
     """
     limit = CFG.LLM_MEMORY_CORE_MAX_CHARS
     previous = render.render_core(store.load_facts(), store.today())
     deficit = len(core) - limit
     return (
         f"[SYSTEM SUGGESTION]: adding `{fact.id}` brings the memory core to "
-        f"{len(core)}/{limit} characters, {deficit} over. Nothing was written. "
+        f"{len(core)}/{limit} characters with every open loop's age marker at "
+        f"the width it will reach, {deficit} over. Nothing was written. "
         "Free the room first — `forget(<id>, 'stale')` for a claim that no longer "
         "holds, or `remember(<id>, pin=False)` for one that need not be resident — "
         "then record this again. The cap is checked only on the result.\n"
