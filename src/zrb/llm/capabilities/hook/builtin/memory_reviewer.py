@@ -382,7 +382,8 @@ def _open_loops_note() -> str:
         reverse=True,
     )
     named = loops[:_LOOPS_HANDED_OVER]
-    lines = [line for line in (render.core_line(fact) for fact in named) if line]
+    today = store.today()
+    lines = [line for line in (render.core_line(fact, today) for fact in named) if line]
     if not lines:
         return ""
     rest = len(loops) - len(named)

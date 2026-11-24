@@ -54,7 +54,9 @@ def read_snapshot() -> MemorySnapshot:
     """
     facts = store.load_facts()
     return MemorySnapshot(
-        core_chars=len(render.render_core(facts)),
+        # The block's size, ages and all: this is the number the cap is decided
+        # on, so a report that measured the day-free file would understate it.
+        core_chars=len(render.render_core(facts, store.today())),
         core_cap=CFG.LLM_MEMORY_CORE_MAX_CHARS,
         # The counts mirror what the core renders: a pin is a standing belief,
         # and an open loop renders whether or not it is pinned.
