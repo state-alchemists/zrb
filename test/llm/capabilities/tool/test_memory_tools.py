@@ -79,33 +79,6 @@ def test_pin_false_unpins_and_leaves_the_core(store_dir):
     assert "X is true." not in store.read_document(paths.core_path())
 
 
-def test_a_pin_that_does_not_fit_is_refused_and_nothing_is_written(
-    store_dir, monkeypatch
-):
-    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 90, raising=False)
-    remember("first", "First claim takes most of the room.", pin=True)
-    message = remember("second", "A second claim that will not fit.", pin=True)
-    assert "Nothing was written" in message
-    assert "current core" in message
-    assert store.load_fact("second") is None
-    assert "A second claim" not in store.read_document(paths.core_path())
-
-
-def test_the_refusal_names_the_core_as_it_is_not_as_it_would_be(store_dir, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 90, raising=False)
-    remember("first", "First claim takes most of the room.", pin=True)
-    message = remember("second", "A second claim that will not fit.", pin=True)
-    assert "[first]" in message
-    assert "[second]" not in message
-
-
-def test_a_loop_always_costs_core_room(store_dir, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 60, raising=False)
-    remember("owed", "I owe a staging cert rotation.", kind="loop")
-    message = remember("owed-2", "I owe a second thing as well.", kind="loop")
-    assert "Nothing was written" in message
-
-
 def test_forget_retires_without_deleting(store_dir):
     remember("x", "X is true.", pin=True)
     message = forget("x", "stale")

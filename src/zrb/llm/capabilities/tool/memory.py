@@ -433,7 +433,12 @@ def _remember_fact_locked(
     fact.updated = store.now()
     active = _with_fact(fact)
     occupied = fact.pin or fact.kind == KIND_LOOP
-    core = render.render_core(active)
+    # The cap is a promise about the block the model is handed, and that block
+    # dates a loop that has gone untouched. Measuring the day-free text would
+    # accept a write the injection then has to cut, which is the one outcome the
+    # refusal exists to prevent. `write_core` still writes the day-free copy: the
+    # file records the claim, the block reports its age.
+    core = render.render_core(active, store.today())
     if occupied and len(core) > CFG.LLM_MEMORY_CORE_MAX_CHARS:
         return _over_core(fact, core)
     path = paths.fact_path(fact.id)
@@ -514,7 +519,7 @@ def _over_core(fact: Fact, core: str) -> str:
     decide what to drop from it.
     """
     limit = CFG.LLM_MEMORY_CORE_MAX_CHARS
-    previous = render.render_core(store.load_facts())
+    previous = render.render_core(store.load_facts(), store.today())
     deficit = len(core) - limit
     return (
         f"[SYSTEM SUGGESTION]: adding `{fact.id}` brings the memory core to "

@@ -177,10 +177,10 @@ def test_a_write_holds_the_lock_across_its_render(store_dir, monkeypatch):
     release = threading.Event()
     original = render.render_core
 
-    def slow_render(facts):
+    def slow_render(facts, today=""):
         started.set()
         release.wait(5)
-        return original(facts)
+        return original(facts, today)
 
     monkeypatch.setattr(render, "render_core", slow_render)
     worker = threading.Thread(target=lambda: remember("x", "X is true."), daemon=True)
@@ -203,12 +203,12 @@ def test_two_writers_on_one_id_keep_both_their_fields(store_dir, monkeypatch):
     original = render.render_core
     calls = {"count": 0}
 
-    def slow_first_render(facts):
+    def slow_first_render(facts, today=""):
         calls["count"] += 1
         if calls["count"] == 1:
             started.set()
             release.wait(5)
-        return original(facts)
+        return original(facts, today)
 
     monkeypatch.setattr(render, "render_core", slow_first_render)
     first = threading.Thread(
