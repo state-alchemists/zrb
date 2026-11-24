@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.capabilities.tool.shell import command as shell_mod
 from zrb.llm.capabilities.tool.shell import run_shell_command
 from zrb.llm.capabilities.tool.shell.background import get_shell_background_registry
 
@@ -260,6 +261,24 @@ async def test_adoption_can_be_switched_off(tmp_path, monkeypatch):
 
     assert "(timed out)" in result
     assert "Handle:" not in result
+
+
+@pytest.mark.asyncio
+async def test_a_private_pid_namespace_disables_adoption(tmp_path, monkeypatch):
+    """A command inside bwrap's PID namespace dies with the sandbox and has no
+    host PID, so keeping it under a handle would report work the registry
+    cannot reach."""
+    monkeypatch.setattr(
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
+    )
+
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+
+    assert "(timed out)" in result
+    assert "moved to background" not in result
+    assert "Handle:" not in result
+    assert "background shells are unavailable" in result
+    assert f"{CFG.ENV_PREFIX}_LLM_SANDBOX_OS_SHELL=off" in result
 
 
 @pytest.mark.asyncio

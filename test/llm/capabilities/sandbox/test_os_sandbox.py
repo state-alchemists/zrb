@@ -9,6 +9,7 @@ from zrb.llm.capabilities.sandbox import (
     SandboxPolicy,
     SandboxUnavailableError,
     build_sandboxed_argv,
+    has_private_pid_namespace,
 )
 from zrb.llm.capabilities.sandbox import os_sandbox as os_sandbox_module
 
@@ -143,3 +144,36 @@ def test_unrepresentable_profile_path_falls_back(monkeypatch):
     argv, note = _call(policy)
     assert argv == PLAIN
     assert "cannot generate sandbox profile" in note
+
+
+def test_private_pid_namespace_needs_linux_bwrap_and_an_enabled_policy(monkeypatch):
+    monkeypatch.setattr(os_sandbox_module.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(
+        os_sandbox_module.shutil, "which", lambda name: "/usr/bin/bwrap"
+    )
+
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is True
+
+
+def test_private_pid_namespace_is_off_without_bwrap(monkeypatch):
+    monkeypatch.setattr(os_sandbox_module.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(os_sandbox_module.shutil, "which", lambda name: None)
+
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is False
+
+
+def test_private_pid_namespace_is_off_off_linux_or_when_shell_wrapping_is_off(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        os_sandbox_module.shutil, "which", lambda name: "/usr/bin/bwrap"
+    )
+    monkeypatch.setattr(os_sandbox_module.platform, "system", lambda: "Darwin")
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True)) is False
+
+    _patch_platform(monkeypatch, "Linux")
+    assert has_private_pid_namespace(SandboxPolicy(enabled=False)) is False
+    assert (
+        has_private_pid_namespace(SandboxPolicy(enabled=True, os_shell="off")) is False
+    )
+    assert has_private_pid_namespace(SandboxPolicy(enabled=True), skip=True) is False

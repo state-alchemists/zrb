@@ -12,6 +12,7 @@ from zrb.llm.capabilities.sandbox.os_sandbox import (
     ESCAPE_NOTE,
     SandboxUnavailableError,
     build_sandboxed_argv,
+    has_private_pid_namespace,
 )
 from zrb.llm.capabilities.sandbox.policy import (
     DEFAULT_DENY_READ_PATHS,
@@ -44,6 +45,7 @@ __all__ = [
     "ESCAPE_NOTE",
     "SandboxUnavailableError",
     "build_sandboxed_argv",
+    "has_private_pid_namespace",
     "current_sandbox_policy",
     "get_current_sandbox_policy",
     "sandbox_policy",

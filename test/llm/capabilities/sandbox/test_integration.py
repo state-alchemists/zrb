@@ -12,7 +12,11 @@ import shutil
 
 import pytest
 
-from zrb.llm.capabilities.sandbox import SandboxPolicy, current_sandbox_policy
+from zrb.llm.capabilities.sandbox import (
+    SandboxPolicy,
+    current_sandbox_policy,
+    has_private_pid_namespace,
+)
 from zrb.llm.capabilities.tool.shell import run_shell_command
 
 needs_seatbelt = pytest.mark.skipif(
@@ -162,13 +166,19 @@ async def test_no_spurious_background_pids_under_sandbox(tmp_path):
 async def test_background_pids_still_detected_under_sandbox(tmp_path):
     proj = tmp_path / "proj"
     proj.mkdir()
-    token = current_sandbox_policy.set(_policy(tmp_path))
+    policy = _policy(tmp_path)
+    token = current_sandbox_policy.set(policy)
     try:
         result = await run_shell_command("sleep 3 & echo started")
     finally:
         current_sandbox_policy.reset(token)
     assert "started" in result
-    assert "Background PIDs: (none)" not in result
+    if has_private_pid_namespace(policy):
+        # The child lives in bwrap's PID namespace, so its id is not a host
+        # pid and is deliberately not reported.
+        assert "Background PIDs: (none)" in result
+    else:
+        assert "Background PIDs: (none)" not in result
 
 
 @pytest.mark.asyncio

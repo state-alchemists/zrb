@@ -15,9 +15,11 @@ One `SandboxPolicy` (`zrb/llm/capabilities/sandbox/`) drives two enforcement lay
    - **reads** inside the deny-read list (credential directories such as `~/.ssh`, `~/.aws`, `~/.kube`) for every tool except `EXECUTE` ones (`Shell` is contained by the OS layer below, not by argument inspection). A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
 2. **OS-level subprocess wrapper** (macOS, Linux). Every subprocess a tool spawns is wrapped through `build_sandboxed_argv`, which takes any discrete `argv` and prepends only the sandbox-dispatch prefix — immune to `cd`, symlink tricks, and check-then-use races. The `Shell` tool passes its `[shell, shell_flag, command]` (foreground or `background=True`); the worktree tools pass their discrete `git` argv directly:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt). Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
-   - **Linux** — `bwrap` (bubblewrap): read-only root bind, read-write binds for the writable roots, `tmpfs`/`/dev/null` masks over the deny-read paths. No PID/network unsharing, so process-group handling, timeout kill, and background-PID tracking keep working.
+   - **Linux** — `bwrap` (bubblewrap): read-only root bind, read-write binds for the writable roots, `tmpfs`/`/dev/null` masks over the deny-read paths, and a private PID namespace (`--unshare-pid`) so the mounted `/proc` lists only the sandbox's own processes and `/proc/<pid>/root` cannot cross into another process's mount namespace. Network stays open, and the host-side process-group kill, timeout and PID tracking keep working (the PIDs the shell reports are namespace-local).
 
 The sandbox isolates the **filesystem only** — network stays open (commands like `git pull` and `pip install` keep working).
+
+On Linux, the private PID namespace also changes what the shell tool can keep alive: the sandbox's processes die when it exits, and their PIDs are namespace-local, so `Shell(background=True)` is refused, a command that outruns its `timeout` is killed instead of being moved to the background, and no background PIDs are reported (they would be namespace-local, not host PIDs). Run such a command in the foreground, or set `ZRB_LLM_SANDBOX_OS_SHELL=off` to restore background shells and PID reports.
 
 ## Platform Matrix
 

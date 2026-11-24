@@ -5,6 +5,7 @@ import shutil
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.capabilities.sandbox import SandboxPolicy
 from zrb.llm.capabilities.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -94,3 +95,46 @@ async def test_run_shell_command_cwd_does_not_widen_the_sandbox(monkeypatch, tmp
     binds = [argv[i + 1] for i, arg in enumerate(argv) if arg == "--bind"]
     assert "/" not in binds
     assert os.path.realpath(tmp_path) in binds
+
+
+@pytest.mark.asyncio
+async def test_background_shell_is_refused_in_a_private_pid_namespace(monkeypatch):
+    """The sandbox's processes die with it and its PIDs are not host PIDs, so a
+    background handle could neither track nor kill one."""
+    started = []
+
+    class _Registry:
+        async def start(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "a-handle"
+
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.tool.shell.background.get_shell_background_registry",
+        lambda: _Registry(),
+    )
+    monkeypatch.setattr(
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
+    )
+
+    result = await run_shell_command("sleep 1", background=True)
+
+    assert "PID namespace" in result
+    assert "foreground" in result
+    assert f"{CFG.ENV_PREFIX}_LLM_SANDBOX_OS_SHELL=off" in result
+    assert "Handle:" not in result
+    assert started == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_private_pid_namespace_hides_background_pids(monkeypatch):
+    """A namespace-local PID is not a host PID, so reporting it would let the
+    model signal an unrelated process."""
+    monkeypatch.setattr(
+        shell_mod, "has_private_pid_namespace", lambda policy, skip=False: True
+    )
+
+    result = await run_shell_command("sleep 1 & echo started")
+
+    assert "started" in result
+    assert "Background PIDs: (none)" in result

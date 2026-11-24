@@ -112,7 +112,7 @@ sequenceDiagram
     O-->>S: wrapped argv, note
 ```
 
-Neither wrapper unshares the network or the process IDs, so the command runs in place and the shell tool's timeout and process tracking keep working.
+macOS unshares neither the network nor the process IDs. Linux keeps the network but gives the sandbox its own PID namespace, so the mounted `/proc` lists only sandbox processes and `/proc/<pid>/root` cannot reach another process's mount namespace; the process-group kill and timeout still works because the parent signals the host PID and process group it spawned. Because the namespace's processes die with it and their PIDs are not host PIDs, `Shell(background=True)` is refused and timeout adoption is disabled there.
 
 ### Variations
 

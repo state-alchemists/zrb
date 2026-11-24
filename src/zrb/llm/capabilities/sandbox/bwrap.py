@@ -1,8 +1,16 @@
 """Linux bubblewrap argument generation for sandboxed shell commands.
 
-No ``--unshare-net`` (network stays open) and no ``--unshare-pid``, so the
-target keeps the PID / process-group semantics the shell tool's timeout-kill
-relies on.
+The sandbox gets its own PID namespace (``--unshare-pid``), so the procfs
+mounted at ``/proc`` lists only the sandbox's own processes. Sharing the
+host's PID namespace would let ``/proc/<pid>/root`` and ``/proc/<pid>/cwd``
+resolve into another same-uid process's mount namespace, reopening the paths
+the read-only root and deny-read masks close.
+
+No ``--unshare-net``: network stays open. Process-group semantics survive a
+PID namespace, because it does not change process groups: bwrap and the
+command stay in the group the parent created with ``start_new_session``, so
+the parent still kills that group and the bwrap child by host PID through
+``killpg`` and psutil.
 
 Later binds override earlier ones, so deny-read masks go last and stay masked
 even inside a writable root.
@@ -30,6 +38,10 @@ def build_bwrap_argv(bwrap_path: str, policy: SandboxPolicy) -> list[str]:
         "--dev-bind",
         "/dev",
         "/dev",
+        # Own PID namespace, then a procfs for it: a procfs mounted while
+        # sharing the host PID namespace lists host processes, and
+        # `/proc/<pid>/root` re-enters their mount namespaces.
+        "--unshare-pid",
         "--proc",
         "/proc",
     ]
