@@ -147,6 +147,35 @@ async def test_gate_blocks_read_of_deny_root(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_gate_judges_a_directory_by_the_deny_roots_it_contains(tmp_path):
+    """`Grep(path=parent)` would let ripgrep read a deny-read root's files
+    before the per-file filter, so a path that contains one is refused; a
+    sibling directory that contains none still runs."""
+    from zrb.llm.engine.agent.common import create_safe_wrapper
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+
+    def grep(pattern: str = "", path: str = ""):
+        return "results"
+
+    tag(grep, Capability.READ)
+    wrapped = create_safe_wrapper(grep, name="Grep")
+    policy = _enabled_policy(tmp_path, deny_read_paths=(str(secrets),))
+    with sandbox_policy(policy):
+        blocked = await wrapped(pattern="needle", path=str(tmp_path))
+        sibling = await wrapped(pattern="needle", path=str(project))
+
+    assert blocked.metadata.get("blocked") is True
+    assert "contains the protected directory" in blocked.return_value
+    assert "secrets" in blocked.return_value
+    assert "blocked" not in sibling.metadata
+    assert sibling.return_value == "results"
+
+
+@pytest.mark.asyncio
 async def test_gate_does_not_path_check_execute_tools(tmp_path):
     """Shell is the OS sandbox layer's territory, not argument inspection."""
     from zrb.llm.engine.agent.common import create_safe_wrapper

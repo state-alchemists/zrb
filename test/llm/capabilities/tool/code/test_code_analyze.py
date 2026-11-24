@@ -326,3 +326,71 @@ async def test_read_error_skips_file(tmp_path):
         res = await analyze_code(str(d), "query", use_lsp=False)
     # main.py still analyzed; trap.py silently skipped (204-205)
     assert "partial result" in res
+
+
+# --- sandbox: files the analyzer would read are judged one by one -----------
+
+
+def _code_sandbox(project, deny_dir):
+    from zrb.llm.capabilities.sandbox import SandboxPolicy
+
+    return SandboxPolicy(
+        enabled=True,
+        writable_paths=(str(project),),
+        deny_read_paths=(str(deny_dir),),
+    )
+
+
+@pytest.mark.asyncio
+async def test_analyze_code_skips_a_deny_root_under_the_directory(tmp_path):
+    """The gate judged `path=tmp_path`, which is not itself denied.
+
+    AnalyzeCode then reads every file beneath it with a sub-agent, so a
+    deny-read root under the passed parent — and a workspace symlink into one —
+    must not reach that sub-agent. Regression: only the argument was checked.
+    """
+    from zrb.llm.capabilities.sandbox import sandbox_policy
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "main.py").write_text("def visible(): return 1\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("TOP_SECRET_KEY = 'x'\n")
+    (project / "innocent.py").symlink_to(secrets / "settings.py")
+
+    with (
+        sandbox_policy(_code_sandbox(project, secrets)),
+        patch(
+            "zrb.llm.capabilities.tool.code.analysis.run_agent", new_callable=AsyncMock
+        ) as run,
+    ):
+        run.return_value = ("analysis", [])
+        res = await analyze_code(str(tmp_path), "query", use_lsp=False, gitignore=False)
+
+    assert res == "analysis"
+    sent = repr(run.call_args_list)
+    assert "TOP_SECRET_KEY" not in sent
+    assert "main.py" in sent
+
+
+@pytest.mark.asyncio
+async def test_analyze_code_skips_a_denied_file_on_the_lsp_fallback(tmp_path, lsp_env):
+    """The LSP path reads the same collected files, so its fallback must not
+    read a denied one either."""
+    from zrb.llm.capabilities.sandbox import sandbox_policy
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "main.py").write_text("def visible(): return 1\n")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "settings.py").write_text("TOP_SECRET_KEY = 'x'\n")
+
+    with sandbox_policy(_code_sandbox(project, secrets)):
+        await analyze_code(str(tmp_path), "query", use_lsp=True, gitignore=False)
+
+    asked_paths = [call.args[0] for call in lsp_env["sym"].call_args_list]
+    assert asked_paths  # main.py is still analyzed
+    assert not any("secrets" in path for path in asked_paths)
+    assert "TOP_SECRET_KEY" not in repr(lsp_env["run"].call_args_list)

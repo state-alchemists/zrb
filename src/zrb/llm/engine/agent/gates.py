@@ -35,9 +35,11 @@ from zrb.llm.capabilities.permission import (
     get_current_agent_mode,
     get_effective_policy,
 )
+from zrb.llm.capabilities.permission.policy import PATH_ARG_KEYS
 from zrb.llm.capabilities.sandbox import (
     check_read,
     check_write,
+    contains_denied_read_root,
     get_effective_sandbox_policy,
 )
 from zrb.llm.capabilities.sandbox.policy import SandboxPolicy
@@ -47,12 +49,17 @@ from zrb.llm.contracts.shared.agent_tool_result import tool_return
 if TYPE_CHECKING:
     from pydantic_ai import RunContext, ToolReturn
 
-# Argument keys the sandbox gate treats as filesystem paths (subset of the
-# permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-# writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-# because move_file deletes it; "dst" because it gets overwritten).
-# EnterWorktree may receive an existing worktree path to resume; both
-# EnterWorktree and ExitWorktree must stay inside the writable boundary.
+# Every path-shaped argument spelling the sandbox judges, read-checked for all
+# tools and write-checked for EDIT/UNKNOWN ones ("src" is write-checked because
+# move_file deletes it; "dst" because it gets overwritten). The list is shared
+# with the permission layer's `arg_pattern` matching (`PATH_ARG_KEYS`), so a
+# spelling added for one layer covers both and they cannot drift.
+#
+# The snake_case spellings are what zrb's own tools declare; the camelCase and
+# single-word ones are what an MCP server or a plugin declares, and a tool whose
+# path argument is spelled `filePath` used to pass this gate with no check at
+# all. An unlisted spelling is a fail-open, so the common ones are listed rather
+# than discovered at run time.
 #
 # `cwd` is deliberately absent: it names the directory a call runs in, and a
 # resume lists worktrees and selects one without writing a byte. The one tool
@@ -60,23 +67,6 @@ if TYPE_CHECKING:
 # git resolves from it, on its create path only (`_repo_write_error`). A gate on
 # `cwd` here refused a resume whose repository was read-only but whose worktree
 # was not, which is a legitimate call.
-_SANDBOX_READ_KEYS = (
-    "path",
-    "file_path",
-    "file",
-    "filename",
-    "src",
-    "worktree_path",
-)
-_SANDBOX_WRITE_KEYS = (
-    "path",
-    "file_path",
-    "file",
-    "filename",
-    "src",
-    "dst",
-    "worktree_path",
-)
 
 
 def permission_gate(
@@ -132,14 +122,25 @@ def sandbox_gate(
     cap_value = getattr(capability, "value", capability)
     if cap_value == Capability.EXECUTE.value:
         return None
-    for key in _SANDBOX_READ_KEYS:
+    for key in PATH_ARG_KEYS:
         value = args.get(key)
         if isinstance(value, str):
             error = check_read(value, policy)
             if error is not None:
                 return _blocked(error)
+            # A directory can contain a deny-read root without being inside it.
+            # A recursive reader (`Grep` via ripgrep, `AnalyzeCode`) would open
+            # that root's files before the per-file check sees their results,
+            # so the path is refused before the reader runs.
+            contained_root = contains_denied_read_root(value, policy)
+            if contained_root is not None:
+                return _blocked(
+                    f"'{value}' contains the protected directory "
+                    f"'{contained_root}', which a recursive read would open "
+                    "before any per-file check; pass a narrower path"
+                )
     if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
-        for key in _SANDBOX_WRITE_KEYS:
+        for key in PATH_ARG_KEYS:
             value = args.get(key)
             if isinstance(value, str):
                 error = check_write(value, policy)

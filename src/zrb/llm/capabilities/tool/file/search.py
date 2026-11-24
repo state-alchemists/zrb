@@ -10,6 +10,10 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.sandbox import (
+    get_effective_sandbox_policy,
+    is_read_allowed,
+)
 from zrb.llm.capabilities.tool.file.listing import DEFAULT_EXCLUDED_PATTERNS
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
 from zrb.util.file import matches_any_pattern
@@ -150,9 +154,16 @@ class _SearchTally:
         self.match_count = 0
         self.file_match_count = 0
         self.skipped_count = 0
+        self.denied_count = 0
 
     def scan(self, file_path: str, rel_file_path: str) -> None:
         """Record *file_path*'s matches; an unreadable file counts as skipped."""
+        if not is_read_allowed(file_path, get_effective_sandbox_policy()):
+            # The gate judged the directory this call was given, not every file
+            # beneath it: a deny-read root under that directory, or a symlink
+            # pointing into one, is refused here and its content never surfaces.
+            self.denied_count += 1
+            return
         try:
             matches = get_file_matches(
                 file_path, self._pattern, context_lines=self._context_lines
@@ -215,22 +226,32 @@ def _build_search_output(
     }
     if truncation_notice:
         result["truncation_notice"] = truncation_notice
-    warning = _merge_skipped_warning(warning, tally.skipped_count)
+    warning = _merge_skipped_warning(
+        warning, tally.skipped_count, denied_count=tally.denied_count
+    )
     if warning:
         result["warning"] = warning
     return result
 
 
-def _merge_skipped_warning(warning: str | None, skipped_count: int) -> str | None:
-    """Add a notice when unreadable files make results incomplete."""
-    if skipped_count <= 0:
-        return warning
-    notice = (
-        f"{skipped_count} file(s) were skipped because they could not be read "
-        f"(permission denied, encoding error, or removed mid-scan); "
-        f"results may be incomplete."
-    )
-    return f"{warning} {notice}" if warning else notice
+def _merge_skipped_warning(
+    warning: str | None, skipped_count: int, denied_count: int = 0
+) -> str | None:
+    """Add a notice when unreadable or denied files make results incomplete."""
+    if skipped_count > 0:
+        notice = (
+            f"{skipped_count} file(s) were skipped because they could not be read "
+            f"(permission denied, encoding error, or removed mid-scan); "
+            f"results may be incomplete."
+        )
+        warning = f"{warning} {notice}" if warning else notice
+    if denied_count > 0:
+        notice = (
+            f"{denied_count} file(s) were excluded by the sandbox deny-read policy; "
+            f"their content is not reported."
+        )
+        warning = f"{warning} {notice}" if warning else notice
+    return warning
 
 
 def _search_with_ripgrep(

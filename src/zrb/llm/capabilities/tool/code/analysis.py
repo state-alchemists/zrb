@@ -9,6 +9,10 @@ from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.capabilities.lsp.manager.manager import lsp_manager
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.sandbox import (
+    get_effective_sandbox_policy,
+    is_read_allowed,
+)
 from zrb.llm.capabilities.tool.code.constants import (
     DEFAULT_EXTENSIONS,
     LSP_SUPPORTED_EXTENSIONS,
@@ -179,6 +183,26 @@ async def analyze_code(
     return summarized_infos[0]
 
 
+def _should_include_file(
+    rel_path: str,
+    include_patterns: list[str] | None,
+    exclude_patterns: list[str],
+    visible: set[str] | None,
+) -> bool:
+    """Whether *rel_path* passes the visibility, exclude and include filters.
+
+    The sandbox check stays in the walker: it needs the absolute path, and its
+    skip is worth a log line.
+    """
+    if visible is not None and os.path.normpath(rel_path) not in visible:
+        return False
+    if matches_any_pattern(rel_path, exclude_patterns):
+        return False
+    if include_patterns and not matches_any_pattern(rel_path, include_patterns):
+        return False
+    return True
+
+
 def _collect_matching_files(
     dir_path: str,
     extensions: list[str],
@@ -205,13 +229,17 @@ def _collect_matching_files(
             file_path = os.path.join(root, file)
             try:
                 rel_path = os.path.relpath(file_path, dir_path)
-                if visible is not None and (os.path.normpath(rel_path) not in visible):
-                    continue
-                if matches_any_pattern(rel_path, exclude_patterns):
-                    continue
-                if include_patterns and not matches_any_pattern(
-                    rel_path, include_patterns
+                if not _should_include_file(
+                    rel_path, include_patterns, exclude_patterns, visible
                 ):
+                    continue
+                if not is_read_allowed(file_path, get_effective_sandbox_policy()):
+                    # The gate judged the directory this call was given; a
+                    # deny-read root under it — or a symlink into one — must not
+                    # reach the sub-agent that reads these files.
+                    CFG.LOGGER.debug(
+                        f"analyze_code: skipped file denied by the sandbox: {file_path}"
+                    )
                     continue
                 matches.append((file_path, rel_path))
             except Exception as e:
