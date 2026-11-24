@@ -309,3 +309,53 @@ async def test_a_failing_agent_factory_is_reported_not_raised(mock_sub_agent_man
     assert "Error:" in result
     assert "agent factory failed: boom" in result
     mock_run_agent.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_delegation_releases_its_live_session(mock_sub_agent_manager):
+    """A turn that fails after registering must go idle.
+
+    `run_agent_task` used to clear `active_task` but leave the session
+    "running", so every later message queued behind a turn that no longer
+    existed and no continuation was ever started.
+    """
+    from zrb.llm.orchestration.subagent.live_session import (
+        live_subagent_session_registry,
+    )
+
+    live_subagent_session_registry.clear()
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    messages = []
+
+    async def flaky_run_agent(**kwargs):
+        messages.append(kwargs["message"])
+        if len(messages) == 1:
+            raise RuntimeError("provider down")
+        return "recovered", []
+
+    try:
+        with patch(
+            "zrb.llm.contracts.shared.subagent_turn.run_agent",
+            side_effect=flaky_run_agent,
+        ):
+            result = await tool(
+                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+            )
+            assert "Error: provider down" in result
+
+            [session] = live_subagent_session_registry.active("default")
+            assert session.state == "idle"
+            assert session.active_task is None
+
+            await live_subagent_session_registry.send_message(
+                "default", session.agent_id, "keep going"
+            )
+            continuation = session.active_task
+            assert continuation is not None
+            await continuation
+    finally:
+        live_subagent_session_registry.clear()
+
+    assert messages[-1] == "keep going"
+    assert session.state == "idle"

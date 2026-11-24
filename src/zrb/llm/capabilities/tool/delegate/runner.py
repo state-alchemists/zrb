@@ -219,8 +219,15 @@ async def run_agent_task(
         # No [SYSTEM SUGGESTION]: there is no known fix to suggest.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
-        if session is not None and session.active_task is asyncio.current_task():
-            session.active_task = None
+        if session is not None and session.is_turn_owner():
+            # A failed or cancelled turn must release ownership and go idle
+            # like a successful one; leaving the session "running" with no
+            # task queues every later message behind a turn that no longer
+            # exists. `mark_turn_finished` keeps the history it already has
+            # and drains messages queued during the turn.
+            get_live_session_registry().mark_turn_finished(
+                session.session_id, agent_id, session.history
+            )
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)
         # A delegation whose agent never started has no Stop to mirror.
