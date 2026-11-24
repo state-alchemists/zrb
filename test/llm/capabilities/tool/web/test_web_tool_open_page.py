@@ -19,7 +19,7 @@ def mock_google_rss():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_truncates_oversized_page():
+async def test_open_web_page_truncates_oversized_page(browser_path):
     """A page larger than LLM_MAX_OUTPUT_CHARS is capped, so the rate limiter
     never sees an un-admittable request."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
@@ -49,7 +49,7 @@ async def test_open_web_page_truncates_oversized_page():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_summarizer_input_is_bounded():
+async def test_open_web_page_summarizer_input_is_bounded(browser_path):
     """The summarizer sub-agent must receive the capped content, not the raw
     page — this is the request the limiter would otherwise reject forever."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
@@ -136,7 +136,7 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_closes_browser_even_when_goto_fails():
+async def test_open_web_page_closes_browser_even_when_goto_fails(browser_path):
     """A launched browser closes even when page.goto raises."""
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
@@ -159,7 +159,7 @@ async def test_open_web_page_closes_browser_even_when_goto_fails():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_closes_browser_on_success():
+async def test_open_web_page_closes_browser_on_success(browser_path):
     """The success path closes the browser exactly once."""
     with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
         mock_p = AsyncMock()
@@ -244,7 +244,7 @@ def test_notify_swallows_a_broken_uis_exception():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_notifies_before_fetching():
+async def test_open_web_page_notifies_before_fetching(browser_path):
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
     with (
@@ -267,7 +267,9 @@ async def test_open_web_page_notifies_before_fetching():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
+async def test_open_web_page_notifies_on_playwright_to_fallback_transition(
+    browser_path,
+):
     """The user is told when a Playwright failure falls back to plain HTTP."""
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
@@ -369,3 +371,21 @@ async def test_search_internet_returns_promptly_even_if_backend_never_returns(
     never_return.set()
     assert elapsed < 2
     assert result["error"] is not None
+
+
+@pytest.mark.asyncio
+async def test_the_default_path_does_not_use_the_browser():
+    """Chromium has its own resolver, so the public-only path cannot hold it to
+    a validated address; it fetches over pinned HTTP connections instead."""
+    with (
+        patch("zrb.llm.capabilities.tool.web.tools._fetch_via_browser") as browser,
+        patch(
+            "zrb.llm.capabilities.tool.web.tools._fetch_pinned_page",
+            return_value=("pinned content", [], False),
+        ) as pinned,
+    ):
+        result = await open_web_page("https://example.com", summarize=False)
+
+    browser.assert_not_called()
+    pinned.assert_called_once()
+    assert "pinned content" in result["content"]

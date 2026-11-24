@@ -29,3 +29,14 @@ def public_dns():
 
     with patch("socket.getaddrinfo", side_effect=fake_getaddrinfo):
         yield
+
+
+@pytest.fixture
+def browser_path(monkeypatch):
+    """Opt in to private hosts, which is the branch that still runs Playwright.
+
+    The default public-only path is pinned HTTP (a browser resolver cannot be
+    pinned). Tests about browser behaviour, or about the plain-HTTP fallback
+    that follows a failed browser, ask for this fixture.
+    """
+    monkeypatch.setenv("ZRB_LLM_WEB_ALLOW_PRIVATE_HOSTS", "on")

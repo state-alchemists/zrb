@@ -9,7 +9,10 @@ from zrb.config.config import CFG
 from zrb.llm.capabilities.tool.web import open_web_page
 from zrb.llm.capabilities.tool.web.tools import (
     UnsafeWebUrlError,
+    _fetch_pinned_page,
     _install_page_request_guard,
+    _PinnedAddressAdapter,
+    get_pinned_web_page_response,
     get_web_page_response,
     refuse_unsafe_web_url,
 )
@@ -250,15 +253,10 @@ def test_get_web_page_response_caps_a_redirect_chain():
 
 
 @pytest.mark.asyncio
-async def test_open_web_page_refuses_a_public_to_private_redirect_on_the_http_path():
+async def test_open_web_page_refuses_a_public_to_private_redirect_on_the_pinned_path():
+    """The default (public-only) path re-validates each hop before connecting."""
     session = _fake_session(_redirect_to("http://10.1.2.3/admin"))
-    with (
-        patch(
-            "playwright.async_api.async_playwright",
-            side_effect=ImportError("No playwright"),
-        ),
-        _patch_session(session),
-    ):
+    with _patch_session(session):
         result = await open_web_page("https://example.com/start", summarize=False)
 
     assert result["error"].startswith("Refusing to open")
@@ -267,22 +265,10 @@ async def test_open_web_page_refuses_a_public_to_private_redirect_on_the_http_pa
 
 @pytest.mark.asyncio
 async def test_browser_page_guard_aborts_private_requests_and_allows_public_ones():
-    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
-        mock_p = AsyncMock()
-        mock_browser = AsyncMock()
-        mock_page = AsyncMock()
-        mock_playwright_ctx.return_value.__aenter__.return_value = mock_p
-        mock_p.chromium.launch.return_value = mock_browser
-        mock_browser.new_page.return_value = mock_page
-        mock_response = MagicMock()
-        mock_response.headers = {"content-type": "text/html"}
-        mock_page.goto.return_value = mock_response
-        mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
-        mock_page.eval_on_selector_all.return_value = []
-
-        await open_web_page("https://example.com", summarize=False)
-
-    guard = mock_page.route.call_args.args[1]
+    page = MagicMock()
+    page.route = AsyncMock()
+    await _install_page_request_guard(page)
+    guard = page.route.call_args.args[1]
 
     private_route = _FakeRoute("http://169.254.169.254/latest/meta-data/")
     await guard(private_route)
@@ -323,3 +309,145 @@ async def test_browser_page_guard_revalidates_a_host_whose_dns_answer_changes():
     first_route.abort.assert_not_awaited()
     second_route.abort.assert_awaited_once()
     second_route.continue_.assert_not_awaited()
+
+
+def _address_info(address: str):
+    return (
+        socket.AF_INET,
+        socket.SOCK_STREAM,
+        socket.IPPROTO_TCP,
+        "",
+        (address, 0),
+    )
+
+
+class _FakePinnedSession:
+    """The slice of `requests.Session` the pinned fetch touches."""
+
+    def __init__(self, responses: list):
+        # Shared with the other fake sessions: each hop pops its own response.
+        self.responses = responses
+        self.requests: list = []
+        self.adapter = None
+
+    def mount(self, prefix: str, adapter) -> None:
+        self.adapter = adapter
+
+    def get(self, url: str, **kwargs):
+        self.requests.append((url, self.adapter._address))
+        self.headers = kwargs.get("headers", {})
+        return self.responses.pop(0)
+
+    def close(self) -> None:
+        pass
+
+
+def _patch_pinned_sessions(responses: list):
+    sessions: list[_FakePinnedSession] = []
+
+    pending = list(responses)
+
+    def make_session():
+        session = _FakePinnedSession(pending)
+        sessions.append(session)
+        return session
+
+    return (
+        patch(
+            "zrb.llm.capabilities.tool.web.tools.requests.Session",
+            side_effect=make_session,
+        ),
+        sessions,
+    )
+
+
+def test_pinned_fetch_connects_to_the_validated_address_even_if_dns_changes(
+    monkeypatch,
+):
+    """The guard's answer is the address the socket opens, not a fresh lookup:
+    a resolver that now returns a private address never gets that chance."""
+    answers = [_address_info("93.184.216.34"), _address_info("10.1.2.3")]
+    resolutions: list[str] = []
+
+    def fake_getaddrinfo(hostname, port, *args, **kwargs):
+        resolutions.append(hostname)
+        return [answers.pop(0)]
+
+    connected: list[str] = []
+
+    def refuse_create_connection(address, *args, **kwargs):
+        connected.append(address[0])
+        raise OSError("stop before the network")
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(
+        "urllib3.util.connection.create_connection", refuse_create_connection
+    )
+
+    with pytest.raises(requests.exceptions.ConnectionError):
+        _fetch_pinned_page("http://rebind.example.com/page", "agent")
+
+    assert connected == ["93.184.216.34"]
+    assert resolutions == ["rebind.example.com"]
+
+
+def test_pinned_adapter_keeps_tls_identity_on_the_url_hostname():
+    """Connecting to the IP must not move SNI or certificate verification off
+    the URL's hostname."""
+    adapter = _PinnedAddressAdapter("93.184.216.34")
+    request = requests.Request("GET", "https://example.com/page").prepare()
+
+    connection = adapter.get_connection_with_tls_context(request, verify=True)
+
+    assert connection.host == "93.184.216.34"
+    assert connection.port == 443
+    assert connection.conn_kw["server_hostname"] == "example.com"
+    assert connection.assert_hostname == "example.com"
+
+
+def test_pinned_fetch_resolves_and_pins_every_redirect_hop(monkeypatch):
+    final_response = _ok_response()
+    patcher, sessions = _patch_pinned_sessions(
+        [_redirect_to("https://next.example/page"), final_response]
+    )
+    addresses = {
+        "start.example": "93.184.216.34",
+        "next.example": "93.184.216.35",
+    }
+
+    def fake_getaddrinfo(hostname, port, *args, **kwargs):
+        return [_address_info(addresses[hostname])]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    with patcher:
+        response = get_pinned_web_page_response("https://start.example/", "agent")
+
+    assert response is final_response
+    assert len(sessions) == 1
+    assert sessions[0].requests == [
+        ("https://start.example/", "93.184.216.34"),
+        ("https://next.example/page", "93.184.216.35"),
+    ]
+
+
+def test_pinned_fetch_refuses_a_private_redirect_hop():
+    patcher, sessions = _patch_pinned_sessions(
+        [_redirect_to("http://169.254.169.254/latest/meta-data/")]
+    )
+    with patcher:
+        with pytest.raises(UnsafeWebUrlError, match="non-public"):
+            get_pinned_web_page_response("https://start.example/", "agent")
+
+    # The private hop is never connected to; only the public start was fetched.
+    assert len(sessions) == 1
+    assert len(sessions[0].requests) == 1
+
+
+def test_pinned_fetch_writes_the_hostname_into_the_host_header():
+    """The socket goes to the IP; the request must still name the virtual host
+    (and its non-default port), or TLS-terminating hosts serve the wrong site."""
+    patcher, sessions = _patch_pinned_sessions([_ok_response()])
+    with patcher:
+        get_pinned_web_page_response("https://example.com:8443/page", "agent")
+
+    assert sessions[0].headers["Host"] == "example.com:8443"

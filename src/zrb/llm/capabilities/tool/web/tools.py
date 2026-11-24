@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urlsplit
 
 import requests
 from pydantic import Field
+from requests.adapters import HTTPAdapter
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
@@ -296,31 +297,42 @@ async def _fetch_page_content(url: str) -> tuple:
     via ``run_blocking``."""
     user_agent = BROWSER_USER_AGENT
     fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
-    # Resolution blocks like the fetch itself; refuse before either path
-    # (Playwright or the requests fallback) is allowed to open the URL.
-    await run_blocking(refuse_unsafe_web_url, url, timeout=fetch_timeout)
-    # .pdf shortcut skips the browser; plain HTTP can be refused (Cloudflare,
-    # JS wall) where the browser succeeds, so failure falls through to it.
-    if url.split("?")[0].lower().endswith(".pdf"):
+    if CFG.LLM_WEB_ALLOW_PRIVATE_HOSTS:
+        # Opting in accepts private destinations, so Chromium's own resolver is
+        # not a bypass here; keep the browser for JS-rendered pages. Resolution
+        # blocks like the fetch itself; refuse before either path opens the URL.
+        await run_blocking(refuse_unsafe_web_url, url, timeout=fetch_timeout)
+        # .pdf shortcut skips the browser; plain HTTP can be refused (Cloudflare,
+        # JS wall) where the browser succeeds, so failure falls through to it.
+        if url.split("?")[0].lower().endswith(".pdf"):
+            try:
+                return await run_blocking(
+                    _fetch_pdf_content, url, user_agent, timeout=fetch_timeout
+                )
+            except Exception as e:
+                CFG.LOGGER.debug(
+                    f"Direct PDF fetch failed for {url}, trying browser: {e}"
+                )
         try:
-            return await run_blocking(
-                _fetch_pdf_content, url, user_agent, timeout=fetch_timeout
+            # If the Playwright driver subprocess crashes, its pipe breaks and the
+            # awaiting coroutine would hang forever; `wait_for` bounds it.
+            page_timeout = CFG.LLM_WEB_PAGE_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
+            return await asyncio.wait_for(
+                _fetch_via_browser(url, user_agent), timeout=page_timeout
             )
-        except Exception as e:
-            CFG.LOGGER.debug(f"Direct PDF fetch failed for {url}, trying browser: {e}")
-    try:
-        # If the Playwright driver subprocess crashes, its pipe breaks and the
-        # awaiting coroutine would hang forever; `wait_for` bounds it.
-        page_timeout = CFG.LLM_WEB_PAGE_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
-        return await asyncio.wait_for(
-            _fetch_via_browser(url, user_agent), timeout=page_timeout
-        )
-    except Exception:
-        # The fallback is a second wait of up to LLM_WEB_HTTP_TIMEOUT; say so.
-        notify(f"🔁 Browser fetch failed for {url}, retrying via plain HTTP...")
-        return await run_blocking(
-            fetch_page_fallback, url, user_agent, timeout=fetch_timeout
-        )
+        except Exception:
+            # The fallback is a second wait of up to LLM_WEB_HTTP_TIMEOUT; say so.
+            notify(f"🔁 Browser fetch failed for {url}, retrying via plain HTTP...")
+            return await run_blocking(
+                fetch_page_fallback, url, user_agent, timeout=fetch_timeout
+            )
+    # Default: no browser. Chromium resolves the hostname itself, so a preflight
+    # lookup cannot stop it from connecting elsewhere on the next answer (DNS
+    # rebinding). The pinned path resolves once per hop and connects to exactly
+    # that address; it is the only path that can be held to a validated address.
+    return await run_blocking(
+        _fetch_pinned_page, url, user_agent, timeout=fetch_timeout
+    )
 
 
 def refuse_unsafe_web_url(url: str) -> None:
@@ -332,6 +344,25 @@ def refuse_unsafe_web_url(url: str) -> None:
     deny-read list keeps out of the file tools' reach; a loopback, private,
     link-local or cloud-metadata host turns the fetch into an SSRF pivot.
     """
+    hostname = _validated_hostname(url)
+    if CFG.LLM_WEB_ALLOW_PRIVATE_HOSTS:
+        return
+    _assert_public_addresses(hostname)
+
+
+def resolve_validated_address(
+    url: str,
+) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    """The public address a connection to *url* must use.
+
+    The caller pins its socket to this address, so the hostname is resolved
+    once and cannot move to a private address before the connection opens.
+    """
+    return _assert_public_addresses(_validated_hostname(url))[0]
+
+
+def _validated_hostname(url: str) -> str:
+    """The hostname of an http(s) *url*, or a refusal for anything else."""
     parsed_url = urlsplit(url)
     scheme = parsed_url.scheme.lower()
     if scheme not in _WEB_FETCH_SCHEMES:
@@ -347,9 +378,15 @@ def refuse_unsafe_web_url(url: str) -> None:
             "https URLs only. [SYSTEM SUGGESTION]: Use an http(s) URL, or use "
             "WebSearch instead."
         )
-    if CFG.LLM_WEB_ALLOW_PRIVATE_HOSTS:
-        return
-    for address in _get_host_addresses(hostname):
+    return hostname
+
+
+def _assert_public_addresses(
+    hostname: str,
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Every address *hostname* resolves to, after refusing a non-public one."""
+    addresses = _get_host_addresses(hostname)
+    for address in addresses:
         if is_public_address(address):
             continue
         raise UnsafeWebUrlError(
@@ -358,6 +395,7 @@ def refuse_unsafe_web_url(url: str) -> None:
             "that must fetch a private host can set LLM_WEB_ALLOW_PRIVATE_HOSTS=on. "
             "[SYSTEM SUGGESTION]: Use a public URL, or use WebSearch instead."
         )
+    return addresses
 
 
 def _get_host_addresses(
@@ -409,8 +447,105 @@ def is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) ->
     )
 
 
+class _PinnedAddressAdapter(HTTPAdapter):
+    """Connect to one validated address, keeping the URL's host identity.
+
+    `requests` resolves the hostname itself when it opens the socket; that
+    second lookup is the DNS-rebinding window the URL guard cannot see. This
+    adapter gives urllib3 a pool bound to the address the guard validated
+    instead. For HTTPS, `server_hostname`/`assert_hostname` keep SNI and
+    certificate verification on the URL's hostname; `_get_pinned_response`
+    writes the URL's hostname into `Host`, since requests leaves that header
+    to the connection. Proxies are not used: the pin is the point.
+    """
+
+    def __init__(self, address: str) -> None:
+        self._address = address
+        super().__init__()
+
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        parsed_url = urlsplit(request.url)
+        scheme = parsed_url.scheme.lower()
+        port = parsed_url.port or (443 if scheme == "https" else 80)
+        pool_kwargs = {}
+        if scheme == "https" and parsed_url.hostname:
+            pool_kwargs["server_hostname"] = parsed_url.hostname
+            pool_kwargs["assert_hostname"] = parsed_url.hostname
+        return self.poolmanager.connection_from_host(
+            host=self._address,
+            port=port,
+            scheme=scheme,
+            pool_kwargs=pool_kwargs,
+        )
+
+
+def _host_header(url: str) -> str:
+    """The `Host` header value for *url*, naming the hostname rather than the IP."""
+    parsed_url = urlsplit(url)
+    host = parsed_url.hostname or ""
+    if ":" in host:  # an IPv6 literal needs brackets in a Host header
+        host = f"[{host}]"
+    port = parsed_url.port
+    default_port = 443 if parsed_url.scheme.lower() == "https" else 80
+    if port is not None and port != default_port:
+        host = f"{host}:{port}"
+    return host
+
+
+def _get_pinned_response(
+    session: requests.Session,
+    url: str,
+    user_agent: str,
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> requests.Response:
+    """GET one hop on *session* over a connection pinned to *address*."""
+    adapter = _PinnedAddressAdapter(str(address))
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session.get(
+        url,
+        # urllib3 otherwise writes the pinned IP into `Host`: the socket
+        # address must not become the request's virtual host.
+        headers={"User-Agent": user_agent, "Host": _host_header(url)},
+        timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+        allow_redirects=False,
+    )
+
+
+def get_pinned_web_page_response(url: str, user_agent: str) -> requests.Response:
+    """GET `url`, pinning every hop's connection to its validated address.
+
+    The hostname is resolved once per hop and the socket connects to exactly
+    that address, so an answer that changes after validation cannot redirect
+    the request into a private network. Redirects are followed by hand on one
+    session (so cookies survive) and each hop is validated and pinned again.
+    """
+    current_url = url
+    redirects = 0
+    session = requests.Session()
+    try:
+        while True:
+            address = resolve_validated_address(current_url)
+            response = _get_pinned_response(session, current_url, user_agent, address)
+            if not response.is_redirect:
+                return response
+            redirects += 1
+            if redirects > _MAX_WEB_REDIRECTS:
+                raise requests.TooManyRedirects(
+                    f"Refusing to follow more than {_MAX_WEB_REDIRECTS} redirects.",
+                    response=response,
+                )
+            current_url = urljoin(current_url, response.headers["Location"])
+    finally:
+        session.close()
+
+
 def get_web_page_response(url: str, user_agent: str) -> requests.Response:
     """GET `url`, re-validating every redirect hop against the URL guard.
+
+    This is the fallback used when private hosts are opted in (and by the PDF
+    shortcut there). The default public-only path uses
+    `get_pinned_web_page_response`, which also pins the connection address.
 
     `requests` follows a cross-host redirect by default, so a public URL could
     bounce the fetch onto a loopback or cloud-metadata host the first guard
@@ -514,10 +649,23 @@ async def _install_page_request_guard(page) -> None:
 
 def fetch_page_fallback(url: str, user_agent: str) -> tuple:
     """Plain-HTTP fallback when playwright is unavailable or fails (sync, run off-loop)."""
+    return _response_to_page_content(url, get_web_page_response(url, user_agent))
+
+
+def _fetch_pinned_page(url: str, user_agent: str) -> tuple:
+    """Fetch *url* over connections pinned to its validated addresses.
+
+    This is the default public-only path: no browser, whose separate resolver
+    cannot be held to the address the guard validated.
+    """
+    return _response_to_page_content(url, get_pinned_web_page_response(url, user_agent))
+
+
+def _response_to_page_content(url: str, response: requests.Response) -> tuple:
+    """Turn a fetched response into ``(content, links, is_pdf)``."""
     # lazy: heavy third-party
     from bs4 import BeautifulSoup
 
-    response = get_web_page_response(url, user_agent)
     response.raise_for_status()
     content_type = response.headers.get("Content-Type", "").lower()
     if "application/pdf" in content_type:
