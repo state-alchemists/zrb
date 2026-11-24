@@ -81,12 +81,12 @@ class RsyncTask(CmdTask):
         requires `remote_host`. Runs before the command is built, so a bad
         pair never reaches the shell.
         """
-        source_is_remote = self._side_is_remote(
+        source_is_remote = self._is_remote_side(
             "source",
             self._get_local_source_path(ctx),
             self._get_remote_source_path(ctx),
         )
-        destination_is_remote = self._side_is_remote(
+        destination_is_remote = self._is_remote_side(
             "destination",
             self._get_local_destination_path(ctx),
             self._get_remote_destination_path(ctx),
@@ -104,7 +104,7 @@ class RsyncTask(CmdTask):
                 "remote_host; set remote_host to the SSH server."
             )
 
-    def _side_is_remote(self, side: str, local: str, remote: str) -> bool:
+    def _is_remote_side(self, side: str, local: str, remote: str) -> bool:
         if local != "" and remote != "":
             raise ValueError(
                 f"RsyncTask({self.name!r}) sets both local_{side}_path and "
