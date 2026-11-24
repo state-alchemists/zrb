@@ -247,6 +247,11 @@ def test_pinned_fetch_idna_encodes_a_unicode_hostname():
     connection = adapter.get_connection_with_tls_context(request, verify=True)
     assert connection.conn_kw["server_hostname"] == ascii_host
     assert connection.assert_hostname == ascii_host
+    assert connection.cert_reqs == "CERT_REQUIRED"
+
+    insecure = _PinnedAddressAdapter("93.184.216.34")
+    unverified = insecure.get_connection_with_tls_context(request, verify=False)
+    assert unverified.cert_reqs == "CERT_NONE"
 
     # IP literals are not IDNA-encoded; explicit ports and IPv6 brackets stay.
     assert _host_header("http://93.184.216.34:8080/page") == "93.184.216.34:8080"

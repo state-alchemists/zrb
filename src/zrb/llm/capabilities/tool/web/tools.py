@@ -475,7 +475,12 @@ class _PinnedAddressAdapter(HTTPAdapter):
         parsed_url = urlsplit(str(request.url))
         scheme = parsed_url.scheme.lower()
         port = parsed_url.port or (443 if scheme == "https" else 80)
-        pool_kwargs = {}
+        # Ask requests for its normal TLS pool settings (`cert_reqs`, CA bundle,
+        # client certificate) and keep them; replacing the pool must not trade
+        # certificate verification for the address pin.
+        _, pool_kwargs = self.build_connection_pool_key_attributes(
+            request, verify, cert
+        )
         if scheme == "https" and parsed_url.hostname:
             hostname = _ascii_host(parsed_url.hostname)
             pool_kwargs["server_hostname"] = hostname
