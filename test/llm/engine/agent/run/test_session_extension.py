@@ -238,9 +238,14 @@ def test_two_side_effect_extensions_keep_a_frozen_none_answer():
 
 
 def test_a_side_effect_after_a_replacing_extension_returns_the_replacement():
-    """A replacement answer survives the side-effect run that follows it."""
+    """A replacement answer survives the side-effect run that follows it.
+
+    The replacement hook is evaluated before its continuation, so the answer is
+    the continuation's output (`REPLACEMENT ANSWER` here), not the output the
+    replacement superseded.
+    """
     state = ExtensionState()
-    replacement_history = ["replacement message"]
+    pre_replacement_history = ["pre-replacement message"]
 
     replacing = apply_turn_end_extension(
         [
@@ -249,17 +254,18 @@ def test_a_side_effect_after_a_replacing_extension_returns_the_replacement():
             )
         ],
         state,
-        "REPLACEMENT ANSWER",
-        replacement_history,
+        "PRE-REPLACEMENT ANSWER",
+        pre_replacement_history,
         _noop,
     )
     assert replacing.should_continue is True
 
+    replacement_history = ["replacement message"]
     side_effect = apply_turn_end_extension(
         [HookExecutionResult(success=True, system_message="record the summary")],
         state,
-        "SIDE-EFFECT REPLY",
-        ["side-effect message"],
+        "REPLACEMENT ANSWER",
+        replacement_history,
         _noop,
     )
     assert side_effect.should_continue is True
@@ -267,4 +273,5 @@ def test_a_side_effect_after_a_replacing_extension_returns_the_replacement():
     output, history = resolve_extended_return(state, "LATER REPLY", ["later message"])
 
     assert output == "REPLACEMENT ANSWER"
+    assert output != "PRE-REPLACEMENT ANSWER"
     assert history is replacement_history

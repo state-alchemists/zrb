@@ -136,12 +136,13 @@ def apply_turn_end_extension(
     state.extended = True
     state.return_extended = replace_response
     if replace_response:
-        # This run's output is the replacement answer. Record it so a later
-        # side-effect extension returns this answer rather than the side-effect
-        # run's acknowledgement.
-        state.answer_output = result_output
-        state.answer_history = run_history
-        state.answer_captured = True
+        # This hook runs before its continuation: `result_output` is the answer
+        # the replacement supersedes, not the replacement. Clear any earlier
+        # freeze; the first side-effect extension after the continuation will
+        # freeze that continuation's result.
+        state.answer_output = None
+        state.answer_history = None
+        state.answer_captured = False
     elif not state.answer_captured:
         # The first side-effect run freezes the answer it was asked to leave
         # alone — `None` included, since a nullable output can legitimately be
