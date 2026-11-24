@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -81,9 +80,6 @@ class ApprovalOutcome(TypedDict, total=False):
     handled: bool
     type: str
     error: str
-
-
-_timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
 
 
 @dataclass
@@ -168,21 +164,24 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
 
-    def _extract_base_name(self, session_name: str) -> str:
-        return _timestamp_pattern.sub("", session_name)
-
     def scan_sessions(self) -> list[tuple[str, float, int]]:
-        """Group history files by base session name.
+        """List saved conversations from their history files, newest first.
 
-        Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
-        Also scans delegated sub-agent transcripts under ``subagent/{agent_type}/``.
+        Returns ``(session_name, newest_mtime, file_count)`` tuples. A root
+        `.json` filename is exactly the conversation's name: backups live under
+        `backups/<name>/`, so nothing beside a live transcript is a timestamped
+        copy of another one. Stripping a trailing timestamp — what the old
+        flat-backup layout needed — folded live `standup-2026-11-20-09-00` and
+        `standup-2026-11-20-10-00` into one `standup` row whose transcript does
+        not exist, so selecting it loaded nothing. Also scans delegated
+        sub-agent transcripts under ``subagent/{agent_type}/``.
         """
         if not CFG.LLM_HISTORY_DIR:
             return []
         history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
         if not os.path.isdir(history_dir):
             return []
-        grouped: dict[str, list] = {}  # base -> [max_mtime, count]
+        grouped: dict[str, list] = {}  # session name -> [max_mtime, count]
         for directory in subagent_history_directories(history_dir):
             try:
                 entries = os.scandir(directory)
@@ -192,14 +191,14 @@ class ChatSessionManager:
                 for entry in entries:
                     if not entry.name.endswith(".json"):
                         continue
-                    base_name = self._extract_base_name(entry.name[:-5])
+                    session_name = entry.name[: -len(".json")]
                     try:
                         mtime = entry.stat().st_mtime
                     except OSError:
                         continue
-                    slot = grouped.get(base_name)
+                    slot = grouped.get(session_name)
                     if slot is None:
-                        grouped[base_name] = [mtime, 1]
+                        grouped[session_name] = [mtime, 1]
                     else:
                         if mtime > slot[0]:
                             slot[0] = mtime
