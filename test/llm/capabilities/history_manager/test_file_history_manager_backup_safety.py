@@ -11,6 +11,7 @@ two saves of the same conversation shared one predictable `.tmp` inode.
 import json
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -168,3 +169,56 @@ def test_a_failed_replace_cleans_up_its_temporary_file(tmp_path, monkeypatch):
     assert manager.is_dirty("hello")
     assert not (tmp_path / "hello.json").exists()
     assert not [name for name in os.listdir(tmp_path) if name.endswith(".tmp")]
+
+
+def test_a_symlinked_backups_root_cannot_receive_the_backup(tmp_path, monkeypatch):
+    """`backups/` itself can be a symlink; the resolved root must stay inside.
+
+    Resolving the per-conversation directory against a symlinked `backups/`
+    made the external target its own trusted root, so the backup path was
+    accepted and only the writer's own symlink rejection stopped it — reported
+    as a failed save. The root is refused up front now: the live transcript
+    still saves, the backup is never attempted, and no write failure is
+    reported.
+    """
+    reported: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.capabilities.history_manager.file_history_manager.zrb_print",
+        lambda *values, **kwargs: reported.append(
+            " ".join(str(value) for value in values)
+        ),
+    )
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    os.symlink(str(outside), str(history_dir / "backups"))
+
+    _save(FileHistoryManager(str(history_dir)), "hello")
+
+    assert (history_dir / "hello.json").exists()
+    assert list(outside.rglob("*.json")) == []
+    assert not any("Failed to save history" in line for line in reported)
+    assert any("backup root" in line for line in reported)
+
+
+def test_a_symlinked_backups_root_is_never_swept_by_retention(tmp_path, monkeypatch):
+    """The retention sweep reads `backups/` too, so an escaping root must not
+    let it remove a directory outside the history tree."""
+    monkeypatch.setattr(CFG, "LLM_HISTORY_RETENTION", "1d", raising=False)
+    monkeypatch.setattr(CFG, "LLM_HISTORY_BACKUP_RETAIN", 0, raising=False)
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    outside = tmp_path / "outside"
+    stale = outside / "bold-arch-1234"
+    stale.mkdir(parents=True)
+    backup_file = stale / "2024-01-01-10-00-00.json"
+    backup_file.write_text("[]")
+    stamp = time.time() - 3 * 86400
+    os.utime(backup_file, (stamp, stamp))
+    os.utime(stale, (stamp, stamp))
+    os.symlink(str(outside), str(history_dir / "backups"))
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert os.path.exists(stale)

@@ -344,6 +344,30 @@ class TestChatSessionManagerListing:
             "standup-2026-11-20-10-00",
         }
 
+    def test_scan_sessions_skips_a_legacy_flat_backup_beside_its_live_file(
+        self, tmp_path
+    ):
+        """A pre-`backups/` timestamped copy beside its live transcript is not a
+        session; the same shape with no live base is a live conversation."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+        (history_dir / "standup.json").write_text("[]")
+        (history_dir / "standup-2024-01-15-10-30-45.json").write_text("[]")
+        (history_dir / "retro-2026-11-20-09-00.json").write_text("[]")
+
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            sessions = manager.scan_sessions()
+
+        assert {session_name for session_name, _, _ in sessions} == {
+            "standup",
+            "retro-2026-11-20-09-00",
+        }
+        assert len(sessions) == 2
+
     @pytest.mark.asyncio
     async def test_get_sessions_includes_active_without_history(self):
         """An active session with no history file still shows up in the listing."""

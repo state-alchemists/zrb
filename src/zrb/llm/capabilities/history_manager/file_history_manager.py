@@ -493,12 +493,17 @@ class FileHistoryManager(AnyHistoryManager):
         (`safe_segment` turns a path into one filename-safe segment, and the
         dot segments `"."`/`".."` are refused outright). The containment check
         is the second line of defence: `safe_segment` strips separators, so a
-        symlinked `backups/` entry is what could still resolve elsewhere.
+        symlinked `backups/` entry is what could still resolve elsewhere. The
+        resolved backup *root* must stay inside the history directory too: a
+        `backups/` symlinked to an external directory would otherwise become
+        the trusted root for that check.
         """
         key = safe_segment(conversation_name)
         if key in (".", ".."):
             return ""
-        backup_root = os.path.join(self._history_dir, BACKUP_DIR_NAME)
+        backup_root = self._get_backup_root()
+        if not backup_root:
+            return ""
         directory = os.path.join(backup_root, key)
         if not _is_within(backup_root, directory):
             zrb_print(
@@ -508,6 +513,24 @@ class FileHistoryManager(AnyHistoryManager):
             )
             return ""
         return directory
+
+    def _get_backup_root(self) -> str:
+        """`backups/` when it resolves inside the history directory, else ``""``.
+
+        `backups/` itself can be a symlink. Resolving the per-conversation
+        directory against it would then treat the external target as its own
+        trusted root, so the resolved root is checked against the resolved
+        history directory first.
+        """
+        backup_root = os.path.join(self._history_dir, BACKUP_DIR_NAME)
+        if not _is_within(self._history_dir, backup_root):
+            zrb_print(
+                f"Warning: Refusing to use a history backup root outside "
+                f"{self._history_dir}: {backup_root}",
+                plain=True,
+            )
+            return ""
+        return backup_root
 
     def _contained_backup_path(self, directory: str, filename: str) -> str:
         """*filename* inside *directory*, or ``""`` if it escapes it."""
@@ -755,7 +778,9 @@ class FileHistoryManager(AnyHistoryManager):
 
     def _backup_directories(self) -> "list[str]":
         """Every per-conversation directory under `backups/`."""
-        backup_root = os.path.join(self._history_dir, BACKUP_DIR_NAME)
+        backup_root = self._get_backup_root()
+        if not backup_root:
+            return []
         try:
             with os.scandir(backup_root) as entries:
                 return [

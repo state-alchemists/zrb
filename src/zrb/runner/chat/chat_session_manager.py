@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -80,6 +81,20 @@ class ApprovalOutcome(TypedDict, total=False):
     handled: bool
     type: str
     error: str
+
+
+# A backup written beside its live transcript before the `backups/<name>/`
+# layout: `<live name>-YYYY-MM-DD-HH-MM-SS` (the seconds group optional, the
+# shape the old timestamp stripping recognized).
+_LEGACY_FLAT_BACKUP_SUFFIX = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
+
+
+def _legacy_flat_backup_base(session_name: str) -> str:
+    """The live conversation a pre-`backups/` flat backup belongs to, or ``""``."""
+    match = _LEGACY_FLAT_BACKUP_SUFFIX.search(session_name)
+    if match is None:
+        return ""
+    return session_name[: match.start()]
 
 
 @dataclass
@@ -169,12 +184,14 @@ class ChatSessionManager:
 
         Returns ``(session_name, newest_mtime, file_count)`` tuples. A root
         `.json` filename is exactly the conversation's name: backups live under
-        `backups/<name>/`, so nothing beside a live transcript is a timestamped
-        copy of another one. Stripping a trailing timestamp — what the old
-        flat-backup layout needed — folded live `standup-2026-11-20-09-00` and
-        `standup-2026-11-20-10-00` into one `standup` row whose transcript does
-        not exist, so selecting it loaded nothing. Also scans delegated
-        sub-agent transcripts under ``subagent/{agent_type}/``.
+        `backups/<name>/`, so a timestamp in a name is part of the name —
+        `standup-2026-11-20-09-00` and `standup-2026-11-20-10-00` are two
+        conversations, not one `standup` row whose transcript does not exist.
+        A timestamp-suffixed file is a legacy flat backup, and skipped, only
+        when its live `<base>.json` sits in the same directory; with no base
+        file it is a live conversation whose name happens to end in a
+        timestamp. Also scans delegated sub-agent transcripts under
+        ``subagent/{agent_type}/``.
         """
         if not CFG.LLM_HISTORY_DIR:
             return []
@@ -192,6 +209,13 @@ class ChatSessionManager:
                     if not entry.name.endswith(".json"):
                         continue
                     session_name = entry.name[: -len(".json")]
+                    base_name = _legacy_flat_backup_base(session_name)
+                    if base_name and os.path.isfile(
+                        os.path.join(directory, f"{base_name}.json")
+                    ):
+                        # A backup written beside its live transcript before
+                        # the `backups/` layout; the live file is the session.
+                        continue
                     try:
                         mtime = entry.stat().st_mtime
                     except OSError:
