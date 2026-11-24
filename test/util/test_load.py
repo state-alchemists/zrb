@@ -1,7 +1,11 @@
 import os
+import pickle
 import sys
 import tempfile
 import types
+import typing
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -113,6 +117,112 @@ def test_load_file_lets_the_file_import_itself_during_its_own_body():
         assert module.value is module
     finally:
         os.remove(path)
+
+
+def test_load_file_pickles_without_running_the_body_again():
+    """The declarations need a module name, but the file's stem must not keep one.
+
+    `pickle` re-imports the name it reads from `obj.__module__`; when that was
+    the stem, the file ran a second time and produced a different class. The
+    private identity keeps both promises: the body runs once, and pickle finds
+    the object it was given.
+    """
+    with tempfile.TemporaryDirectory() as directory:
+        marker = os.path.join(directory, "runs")
+        path = os.path.join(directory, "pickle_mod.py")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(
+                f"with open({marker!r}, 'a', encoding='utf-8') as runs:\n"
+                f"    runs.write('run\\n')\n"
+                f"class Thing:\n"
+                f"    pass\n"
+                f"def make():\n"
+                f"    return Thing()\n"
+            )
+        module = load_file(path, raise_on_error=True)
+        assert module is not None
+        assert module.__name__ == "pickle_mod"
+        assert sys.modules[module.Thing.__module__] is module
+        with open(marker, encoding="utf-8") as f:
+            assert f.read().count("run") == 1
+
+        assert pickle.loads(pickle.dumps(module.Thing)) is module.Thing
+        assert pickle.loads(pickle.dumps(module.make)) is module.make
+        assert isinstance(pickle.loads(pickle.dumps(module.Thing())), module.Thing)
+        with open(marker, encoding="utf-8") as f:
+            assert f.read().count("run") == 1
+
+
+def test_load_file_resolves_its_own_type_hints():
+    """Typing reads a class's annotations through `sys.modules[__module__]`."""
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "hinted_mod.py")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(
+                "from __future__ import annotations\n"
+                "class Child:\n"
+                '    parent: "Child | None" = None\n'
+            )
+        module = load_file(path, raise_on_error=True)
+        assert module is not None
+        assert typing.get_type_hints(module.Child)["parent"] == module.Child | None
+
+
+def test_load_module_from_path_keeps_its_unique_name():
+    """The hook/skill/agent loaders supply a UUID name that cannot shadow."""
+    name = f"zrb_hook_{uuid.uuid4().hex}"
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "hook_mod.py")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("class Thing:\n    pass\n")
+        module = load_module_from_path(name, path)
+        try:
+            assert module is not None
+            assert sys.modules[name] is module
+            assert pickle.loads(pickle.dumps(module.Thing)) is module.Thing
+        finally:
+            sys.modules.pop(name, None)
+
+
+def test_load_file_restores_a_none_blocker_in_sys_modules():
+    """`sys.modules[name] = None` is a deliberate import blocker, not absence."""
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "blocked_mod.py")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("value = 1")
+        sys.modules["blocked_mod"] = None
+        try:
+            assert load_file(path, raise_on_error=True) is not None
+            assert "blocked_mod" in sys.modules
+            assert sys.modules["blocked_mod"] is None
+        finally:
+            sys.modules.pop("blocked_mod", None)
+
+
+def test_same_stem_loads_are_serialized():
+    """Two files named the same must not take each other's self-import."""
+    with (
+        tempfile.TemporaryDirectory() as first,
+        tempfile.TemporaryDirectory() as second,
+    ):
+        paths = [
+            os.path.join(first, "same_mod.py"),
+            os.path.join(second, "same_mod.py"),
+        ]
+        for path in paths:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("import same_mod\nvalue = same_mod\n")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            modules = list(pool.map(lambda path: load_file(path, True), paths))
+
+    assert modules[0] is not None and modules[1] is not None
+    assert modules[0].value is modules[0]
+    assert modules[1].value is modules[1]
+    assert modules[0] is not modules[1]
+    assert modules[0].value.__name__ == "same_mod"
+    assert modules[1].value.__name__ == "same_mod"
+    assert "same_mod" not in sys.modules
 
 
 def test_load_file_not_found():
