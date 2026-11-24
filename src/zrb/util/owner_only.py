@@ -236,13 +236,22 @@ def write_text_owner_only(path: str, content: str) -> None:
     makedirs_owner_only(os.path.dirname(path))
     descriptor = os.open(
         path,
-        os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _OPEN_FLAGS,
+        os.O_WRONLY | os.O_CREAT | _OPEN_FLAGS,
         FILE_MODE,
     )
-    if os.name == "posix":
-        # Descriptor-based, unlike `os.chmod`: there is no path to race with.
-        os.fchmod(descriptor, FILE_MODE)
+    try:
+        if os.name == "posix":
+            # Descriptor-based, unlike `os.chmod`: there is no path to race with.
+            os.fchmod(descriptor, FILE_MODE)
+    except BaseException:
+        os.close(descriptor)
+        raise
     with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+        # Opened without `O_TRUNC`: a failure to narrow the mode must leave the
+        # existing file's bytes untouched. Truncate only after `fchmod`
+        # succeeded, and let the context manager close the descriptor.
+        f.seek(0)
+        f.truncate()
         f.write(content)
 
 

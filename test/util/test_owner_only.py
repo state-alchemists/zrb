@@ -243,6 +243,21 @@ def test_writing_an_existing_world_readable_file_narrows_its_mode(tmp_path):
 
 
 @needs_posix_modes
+def test_a_failed_fchmod_does_not_truncate_the_existing_file(tmp_path):
+    """`O_TRUNC` ran before the mode was narrowed, so a `fchmod` the
+    filesystem refuses destroyed the old bytes and leaked the descriptor."""
+    note = tmp_path / "note.md"
+    note.write_text("public draft", encoding="utf-8")
+    os.chmod(note, 0o644)
+
+    with patch("os.fchmod", side_effect=PermissionError("not permitted")):
+        with pytest.raises(PermissionError):
+            write_text_owner_only(str(note), "private line")
+
+    assert note.read_text(encoding="utf-8") == "public draft"
+
+
+@needs_posix_modes
 def test_a_second_call_leaves_a_reopened_file_alone(tmp_path):
     """The marker is a promise not to keep changing modes behind the user."""
     root, note = _legacy_tree(tmp_path)
