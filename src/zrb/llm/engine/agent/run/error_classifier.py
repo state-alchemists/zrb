@@ -111,7 +111,7 @@ def is_prompt_too_long_error(e: Exception) -> bool:
     return has_token_limit and any(word in err_str for word in _REQUEST_CONTEXT_WORDS)
 
 
-def _get_body_message(e: Exception) -> str:
+def get_body_message(e: Exception) -> str:
     """Extract the provider's error message from the body, falling back to str(e).
 
     Providers disagree on the shape: OpenAI and OpenAI-compatible APIs use
@@ -144,7 +144,7 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
         return False
-    message = _get_body_message(e)
+    message = get_body_message(e)
     return any(pattern.search(message) for pattern in _INVALID_TOOL_PATTERNS)
 
 

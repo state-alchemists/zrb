@@ -155,6 +155,28 @@ async def test_handle_stream_error_invalid_tool_call_includes_name_from_body():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"message": "Unknown tool 'foo'"}},  # Anthropic
+        {"Error": {"Message": "Unknown tool 'foo'"}},  # Bedrock
+    ],
+)
+async def test_handle_stream_error_invalid_tool_call_reads_nested_provider_bodies(body):
+    """The classifier accepts Anthropic/Bedrock bodies; the name must survive too."""
+    state = RetryState(invalid_tool_retry_done=False)
+    exc = Exception("body unused")
+    exc.status_code = 400
+    exc.body = body
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg"], "hello", [], print_fn)
+
+    assert outcome.should_retry is True
+    assert "`foo`" in outcome.new_message
+
+
+@pytest.mark.asyncio
 async def test_handle_stream_error_generic_invalid_arguments_never_claims_a_missing_tool():
     """A generic "invalid arguments" body is a malformed request, not an
     invented tool name. Even when history holds the wrapper's "Unknown tool

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.engine.agent.run.error_classifier import (
+    get_body_message,
     get_retry_wait,
     is_invalid_tool_call_error,
     is_missing_reasoning_content_error,
@@ -366,9 +367,12 @@ def _extract_invalid_tool_name(
 
     History matters for Ollama-cloud, whose body is generic: ``SafeToolsetWrapper``
     writes ``Unknown tool name: 'X'`` into a tool return.
+
+    The body is read through the classifier's shared extractor, so a nested
+    Anthropic (``error.message``) or Bedrock (``Error.Message``) body keeps the
+    tool name the provider sent instead of falling back to the generic prompt.
     """
-    body = getattr(exc, "body", None)
-    body_text = body.get("message") if isinstance(body, dict) else str(exc)
+    body_text = get_body_message(exc)
     if body_text:
         name = _match_invalid_tool_name(body_text)
         if name:
