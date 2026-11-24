@@ -134,7 +134,7 @@ def _open_owned_directory(parent_fd: int, name: str) -> int:
     )
 
 
-def _entry_exists(directory_fd: int, name: str) -> bool:
+def _has_entry(directory_fd: int, name: str) -> bool:
     """Whether *name* exists in *directory_fd*; a symlink counts as present."""
     try:
         os.lstat(name, dir_fd=directory_fd)
@@ -386,7 +386,10 @@ class FileHistoryManager(AnyHistoryManager):
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
             if write_backup and backup_retain != 0:
                 timestamp = datetime.now()
-                if self._write_backup(conversation_name, timestamp, filtered_data):
+                if (
+                    self._write_backup(conversation_name, timestamp, filtered_data)
+                    is not None
+                ):
                     if backup_retain > 0:
                         self._rotate_backups(conversation_name, keep=backup_retain)
 
@@ -662,9 +665,9 @@ class FileHistoryManager(AnyHistoryManager):
                     pass
 
     def _write_backup(
-        self, conversation_name: str, timestamp: datetime, data: Any
-    ) -> bool:
-        """Write one timestamped backup; ``False`` when it cannot be placed safely.
+        self, conversation_name: str, timestamp: datetime, data: object
+    ) -> str | None:
+        """Write one timestamped backup; return its name, or ``None`` on failure.
 
         On POSIX the chain from the history root down to the conversation
         directory is opened as `O_NOFOLLOW` directory descriptors, the temporary
@@ -681,16 +684,18 @@ class FileHistoryManager(AnyHistoryManager):
         ):
             path = self._get_backup_file_path(conversation_name, timestamp)
             if not path:
-                return False
-            return self._save_data_to_file(path, data)
+                return None
+            if not self._save_data_to_file(path, data):
+                return None
+            return os.path.basename(path)
         # Check the root by name first, so a symlinked `backups/` reads as one
         # clear warning instead of a failed write. The descriptor walk below is
         # what makes it a boundary; this check is only the better message.
         if not self._get_backup_root():
-            return False
+            return None
         key = safe_segment(conversation_name)
         if key in (".", ".."):
-            return False
+            return None
         try:
             history_fd = os.open(
                 self._history_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
@@ -719,12 +724,12 @@ class FileHistoryManager(AnyHistoryManager):
         directory_fd: int,
         conversation_name: str,
         timestamp: datetime,
-        data: Any,
-    ) -> bool:
+        data: object,
+    ) -> str | None:
         """Write the backup inside the conversation directory *directory_fd*."""
         name = _backup_file_name(
             timestamp,
-            lambda candidate: _entry_exists(directory_fd, candidate),
+            lambda candidate: _has_entry(directory_fd, candidate),
         )
         tmp_name: "str | None" = None
         try:
@@ -738,7 +743,7 @@ class FileHistoryManager(AnyHistoryManager):
                 dst_dir_fd=directory_fd,
             )
             tmp_name = None
-            return True
+            return name
         except OSError as e:
             return self._report_backup_failure(conversation_name, e)
         finally:
@@ -748,12 +753,11 @@ class FileHistoryManager(AnyHistoryManager):
                 except OSError:
                     pass
 
-    def _report_backup_failure(self, conversation_name: str, error: OSError) -> bool:
+    def _report_backup_failure(self, conversation_name: str, error: OSError) -> None:
         zrb_print(
             f"Error: Failed to save history backup for {conversation_name}: {error}",
             plain=True,
         )
-        return False
 
     def _prune_expired(self, current: str) -> None:
         """Prune expired auto-named root histories; never fail the triggering save."""
