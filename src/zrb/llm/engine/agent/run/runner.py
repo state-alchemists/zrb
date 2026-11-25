@@ -32,7 +32,7 @@ from zrb.llm.capabilities.permission.state import (
 )
 from zrb.llm.capabilities.sandbox.state import current_sandbox_policy
 from zrb.llm.capabilities.snapshot.command import run_in_worker
-from zrb.llm.contracts.config.limiter import LLMLimiter
+from zrb.llm.contracts.config.limiter import LLMLimiter, get_run_llm_limiter
 from zrb.llm.contracts.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.contracts.shared.agent_state import (
     AnyToolConfirmation,
@@ -68,6 +68,7 @@ from zrb.llm.contracts.shared.stream_observer import (
 )
 from zrb.llm.contracts.shared.usage_log import (
     ContextComposition,
+    RoundBudget,
     count_tool_calls,
     get_elapsed_ms,
     record_usage,
@@ -107,6 +108,7 @@ from zrb.llm.engine.agent.run.prompt_content import (
     get_prompt_content as _get_prompt_content,
 )
 from zrb.llm.engine.agent.run.retry_loop import RetryState, handle_stream_error
+from zrb.llm.engine.agent.run.round_budget import measure_round_budget
 from zrb.llm.engine.agent.run.session_extension import (
     ExtensionState,
     apply_turn_end_extension,
@@ -336,6 +338,9 @@ async def run_agent(
             sandbox_deps=sandbox_deps,
             nested_run=nested_run,
             composition=prepared.composition,
+            # What the system prompt costs, so the loop's per-round probe measures
+            # the history against the same allowance the trigger used.
+            system_tokens=prepared.reserved_tokens,
         )
     finally:
         stack.close()
@@ -743,6 +748,7 @@ async def _execution_loop(
     sandbox_deps: "SandboxPolicy | None" = None,
     nested_run: bool = False,
     composition: "ContextComposition | None" = None,
+    system_tokens: int = 0,
 ) -> AgentRunOutput:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
@@ -773,6 +779,23 @@ async def _execution_loop(
                     allow_orphaned_tool_calls=(cursor.results is not None),
                 )
             )
+            cursor.budget = measure_round_budget(
+                cursor.history,
+                get_run_llm_limiter(),
+                requests_before=cursor.requests,
+                trigger_tokens=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
+                system_tokens=system_tokens,
+                message_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
+                # The history processors ran before this turn's first round and
+                # will not run again inside it, so a round that resumes approved
+                # calls is the one boundary where a rewrite would be wrong.
+                is_result_pending=cursor.results is not None,
+                gap_seconds=(
+                    None
+                    if cursor.last_round_at is None
+                    else time.monotonic() - cursor.last_round_at
+                ),
+            )
             stream_error = await _stream_one_round(
                 agent,
                 cursor,
@@ -783,6 +806,7 @@ async def _execution_loop(
                 sandbox_deps,
                 reason=reason,
             )
+            cursor.last_round_at = time.monotonic()
 
             if stream_error is not None:
                 await _recover_from_stream_error(
@@ -900,6 +924,7 @@ async def _stream_one_round(
             # describes it, and this is that round the first time round.
             composition=cursor.take_composition(),
             turn=cursor.turn_id,
+            budget=cursor.take_budget(),
         )
         # After the sum, so a reader who has the turn's line can find the
         # requests that made it. The round's own messages are what it sent.
@@ -921,6 +946,7 @@ def _record_run_usage(
     new_messages: History | None = None,
     composition: "ContextComposition | None" = None,
     turn: str = "",
+    budget: "RoundBudget | None" = None,
 ) -> None:
     """Write one usage-log line for the round that just finished.
 
@@ -933,6 +959,10 @@ def _record_run_usage(
 
     *turn* is the id every round of one turn shares, so the per-request rows
     written underneath this line can be read against the sum it carries.
+
+    *budget* is what the compaction trigger would have seen at this round's
+    boundary (`round_budget`). It is written and not acted on: a rule that
+    re-checks the trigger inside a running turn has to be decided on these rows.
 
     The session name is the UI's, because that is where a conversation's
     identity lives; a headless run records an empty one and `/usage` still sees
@@ -953,6 +983,7 @@ def _record_run_usage(
         tool_errors=errors,
         context=composition,
         turn=turn,
+        budget=budget,
     )
 
 

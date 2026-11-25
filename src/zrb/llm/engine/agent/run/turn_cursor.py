@@ -15,7 +15,7 @@ from zrb.llm.engine.agent.run.history_utils import TurnPruneFloor
 if TYPE_CHECKING:
     from pydantic_ai import DeferredToolResults
 
-    from zrb.llm.contracts.shared.usage_log import ContextComposition
+    from zrb.llm.contracts.shared.usage_log import ContextComposition, RoundBudget
     from zrb.llm.engine.agent.run.turn_snapshot import TurnSnapshot
     from zrb.llm.engine.agent.run.typing_aliases import History, PromptMessage
 
@@ -66,6 +66,23 @@ class TurnCursor:
         """
         composition, self.composition = self.composition, None
         return composition
+
+    # What the trigger would have seen at this round's boundary (`round_budget`),
+    # measured before every round and taken by the round that writes a line.
+    # Cleared on read for the same reason as the composition: a round that failed
+    # before recording must not have its measurement filed under its retry, which
+    # measures the history again.
+    budget: "RoundBudget | None" = field(default=None, repr=False)
+
+    def take_budget(self) -> "RoundBudget | None":
+        """The round's boundary measurement, once."""
+        budget, self.budget = self.budget, None
+        return budget
+
+    # When the previous round finished, monotonic. The wait before this one is
+    # what the provider's prompt cache turns on: a rewrite right after a round is
+    # cheap, and one after a pause pays the whole history again.
+    last_round_at: float | None = field(default=None, repr=False)
 
     def begin_round(self, sanitized_history: History) -> None:
         """Start one `agent.run()` round: install the sanitized history and

@@ -227,6 +227,49 @@ class ContextComposition:
 
 
 @dataclass(frozen=True)
+class RoundBudget:
+    """What the compaction trigger would have seen at a round boundary.
+
+    Written on every round and read by nobody yet: a dry run, kept so that a rule
+    which re-checks the trigger inside a running turn can be decided on measured
+    rounds rather than on a guess. Nothing on a line with this field changed what
+    was sent.
+
+    `history_tokens` is zrb's own count of the history, the number the trigger
+    compares against its threshold less the system prompt — not the record's
+    `input_tokens`, which adds the system prompt and the typed message.
+    `requests_before` is how many calls the turn had already made at this
+    boundary: a mid-turn rule is gated on that count, because a compaction costs
+    a fixed charge and only a long streak of calls above the threshold repays it.
+
+    `tool_tokens` is what the tool results older than the probe's window carry,
+    and `mask_resend_tokens` what masking them would have to be paid for: a
+    provider's prompt cache is a prefix, so every message after the oldest masked
+    one is sent again at full price. `is_over_trigger` answers the trigger's own
+    question — either limit, tokens or the message window — and `is_result_pending`
+    records the one reason a mid-turn compaction would have been refused: a round
+    that is about to resume approved calls must not have its history rewritten.
+    """
+
+    requests_before: int
+    history_tokens: int
+    messages: int
+    tool_tokens: int
+    mask_resend_tokens: int
+    trigger_tokens: int
+    system_tokens: int
+    message_window: int
+    is_over_trigger: bool
+    is_result_pending: bool
+    gap_seconds: float | None
+
+    @property
+    def allowed_tokens(self) -> int:
+        """The history allowance the trigger measures against, floored at one."""
+        return max(1, self.trigger_tokens - self.system_tokens)
+
+
+@dataclass(frozen=True)
 class UsageRecord:
     """One completed run, as it is written to the log."""
 
@@ -260,6 +303,10 @@ class UsageRecord:
     # Where the input went, on the round that opened a turn. Absent on later
     # rounds, on auxiliary calls, and on every line written before this field.
     context: ContextComposition | None = None
+    # What the trigger would have seen at this round's boundary. A dry run: no
+    # line carrying it sent anything different. Absent on auxiliary calls and on
+    # every line written before this field existed.
+    budget: RoundBudget | None = None
 
     @property
     def cache_hit_ratio(self) -> float:
@@ -294,7 +341,6 @@ class UsageRecord:
     @classmethod
     def from_dict(cls, raw: dict[str, object]) -> UsageRecord:
         """Rebuild a record; raises when *raw* is not one."""
-        counts = {name: _as_int(raw, name) for name in _INT_FIELDS}
         kind = str(raw["kind"])
         return cls(
             timestamp=as_datetime(raw["timestamp"]),
@@ -311,7 +357,15 @@ class UsageRecord:
             tool_errors=_as_name_counts(raw.get("tool_errors")),
             compaction=_as_compaction(raw.get("compaction")),
             context=_as_context(raw.get("context")),
-            **counts,
+            budget=_as_budget(raw.get("budget")),
+            input_tokens=_as_int(raw, "input_tokens"),
+            output_tokens=_as_int(raw, "output_tokens"),
+            cache_read_tokens=_as_int(raw, "cache_read_tokens"),
+            cache_write_tokens=_as_int(raw, "cache_write_tokens"),
+            reasoning_tokens=_as_int(raw, "reasoning_tokens"),
+            requests=_as_int(raw, "requests"),
+            tool_calls=_as_int(raw, "tool_calls"),
+            unmeasured_requests=_as_int(raw, "unmeasured_requests"),
         )
 
 
@@ -393,6 +447,7 @@ def record_usage(
     component: str | None = None,
     context: ContextComposition | None = None,
     turn: str = "",
+    budget: RoundBudget | None = None,
 ) -> UsageRecord | None:
     """Append one run to the log.
 
@@ -403,6 +458,8 @@ def record_usage(
     that opened a turn.
     *turn* names the turn the line belongs to, so the per-request rows written
     underneath it (`request_log`) can be read against this sum.
+    *budget* is what the compaction trigger would have seen at this round's
+    boundary. Nothing acts on it.
 
     Returns the record that was written, or ``None`` when the log could not be
     written — a full disk or a read-only home must not fail the turn that
@@ -421,6 +478,7 @@ def record_usage(
         component=component,
         context=context,
         turn=turn,
+        budget=budget,
     )
 
 
@@ -437,6 +495,7 @@ def record_totals(
     component: str | None = None,
     context: ContextComposition | None = None,
     turn: str = "",
+    budget: RoundBudget | None = None,
 ) -> UsageRecord | None:
     """Append one line for *totals*, under the same contract as `record_usage`."""
     if _is_empty(totals):
@@ -462,6 +521,7 @@ def record_totals(
         tool_errors=dict(tool_errors or {}),
         compaction=compaction,
         context=context,
+        budget=budget,
         **{name: getattr(totals, name) for name in _INT_FIELDS},
     )
     return _write_record(record)
@@ -752,6 +812,45 @@ def _as_name_counts(value: object) -> dict[str, int]:
         and isinstance(count, (int, float))
         and not isinstance(count, bool)
     }
+
+
+def _as_budget(value: object) -> RoundBudget | None:
+    """What the trigger saw at a round boundary, or ``None`` where the line does not say.
+
+    Optional detail, like the composition: a malformed one is dropped rather than
+    making the record — and the tokens it cost — unreadable. Every line written
+    before this field existed answers ``None``, which is also the answer for an
+    auxiliary call that has no round boundary to describe.
+
+    `budget`'s two booleans and its gap are read leniently: a hand-edited or
+    half-written line that carries the counts but not the flags still describes
+    the send it measured.
+    """
+    if not isinstance(value, dict):
+        return None
+    try:
+        return RoundBudget(
+            requests_before=int(value["requests_before"]),
+            history_tokens=int(value["history_tokens"]),
+            messages=int(value["messages"]),
+            tool_tokens=int(value["tool_tokens"]),
+            mask_resend_tokens=int(value["mask_resend_tokens"]),
+            trigger_tokens=int(value["trigger_tokens"]),
+            system_tokens=int(value["system_tokens"]),
+            message_window=int(value["message_window"]),
+            is_over_trigger=bool(value.get("is_over_trigger")),
+            is_result_pending=bool(value.get("is_result_pending")),
+            gap_seconds=_as_gap(value.get("gap_seconds")),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _as_gap(value: object) -> float | None:
+    """A wait in seconds, or ``None`` when the line does not carry one."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
 
 
 def _as_context(value: object) -> ContextComposition | None:
