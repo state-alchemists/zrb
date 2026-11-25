@@ -22,7 +22,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # exists to make visible.
 FACADE_BUDGETS = {
     "llm/presentation/ui/base/ui.py": 1285,
-    "llm/presentation/ui/default/ui.py": 819,
+    "llm/presentation/ui/default/ui.py": 818,
     "llm/orchestration/task/chat/task.py": 1047,
     "llm/orchestration/task/llm_task.py": 814,
     "llm/orchestration/subagent/manager/manager.py": 291,

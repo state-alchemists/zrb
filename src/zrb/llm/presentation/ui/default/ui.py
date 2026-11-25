@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from zrb.llm.engine.agent.types import Model, UserContent
     from zrb.llm.orchestration.task.llm_task import LLMTask
     from zrb.llm.presentation.ui.base.message_queue import QueuedMessage
+    from zrb.task.any_task import AnyTask
 
 logger = logging.getLogger(__name__)
 
@@ -738,17 +739,15 @@ class UI(BaseUI, AnyUIDisplay):
     def is_waiting_for_choice(self) -> bool:
         return self.confirmation.current_spec is not None
 
-    def submit_message(
-        self, user_message: str, source: InputProvenance | None = KEYBOARD_INPUT
+    def submit_user_message(
+        self,
+        llm_task: "AnyTask",
+        user_message: str,
+        source: InputProvenance | None = KEYBOARD_INPUT,
     ) -> None:
-        """Queue *user_message*; the transcript follows its tail again from here.
-
-        Reading further up while typing is worth keeping, and stays kept — until
-        the message is sent, when the reply about to arrive is the one being
-        waited for. From then the pane follows again until the reader moves it.
-        """
-        self.output_follow.resume()
-        super().submit_message(user_message, source)
+        """Queue *user_message*; the transcript follows its tail again from here."""
+        self._lifecycle.resume_output_follow(source)
+        super().submit_user_message(llm_task, user_message, source)
 
     def submit_answer(self, text: str) -> None:
         if not self._confirmation.submit_user_answer(text):
