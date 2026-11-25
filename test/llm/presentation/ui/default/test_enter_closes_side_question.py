@@ -2,9 +2,10 @@
 
 The panel binds Enter on its own control, which is the case a focused panel
 covers. This is the other half: clicking the panel to copy a passage, or a
-prompt waiting for an answer, leaves the input holding the focus with the panel
-still up. There the application's Enter binding is what runs, and the press that
-dismisses the panel must not send the draft typed under it.
+prompt that already left the focus in the input, keeps the panel up while the
+application's Enter binding is what runs. The key that dismisses the panel must
+not also send or run the draft typed under it — except over a prompt waiting for
+an answer, which Enter still reaches first.
 """
 
 from unittest.mock import MagicMock
@@ -43,9 +44,46 @@ def test_enter_closes_an_active_panel_and_sends_nothing(mock_ui, setup_bindings)
     assert not event.current_buffer.reset.called
 
 
+def test_a_command_in_the_draft_waits_for_the_panel_to_close_first(
+    mock_ui, setup_bindings
+):
+    """The panel's own Enter leaves the draft alone, so the app's does too.
+
+    `/btw` runs ahead of a pending approval, so the command check sits before
+    `handle_confirmation`; the panel check has to sit before *that* to win, which
+    is why it is not simply placed after the confirmation.
+    """
+    _with_the_panel_up(mock_ui)
+    mock_ui.classify_input.return_value = "thinking_command"
+    mock_ui.is_thinking = True
+    event = create_mock_event("/btw what changed?")
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.dismiss_side_question.assert_called_once_with()
+    assert not mock_ui.schedule_command.called
+    assert not event.current_buffer.reset.called
+
+
+def test_enter_closes_the_panel_while_the_transcript_holds_the_focus(
+    mock_ui, setup_bindings
+):
+    """Enter on the output pane closes the panel; `dismiss` returns the focus."""
+    _with_the_panel_up(mock_ui)
+    event = create_mock_event("")
+    event.app.layout.has_focus = MagicMock(return_value=False)
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.dismiss_side_question.assert_called_once_with()
+    assert not event.app.layout.focus.called
+    assert not mock_ui.submit_user_message.called
+
+
 def test_a_pending_prompt_takes_enter_even_with_the_panel_up(mock_ui, setup_bindings):
     """That field is what the turn is blocked on; the panel takes the next Enter."""
     _with_the_panel_up(mock_ui)
+    mock_ui.is_waiting_for_answer = True
     mock_ui.handle_confirmation = MagicMock(return_value=True)
     event = create_mock_event("yes")
 
