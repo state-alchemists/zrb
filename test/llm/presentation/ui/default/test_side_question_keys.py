@@ -138,6 +138,32 @@ def test_the_movement_keys_never_start_a_message():
     ui.insert_input_text.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "key, editing",
+    [
+        # `c-h` is what a terminal sends for Backspace (`0x7f` reads back as it).
+        ("c-h", "delete_before_cursor"),
+        ("delete", "delete"),
+        ("left", "cursor_left"),
+        ("right", "cursor_right"),
+    ],
+)
+def test_an_editing_key_edits_the_draft_in_the_input(key, editing):
+    """A draft started under the panel is corrected there, in the input field.
+
+    These keys arrive as control sequences (`0x7f` for Backspace), which
+    `handle_typed_text` refuses as message text — so before they were bound on
+    the panel, pressing Backspace on a draft started under it did nothing at all.
+    """
+    ui, panel = _asking_panel()
+
+    _press(panel, key)
+
+    getattr(ui.input_field.buffer, editing).assert_called_once_with()
+    ui.insert_input_text.assert_not_called()
+    assert panel.is_active is True
+
+
 def _type(part: UISideQuestion, text: str) -> None:
     """Deliver *text* the way the application-level catch-all does.
 
@@ -404,6 +430,24 @@ async def _drive_live_application() -> None:
                     app.key_processor.process_keys()
                 assert input_field.buffer.text == "hé🙂\u00a0👨\u200d👩"
 
+                # Editing reaches the input too. Backspace arrives as `\x7f`, a
+                # terminal control the catch-all refuses as message text, so the
+                # panel binds it: the draft shrinks and the answer does not.
+                answer = window.buffer.text
+                app.key_processor.feed(KeyPress(Keys.ControlH, "\x7f"))
+                app.key_processor.process_keys()
+                assert input_field.buffer.text == "hé🙂\u00a0👨\u200d"
+                assert window.buffer.text == answer
+
+                cursor = input_field.buffer.cursor_position
+                app.key_processor.feed(KeyPress(Keys.Left, "\x1b[D"))
+                app.key_processor.process_keys()
+                assert input_field.buffer.cursor_position == cursor - 1
+                app.key_processor.feed(KeyPress(Keys.Right, "\x1b[C"))
+                app.key_processor.process_keys()
+                assert input_field.buffer.cursor_position == cursor
+                assert window.buffer.text == answer
+
                 # Keys the panel does not bind reach the application's handlers.
                 app.key_processor.feed(KeyPress(Keys.ControlG, "\x07"))
                 app.key_processor.process_keys()
@@ -414,7 +458,7 @@ async def _drive_live_application() -> None:
                 app.key_processor.process_keys()
                 assert panel.is_active is False
                 assert app.layout.current_buffer is input_field.buffer
-                assert input_field.buffer.text == "hé🙂\u00a0👨\u200d👩"
+                assert input_field.buffer.text == "hé🙂\u00a0👨\u200d"
                 handled.assert_called_once_with("c-g")
 
                 app.key_processor.feed(KeyPress(Keys.Enter, "\r"))

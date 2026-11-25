@@ -408,8 +408,12 @@ class UISideQuestion:
         scrolls the answer: `up` here must not reach the input field's own `up`,
         which recalls a queued message. Typing is not bound here: the
         application-level catch-all forwards it while the panel is focused.
-        Enter closes the panel without submitting the draft; Esc also closes it.
-        Other exact application bindings still win over the catch-all.
+        The keys that edit that typing are bound here too, because the catch-all
+        reads a key's own encoding: Backspace, Delete and Left/Right arrive as
+        control sequences, which `handle_typed_text` refuses as message text, so
+        a draft started under the panel could not be corrected. Enter closes the
+        panel without submitting the draft; Esc also closes it. Other exact
+        application bindings still win over the catch-all.
         """
         # lazy: heavy third-party
         from prompt_toolkit.key_binding import KeyBindings
@@ -423,6 +427,25 @@ class UISideQuestion:
         @kb.add("escape")
         def _(event):
             self.dismiss()
+
+        # Editing reaches the input's buffer, not this one: the panel is a
+        # read-only answer view, and it holds the focus only so the answer
+        # scrolls and a selected passage can be copied.
+        @kb.add("backspace")
+        def _(event):
+            self._ui.input_field.buffer.delete_before_cursor()
+
+        @kb.add("delete")
+        def _(event):
+            self._ui.input_field.buffer.delete()
+
+        @kb.add("left")
+        def _(event):
+            self._ui.input_field.buffer.cursor_left()
+
+        @kb.add("right")
+        def _(event):
+            self._ui.input_field.buffer.cursor_right()
 
         @kb.add("up")
         def _(event):

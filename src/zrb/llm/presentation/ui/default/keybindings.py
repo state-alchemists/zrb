@@ -437,6 +437,15 @@ class UIKeybindings:
         if ui.handle_confirmation(event):
             return
 
+        # The `/btw` panel docks above the input and closes on Enter the way it
+        # closes on Esc: the key that dismisses it must not also send the draft
+        # typed under it. A prompt waiting for an answer keeps Enter, because
+        # that field is what the turn is blocked on — which is why `begin` leaves
+        # the focus there too.
+        if getattr(ui, "is_side_question_active", False):
+            ui.dismiss_side_question()
+            return
+
         # A queued message recalled with Up is edited in place, not resubmitted.
         if ui.handle_enter_queued_edit(event):
             return
