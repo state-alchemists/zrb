@@ -38,7 +38,7 @@ _DEFAULT_BANNER = """
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION} Jinrui
+   zzzzz rr     bbbbbb   {VERSION} Kizuna
    _ _ . .  . _ .  _ . . .
 Coding Agent + Task Engine
 ☕ Donate at: https://stalchmst.com
