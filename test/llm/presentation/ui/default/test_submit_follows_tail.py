@@ -12,7 +12,9 @@ from the cursor on every chunk, so a flag alone is undone by the first chunk;
 and the hook lived on `submit_message`, which a keyboard Enter never reaches.
 """
 
-from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT
+import dataclasses
+
+from zrb.llm.contracts.shared.input_source import BACKGROUND_INPUT, DICTATION_INPUT
 from zrb.llm.presentation.ui.default.ui import UI
 
 
@@ -43,6 +45,44 @@ def test_sending_a_message_brings_the_pane_back_to_the_tail(mock_ui_deps):
     ui.append_to_output("the reply's first chunk\n")
     assert ui.output_follow.following is True
     assert _is_at_tail(ui)
+
+
+def test_a_dictated_message_brings_the_pane_back_to_the_tail(mock_ui_deps):
+    """Speech with the microphone armed is a message sent, the same as Enter.
+
+    Dictation does not come through the keyboard binding: the trigger loop calls
+    `submit_message_now`, which lands on `submit_message` and then on the submit
+    path. It is the user's own words, and the reply to them is the one to watch.
+
+    The provenance is the microphone's channel with this utterance's tone and
+    length filled in, as `dictation/feature.py` sends it — never the constant.
+    """
+    ui = UI(**mock_ui_deps)
+    _read_above_the_tail(ui)
+    spoken = dataclasses.replace(
+        DICTATION_INPUT, tone="calm", tone_score=0.8, spoken_seconds=2.5
+    )
+
+    ui.submit_message_now("said out loud", spoken, may_interrupt=False)
+
+    assert ui.output_follow.following is True
+    assert _is_at_tail(ui)
+
+
+def test_a_subagent_message_leaves_the_reader_where_they_were(mock_ui_deps):
+    """A sub-agent's words are not the user's, so they do not move the reader.
+
+    Both of its ways into the main chat go through here with no provenance: the
+    closing reply of a cancelled-then-continued session, and `SendMessageToParent`.
+    Neither is a turn the user just sent, so reading further up stays readable.
+    """
+    ui = UI(**mock_ui_deps)
+    _read_above_the_tail(ui)
+
+    ui.submit_user_message(ui.llm_task, "the sub-agent's closing reply", None)
+
+    assert ui.output_follow.following is False
+    assert not _is_at_tail(ui)
 
 
 def test_a_background_notice_leaves_the_reader_where_they_were(mock_ui_deps):
