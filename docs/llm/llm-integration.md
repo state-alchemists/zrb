@@ -66,7 +66,7 @@ This launches a full-screen chat application where you can have a conversation w
 >
 > The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-tui.md#slash-command-aliases). `/photo`, `/screenshot`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
 
-A `/btw` answer arrives in a full-width panel docked above the input, the same place a question or the sub-agent picker appears: the question first, then the answer, at twelve rows that scroll instead of pushing the conversation away. `Enter` closes it and returns focus to the input without submitting a draft; `Esc` also closes it, and a second `/btw` replaces its answer. Nothing from the exchange enters the transcript or the saved history, which is the point of asking on the side — and if the assistant is mid-turn when you ask, the answer does not disturb it.
+A `/btw` answer arrives in a full-width panel docked above the input, the same place a question or the sub-agent picker appears: the question first, then the answer, at twelve rows that scroll instead of pushing the conversation away. Typing under the panel starts a message in the input, where `Backspace`, `Delete` and the arrow keys edit it as usual. `Enter` closes the panel and leaves the draft unsent, wherever the focus was — except over a prompt waiting for an answer, which is answered first; `Esc` also closes it, and a second `/btw` replaces its answer. Nothing from the exchange enters the transcript or the saved history, which is the point of asking on the side — and if the assistant is mid-turn when you ask, the answer does not disturb it.
 
 ### Recalling Previous Messages
 

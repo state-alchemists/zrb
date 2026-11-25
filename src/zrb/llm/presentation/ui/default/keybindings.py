@@ -416,6 +416,25 @@ class UIKeybindings:
 
     def _on_enter(self, event: Any, llm_task: "AnyTask") -> None:
         ui = self._ui
+        # The `/btw` panel is the topmost thing on screen: Enter closes it
+        # wherever the focus is, and before the draft can use the key for
+        # anything else — a command typed under it waits for the second Enter,
+        # as it does when the panel itself holds the focus, and `dismiss` hands
+        # the input the focus the branch below would have given it.
+        #
+        # A prompt waiting for an answer is the exception, and is named here
+        # rather than left to the order of the checks below: the command check
+        # deliberately runs before `handle_confirmation` (a mid-turn `/btw` is
+        # never taken as the answer to a pending approval), so an earlier panel
+        # check could not be placed after the confirmation without swallowing
+        # the command. That field is what the turn is blocked on, which is the
+        # same reason `begin` leaves the focus there.
+        if getattr(ui, "is_side_question_active", False) and not getattr(
+            ui, "is_waiting_for_answer", False
+        ):
+            ui.dismiss_side_question()
+            return
+
         # With focus on the output pane, current_buffer is the transcript;
         # submitting it would send the whole pane as input. Refocus instead.
         if not event.app.layout.has_focus(ui.input_field):

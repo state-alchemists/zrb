@@ -14,12 +14,14 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.snapshot.manager import GIT_MISSING_REASON
+from zrb.llm.contracts.shared.input_source import is_user_input
 from zrb.llm.presentation.ui.default.app.focus import invalidate_app
 from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
     from zrb.llm.capabilities.snapshot.manager import SnapshotManager, SnapshotProgress
+    from zrb.llm.contracts.shared.input_source import InputProvenance
     from zrb.llm.presentation.ui.default.ui import UI
 
 
@@ -172,6 +174,25 @@ class UILifecycle:
                 buffer.cursor_position = len(buffer.text)
         except Exception as e:
             CFG.LOGGER.debug(f"Scroll-to-bottom failed: {e}")
+
+    def resume_output_follow(self, source: "InputProvenance | None") -> None:
+        """Follow the tail again, and go there now — for the user's own words.
+
+        A sent message is followed by the reply the user is waiting for, so the
+        pane returns to the bottom even when they had scrolled up to read while
+        typing. It is moved rather than only marked as following: the append path
+        re-reads "was the reader at the tail?" from the cursor on every chunk, so
+        a flag on its own is undone by the reply's first chunk before the refresh
+        loop can act on it.
+
+        Only what the user said moves them there. A background command's notice
+        is not a reply being waited for, and a sub-agent's message is not the
+        user's at all; the view stays where they put it while those land.
+        """
+        if not is_user_input(source):
+            return
+        self._ui.output_follow.resume()
+        self.scroll_output_to_bottom()
 
     def handle_first_render(self):
         """Handle the first render event (public API)."""

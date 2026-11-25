@@ -60,3 +60,20 @@ BACKGROUND_INPUT = InputProvenance("background process")
 DICTATION_INPUT = InputProvenance(
     "microphone", modality="dictation", transcription=True
 )
+
+_USER_CHANNELS = frozenset(
+    source.channel for source in (KEYBOARD_INPUT, WEB_INPUT, DICTATION_INPUT)
+)
+
+
+def is_user_input(source: "InputProvenance | None") -> bool:
+    """Whether *source* is the user's own words, not something arriving for them.
+
+    Compared by channel, not by identity: a dictated turn carries the microphone's
+    channel with that utterance's tone, length and barge-in filled in, so it is
+    never the constant itself. A sub-agent's message carries no provenance at all
+    and a background command's notice names itself; anything unrecognised counts
+    as not the user's, so a new source has to say where it comes from before it
+    may speak for them.
+    """
+    return source is not None and source.channel in _USER_CHANNELS
