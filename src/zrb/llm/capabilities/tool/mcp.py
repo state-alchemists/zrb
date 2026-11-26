@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, cast
 
@@ -31,6 +32,11 @@ _PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,62}")
 # config path -> digest of the bytes this process vouched for. `None` until the
 # first `load_mcp_config` call, which is what sets the baseline.
 _loaded_config_digests: dict[str, str] | None = None
+# Guards the baseline decision and every write to the map above. Reading the map,
+# deciding whether this is the first load, and filling it in are one step: two
+# loads racing at startup could otherwise both enter between the read and the
+# write, and both call a config they found on disk their own baseline.
+_provenance_lock = threading.Lock()
 
 
 def load_mcp_config(config_file_name: str | None = None) -> "list[AbstractToolset]":
@@ -62,7 +68,8 @@ def clear_mcp_config_provenance() -> None:
     cwds through one process, so it clears between tests.
     """
     global _loaded_config_digests
-    _loaded_config_digests = None
+    with _provenance_lock:
+        _loaded_config_digests = None
 
 
 def _get_config_files(config_file_name: str) -> list[str]:
@@ -105,34 +112,39 @@ def _get_vouched_config_sources(
     file the agent can write must not be the file that decides what runs.
     """
     global _loaded_config_digests
-    is_first_load = _loaded_config_digests is None
-    vouched = {} if _loaded_config_digests is None else _loaded_config_digests
-    _loaded_config_digests = vouched
-    sources: list[tuple[str, bytes]] = []
-    for config_file in config_files:
-        content = _read_config_bytes(config_file)
-        if content is None:
-            continue
-        digest = hashlib.sha256(content).hexdigest()
-        loaded_digest = vouched.get(config_file)
-        if is_first_load or loaded_digest == digest:
-            vouched[config_file] = digest
-            sources.append((config_file, content))
-        elif loaded_digest is None:
-            zrb_print(
-                f"Warning: Skipping MCP config {config_file}: it appeared after "
-                "zrb loaded MCP config in this process, so its servers are not "
-                "started. Restart zrb to load it.",
-                plain=True,
-            )
-        else:
-            zrb_print(
-                f"Warning: Skipping MCP config {config_file}: it changed after "
-                "zrb loaded MCP config in this process, so its servers are not "
-                "started. Restart zrb to load the new content.",
-                plain=True,
-            )
-    return sources
+    # The whole pass, not only its first line: the map is read to decide whether
+    # this is the baseline, and written as that baseline, and a second load
+    # entering between the two would take a config it found on disk as its own.
+    with _provenance_lock:
+        loaded = _loaded_config_digests
+        is_first_load = loaded is None
+        vouched = {} if loaded is None else loaded
+        _loaded_config_digests = vouched
+        sources: list[tuple[str, bytes]] = []
+        for config_file in config_files:
+            content = _read_config_bytes(config_file)
+            if content is None:
+                continue
+            digest = hashlib.sha256(content).hexdigest()
+            loaded_digest = vouched.get(config_file)
+            if is_first_load or loaded_digest == digest:
+                vouched[config_file] = digest
+                sources.append((config_file, content))
+            elif loaded_digest is None:
+                zrb_print(
+                    f"Warning: Skipping MCP config {config_file}: it appeared after "
+                    "zrb loaded MCP config in this process, so its servers are not "
+                    "started. Restart zrb to load it.",
+                    plain=True,
+                )
+            else:
+                zrb_print(
+                    f"Warning: Skipping MCP config {config_file}: it changed after "
+                    "zrb loaded MCP config in this process, so its servers are not "
+                    "started. Restart zrb to load the new content.",
+                    plain=True,
+                )
+        return sources
 
 
 def _read_config_bytes(config_file: str) -> bytes | None:

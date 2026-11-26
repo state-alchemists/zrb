@@ -8,6 +8,7 @@ provenance guard that decides a config may be trusted at all.
 import json
 import os
 import tempfile
+import threading
 from typing import cast
 from unittest.mock import patch
 
@@ -21,6 +22,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from zrb.llm.capabilities.tool import mcp as mcp_module
 from zrb.llm.capabilities.tool.mcp import (
     clear_mcp_config_provenance,
     load_mcp_config,
@@ -274,6 +276,61 @@ def test_mcp_config_present_before_the_first_load_keeps_working(mock_fs):
 
     warnings = [call.args[0] for call in mock_print.call_args_list]
     assert any(planted_path in warning for warning in warnings), warnings
+
+
+def test_two_loads_racing_at_startup_both_take_the_same_baseline(mock_fs):
+    """The baseline is decided and written under one lock.
+
+    Reading the map, deciding whether this is the first load, and filling it in
+    were separate steps: a second load could start between them, see a map
+    already begun, and refuse a config its sibling had just vouched for — the
+    ordinary setup broken by a race at startup.
+    """
+    home_dir, _, sub_dir = mock_fs
+    config_path = os.path.join(home_dir, "mcp-config.json")
+    with open(config_path, "w") as f:
+        json.dump({"mcpServers": {"home_server": {"command": "echo"}}}, f)
+
+    first_load_reading = threading.Event()
+    second_load_finished = threading.Event()
+    results: dict[str, list[str]] = {}
+
+    def read_config(path):
+        if threading.current_thread().name == "first-load":
+            first_load_reading.set()
+            # Give the racing load every chance to get in. Without the lock it
+            # arrives here, sees a map already begun, and refuses the file.
+            second_load_finished.wait(1.0)
+        with open(path, "rb") as f:
+            return f.read()
+
+    def run_load(name):
+        if name == "second-load":
+            first_load_reading.wait(1.0)
+        try:
+            results[name] = _toolset_ids(load_mcp_config())
+        finally:
+            if name == "second-load":
+                second_load_finished.set()
+
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
+        patch.object(mcp_module, "_read_config_bytes", new=read_config),
+    ):
+        first = threading.Thread(
+            target=run_load, args=("first-load",), name="first-load"
+        )
+        second = threading.Thread(
+            target=run_load, args=("second-load",), name="second-load"
+        )
+        first.start()
+        second.start()
+        first.join(10)
+        second.join(10)
+
+    assert results["first-load"] == ["home_server"]
+    assert results["second-load"] == ["home_server"]
 
 
 def test_mcp_config_changed_after_the_first_load_is_not_spawned(mock_fs):
