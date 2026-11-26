@@ -193,7 +193,7 @@ flowchart LR
 |---------|---------|
 | `persona` | AI identity + response style |
 | `principle` | The operating principle underlying the rules |
-| `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
+| `workflow` | The whole rulebook: priority order, turn sequence, how a reply reads, skill activation, working loop, verify gate, tool usage, recovery |
 | `example` | Answer-scale and stance demonstrations |
 | `profile` | Model-class calibration (autonomy register) — resolved as `profile.{name}.md` |
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
