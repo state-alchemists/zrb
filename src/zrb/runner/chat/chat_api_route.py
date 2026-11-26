@@ -124,9 +124,13 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
 
 async def get_llm_chat_task(root_group: AnyGroup) -> "LLMChatTask | None":
     """The registered `llm chat` task, which `extract_node` can only hand back
-    as a node: the path names a task, and this is the one it names."""
+    as a node: the path names a task, and this is the one it names.
+
+    Resolved as the web sees the tree, so a project that shadows `llm chat`
+    with a `cli_only` task does not get it served to browsers by this route.
+    """
     try:
-        task, _, _ = root_group.extract_node(["llm", "chat"])
+        task, _, _ = root_group.extract_node(["llm", "chat"], web_only=True)
         return cast("LLMChatTask", task)
     except NodeNotFoundError:
         return None

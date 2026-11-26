@@ -12,9 +12,15 @@ _DETAIL = {403: "Forbidden", 404: "Not found"}
 
 
 def find_task(root_group: AnyGroup, path: str) -> tuple[AnyTask, list[str]] | None:
-    """The task at *path* and its residual args, or None when there is none."""
+    """The task at *path* and its residual args, or None when there is none.
+
+    A `cli_only` task is not on the web, so it resolves to None exactly like a
+    path that names nothing, and every caller answers 404 without saying why.
+    """
     try:
-        task, _, residual_args = root_group.extract_node(path.strip("/").split("/"))
+        task, _, residual_args = root_group.extract_node(
+            path.strip("/").split("/"), web_only=True
+        )
     except NodeNotFoundError:
         return None
     if not isinstance(task, AnyTask):

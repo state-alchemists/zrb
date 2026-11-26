@@ -129,7 +129,7 @@ sequenceDiagram
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | Input with no value and closed stdin | `BaseInput` | Uses the default, or fails naming the flag to pass, instead of prompting |
-| `cli_only` task | `Group.get_subtasks` | Hidden from the web runner's tree |
+| `cli_only` task | `Group.extract_node`, `Group.get_subtasks` | Hidden from the web runner's tree; a web path naming it resolves to nothing |
 | Two tasks registered under one alias | `Group.add_task` | The later one wins; the replacement is recorded and reported if both are the project's own |
 | A trigger event | `BaseTrigger`, `Callback` | Runs the callback task in a fresh session; its result, error and session name can be published back to the trigger's queues |
 | A `CmdTask` whose plain string holds `{ctx.` | `CmdTask` | Raises `ValueError` at construction, since the shell would receive the placeholder as written; wrapping the command in `Tpl` renders it. Other braces (`${VAR}`, `awk '{print}'`) run verbatim |

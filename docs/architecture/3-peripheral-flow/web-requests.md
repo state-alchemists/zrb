@@ -85,7 +85,7 @@ flowchart TD
 
 **Starting the server.** `start_server` imports Uvicorn and `create_web_app` lazily, then checks the bind. A loopback address or `localhost` passes at once. Anything else needs auth on, and a password and secret key that are not empty, not the shipped defaults, and at least the minimum lengths `src/zrb/runner/cli.py` sets for each. Failing that, it prints every problem at once and exits with code 1 before the app is built. The check reads the `WebAuthConfig` it was given, so a programmatic override is checked too.
 
-**Pages.** `/ui/...` resolves the path with `extract_node` on the root group, checks access, and renders a Jinja template for the group or task. Rendering a task page builds a context to show its inputs; it does not run the task.
+**Pages.** `/ui/...` resolves the path with `extract_node(..., web_only=True)` on the root group, checks access, and renders a Jinja template for the group or task. `web_only=True` is what keeps a `cli_only` task off the web at all: it is dropped from the walk, so its URL resolves to nothing. An unresolvable path answers a generic 404 — the resolution error's `Did you mean ...?` candidates are the names the group it stopped at offers, hidden ones included, so the page does not repeat them. Rendering a task page builds a context to show its inputs; it does not run the task.
 
 **Starting a task run.** The browser posts the form to `/api/v1/task-sessions/<path>`:
 
