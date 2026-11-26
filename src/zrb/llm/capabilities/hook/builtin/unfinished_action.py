@@ -10,8 +10,10 @@ action or for the name of what is really being waited on.
 
 The gate reads the closing message and nothing else — no model call, no file, no
 registry — so it costs a regular expression and cannot fail a turn. It is a
-backstop for the prompt's rule, not a reviewer: a turn that did the work is
-never blocked whatever its prose, and a claim it cannot parse is not a finding.
+backstop for the prompt's rule, not a reviewer: a claim it cannot parse is not a
+finding, and the turn is judged on the sentence it ends with rather than on what
+it did before, because a claim that work is happening is about the moment the
+turn ends and that moment is the same whatever came before it.
 """
 
 import re
@@ -37,15 +39,166 @@ _BLOCK_CAP = 1
 #: entry, so the oldest past this are dropped.
 _MAX_TRACKED_TURNS = 64
 
+#: The verbs the workflow and the tools actually use, as gerunds. Precision is
+#: the point: "working on" is work, "waiting" is the legitimate reason a turn
+#: ends, and the list is what keeps the second from being read as the first.
+_WORK_GERUNDS = (
+    "adjusting",
+    "applying",
+    "building",
+    "bumping",
+    "checking",
+    "cleaning",
+    "cloning",
+    "closing",
+    "committing",
+    "compiling",
+    "confirming",
+    "copying",
+    "creating",
+    "debugging",
+    "deleting",
+    "deploying",
+    "digging",
+    "downloading",
+    "dropping",
+    "editing",
+    "examining",
+    "extracting",
+    "fetching",
+    "fixing",
+    "formatting",
+    "generating",
+    "injecting",
+    "inspecting",
+    "installing",
+    "investigating",
+    "linting",
+    "measuring",
+    "merging",
+    "mounting",
+    "moving",
+    "opening",
+    "patching",
+    "pinning",
+    "profiling",
+    "pushing",
+    "reading",
+    "refactoring",
+    "releasing",
+    "reloading",
+    "removing",
+    "renaming",
+    "rendering",
+    "reproducing",
+    "restarting",
+    "restoring",
+    "reverting",
+    "reviewing",
+    "rewriting",
+    r"rolling\s+back",
+    "running",
+    "searching",
+    "starting",
+    "tagging",
+    "testing",
+    "tracing",
+    "uninstalling",
+    "updating",
+    "upgrading",
+    "uploading",
+    "validating",
+    "verifying",
+    "wiring",
+    r"working\s+on",
+    "writing",
+)
+
+#: The same verbs as bare infinitives, for "I am going to …".
+_WORK_BASE = (
+    "adjust",
+    "apply",
+    "build",
+    "bump",
+    "check",
+    "clean",
+    "clone",
+    "close",
+    "commit",
+    "compile",
+    "confirm",
+    "copy",
+    "create",
+    "debug",
+    "delete",
+    "deploy",
+    "dig",
+    "download",
+    "drop",
+    "edit",
+    "examine",
+    "extract",
+    "fetch",
+    "fix",
+    "format",
+    "generate",
+    "inject",
+    "inspect",
+    "install",
+    "investigate",
+    "lint",
+    "measure",
+    "merge",
+    "mount",
+    "move",
+    "open",
+    "patch",
+    "pin",
+    "profile",
+    "push",
+    "read",
+    "refactor",
+    "release",
+    "reload",
+    "remove",
+    "rename",
+    "render",
+    "reproduce",
+    "restart",
+    "restore",
+    "revert",
+    "review",
+    "rewrite",
+    r"roll\s+back",
+    "run",
+    "search",
+    "start",
+    "tag",
+    "test",
+    "trace",
+    "uninstall",
+    "update",
+    "upgrade",
+    "upload",
+    "validate",
+    "verify",
+    "wire",
+    r"work\s+on",
+    "write",
+)
+
+
+def _alternation(words: "tuple[str, ...]") -> str:
+    """The longest alternative first, so a two-word verb wins over its prefix."""
+    return "|".join(sorted(words, key=len, reverse=True))
+
+
 #: Present progressive only. "I'll" and "I would" are offers the human may
 #: decline, and "I'm here", "I'm done", "I'm happy to" name no work: the verb is
 #: what separates a claim that work is happening now from a closing sentence.
 _ACTION_IN_PROGRESS_RE = re.compile(
     r"\bI(?:'m| am)\s+(?!not\b)(?:(?:now|still|just|already)\s+)*"
-    r"(?:fixing|starting|opening|pushing|writing|running|checking|reading|"
-    r"updating|applying|committing|merging|adding|creating|reviewing|"
-    r"investigating|building|testing|editing|refactoring|renaming|rewriting|"
-    r"digging|working\s+on)\b",
+    r"(?:" + _alternation(_WORK_GERUNDS) + r")\b",
     re.IGNORECASE,
 )
 
@@ -54,18 +207,16 @@ _ACTION_IN_PROGRESS_RE = re.compile(
 #: form settles before the verb is read.
 _GOING_TO_RE = re.compile(
     r"\bI(?:'m| am)\s+(?:going|about)\s+to\s+(?:now\s+)?"
-    r"(?:fix|start|open|push|write|run|check|read|update|apply|commit|merge|"
-    r"add|create|review|investigate|build|test|edit|refactor|rename|rewrite|"
-    r"dig)\b",
+    r"(?:" + _alternation(_WORK_BASE) + r")\b",
     re.IGNORECASE,
 )
 
 _BLOCK_REASON = (
-    '[UNFINISHED] The turn ended saying "{claim}", but it stopped there: no tool '
-    "call followed, so the work was not started. Either do it in this "
-    "continuation, or replace that sentence with what you are waiting for and "
-    "whose answer it is — a person's decision, a running process, an outside "
-    "event. Do not announce the same action again."
+    '[UNFINISHED] The turn ended on "{claim}", and a turn ends when it stops '
+    "calling tools — nothing after that sentence can start or finish the work. "
+    "Either do it in this continuation, or replace the sentence with what you "
+    "are waiting for and whose answer it is — a person's decision, a running "
+    "process, an outside event. Do not announce the same action again."
 )
 
 

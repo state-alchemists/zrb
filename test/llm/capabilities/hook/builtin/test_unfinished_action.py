@@ -81,6 +81,21 @@ def test_a_report_a_question_or_an_offer_is_not_a_claim(message):
     assert unfinished_claim(message) is None
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "I am deleting the stale file now.",
+        "I am removing the regression.",
+        "I am installing the dependency.",
+        "I am working on #1072.",
+        "I am going to roll back the commit.",
+    ],
+)
+def test_the_verbs_the_work_actually_uses_are_claims(message):
+    """The list is the tool-and-workflow vocabulary, not a sample of it."""
+    assert unfinished_claim(message) is not None
+
+
 def test_an_immediate_intention_is_a_claim():
     assert unfinished_claim("I'm going to fix the loader guard next.") == (
         "I'm going to fix"
@@ -110,7 +125,24 @@ async def test_the_block_reason_quotes_the_claim_back():
     reason = result.modifications["reason"]
     assert isinstance(reason, str)
     assert "I am starting" in reason
-    assert "no tool call" in reason
+    assert "nothing after that sentence" in reason
+
+
+@pytest.mark.asyncio
+async def test_a_claim_is_judged_even_when_the_turn_already_did_work():
+    """The claim is about the present, and the turn ends there.
+
+    A turn that edited files and closed with "I am fixing the remaining issue"
+    has an issue left and no turn left to fix it in. The gate does not read the
+    turn's earlier tool calls on purpose: a sentence that says work is happening
+    is judged when the turn stops, whatever ran before it.
+    """
+    result = await _run(
+        create_unfinished_action_hook(),
+        "The edits to `chat_api_route.py` are in. I am fixing the remaining "
+        "issue now.",
+    )
+    assert _is_block(result)
 
 
 @pytest.mark.asyncio
