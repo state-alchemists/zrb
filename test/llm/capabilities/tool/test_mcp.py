@@ -1,14 +1,13 @@
-import json
+"""What an MCP server returns, and the `purpose` line it may receive.
+
+Discovery and trust of `mcp-config.json` — which files load and what may be
+started from them — lives in `test_mcp_config.py`.
+"""
+
 import os
-import tempfile
-from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastmcp.client.transports import StdioTransport
-from pydantic_ai import Agent
-from pydantic_ai.mcp import MCPToolset
-from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext, ToolDefinition
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
@@ -20,7 +19,6 @@ from zrb.llm.capabilities.tool.mcp import (
     add_purpose_to_mcp_tools,
     cap_mcp_result,
     frame_mcp_result,
-    load_mcp_config,
 )
 from zrb.llm.capabilities.tool.purpose import (
     DECLARED_PURPOSE_KEY,
@@ -136,195 +134,6 @@ def test_cap_mcp_result_bounds_nested_lists_in_aggregate():
         return sum(total_len(item) for item in value)
 
     assert total_len(out) < 700, total_len(out)
-
-
-@pytest.fixture
-def mock_fs():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        home_dir = os.path.join(temp_dir, "home")
-        project_dir = os.path.join(home_dir, "project")
-        sub_dir = os.path.join(project_dir, "subdir")
-
-        os.makedirs(home_dir)
-        os.makedirs(project_dir)
-        os.makedirs(sub_dir)
-
-        yield home_dir, project_dir, sub_dir
-
-
-def _mcp_toolset(toolset: AbstractToolset) -> MCPToolset:
-    """The MCPToolset under the purpose wrapper `load_mcp_config` puts around it."""
-    return cast("MCPToolset", getattr(toolset, "wrapped", toolset))
-
-
-def test_mcp_toolset_factory_instantiation(mock_fs):
-    home_dir, project_dir, sub_dir = mock_fs
-
-    # Create mcp-config.json in home with Stdio server
-    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
-        json.dump(
-            {
-                "mcpServers": {
-                    "stdio_server": {
-                        "command": "echo",
-                        "args": ["${MY_VAR:-hello}"],
-                        "env": {"TEST_ENV": "value"},
-                    }
-                }
-            },
-            f,
-        )
-
-    # Create mcp-config.json in project with SSE server
-    with open(os.path.join(project_dir, "mcp-config.json"), "w") as f:
-        json.dump(
-            {"mcpServers": {"sse_server": {"url": "http://localhost:8080/sse"}}}, f
-        )
-
-    # Mock os.path.expanduser and os.getcwd
-    with (
-        patch("os.path.expanduser", return_value=home_dir),
-        patch("os.getcwd", return_value=sub_dir),
-    ):
-
-        toolsets = load_mcp_config()
-
-        assert len(toolsets) == 2
-        assert all(isinstance(_mcp_toolset(t), MCPToolset) for t in toolsets)
-
-        by_id = {t.id: t for t in toolsets}
-        assert set(by_id) == {"stdio_server", "sse_server"}
-
-        # Stdio: transport is a StdioTransport built from command/args/env
-        stdio_transport = _mcp_toolset(by_id["stdio_server"]).client.transport
-        assert isinstance(stdio_transport, StdioTransport)
-        assert stdio_transport.command == "echo"
-        # MY_VAR not set → falls back to default "hello"
-        assert stdio_transport.args == ["hello"]
-        assert stdio_transport.env == {"TEST_ENV": "value"}
-
-        # URL-based servers: FastMCP infers the transport from the URL string; we just check
-        # the toolset was created with the right id.
-        assert by_id["sse_server"].id == "sse_server"
-
-
-def test_mcp_toolset_factory_overrides(mock_fs):
-    home_dir, project_dir, sub_dir = mock_fs
-
-    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
-        json.dump({"mcpServers": {"server1": {"command": "cmd1"}}}, f)
-
-    with open(os.path.join(project_dir, "mcp-config.json"), "w") as f:
-        json.dump({"mcpServers": {"server1": {"command": "cmd2"}}}, f)
-
-    with (
-        patch("os.path.expanduser", return_value=home_dir),
-        patch("os.getcwd", return_value=sub_dir),
-    ):
-
-        toolsets = load_mcp_config()
-
-        assert len(toolsets) == 1
-        assert isinstance(_mcp_toolset(toolsets[0]), MCPToolset)
-        transport = _mcp_toolset(toolsets[0]).client.transport
-        assert isinstance(transport, StdioTransport)
-        assert transport.command == "cmd2"
-
-
-class _FakeMCPToolset(AbstractToolset[None]):
-    """A stand-in server: named tools, permissive argument validation — as MCP's
-    own tools are, which is why a `purpose` added to their schema survives to the
-    drop step instead of being refused before the toolset is reached."""
-
-    def __init__(self, id: str, names: "list[str]") -> None:
-        self._id = id
-        self.names = names
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    async def get_tools(self, ctx):
-        return {
-            name: ToolsetTool(
-                toolset=self,
-                tool_def=ToolDefinition(
-                    name=name,
-                    parameters_json_schema={"type": "object", "properties": {}},
-                ),
-                max_retries=1,
-                args_validator=SchemaValidator(core_schema.any_schema()),
-            )
-            for name in self.names
-        }
-
-    async def call_tool(self, name, tool_args, ctx, tool):
-        return "ok"
-
-
-def _fake_mcp_toolset(*_args, id, **_kwargs):
-    return _FakeMCPToolset(id=id, names=["type_text", "t" * 60])
-
-
-def test_mcp_config_prefix_renames_tools_and_skips_overlong_names(mock_fs):
-    home_dir, _, sub_dir = mock_fs
-    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
-        json.dump(
-            {
-                "mcpServers": {
-                    "desktop": {"command": "cmd", "prefix": "desk"},
-                    "browser": {"command": "cmd"},
-                }
-            },
-            f,
-        )
-
-    with (
-        patch("os.path.expanduser", return_value=home_dir),
-        patch("os.getcwd", return_value=sub_dir),
-        patch("zrb.llm.engine.agent.types.MCPToolset", side_effect=_fake_mcp_toolset),
-        patch("zrb.llm.capabilities.tool.mcp.zrb_print") as mock_print,
-    ):
-        toolsets = load_mcp_config()
-        called = json.loads(Agent(TestModel(), toolsets=toolsets).run_sync("go").output)
-
-    assert set(called) == {"desk_type_text", "type_text", "t" * 60}
-    assert "desk_" + "t" * 60 in mock_print.call_args.args[0]
-
-
-@pytest.mark.parametrize("prefix", [True, 5, "", "has space", "x" * 63])
-def test_mcp_config_skips_a_server_with_an_invalid_prefix(mock_fs, prefix):
-    home_dir, _, sub_dir = mock_fs
-    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
-        json.dump({"mcpServers": {"desktop": {"command": "cmd", "prefix": prefix}}}, f)
-
-    with (
-        patch("os.path.expanduser", return_value=home_dir),
-        patch("os.getcwd", return_value=sub_dir),
-        patch("zrb.llm.capabilities.tool.mcp.zrb_print") as mock_print,
-    ):
-        toolsets = load_mcp_config()
-
-    assert toolsets == []
-    assert "prefix must be" in mock_print.call_args.args[0]
-
-
-def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):
-    home_dir = tmp_path / "alice"
-    sibling = tmp_path / "alice2" / "project"
-    home_dir.mkdir()
-    sibling.mkdir(parents=True)
-    (home_dir / "mcp-config.json").write_text(
-        json.dumps({"mcpServers": {"home_server": {"command": "cmd"}}})
-    )
-
-    with (
-        patch("os.path.expanduser", return_value=str(home_dir)),
-        patch("os.getcwd", return_value=str(sibling)),
-    ):
-        toolsets = load_mcp_config()
-
-    assert toolsets == []
 
 
 def _purpose_schema(**extra: object) -> dict:

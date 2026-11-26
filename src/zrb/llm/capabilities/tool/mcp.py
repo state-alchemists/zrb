@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -27,20 +28,41 @@ _MAX_TOOL_NAME_LENGTH = 64
 # Leaves room for "_" and at least one character of the tool name.
 _PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,62}")
 
+# config path -> digest of the bytes this process vouched for. `None` until the
+# first `load_mcp_config` call, which is what sets the baseline.
+_loaded_config_digests: dict[str, str] | None = None
+
 
 def load_mcp_config(config_file_name: str | None = None) -> "list[AbstractToolset]":
+    """The MCP servers configured for this process, each as a toolset.
+
+    A config file is honoured only if this process already loaded its content:
+    the first call here is the baseline, and a file that appears or changes
+    after it is refused with a warning. See `_get_vouched_config_sources`.
+    """
     if config_file_name is None:
         config_file_name = CFG.MCP_CONFIG_FILE
 
-    config_files = _get_config_files(config_file_name)
-    if not config_files:
+    # Read once: the bytes vouched for and the bytes parsed must be the same.
+    config_sources = _get_vouched_config_sources(_get_config_files(config_file_name))
+    if not config_sources:
         return []
 
-    merged_servers = _merge_mcp_servers_config(config_files)
+    merged_servers = _merge_mcp_servers_config(config_sources)
     if not merged_servers:
         return []
 
     return _create_mcp_toolsets(merged_servers)
+
+
+def clear_mcp_config_provenance() -> None:
+    """Forget what this process vouched for, as if it had loaded no config.
+
+    The baseline is meant to outlive one load; a test suite runs many homes and
+    cwds through one process, so it clears between tests.
+    """
+    global _loaded_config_digests
+    _loaded_config_digests = None
 
 
 def _get_config_files(config_file_name: str) -> list[str]:
@@ -70,15 +92,71 @@ def _get_config_files(config_file_name: str) -> list[str]:
     return config_files
 
 
-def _merge_mcp_servers_config(config_files: list[str]) -> dict[str, dict[str, object]]:
+def _get_vouched_config_sources(
+    config_files: list[str],
+) -> list[tuple[str, bytes]]:
+    """Each discovered config this process vouches for, with the bytes it vouches for.
+
+    The first call is the baseline: a config on disk before zrb loaded one is
+    trusted, so an ordinary setup keeps working. After that, a file this process
+    never loaded is refused, and so is one whose content changed — `command` and
+    `args` reach `StdioTransport`, which starts a host process outside
+    `build_sandboxed_argv`, the filesystem gate and every approval prompt, so the
+    file the agent can write must not be the file that decides what runs.
+    """
+    global _loaded_config_digests
+    is_first_load = _loaded_config_digests is None
+    vouched = {} if _loaded_config_digests is None else _loaded_config_digests
+    _loaded_config_digests = vouched
+    sources: list[tuple[str, bytes]] = []
+    for config_file in config_files:
+        content = _read_config_bytes(config_file)
+        if content is None:
+            continue
+        digest = hashlib.sha256(content).hexdigest()
+        loaded_digest = vouched.get(config_file)
+        if is_first_load or loaded_digest == digest:
+            vouched[config_file] = digest
+            sources.append((config_file, content))
+        elif loaded_digest is None:
+            zrb_print(
+                f"Warning: Skipping MCP config {config_file}: it appeared after "
+                "zrb loaded MCP config in this process, so its servers are not "
+                "started. Restart zrb to load it.",
+                plain=True,
+            )
+        else:
+            zrb_print(
+                f"Warning: Skipping MCP config {config_file}: it changed after "
+                "zrb loaded MCP config in this process, so its servers are not "
+                "started. Restart zrb to load the new content.",
+                plain=True,
+            )
+    return sources
+
+
+def _read_config_bytes(config_file: str) -> bytes | None:
+    """*config_file*'s bytes, or `None` (with a warning) when it cannot be read."""
+    try:
+        with open(config_file, "rb") as f:
+            return f.read()
+    except OSError as e:
+        zrb_print(
+            f"Warning: Failed to read MCP config from {config_file}: {e}", plain=True
+        )
+        return None
+
+
+def _merge_mcp_servers_config(
+    config_sources: list[tuple[str, bytes]],
+) -> dict[str, dict[str, object]]:
     merged_servers: dict[str, dict[str, object]] = {}
 
-    for config_file in config_files:
+    for config_file, content in config_sources:
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if "mcpServers" in data and isinstance(data["mcpServers"], dict):
-                    merged_servers.update(data["mcpServers"])
+            data = json.loads(content)
+            if "mcpServers" in data and isinstance(data["mcpServers"], dict):
+                merged_servers.update(data["mcpServers"])
         except Exception as e:
             zrb_print(
                 f"Warning: Failed to load MCP config from {config_file}: {e}",

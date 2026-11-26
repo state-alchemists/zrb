@@ -149,6 +149,8 @@ def seed_tool_factories() -> tuple[list, list]:
         lambda ctx: Tool(create_monitor_process_tool(), defer_loading=True),
     ]
     toolset_factories: list["Callable[[AnyContext], Any]"] = [
+        # Reloaded per run. The loader honours only a config this process has
+        # already loaded, so the reread can never start a file written after it.
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
     ]
     return factories, toolset_factories
