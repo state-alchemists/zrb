@@ -224,15 +224,30 @@ def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
     file that no longer parses, broken by an edit that looked local. Almost
     every such call means to keep the break, so it is restored and the result
     says so rather than leaving the caller to notice.
+
+    A replacement that arrives with its own break keeps the file's instead:
+    `Read` shows a CRLF file's lines with `\\n`, so the model's copy always
+    carries the wrong ending for such a file.
     """
     if new_text == actual_old or not new_text:
         return new_text, ""
     ending = _trailing_line_break(actual_old)
-    if ending is None or new_text.endswith(("\n", "\r")):
+    if ending is None:
         return new_text, ""
-    return new_text + ending, (
-        " — new_text had no trailing newline; old_text's line break was kept, "
-        "so the line after it is not joined onto the replacement."
+    supplied = _trailing_line_break(new_text)
+    if supplied == ending:
+        return new_text, ""
+    if supplied is None:
+        return new_text + ending, (
+            " — new_text had no trailing newline; old_text's line break was "
+            "kept, so the line after it is not joined onto the replacement."
+        )
+    # `Read` shows every line with `\n`, so a replacement copied from it carries
+    # the wrong ending for a CRLF or lone-CR file. Writing it unchanged mixes
+    # two endings in a file that had one, which the next reader has to unpick.
+    return new_text[: -len(supplied)] + ending, (
+        " — new_text ended in a different line break; the file's own was kept, "
+        "so this edit does not mix endings."
     )
 
 

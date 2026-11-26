@@ -377,11 +377,14 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
     # Not numbered: PDF line breaks are an extraction artifact.
     selected = "".join(lines[start - 1 : end])
 
-    body, truncated = truncate_text(selected, CFG.LLM_MAX_OUTPUT_CHARS, keep="head")
-    if truncated and not _has_room_for_marker(CFG.LLM_MAX_OUTPUT_CHARS):
-        # `truncate_text` always keeps its own marker; at a cap narrower than
-        # that marker, the marker is the whole overshoot.
-        body = body[: max(0, CFG.LLM_MAX_OUTPUT_CHARS)]
+    cap = CFG.LLM_MAX_OUTPUT_CHARS
+    # `truncate_text` spends its whole budget on text and then appends the
+    # marker, so the marker's width is reserved here: the header says the body
+    # was cut at `cap`, and a body longer than that figure makes it a lie.
+    body, truncated = truncate_text(selected, _body_room(cap), keep="head")
+    if truncated and not _has_room_for_marker(cap):
+        # At a cap narrower than the marker, the marker is the whole overshoot.
+        body = body[: max(0, cap)]
     header = _format_read_header(path, start, end, total_lines, truncated)
     return f"{header}{body}"
 

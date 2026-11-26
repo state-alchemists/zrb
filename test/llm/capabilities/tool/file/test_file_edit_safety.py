@@ -160,15 +160,27 @@ def test_a_crlf_line_break_is_kept_as_crlf(tmp_path):
 
 def test_a_snippet_copied_from_read_still_matches_a_crlf_file(tmp_path):
     """Read shows a CRLF file's lines with `\\n`, so the snippet a model copies
-    carries no `\\r`; it has to be found in the file the edit holds."""
+    carries no `\\r`; it has to be found in the file the edit holds, and the
+    file's own ending has to be what the replacement is written with."""
     path = os.path.join(tmp_path, "crlf.txt")
     _write_bytes(path, b"first\r\nsecond\r\nthird\r\n")
 
     result = _r(path, old_text="second\n", new_text="SECOND\n")
 
     assert "Successfully updated" in result
-    written = _read_bytes(path)
-    assert written.startswith(b"first\r\n") and written.endswith(b"third\r\n")
+    # Not `first\r\nSECOND\nthird\r\n`: a replacement copied from Read carries
+    # `\n`, and writing it unchanged mixed two endings in a file that had one.
+    assert _read_bytes(path) == b"first\r\nSECOND\r\nthird\r\n"
+
+
+def test_a_cr_file_is_not_given_mixed_endings_by_a_copied_snippet(tmp_path):
+    """The same for a lone-CR file: a copied `\\n` must not land in it."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\r")
+
+    _r(path, old_text="second\n", new_text="SECOND\n")
+
+    assert _read_bytes(path) == b"first\rSECOND\r"
 
 
 def test_a_cr_line_break_is_kept_as_cr(tmp_path):

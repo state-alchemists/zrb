@@ -140,6 +140,29 @@ def test_the_delivered_body_never_exceeds_the_cap(tmp_path, max_chars):
     assert f"truncated at {max_chars} chars" in output
 
 
+# --- a PDF body obeys the same cap as a text one ---
+
+
+@pytest.mark.parametrize("max_chars", [0, 5, 10, 15, 16, 22, 40])
+def test_a_pdf_body_never_exceeds_the_cap(tmp_path, max_chars):
+    """The PDF path handed the cap to `truncate_text`, which then appends its
+    marker: the body was `cap` characters of text plus fifteen more, while the
+    header reported a cut at `cap`. The text path had already stopped doing it.
+    """
+    pdf_file = tmp_path / "big.pdf"
+    pdf_file.write_text("dummy")
+
+    with (
+        _mock_pdfplumber("x" * 200),
+        patch("zrb.llm.capabilities.tool.file.read.CFG") as cfg,
+    ):
+        cfg.LLM_MAX_OUTPUT_CHARS = max_chars
+        output = _rd(str(pdf_file))
+
+    body = output.split("---CONTENT---\n", 1)[1]
+    assert len(body) <= max_chars
+
+
 def test_read_file_non_utf8(tmp_path):
     file_path = tmp_path / "latin1.txt"
     # Write latin-1 encoded bytes that are not valid UTF-8
