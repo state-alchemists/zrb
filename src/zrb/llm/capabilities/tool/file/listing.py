@@ -67,6 +67,27 @@ def _summarize_by_top_level(files: list[str]) -> list[dict[str, str | int]]:
     return [{"path": top, "files": count} for top, count in sorted(counts.items())]
 
 
+def _pattern_escape_reason(abs_path: str, pattern: str) -> str | None:
+    """Why *pattern* would search outside *abs_path*, or ``None``.
+
+    ``os.path.join`` throws *abs_path* away for an absolute pattern, and a ``..``
+    segment climbs out of it. The sandbox gate judges the ``path`` argument, so a
+    search rooted anywhere else lists files the sandbox never saw; the join has to
+    land inside the directory the caller named.
+    """
+    if os.path.isabs(pattern):
+        return f"'{pattern}' is absolute"
+    joined = os.path.normpath(os.path.join(abs_path, pattern))
+    try:
+        inside = os.path.commonpath([joined, abs_path]) == abs_path
+    except ValueError:
+        # Mixed absolute/relative (or two Windows drives) — not inside.
+        inside = False
+    if inside:
+        return None
+    return f"'{pattern}' resolves outside it, to '{joined}'"
+
+
 @requires_purpose
 def list_files(
     path: Annotated[str, Field(description="Directory to list.")] = ".",
@@ -155,6 +176,9 @@ def glob_files(
     This searches paths, not contents — use Grep to search what is inside the
     files, and LS when you do not yet know what you are looking for.
 
+    The pattern is relative to `path`: an absolute one, or one that climbs out
+    with `..`, names files the sandbox never judged and is refused.
+
     A git checkout hides what `.gitignore` excludes, matching LS.
 
     Looking for several patterns? Put every call in one response, not one call
@@ -174,6 +198,16 @@ def glob_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
+
+    escape = _pattern_escape_reason(abs_path, pattern)
+    if escape is not None:
+        return {
+            "error": (
+                f"Pattern must search inside the directory it is given: {escape}. "
+                "[SYSTEM SUGGESTION]: pass a relative pattern such as '**/*.py' "
+                "and name the directory to search with `path`."
+            )
+        }
 
     search_pattern = os.path.join(abs_path, pattern)
     candidates = glob.glob(

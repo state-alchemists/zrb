@@ -1,10 +1,16 @@
 """Sandbox gate: the path-argument spellings an MCP server or plugin uses.
 
+`pattern` belongs to this group without being a path: a glob-shaped tool joins it
+onto one, and an absolute pattern replaces that path outright, so the gate judges
+it as a path too.
+
 Split out of `test_gate.py` (feature group: argument spellings), which had
 crossed the 500-line test-file threshold.
 """
 
 from __future__ import annotations
+
+import os
 
 import pytest
 
@@ -111,6 +117,38 @@ async def test_gate_write_checks_source_path_outside_writable_roots(
 
     assert result.metadata.get("blocked") is True
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_gate_read_checks_a_glob_pattern(tmp_path):
+    """`Glob` joins `pattern` onto `path`, and an absolute pattern replaces it.
+
+    The `path` argument alone is not what the search opens, so the pattern is
+    judged as a path too: one naming a protected file is refused before the glob
+    runs, whatever the tool does with it afterwards.
+    """
+    from zrb.llm.capabilities.sandbox.state import sandbox_policy
+    from zrb.llm.engine.agent.common import create_safe_wrapper
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+
+    def glob_files(pattern: str = "", path: str = ""):
+        return "matches"
+
+    tag(glob_files, Capability.READ)
+    wrapped = create_safe_wrapper(glob_files, name="Glob")
+    policy = _enabled_policy(tmp_path, deny_read_paths=(str(secrets),))
+    with sandbox_policy(policy):
+        blocked = await wrapped(
+            pattern=os.path.join(str(secrets), "id_*"), path=str(project)
+        )
+        allowed = await wrapped(pattern="**/*.py", path=str(project))
+
+    assert blocked.metadata.get("blocked") is True
+    assert allowed.return_value == "matches"
 
 
 @pytest.mark.asyncio

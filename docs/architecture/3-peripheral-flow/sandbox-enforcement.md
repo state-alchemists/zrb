@@ -43,7 +43,8 @@ The sandbox limits which files a tool call can touch, even after the call was ap
 | --- | --- | --- |
 | The sandbox is off unless the deployment turns it on | Every user's shell and file tools change behaviour on upgrade | `test/llm/capabilities/sandbox/test_policy.py::test_default_policy_is_disabled` |
 | An untagged tool's path arguments are write-checked | An MCP tool writes outside the writable roots | `test/llm/capabilities/sandbox/test_gate.py::test_gate_write_checks_untagged_tools` |
-| A write is judged by its real path, compared as a path rather than a string prefix | `/project-other` passes as `/project`, or a symlink walks out of the root | `test/llm/capabilities/sandbox/test_fs_policy.py::test_is_within_rejects_sibling_prefix`, `test/llm/capabilities/sandbox/test_fs_policy.py::test_symlink_escape_is_blocked` |
+| A write is judged by its real path, compared as a path rather than a string prefix | `/project-other` passes as `/project`, or a symlink walks out of the root | `test/llm/capabilities/sandbox/test_fs_policy.py::test_is_write_within_rejects_sibling_prefix`, `test/llm/capabilities/sandbox/test_fs_policy.py::test_symlink_escape_is_blocked` |
+| Casing cannot defeat the deny-read comparison | On a case-insensitive volume `~/.SSH/KNOWN_HOSTS` reads the same file as `~/.ssh/known_hosts` and must be refused | `test/llm/capabilities/sandbox/test_fs_policy.py::test_a_case_variant_of_a_deny_root_is_refused`, `test/llm/capabilities/sandbox/test_fs_policy.py::test_a_case_variant_of_a_deny_root_is_not_writable` |
 | A credential directory stays protected even inside a writable root | A secret can be overwritten or planted, like `authorized_keys` | `test/llm/capabilities/sandbox/test_fs_policy.py::test_write_into_deny_read_root_blocked_even_if_writable`, `test/llm/capabilities/sandbox/test_bwrap.py::test_masks_come_after_writable_binds` |
 | A missing OS mechanism is never silent | A shell command runs uncontained and nobody knows | `test/llm/capabilities/sandbox/test_os_sandbox.py::test_windows_warn_mode_is_not_silent` |
 | An escape request is blocked when escape is disabled | The one setting that removes the escape hatch does nothing | `test/llm/capabilities/sandbox/test_gate.py::test_gate_blocks_escape_when_disallowed` |
@@ -69,7 +70,7 @@ flowchart TD
 | `resolved_writable_roots`, `resolved_deny_read_roots` | `src/zrb/llm/capabilities/sandbox/policy.py` | Turning the policy into real paths. Automatic roots are the working directory plus the temp directory; the temp directory is always writable |
 | `get_effective_sandbox_policy` | `src/zrb/llm/capabilities/sandbox/state.py` | The policy in force: the one bound for this run, else the session's own `/sandbox` switch, else built from `CFG.LLM_SANDBOX_*` |
 | `sandbox_gate` | `src/zrb/llm/engine/agent/gates.py` | The Python layer: picks the path arguments of a call and checks them |
-| `check_read`, `check_write`, `is_within` | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | Comparing a real path against the roots |
+| `check_read`, `check_write`, `is_read_within`, `is_write_within` | `src/zrb/llm/capabilities/sandbox/fs_policy.py` | Comparing a real path against the roots: case-folded spellings, confirmed by device and inode, with the read and write directions erring in opposite ways |
 | `build_sandboxed_argv` | `src/zrb/llm/capabilities/sandbox/os_sandbox.py` | The OS layer: prefixes a subprocess argv with the platform wrapper, or applies the fallback |
 | `build_bwrap_argv` | `src/zrb/llm/capabilities/sandbox/bwrap.py` | Linux bubblewrap arguments |
 | `build_sbpl` | `src/zrb/llm/capabilities/sandbox/seatbelt.py` | The macOS Seatbelt profile |
@@ -83,7 +84,7 @@ flowchart TD
 1. sandbox off: let the call through;
 2. `dangerously_skip_sandbox` requested while escape is disabled: block;
 3. an `EXECUTE` tool: no path check here, because the OS layer contains it;
-4. every path-like argument (`path`, `file_path`, `src`, ...) must sit outside the deny-read roots;
+4. every path-like argument (`path`, `file_path`, `src`, ...) must sit outside the deny-read roots, and so must a `pattern`: a glob-shaped tool joins it onto a path, and an absolute pattern replaces that path outright;
 5. for `EDIT` and untagged tools, every write argument, including `dst` and `worktree_path`, must also sit inside a writable root.
 
 ```mermaid
