@@ -164,7 +164,7 @@ task_c.append_readiness_check(check_port)
 
 ### Conditional Execution (`execute_condition`)
 
-If `execute_condition` evaluates to `False`, the task skips its action but gracefully unblocks its downstreams.
+If `execute_condition` evaluates to `False`, the task skips its action but gracefully unblocks its downstreams. Its `successor` tasks are skipped along with it — never run — and because a skipped task satisfies `allow_run_downstream`, anything waiting on one of those successors still resolves instead of hanging.
 
 ```python
 from zrb import Env, cli, make_task

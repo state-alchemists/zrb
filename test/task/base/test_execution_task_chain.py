@@ -4,7 +4,9 @@ import pytest
 
 from zrb.attr.tpl import Tpl
 from zrb.context.any_context import AnyContext
+from zrb.context.shared_context import SharedContext
 from zrb.session.any_session import AnySession
+from zrb.session.session import Session
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.execution import BaseTaskExecution
 from zrb.task_status.task_status import TaskStatus
@@ -116,6 +118,46 @@ async def test_execute_fallbacks():
     session = MagicMock(spec=AnySession)
     await execution.execute_fallbacks(session)
     assert f1.exec_chain.called
+
+
+@pytest.mark.asyncio
+async def test_skipped_task_skips_its_explicit_successors():
+    """A task skipped by its `execute_condition` never runs its `successor=` tasks.
+
+    They are marked skipped the way the permanent-failure path marks them, which
+    `allow_run_downstream` counts as satisfied, so a task fed by one of them still
+    resolves instead of waiting forever on a successor nothing started.
+    """
+    called_tasks = []
+
+    def make_action(name):
+        def action(ctx):
+            called_tasks.append(name)
+
+        return action
+
+    successor = BaseTask(name="successor", action=make_action("successor"))
+    other = BaseTask(name="other", action=make_action("other"))
+    downstream = BaseTask(name="downstream", action=make_action("downstream"))
+    successor >> downstream
+    other >> downstream
+    main = BaseTask(
+        name="main",
+        execute_condition=False,
+        successor=[successor],
+        upstream=[other],
+    )
+
+    session = Session(shared_ctx=SharedContext())
+    for task in [main, successor, other, downstream]:
+        session.register_task(task)
+
+    await main.exec_root_tasks(session)
+
+    assert called_tasks == ["other", "downstream"]
+    assert session.get_task_status(main).is_skipped
+    assert session.get_task_status(successor).is_skipped
+    assert session.get_task_status(downstream).is_completed
 
 
 @pytest.mark.asyncio

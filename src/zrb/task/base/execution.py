@@ -58,6 +58,11 @@ class BaseTaskExecution:
             if not self.check_execute_condition(session):
                 ctx.log_info("Marked as skipped (condition false)")
                 session.get_task_status(task).mark_as_skipped()
+                # Explicit successors are skipped, never run, exactly as the
+                # permanent-failure path treats them: a skipped task lets its
+                # downstreams run, so their own downstreams resolve instead of
+                # waiting forever on a successor nobody started.
+                self.skip_successors(session)
                 return
             return await run_async(self.execute_action_until_ready(session))
         finally:
