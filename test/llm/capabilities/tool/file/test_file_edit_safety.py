@@ -171,6 +171,33 @@ def test_a_snippet_copied_from_read_still_matches_a_crlf_file(tmp_path):
     assert written.startswith(b"first\r\n") and written.endswith(b"third\r\n")
 
 
+def test_a_cr_line_break_is_kept_as_cr(tmp_path):
+    """A legacy Mac file's lines end in a bare `\\r`, and the edit keeps it.
+
+    The break was chosen as `"\\r\\n"` or `"\\n"` only, so a `\\r` matched text
+    got no break back: the edit either rewrote the ending or dropped it.
+    """
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\rthird\r")
+
+    _r(path, old_text="second\r", new_text="SECOND")
+
+    assert _read_bytes(path) == b"first\rSECOND\rthird\r"
+
+
+def test_a_snippet_copied_from_read_does_not_join_the_next_line_in_a_cr_file(
+    tmp_path,
+):
+    """Read shows a `\\r` file's lines with `\\n`, so the copied snippet has no
+    break; the replacement must not be glued onto the following line."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\rthird\r")
+
+    _r(path, old_text="second\n", new_text="SECOND")
+
+    assert _read_bytes(path) == b"first\rSECOND\rthird\r"
+
+
 def test_an_edited_crlf_file_is_still_what_this_run_observed(tmp_path):
     """The observation store keys on universal-newline content while the edit
     now holds the file's bytes; recording the bytes would make the next Write

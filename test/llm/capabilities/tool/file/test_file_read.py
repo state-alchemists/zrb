@@ -117,6 +117,29 @@ def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
     assert len(body.split("\t", 1)[1].replace("\n...[TRUNCATED]", "")) == 18
 
 
+# --- the cap holds even when the marker cannot fit ---
+
+
+@pytest.mark.parametrize("max_chars", [0, 5, 10, 15, 16, 22, 40])
+def test_the_delivered_body_never_exceeds_the_cap(tmp_path, max_chars):
+    """A cap below the marker's own width used to overshoot it.
+
+    `_select_lines` reserved the marker's fifteen characters, went negative at a
+    tiny cap, and `read_file` still appended the whole marker — so the body was
+    longer than the figure the header reported.
+    """
+    file_path = tmp_path / "many.txt"
+    file_path.write_text("\n".join("abcd" for _ in range(50)) + "\n")
+
+    with patch("zrb.llm.capabilities.tool.file.read.CFG") as cfg:
+        cfg.LLM_MAX_OUTPUT_CHARS = max_chars
+        output = _rd(str(file_path))
+
+    body = output.split("---CONTENT---\n", 1)[1]
+    assert len(body) <= max_chars
+    assert f"truncated at {max_chars} chars" in output
+
+
 def test_read_file_non_utf8(tmp_path):
     file_path = tmp_path / "latin1.txt"
     # Write latin-1 encoded bytes that are not valid UTF-8

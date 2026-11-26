@@ -222,13 +222,27 @@ def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
     """
     if new_text == actual_old or not new_text:
         return new_text, ""
-    ending = "\r\n" if actual_old.endswith("\r\n") else "\n"
-    if not actual_old.endswith(ending) or new_text.endswith(("\n", "\r")):
+    ending = _trailing_line_break(actual_old)
+    if ending is None or new_text.endswith(("\n", "\r")):
         return new_text, ""
     return new_text + ending, (
         " — new_text had no trailing newline; old_text's line break was kept, "
         "so the line after it is not joined onto the replacement."
     )
+
+
+def _trailing_line_break(text: str) -> str | None:
+    """The line break ``text`` ends with: CRLF first, then a lone CR, then LF.
+
+    A legacy Mac file's lines end in a bare ``\\r``. `Read` translates that to
+    ``\\n``, so a snippet the model copies carries no break while the file's own
+    text ends in ``\\r`` — restoring an LF there rewrites the file's line ending,
+    and restoring nothing joins the next line onto the replacement.
+    """
+    for ending in ("\r\n", "\r", "\n"):
+        if text.endswith(ending):
+            return ending
+    return None
 
 
 def _describe_missing_match(content: str, old_text: str, path: str) -> str:

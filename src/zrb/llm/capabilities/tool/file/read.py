@@ -106,7 +106,7 @@ def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:
 
         body = _number_lines(kept, start)
         if truncated:
-            body = body.rstrip("\n") + _TRUNCATION_MARKER
+            body = _with_truncation_marker(body, CFG.LLM_MAX_OUTPUT_CHARS)
         header = _format_read_header(path, start, end, total_lines, truncated)
         return f"{header}{body}"
 
@@ -205,6 +205,34 @@ def _prefix_width(line_number: int) -> int:
     return len(_LINE_NUMBER_FORMAT.format(line_number))
 
 
+def _marker_fits(max_chars: int) -> bool:
+    """Whether a cap can hold the truncation marker beside any text at all."""
+    return max_chars > len(_TRUNCATION_MARKER)
+
+
+def _body_room(max_chars: int) -> int:
+    """Characters a truncated body may spend once the marker is paid for.
+
+    A cap smaller than the marker leaves nothing to say beside it, so the marker
+    is dropped for that cap and the body gets the whole figure instead.
+    """
+    if not _marker_fits(max_chars):
+        return max(0, max_chars)
+    return max_chars - len(_TRUNCATION_MARKER)
+
+
+def _with_truncation_marker(body: str, max_chars: int) -> str:
+    """``body`` plus the marker, never over ``max_chars`` in total.
+
+    `_select_lines` reserves the marker's width, so this cannot overshoot while
+    the marker fits. Where it does not, the body is cut to the cap and the
+    header — which states the truncation and the figure — carries the news.
+    """
+    if _marker_fits(max_chars):
+        return body.rstrip("\n") + _TRUNCATION_MARKER
+    return body[: max(0, max_chars)]
+
+
 def _select_lines(
     lines: list[str], max_chars: int, start: int
 ) -> tuple[list[str], bool]:
@@ -213,17 +241,21 @@ def _select_lines(
     The cap covers the whole body — every ``cat -n`` prefix, and the truncation
     marker the caller appends — so the delivered body never exceeds the figure
     the header reports. The first line is always kept, its text hard-cut to
-    whatever the budget leaves for it.
+    whatever the budget leaves for it; when the prefix alone does not fit, no
+    line is kept and the marker is all that is left to say.
     """
     if _numbered_width(lines, start) <= max_chars:
         return list(lines), False
-    room = max_chars - len(_TRUNCATION_MARKER)
+    room = _body_room(max_chars)
     kept: list[str] = []
     for offset, line in enumerate(lines):
         prefix_width = _prefix_width(start + offset)
         if prefix_width + len(line) > room:
             if not kept:
-                return [line[: max(0, room - prefix_width)]], True
+                text_room = room - prefix_width
+                if text_room <= 0:
+                    return [], True
+                return [line[:text_room]], True
             return kept, True
         kept.append(line)
         room -= prefix_width + len(line)
@@ -346,6 +378,10 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
     selected = "".join(lines[start - 1 : end])
 
     body, truncated = truncate_text(selected, CFG.LLM_MAX_OUTPUT_CHARS, keep="head")
+    if truncated and not _marker_fits(CFG.LLM_MAX_OUTPUT_CHARS):
+        # `truncate_text` always keeps its own marker; at a cap narrower than
+        # that marker, the marker is the whole overshoot.
+        body = body[: max(0, CFG.LLM_MAX_OUTPUT_CHARS)]
     header = _format_read_header(path, start, end, total_lines, truncated)
     return f"{header}{body}"
 
