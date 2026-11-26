@@ -177,7 +177,7 @@ What is read aloud is what the reply marks: a `<spoken>…</spoken>` block is he
 | `ZRB_LLM_SPEECH_GEMINI_PROMPT` | What `gemini` is sent with no style: `{text}` is what to read. Without an instruction, Gemini may answer a short line instead of reading it | `Say: {text}` |
 | `ZRB_LLM_SPEECH_GEMINI_STYLE_PROMPT` | What `gemini` is sent with `ZRB_LLM_SPEECH_STYLE` set: `{style}` and `{text}` | `{style}`, a blank line, `Say exactly this, and nothing else: {text}` |
 
-A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to open every reply with a `<spoken>` block, a one-sentence answer included, holding the answer and the reason it is the answer in one breath, with everything the user will copy or compare outside it).
+A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to open every reply with a `<spoken>` block, a one-sentence answer included, holding the answer and the reason it is the answer in one breath — for a reply that explains, the conclusion, with the working below it — with everything the user will copy or compare outside it).
 
 The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
 
