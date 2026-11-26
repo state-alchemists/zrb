@@ -26,6 +26,7 @@ Both return a blocked ``ToolReturn`` or ``None``; the default path is unchanged.
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -68,12 +69,13 @@ if TYPE_CHECKING:
 # `cwd` here refused a resume whose repository was read-only but whose worktree
 # was not, which is a legitimate call.
 
-# Read-checked on top of the path spellings: `pattern` names no path on its own,
-# but a glob-shaped tool joins it onto one, and an absolute pattern replaces that
-# path outright. Judging it here refuses a pattern that points into a deny-read
-# root before the search runs, whatever the tool does with it afterwards. The
-# write loop keeps to `PATH_ARG_KEYS`: a pattern is never a write target.
-_READ_ARG_KEYS = PATH_ARG_KEYS + ("pattern",)
+# Read-checked on top of the path spellings, and only for the tools whose
+# `pattern` is a path fragment: a glob tool joins it onto `path`, and an absolute
+# pattern replaces that path outright, so judging it refuses a pattern pointing
+# into a deny-read root before the search runs. `Grep`'s `pattern` is a regular
+# expression — searching for the *text* of a protected path opens none of it —
+# and judging that string as a path refused a legitimate search.
+_GLOB_ARG_TOOLS = frozenset({"Glob"})
 
 
 def permission_gate(
@@ -129,7 +131,7 @@ def sandbox_gate(
     cap_value = getattr(capability, "value", capability)
     if cap_value == Capability.EXECUTE.value:
         return None
-    read_error = _read_argument_error(args, policy)
+    read_error = _read_argument_error(tool_name, args, policy)
     if read_error is not None:
         return _blocked(read_error)
     if cap_value in (Capability.EDIT.value, Capability.UNKNOWN.value):
@@ -139,22 +141,29 @@ def sandbox_gate(
     return None
 
 
-def _read_argument_error(args: dict[str, object], policy: SandboxPolicy) -> str | None:
+def _read_argument_error(
+    tool_name: str, args: dict[str, object], policy: SandboxPolicy
+) -> str | None:
     """Why a read argument of the call is refused, or ``None``.
 
-    Two questions, asked of two key lists. A path argument or a `pattern` may not
-    resolve inside a deny-read root. A path argument may not *contain* one
-    either: a recursive reader (`Grep` via ripgrep, `AnalyzeCode`) would open that
-    root's files before the per-file check sees their results, so the path is
-    refused before the reader runs. That question is about a directory a reader
-    sweeps, so a `pattern` is not asked it — a pattern names files to match.
+    Two questions, asked of two key lists. A path argument — and a glob tool's
+    `pattern` — may not resolve inside a deny-read root. A path argument may not
+    *contain* one either: a recursive reader (`Grep` via ripgrep, `AnalyzeCode`)
+    would open that root's files before the per-file check sees their results, so
+    the path is refused before the reader runs. That question is about a
+    directory a reader sweeps, so a `pattern` is not asked it — a pattern names
+    files to match.
     """
-    for key in _READ_ARG_KEYS:
+    for key in PATH_ARG_KEYS:
         value = args.get(key)
         if isinstance(value, str):
             error = check_read(value, policy)
             if error is not None:
                 return error
+    if tool_name in _GLOB_ARG_TOOLS:
+        error = _glob_pattern_error(args, policy)
+        if error is not None:
+            return error
     for key in PATH_ARG_KEYS:
         value = args.get(key)
         if isinstance(value, str):
@@ -166,6 +175,25 @@ def _read_argument_error(args: dict[str, object], policy: SandboxPolicy) -> str 
                     "before any per-file check; pass a narrower path"
                 )
     return None
+
+
+def _glob_pattern_error(args: dict[str, object], policy: SandboxPolicy) -> str | None:
+    """Why a glob pattern is refused, or ``None``.
+
+    The pattern is judged where it lands: joined onto the call's `path` when it
+    is relative, and on its own when it is absolute, because an absolute pattern
+    replaces the searched directory outright.
+    """
+    pattern = args.get("pattern")
+    if not isinstance(pattern, str) or not pattern:
+        return None
+    base = args.get("path")
+    target = (
+        pattern
+        if os.path.isabs(pattern)
+        else os.path.join(base if isinstance(base, str) else ".", pattern)
+    )
+    return check_read(target, policy)
 
 
 def _write_argument_error(args: dict[str, object], policy: SandboxPolicy) -> str | None:
