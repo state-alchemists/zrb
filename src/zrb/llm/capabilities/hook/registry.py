@@ -131,6 +131,16 @@ class HookRegistry:
         """All registered configs by hook name, for debugging."""
         return dict(self._hook_configs)
 
+    def has_hook_named(self, name: str) -> bool:
+        """Whether a live hook is registered under *name*.
+
+        Reads the hook→config mapping, which `remove_hook` prunes, rather than
+        `get_configs()`, which keeps a name for diagnosis after its hook is
+        gone. A factory asking "did I already register?" between those two
+        questions would either register twice or never again.
+        """
+        return any(config.name == name for config in self._hook_to_config.values())
+
     def has_hook_config(self, config: HookConfig) -> bool:
         """Whether this exact *config* object is registered here.
 

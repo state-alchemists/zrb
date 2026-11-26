@@ -240,7 +240,10 @@ async def test_async_command_hook_is_non_blocking():
     elapsed = time.monotonic() - start
 
     assert elapsed < 1.0, f"async hook blocked for {elapsed:.2f}s"
-    assert results == []
+    # The default-on unfinished-action gate answers every Stop; what must not
+    # appear is a result from the backgrounded hook itself.
+    assert len(results) == 1, results
+    assert not results[0].blocked
 
     await manager.shutdown()
 
@@ -281,7 +284,9 @@ async def test_async_agent_hook_is_non_blocking():
         elapsed = time.monotonic() - start
 
     assert elapsed < 1.0, f"async agent hook blocked for {elapsed:.2f}s"
-    assert results == []
+    # One inert result: the default-on unfinished-action gate, not the agent.
+    assert len(results) == 1, results
+    assert not results[0].blocked
 
     await manager.shutdown()
 

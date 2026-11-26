@@ -20,6 +20,7 @@ from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
 )
 from zrb.llm.capabilities.hook.contracts.interface import HookContext
 from zrb.llm.capabilities.hook.contracts.types import HookEvent, HookType
+from zrb.llm.capabilities.hook.manager.manager import HookManager
 from zrb.llm.contracts.memory import paths, store
 
 
@@ -45,6 +46,25 @@ def test_the_reviewer_runs_on_a_completed_turn_with_the_three_tools():
     assert len(config.matchers) == 1
     assert config.matchers[0].field == "event_data.memory_due"
     assert config.matchers[0].value is True
+
+
+def test_the_reviewer_registers_once_per_manager(store_dir):
+    """A live manager can re-scan, and a second reviewer doubles the bill.
+
+    `search_dirs` may be reassigned on a live manager, which re-runs the
+    factories without clearing the registry. The log hooks already refuse a
+    duplicate; the reviewer must too, or every completed turn pays two model
+    calls after the re-scan.
+    """
+    manager = HookManager(search_dirs=[])
+    register_memory_reviewer_hook(manager)
+    register_memory_reviewer_hook(manager)
+    configs = [
+        manager.registry.get_hook_config(hook)
+        for hook in manager.registry.get_hooks(HookEvent.STOP)
+    ]
+    names = [config.name for config in configs if config is not None]
+    assert names.count("memory-reviewer") == 1
 
 
 def test_the_reviewer_approves_its_own_writes():
@@ -250,7 +270,7 @@ def test_all_three_hooks_register_while_both_switches_are_on(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -275,7 +295,7 @@ def test_the_log_hooks_survive_the_reviewer_switch(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -293,10 +313,7 @@ def test_a_log_hook_already_registered_is_not_registered_again(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {
-        "memory-event-log": MagicMock(),
-        "memory-interrupt-log": MagicMock(),
-    }
+    manager.registry.has_hook_named.side_effect = lambda name: name != "memory-reviewer"
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -314,7 +331,7 @@ def test_the_log_hooks_are_added_with_their_own_callables(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [call.args[2].name for call in manager.add_hook.call_args_list]
@@ -381,6 +398,7 @@ def test_the_interrupt_hook_is_registered_beside_the_reviewer(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [

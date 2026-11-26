@@ -15,6 +15,9 @@ from zrb.llm.capabilities.hook.builtin.memory_reviewer import (
 )
 from zrb.llm.capabilities.hook.builtin.memory_week import register_week_note_hook
 from zrb.llm.capabilities.hook.builtin.self_review import register_self_review_hook
+from zrb.llm.capabilities.hook.builtin.unfinished_action import (
+    register_unfinished_action_hook,
+)
 from zrb.llm.capabilities.hook.contracts.interface import (
     HookCallable,
     HookContext,
@@ -97,6 +100,9 @@ class HookManager(HookManagerLoading):
             register_recall_hook,
             register_week_note_hook,
             register_self_review_hook,
+            # Last: a block ends the chain, so the hooks above see the turn
+            # before this one decides to continue it.
+            register_unfinished_action_hook,
             register_skill_frontmatter_hooks,
         ]
         self._max_depth = max_depth

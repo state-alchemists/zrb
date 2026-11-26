@@ -97,7 +97,7 @@ def register_recall_hook(manager: "HookManager") -> None:
     if not CFG.LLM_MEMORY_ENABLED:
         return
     config = build_recall_hook_config()
-    if config.name in manager.registry.get_configs():
+    if manager.registry.has_hook_named(config.name):
         return
     registered = manager.register_hook_config(config, source="builtin")
     if registered is None:

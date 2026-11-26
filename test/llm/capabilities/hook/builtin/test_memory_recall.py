@@ -191,7 +191,7 @@ def test_the_recall_hook_runs_on_the_user_prompt():
 def test_the_recall_hook_registers_once_while_memory_is_on(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
 
     register_recall_hook(manager)
@@ -208,7 +208,7 @@ def test_a_recall_hook_already_registered_is_not_registered_again(monkeypatch):
     """`register_hook_config` refuses a disabled config, not a duplicate one."""
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {"memory-recall": MagicMock()}
+    manager.registry.has_hook_named.return_value = True
 
     register_recall_hook(manager)
 

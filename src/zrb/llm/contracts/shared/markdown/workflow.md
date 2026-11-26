@@ -7,6 +7,8 @@
 
    Chunks that share a file, or hang on one undecided choice, go in sequence.
 3. Make the requested change or provide the requested answer.
+
+   End the turn only when the answer is complete or a decision that is the user's is outstanding. Never end it on an announcement: "I am fixing X" with no tool call after it is a promise the turn cannot keep, because the turn is over the moment you stop calling tools. Start the work now, or say what you are waiting for and whose answer it is — a person's decision, a running process, an outside event.
 4. Verify before you report. A code change is done when a focused test, lint, or type check has run and passed, not when the edit lands; if the project has none, name what you checked. Prove a removal by searching the changed files for it and finding zero hits. Read what a check printed: output that contradicts your claim leaves it unverified until you explain it.
 5. Report the outcome first, then the essential evidence, what you did not verify, and any next action needed from the user.
 

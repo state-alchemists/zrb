@@ -150,9 +150,13 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
         manager, build_interrupt_log_hook_config(), create_interrupt_log_hook
     )
     if CFG.LLM_MEMORY_REVIEWER_ENABLED:
-        manager.register_hook_config(
-            build_memory_reviewer_hook_config(), source="builtin"
-        )
+        # `_register_log_hook`'s name check, for the same reason: a live
+        # manager's `search_dirs` can be reassigned, which re-scans without
+        # clearing the registry, and a second reviewer doubles every model call
+        # the turn makes.
+        config = build_memory_reviewer_hook_config()
+        if not manager.registry.has_hook_named(config.name):
+            manager.register_hook_config(config, source="builtin")
 
 
 def _register_log_hook(
@@ -172,7 +176,7 @@ def _register_log_hook(
     The callable is swapped in afterwards because a log hook names an
     `AgentHookConfig` for the manager's sake and must never build an agent.
     """
-    if config.name in manager.registry.get_configs():
+    if manager.registry.has_hook_named(config.name):
         return
     registered = manager.register_hook_config(config, source="builtin")
     if registered is None:

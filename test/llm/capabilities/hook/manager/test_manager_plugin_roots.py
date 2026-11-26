@@ -231,9 +231,15 @@ async def test_per_run_hook_managers_are_isolated_from_the_developers_real_hooks
 
     for module in (chat_execution, llm_task_building):
         manager = module.HookManager()
+        # The fixture's own seam: a per-run manager must discover no directory.
+        assert (
+            manager.search_dirs == []
+        ), f"{module.__name__} builds hook managers that scan for real hooks"
         for event in (HookEvent.NOTIFICATION, HookEvent.STOP, HookEvent.SESSION_END):
             results = await manager.execute_hooks(event, {})
-            assert results == [], (
+            # The built-in Stop hooks answer with inert results; a real
+            # filesystem hook would report, block or fail.
+            assert not [r for r in results if r.blocked or r.message or r.error], (
                 f"{module.__name__} builds hook managers that run the real "
                 f"filesystem hooks during tests (fired on {event})"
             )
