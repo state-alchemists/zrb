@@ -198,7 +198,10 @@ def _alternation(words: "tuple[str, ...]") -> str:
 #: what separates a claim that work is happening now from a closing sentence.
 _ACTION_IN_PROGRESS_RE = re.compile(
     r"\bI(?:'m| am)\s+(?!not\b)(?:(?:now|still|just|already)\s+)*"
-    r"(?:" + _alternation(_WORK_GERUNDS) + r")\b",
+    r"(?:" + _alternation(_WORK_GERUNDS) + r")\b"
+    # The verb's own object can negate it: "I am fixing nothing" is a report
+    # that nothing is wrong, not a claim that work is happening.
+    r"(?!\s+(?:no|none|nothing|nobody|nowhere)\b)",
     re.IGNORECASE,
 )
 
@@ -207,7 +210,8 @@ _ACTION_IN_PROGRESS_RE = re.compile(
 #: form settles before the verb is read.
 _GOING_TO_RE = re.compile(
     r"\bI(?:'m| am)\s+(?:going|about)\s+to\s+(?:now\s+)?"
-    r"(?:" + _alternation(_WORK_BASE) + r")\b",
+    r"(?:" + _alternation(_WORK_BASE) + r")\b"
+    r"(?!\s+(?:no|none|nothing|nobody|nowhere)\b)",
     re.IGNORECASE,
 )
 

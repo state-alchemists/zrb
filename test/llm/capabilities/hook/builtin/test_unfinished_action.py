@@ -84,6 +84,20 @@ def test_a_report_a_question_or_an_offer_is_not_a_claim(message):
 @pytest.mark.parametrize(
     "message",
     [
+        # The object can negate the verb: nothing to fix is not fixing.
+        "I am fixing nothing; the issue is already resolved.",
+        "I am fixing no files today.",
+        "I am removing none of them.",
+        "I'm going to fix nothing.",
+    ],
+)
+def test_a_negated_object_is_not_a_claim(message):
+    assert unfinished_claim(message) is None
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
         "I am deleting the stale file now.",
         "I am removing the regression.",
         "I am installing the dependency.",
