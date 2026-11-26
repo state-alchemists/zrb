@@ -5,6 +5,10 @@ ended with joined the following line onto the replacement, and that only
 surfaced afterwards, as a diagnostic about a file already on disk. A
 replacement that produced unparsable Python was likewise written first and
 reported second, so the caller had to repair a file it never meant to break.
+
+A third: the file was read and written with universal-newline translation, so
+on POSIX a one-line edit of a CRLF file put every one of its line endings back
+as LF. The caller asked for one line and the diff was the whole file.
 """
 
 import asyncio
@@ -13,7 +17,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.capabilities.tool.file import replace_in_file
+from zrb.llm.capabilities.tool.file import replace_in_file, write_file
 from zrb.llm.capabilities.tool.file.observation import clear_observed
 
 
@@ -45,6 +49,16 @@ def _write_text(path, text):
 
 def _read_text(path):
     with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _write_bytes(path, data):
+    with open(path, "wb") as f:
+        f.write(data)
+
+
+def _read_bytes(path):
+    with open(path, "rb") as f:
         return f.read()
 
 
@@ -116,3 +130,136 @@ def test_a_valid_edit_is_applied_unchanged(tmp_path):
 
     assert "Successfully updated" in result
     assert _read_text(path) == "def f():\n    return 2\n"
+
+
+def test_a_one_line_edit_of_a_crlf_file_keeps_the_other_line_endings(tmp_path):
+    """Every byte outside the replaced text comes back as it was read.
+
+    Read and Write both translated line endings: on POSIX the edit put every
+    line of the file back as LF, so the diff covered lines it never touched.
+    """
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"first\r\nsecond\r\nthird\r\n")
+
+    _r(path, old_text="second\r\n", new_text="SECOND\r\n")
+
+    assert _read_bytes(path) == b"first\r\nSECOND\r\nthird\r\n"
+
+
+def test_a_crlf_line_break_is_kept_as_crlf(tmp_path):
+    """The `\\r\\n` half of `_keep_line_break` could not run while the read
+    translated every ending to `\\n`; restoring a break as LF would still have
+    rewritten the line's bytes."""
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"first\r\nsecond\r\n")
+
+    _r(path, old_text="second\r\n", new_text="SECOND")
+
+    assert _read_bytes(path) == b"first\r\nSECOND\r\n"
+
+
+def test_a_snippet_copied_from_read_still_matches_a_crlf_file(tmp_path):
+    """Read shows a CRLF file's lines with `\\n`, so the snippet a model copies
+    carries no `\\r`; it has to be found in the file the edit holds, and the
+    file's own ending has to be what the replacement is written with."""
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"first\r\nsecond\r\nthird\r\n")
+
+    result = _r(path, old_text="second\n", new_text="SECOND\n")
+
+    assert "Successfully updated" in result
+    # Not `first\r\nSECOND\nthird\r\n`: a replacement copied from Read carries
+    # `\n`, and writing it unchanged mixed two endings in a file that had one.
+    assert _read_bytes(path) == b"first\r\nSECOND\r\nthird\r\n"
+
+
+def test_a_cr_file_is_not_given_mixed_endings_by_a_copied_snippet(tmp_path):
+    """The same for a lone-CR file: a copied `\\n` must not land in it."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\r")
+
+    _r(path, old_text="second\n", new_text="SECOND\n")
+
+    assert _read_bytes(path) == b"first\rSECOND\r"
+
+
+def test_a_multi_line_edit_gives_every_break_the_files_own_ending(tmp_path):
+    """`Read` hands back `a\\nb\\n` for a CRLF file, so a two-line replacement
+    carries `\\n` on the inside as well as at the end.
+
+    Only the trailing break was replaced, so the file came out `A\\nB\\r\\n`:
+    mixed, while the result said the edit did not mix endings.
+    """
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"a\r\nb\r\nc\r\n")
+
+    result = _r(path, old_text="a\nb\n", new_text="A\nB\n")
+
+    assert "Successfully updated" in result
+    assert _read_bytes(path) == b"A\r\nB\r\nc\r\n"
+
+
+def test_a_multi_line_edit_gives_every_break_a_cr_files_ending(tmp_path):
+    """The same for a lone-CR file: the inner breaks cannot stay `\\n`."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"a\rb\rc\r")
+
+    _r(path, old_text="a\nb\n", new_text="A\nB\n")
+
+    assert _read_bytes(path) == b"A\rB\rc\r"
+
+
+def test_a_cr_line_break_is_kept_as_cr(tmp_path):
+    """A legacy Mac file's lines end in a bare `\\r`, and the edit keeps it.
+
+    The break was chosen as `"\\r\\n"` or `"\\n"` only, so a `\\r` matched text
+    got no break back: the edit either rewrote the ending or dropped it.
+    """
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\rthird\r")
+
+    _r(path, old_text="second\r", new_text="SECOND")
+
+    assert _read_bytes(path) == b"first\rSECOND\rthird\r"
+
+
+def test_a_snippet_copied_from_read_does_not_join_the_next_line_in_a_cr_file(
+    tmp_path,
+):
+    """Read shows a `\\r` file's lines with `\\n`, so the copied snippet has no
+    break; the replacement must not be glued onto the following line."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"first\rsecond\rthird\r")
+
+    _r(path, old_text="second\n", new_text="SECOND")
+
+    assert _read_bytes(path) == b"first\rSECOND\rthird\r"
+
+
+def test_an_already_applied_edit_is_recognised_across_a_crlf_line_ending(tmp_path):
+    """The region already reads as `new_text` once the line ending is counted.
+
+    On Windows every text file on disk carries `\\r\\n`, so a model's `\\n` never
+    matches byte for byte and the "already applied" answer never fired there —
+    the edit rewrote the file and announced a change it did not make.
+    """
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"foo bar\r\n")
+
+    result = _r(path, old_text="foo bar ", new_text="foo bar\n")
+
+    assert "already applied" in result
+    assert _read_bytes(path) == b"foo bar\r\n"
+
+
+def test_an_edited_crlf_file_is_still_what_this_run_observed(tmp_path):
+    """The observation store keys on universal-newline content while the edit
+    now holds the file's bytes; recording the bytes would make the next Write
+    report a file that changed under it."""
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"first\r\nsecond\r\n")
+
+    _r(path, old_text="second\r\n", new_text="SECOND\r\n")
+    result = asyncio.run(write_file(path, "replaced\n"))
+
+    assert "has changed since it was last read" not in result

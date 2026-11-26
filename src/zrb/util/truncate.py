@@ -1,9 +1,19 @@
 def truncate_chars(text: str, max_chars: int) -> str:
-    """Hard-cap a string at ``max_chars``, appending an omission marker."""
+    """Hard-cap a string at ``max_chars`` *total*, omission marker included."""
     if len(text) <= max_chars:
         return text
-    omitted = len(text) - max_chars
-    return text[:max_chars] + f" ...[TRUNCATED {omitted} chars]"
+    # The marker grows with the count it names, so reserve room for the longest
+    # form and then name the smaller count the shorter head actually dropped.
+    room = max_chars - len(_omission_marker(len(text)))
+    if room <= 0:
+        # No room for the marker inside the cap; the cap still holds.
+        return text[: max(0, max_chars)]
+    return text[:room] + _omission_marker(len(text) - room)
+
+
+def _omission_marker(omitted: int) -> str:
+    """The marker naming how many characters were dropped."""
+    return f" ...[TRUNCATED {omitted} chars]"
 
 
 def truncate_text(text: str, max_chars: int, keep: str = "head") -> tuple[str, bool]:
@@ -52,7 +62,7 @@ def truncate_items(items: list, max_chars: int) -> tuple[list, int]:
 def truncate_display(text: str, max_chars: int) -> str:
     """Clip ``text`` to ``max_chars`` *total*, ending in an ellipsis.
 
-    Unlike :func:`truncate_chars`, the result never exceeds ``max_chars``.
+    The result never exceeds ``max_chars``.
     """
     if len(text) <= max_chars:
         return text
