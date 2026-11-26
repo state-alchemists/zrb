@@ -774,12 +774,12 @@ class LLMTask(BaseTask):
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Toolsets may be pre-resolved (and entered) by _exec_action.
         resolved_tools = self.get_all_tools(ctx)
-        if self._dynamic_yolo is not None:
-            should_skip_approval = self._dynamic_yolo
-        else:
-            should_skip_approval = resolve_skip_approval(
-                ctx, self._yolo, resolved_tools
-            )
+        # The capability map is registered whichever decision answers: the
+        # deferred cascade looks a tool up by name, and a task that skipped this
+        # had every capability-keyed rule fall through to a later `*:allow`.
+        should_skip_approval = resolve_skip_approval(
+            ctx, self._yolo, resolved_tools, self._dynamic_yolo
+        )
         resolved_toolsets = (
             toolsets if toolsets is not None else self.get_all_toolsets(ctx)
         )

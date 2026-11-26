@@ -212,10 +212,10 @@ async def _resolve_approval(
 
     Precedence:
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
-      1. Tool policy
+      1. Tool policy — a denial stands; its approval cannot carry an MCP write
       2. Permission policy (ALLOW→approve, DENY→deny, ASK→force ask)
-      2a. A write to the MCP loader's config — a hard ASK, the only kind that
-          outranks YOLO (ADR-0062)
+      2a. A write to the MCP loader's config — a hard ASK that outranks the
+          approval of 1 and the YOLO of 3 alike (ADR-0062, ADR-0146)
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
       3. YOLO (only with no policy ASK, and never for a sandbox escape)
@@ -236,6 +236,7 @@ async def _resolve_approval(
     if verdict is not None:
         return verdict
 
+    mcp_config_write = _is_mcp_config_write(call)
     verdict = await _apply_tool_policies(
         call, ui, effective_tool_confirmation, force_ask
     )
@@ -243,7 +244,7 @@ async def _resolve_approval(
         return verdict
 
     policy_decision, verdict = _apply_permission_policy(call, force_ask)
-    if _is_mcp_config_write(call) and policy_decision != DENY:
+    if mcp_config_write and policy_decision != DENY:
         policy_decision, verdict = ASK, None
     if verdict is not None:
         return verdict
@@ -308,7 +309,13 @@ async def _apply_tool_policies(
     effective_tool_confirmation: AnyToolConfirmation,
     force_ask: bool,
 ) -> "ToolApproved | ToolDenied | None":
-    """Priority 1: tool policies, from a `ToolCallHandler` or a UI method bound to one."""
+    """Priority 1: tool policies, from a `ToolCallHandler` or a UI method bound to one.
+
+    An approval here speaks for an ordinary call. A write to the MCP loader's
+    config is a hard ASK (ADR-0146), so that approval is dropped and the cascade
+    below asks a human; a denial still stands, because refusing is always safe.
+    Without this, `auto_approve("Write")` wrote the config with nobody asked.
+    """
     handler = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         handler = effective_tool_confirmation
@@ -322,6 +329,8 @@ async def _apply_tool_policies(
     # lazy: heavy third-party
     from pydantic_ai import ToolDenied
 
+    if _is_mcp_config_write(call) and not isinstance(policy_result, ToolDenied):
+        return None
     if not force_ask or isinstance(policy_result, ToolDenied):
         return policy_result
     return None

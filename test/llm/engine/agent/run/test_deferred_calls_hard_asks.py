@@ -6,12 +6,13 @@ every server its config names — so a write to that config is a human's call. A
 three were approved with nobody asked.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import ToolApproved, ToolDenied
 
 from zrb.llm.capabilities.permission import Capability, resolve_policy
+from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.engine.agent.run.deferred_calls import _resolve_approval
 from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
 from zrb.llm.engine.agent.types import ToolCallPart
@@ -77,6 +78,49 @@ async def test_a_capability_keyed_ask_still_asks_after_deferral():
         ),
     ):
         verdict = await _resolve_approval(call, MagicMock(), confirm, None, None)
+    assert not isinstance(verdict, ToolApproved)
+    assert asked == ["Write"]
+
+
+@pytest.mark.asyncio
+async def test_a_tool_policy_cannot_approve_a_write_to_the_mcp_config(
+    tmp_path, monkeypatch
+):
+    """`auto_approve("Write")` speaks for ordinary writes, not for this one.
+
+    The policy answered `ToolApproved` above the hard ask, so the one write the
+    loader starts every server from went through with nobody asked (ADR-0146).
+    """
+    monkeypatch.chdir(tmp_path)
+    register_tool_capabilities({"Write": Capability.EDIT})
+    call = ToolCallPart(
+        tool_name="Write",
+        args={"path": str(tmp_path / "mcp-config.json")},
+        tool_call_id="call_mcp_config_policy",
+    )
+
+    handler = MagicMock(spec=ToolCallHandler)
+    handler.check_policies = AsyncMock(return_value=ToolApproved())
+    asked: list[str] = []
+
+    async def handle(ui, call):
+        asked.append(call.tool_name)
+        return ToolDenied("a human was asked")
+
+    handler.handle = AsyncMock(side_effect=handle)
+    with (
+        patch(
+            "zrb.llm.capabilities.permission.get_effective_policy", return_value=None
+        ),
+        patch(
+            "zrb.llm.engine.agent.run.deferred_calls.get_interactive_mode",
+            return_value=True,
+        ),
+        patch(
+            "zrb.llm.contracts.shared.agent_state.get_current_yolo", return_value=True
+        ),
+    ):
+        verdict = await _resolve_approval(call, MagicMock(), handler, None, None)
     assert not isinstance(verdict, ToolApproved)
     assert asked == ["Write"]
 

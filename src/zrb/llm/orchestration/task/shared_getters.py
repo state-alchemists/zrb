@@ -171,7 +171,10 @@ def make_skip_approval_decision(
 
 
 def resolve_skip_approval(
-    ctx: AnyContext, yolo: BoolAttr, tools: "list[Tool | ToolFuncEither]"
+    ctx: AnyContext,
+    yolo: BoolAttr,
+    tools: "list[Tool | ToolFuncEither]",
+    override: Callable[..., bool] | None = None,
 ) -> Callable[..., bool]:
     """The skip decision for a task whose yolo is a plain attribute.
 
@@ -179,8 +182,16 @@ def resolve_skip_approval(
     to register none, so `edit:ask` read every tool as UNKNOWN and the later
     `*:allow` answered instead. Yolo is snapshotted — it is a `BoolAttr` here,
     not `LLMChatTask`'s live xcom.
+
+    ``override`` is a task that brought its own decision (`dynamic_yolo`). Its
+    map is registered all the same — the deferred cascade looks a tool up by
+    name, and the task that registered nothing had every capability-keyed rule
+    fall through — and the override is wrapped, so a hard ask is still refused
+    before it answers.
     """
     cap_by_name = build_capability_map(tools)
     register_tool_capabilities(cap_by_name)
+    if override is not None:
+        return make_skip_approval_decision(cap_by_name, override)
     yolo_on = get_bool_attr(ctx, yolo, False)
     return make_skip_approval_decision(cap_by_name, lambda *_: yolo_on)

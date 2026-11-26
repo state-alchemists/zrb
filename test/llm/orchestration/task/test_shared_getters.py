@@ -50,6 +50,25 @@ def test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough():
         )
 
 
+def test_a_tasks_own_decision_is_wrapped_so_a_hard_ask_still_wins():
+    """`dynamic_yolo` answers last: after the map is registered and a hard ask.
+
+    A task that brought its own callback registered nothing, so the deferred
+    cascade read its tools as UNKNOWN and the later `*:allow` answered for an
+    edit the user had gated (ADR-0146).
+    """
+    from zrb.llm.capabilities.permission import Capability
+    from zrb.llm.capabilities.tool.file import write_file
+    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
+    from zrb.llm.orchestration.task.shared_getters import resolve_skip_approval
+
+    decision = resolve_skip_approval(None, False, [write_file], lambda *_: True)
+
+    assert get_tool_capability("Write") is Capability.EDIT
+    assert decision("Write", {"path": "notes.txt"}) is True
+    assert decision("Write", {"path": "mcp-config.json"}) is False
+
+
 def test_a_capability_rule_still_matches_without_arguments():
     """An `arg_pattern`-free rule needs no arguments, so the capability-keyed
     presets (plan mode's, say) keep resolving on the argument-less call too."""
