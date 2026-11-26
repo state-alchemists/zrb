@@ -6,6 +6,10 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.capabilities.permission import Capability, tag
+from zrb.llm.capabilities.sandbox import (
+    get_effective_sandbox_policy,
+    is_read_allowed,
+)
 from zrb.llm.capabilities.tool.file.observation import record_listed
 from zrb.llm.capabilities.tool.git_visible import without_gitignored
 from zrb.llm.capabilities.tool.purpose import Purpose, requires_purpose
@@ -177,7 +181,9 @@ def glob_files(
     files, and LS when you do not yet know what you are looking for.
 
     The pattern is relative to `path`: an absolute one, or one that climbs out
-    with `..`, names files the sandbox never judged and is refused.
+    with `..`, names files the sandbox never judged and is refused. A match that
+    resolves into a sandbox deny-read root anyway — a symlinked segment inside
+    the searched directory — is left out and counted in `warning`.
 
     A git checkout hides what `.gitignore` excludes, matching LS.
 
@@ -214,8 +220,16 @@ def glob_files(
         search_pattern, recursive=True, include_hidden=include_hidden
     )
 
+    denied_count = 0
     for candidate in candidates:
         if os.path.isdir(candidate):
+            continue
+        if not is_read_allowed(candidate, get_effective_sandbox_policy()):
+            # The gate judged the `path` and the raw `pattern`, and neither is
+            # the file: the join happens here, so a symlinked segment of the
+            # pattern reaches a deny-read root the gate never saw, and the match
+            # comes back spelled as if it were inside the searched directory.
+            denied_count += 1
             continue
 
         rel_path = os.path.relpath(candidate, abs_path)
@@ -234,7 +248,13 @@ def glob_files(
     if gitignore:
         sorted_files = without_gitignored(abs_path, sorted_files)
 
-    return _listing_result(abs_path, sorted_files)
+    result = _listing_result(abs_path, sorted_files)
+    if denied_count > 0:
+        result["warning"] = (
+            f"{denied_count} file(s) were excluded by the sandbox deny-read "
+            "policy; they are not listed."
+        )
+    return result
 
 
 tag(list_files, Capability.READ)
