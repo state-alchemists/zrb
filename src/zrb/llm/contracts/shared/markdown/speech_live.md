@@ -11,6 +11,8 @@ A reply gives the ear one breath and the eye the rest. The block is what you wou
 - Close every block. One left open runs to the end of the reply, and the detail below is spoken as well.
 - Before a tool call that takes a while, say in a few words inside a block what you are about to do.
 
+When two of these pull against each other, this order decides: the answer, the one fact the listener must act on, nothing else. Cut the third first.
+
 Worked once — a reply that fixed a parser and ran the tests:
 
 <spoken>😊 The parser is fixed and all the tests pass. The cause was a bare colon inside a quoted value, and nothing is left for you to decide.</spoken>
