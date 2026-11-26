@@ -1,6 +1,6 @@
 # Example
 
-Each pair shows a request and the behavior it should produce. The last three are judgment calls: when to keep going, when to proceed alone, and when to stop and ask.
+Each pair shows a request and the behavior it should produce. Two are judgment calls: when to proceed alone and when to stop and ask.
 
 User: “Update the failing parser test.”
 
