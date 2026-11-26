@@ -11,14 +11,17 @@ from zrb.llm.capabilities.permission import (
     DENY,
     Capability,
     get_effective_policy,
-    tool_capability,
 )
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.engine.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.engine.agent.run.hard_asks import get_llm_tool_name, is_hard_ask_call
-from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
+from zrb.llm.engine.agent.run.tool_capabilities import (
+    build_capability_map,
+    register_tool_capabilities,
+)
 from zrb.util.attr import get_attr, get_bool_attr
+from zrb.util.signature import can_take_positional
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -102,22 +105,6 @@ def resolve_conversation_name(
     return resolved
 
 
-def build_capability_map(tools: "list[Tool | ToolFuncEither]") -> dict[str, Capability]:
-    """LLM-visible name → capability for *tools*, keyed by the name the model calls.
-
-    One map serves both halves of the gate on a call: the skip decision below,
-    which needs it before the call is deferred, and the approval cascade, which
-    needs it after — a deferred `ToolCallPart` carries no capability tag of its
-    own (see `engine/agent/run/tool_capabilities.py`).
-    """
-    return {
-        (getattr(tool, "name", None) or getattr(tool, "__name__", "")): tool_capability(
-            tool
-        )
-        for tool in tools
-    }
-
-
 def get_policy_skip_decision(
     tool_def: object,
     cap_by_name: "dict[str, Capability] | None" = None,
@@ -157,7 +144,17 @@ def make_skip_approval_decision(
     permission policy decides (see `get_policy_skip_decision`), and *fallback*
     last — a live xcom for `LLMChatTask`, a snapshot for a bare `LLMTask`. Tool
     policies run later, in `deferred_calls.py`.
+
+    *fallback* may be a task's own `dynamic_yolo`, and the documented shape of
+    one takes only the tool definition. It is called with what it accepts, never
+    with the arguments it rejects: an `LLMTask` with a one-argument callback used
+    to raise `TypeError` here, before any approval decision was made.
     """
+    call_fallback: Callable[..., bool] = (
+        fallback
+        if can_take_positional(fallback, 2, if_unknown=False)
+        else lambda tool_def, args=None: fallback(tool_def)
+    )
 
     def should_skip_approval(tool_def=None, args=None):
         if is_hard_ask_call(get_llm_tool_name(tool_def), args):
@@ -165,7 +162,7 @@ def make_skip_approval_decision(
         decision = get_policy_skip_decision(tool_def, cap_by_name, args)
         if decision is not None:
             return decision
-        return fallback(tool_def, args)
+        return call_fallback(tool_def, args)
 
     return should_skip_approval
 

@@ -21,7 +21,10 @@ from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_proces
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.contracts.util.attachment import get_attachments
-from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
+from zrb.llm.engine.agent.run.tool_capabilities import (
+    build_capability_map,
+    register_tool_capabilities,
+)
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.task.chat.persistence import (
     build_session_history_config,
@@ -33,7 +36,6 @@ from zrb.llm.orchestration.task.chat.teardown import (
 )
 from zrb.llm.orchestration.task.llm_task import LLMTask
 from zrb.llm.orchestration.task.shared_getters import (
-    build_capability_map,
     make_skip_approval_decision,
     resolve_all_tools,
     resolve_all_toolsets,

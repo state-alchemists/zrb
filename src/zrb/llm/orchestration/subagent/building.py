@@ -24,6 +24,10 @@ from zrb.llm.contracts.shared.tool_resolver import (
     resolved_tool_name,
 )
 from zrb.llm.engine.agent.common import create_agent
+from zrb.llm.engine.agent.run.tool_capabilities import (
+    build_capability_map,
+    register_tool_capabilities,
+)
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.resumed_session import create_resumed_chat_task
 from zrb.llm.orchestration.subagent.definition import SubAgentDefinition
@@ -123,13 +127,22 @@ class SubAgentBuilding:
 
         resolved = self.resolve_agent_build(definition, ctx, yolo)
 
+        # The inheritance checker reads the ambient map by name, and the cascade
+        # reads it again after a call is deferred, so the tools this agent is
+        # built with are registered before it is built — everything actually
+        # supplied, `send_message_to_parent` included. A sub-agent built here
+        # used to register nothing: a delegated `Edit` read as UNKNOWN, an
+        # `edit:ask` rule missed it, and a later `*:allow` answered.
+        tools = [*resolved.tools, send_message_to_parent]
+        register_tool_capabilities(build_capability_map(tools))
+
         # resolve_model=False: resolved.model was already resolved (so section
         # factories could use it). Re-resolving inside create_agent would
         # double-fire model_getter/model_renderer.
         return create_agent(
             model=resolved.model,
             system_prompt=resolved.system_prompt,
-            tools=[*resolved.tools, send_message_to_parent],
+            tools=tools,
             toolsets=resolved.toolsets,
             history_processors=[
                 create_summarizer_history_processor(

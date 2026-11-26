@@ -4,7 +4,10 @@ call's own arguments whenever the caller has them."""
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.capabilities.permission import ALLOW, ASK, PermissionPolicy, Rule
-from zrb.llm.orchestration.task.shared_getters import get_policy_skip_decision
+from zrb.llm.orchestration.task.shared_getters import (
+    get_policy_skip_decision,
+    make_skip_approval_decision,
+)
 
 
 def _tool_def(name: str) -> MagicMock:
@@ -14,7 +17,7 @@ def _tool_def(name: str) -> MagicMock:
     return tool_def
 
 
-def _with_policy(policy: PermissionPolicy):
+def _with_policy(policy: PermissionPolicy | None):
     return patch(
         "zrb.llm.orchestration.task.shared_getters.get_effective_policy",
         return_value=policy,
@@ -75,3 +78,24 @@ def test_a_capability_rule_still_matches_without_arguments():
     policy = PermissionPolicy((Rule("*", ALLOW),))
     with _with_policy(policy):
         assert get_policy_skip_decision(_tool_def("Bash")) is True
+
+
+def test_a_one_argument_callback_is_given_the_tool_definition_alone():
+    """`dynamic_yolo`'s documented shape takes only the tool definition.
+
+    The wrapper called every fallback as `fallback(tool_def, args)`, so an
+    `LLMTask(dynamic_yolo=allow_reads)` raised `TypeError` on the first
+    unapproved call — before the approval decision it was there to make.
+    """
+    seen: list[str] = []
+
+    def allow_reads(tool_def):
+        seen.append(tool_def.name)
+        return tool_def.name == "Read"
+
+    decision = make_skip_approval_decision({}, allow_reads)
+
+    with _with_policy(None):
+        assert decision(_tool_def("Read"), {"path": "notes.txt"}) is True
+        assert decision(_tool_def("Write"), {"path": "notes.txt"}) is False
+    assert seen == ["Read", "Write"]
