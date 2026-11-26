@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 from zrb.llm.capabilities.sandbox import (
     SandboxPolicy,
     check_read,
@@ -11,24 +13,47 @@ from zrb.llm.capabilities.sandbox import (
     contains_denied_read_root,
     is_read_allowed,
 )
-from zrb.llm.capabilities.sandbox.fs_policy import is_within
-
-# --- is_within -----------------------------------------------------------
+from zrb.llm.capabilities.sandbox.fs_policy import is_read_within, is_write_within
 
 
-def test_is_within_subpath():
-    assert is_within("/a/b/c", "/a/b") is True
+def _volume_ignores_case(directory) -> bool:
+    """Whether *directory*'s volume treats a case variant as the same entry.
+
+    Asked of a path that already exists under a different casing, so no probe
+    file is written: a volume that keeps the two spellings apart answers with an
+    error, which is the answer this asks for.
+    """
+    spelling = str(directory)
+    try:
+        return os.stat(spelling.swapcase()).st_ino == os.stat(spelling).st_ino
+    except OSError:
+        return False
 
 
-def test_is_within_rejects_sibling_prefix():
+# --- is_read_within / is_write_within ---------------------------------------
+
+
+def test_is_read_within_subpath():
+    assert is_read_within("/a/b/c", "/a/b") is True
+
+
+def test_is_read_within_rejects_sibling_prefix():
     # "/a/bc" shares a string prefix with "/a/b" but is not inside it.
-    assert is_within("/a/bc", "/a/b") is False
+    assert is_read_within("/a/bc", "/a/b") is False
 
 
-def test_is_within_mixed_abs_rel_is_false():
+def test_is_read_within_mixed_abs_rel_is_false():
     # commonpath raises ValueError on mixed absolute/relative (and on
     # cross-drive comparisons on Windows) — treated as "not within".
-    assert is_within("relative/path", "/abs/root") is False
+    assert is_read_within("relative/path", "/abs/root") is False
+
+
+def test_is_write_within_subpath():
+    assert is_write_within("/a/b/c", "/a/b") is True
+
+
+def test_is_write_within_rejects_sibling_prefix():
+    assert is_write_within("/a/bc", "/a/b") is False
 
 
 # --- check_write ----------------------------------------------------------
@@ -186,3 +211,84 @@ def test_a_disabled_policy_contains_no_denied_read_root(tmp_path):
         deny_read_paths=(str(secrets),),
     )
     assert contains_denied_read_root(str(tmp_path), policy) is None
+
+
+# --- casing ---------------------------------------------------------------
+#
+# `os.path.normcase` is the identity on POSIX, so a spelled-once comparison let
+# casing defeat the deny list: on macOS's default case-insensitive volume
+# `realpath` keeps the caller's casing, and `~/.SSH/KNOWN_HOSTS` compared as
+# outside `~/.ssh` while being the same file. The two volumes need different
+# answers, so each test skips on the one it cannot speak about.
+
+
+def test_a_case_variant_of_a_deny_root_is_refused(tmp_path):
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "id_rsa").write_text("KEY")
+    if not _volume_ignores_case(tmp_path):
+        pytest.skip("this volume keeps the two spellings apart")
+    policy = _policy(tmp_path, deny_read_paths=(str(secrets),))
+
+    error = check_read(str(secrets / "id_rsa").upper(), policy)
+
+    assert error is not None
+    assert "may not be read" in error
+
+
+def test_a_case_variant_of_a_deny_root_is_not_writable(tmp_path):
+    """A secret you cannot read you also cannot plant, whatever its casing."""
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    if not _volume_ignores_case(tmp_path):
+        pytest.skip("this volume keeps the two spellings apart")
+    policy = _policy(tmp_path, deny_read_paths=(str(secrets),))
+
+    error = check_write(os.path.join(str(secrets).upper(), "authorized_keys"), policy)
+
+    assert error is not None
+    assert "protected directory" in error
+
+
+def test_a_case_variant_parent_is_seen_by_the_containment_check(tmp_path):
+    """A recursive read of the parent under another casing opens the root too."""
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    if not _volume_ignores_case(tmp_path):
+        pytest.skip("this volume keeps the two spellings apart")
+    policy = _policy(tmp_path, deny_read_paths=(str(secrets),))
+
+    contained = contains_denied_read_root(str(tmp_path).upper(), policy)
+
+    assert contained == os.path.realpath(str(secrets))
+
+
+def test_an_unborn_file_under_a_case_variant_root_is_refused(tmp_path):
+    """Nothing exists at the tail, so the folded spelling has the last word.
+
+    Holds on both volumes: on a case-insensitive one the parent's inode names
+    the root, and on a case-sensitive one the fold still reaches it and a read
+    errs toward refusing.
+    """
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    policy = _policy(tmp_path, deny_read_paths=(str(secrets),))
+
+    error = check_read(os.path.join(str(secrets).upper(), "UNBORN_KEY"), policy)
+
+    assert error is not None
+    assert "may not be read" in error
+
+
+def test_a_cased_sibling_reads_freely_on_a_case_sensitive_volume(tmp_path):
+    """`SECRETS` and `secrets` are two directories where the volume says so."""
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    if _volume_ignores_case(tmp_path):
+        pytest.skip("this volume folds the two spellings onto one directory")
+    sibling = tmp_path / "SECRETS"
+    sibling.mkdir()
+    (sibling / "note.txt").write_text("not a secret")
+    policy = _policy(tmp_path, deny_read_paths=(str(secrets),))
+
+    assert check_read(str(sibling / "note.txt"), policy) is None
