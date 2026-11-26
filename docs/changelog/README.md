@@ -2,7 +2,7 @@
 
 # Changelog
 
-- [4.0.1](v4/4.0.1.md) — Unreleased
+- [4.0.1](v4/4.0.1.md) — November 27, 2026
 - [4.0.0](v4/4.0.0.md) — 4.0.0a1–4.0.0, November 20, 2026–November 25, 2026
 - [3.41.0–3.41.4](v3/3.41.0-3.41.4.md) — November 17, 2026–November 19, 2026
 - [3.40.1](v3/3.40.1.md) — November 16, 2026
