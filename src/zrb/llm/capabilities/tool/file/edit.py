@@ -109,6 +109,11 @@ async def _replace_in_file_locked(
 
     if content == new_content:
         return _describe_noop(path, old_text, new_text, count)
+    if _as_universal_newlines(actual_old) == _as_universal_newlines(new_text):
+        # Already applied, once the line ending is counted the way `Read` shows
+        # it. On Windows `write_text` leaves `\r\n` on disk, so a model's `\n`
+        # never matches byte for byte and the no-op above cannot fire.
+        return _describe_noop(path, old_text, new_text, count)
 
     refused = _describe_unparsable_result(path, abs_path, content, new_content)
     if refused is not None:

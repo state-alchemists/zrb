@@ -198,6 +198,22 @@ def test_a_snippet_copied_from_read_does_not_join_the_next_line_in_a_cr_file(
     assert _read_bytes(path) == b"first\rSECOND\rthird\r"
 
 
+def test_an_already_applied_edit_is_recognised_across_a_crlf_line_ending(tmp_path):
+    """The region already reads as `new_text` once the line ending is counted.
+
+    On Windows every text file on disk carries `\\r\\n`, so a model's `\\n` never
+    matches byte for byte and the "already applied" answer never fired there —
+    the edit rewrote the file and announced a change it did not make.
+    """
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"foo bar\r\n")
+
+    result = _r(path, old_text="foo bar ", new_text="foo bar\n")
+
+    assert "already applied" in result
+    assert _read_bytes(path) == b"foo bar\r\n"
+
+
 def test_an_edited_crlf_file_is_still_what_this_run_observed(tmp_path):
     """The observation store keys on universal-newline content while the edit
     now holds the file's bytes; recording the bytes would make the next Write
