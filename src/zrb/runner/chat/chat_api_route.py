@@ -20,6 +20,7 @@ from zrb.runner.chat.chat_session_runner import run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.chat.sse_stream import SSEStreamResponse
 from zrb.runner.web_util.user import get_user_from_request
+from zrb.task.any_task import AnyTask
 from zrb.util.string.conversion import to_safe_filename
 
 if TYPE_CHECKING:
@@ -124,9 +125,13 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
 
 async def get_llm_chat_task(root_group: AnyGroup) -> "LLMChatTask | None":
     """The registered `llm chat` task, which `extract_node` can only hand back
-    as a node: the path names a task, and this is the one it names."""
+    as a node: the path names a task, and this is the one it names.
+
+    Resolved as the web sees the tree, so a project that shadows `llm chat`
+    with a `cli_only` task does not get it served to browsers by this route.
+    """
     try:
-        task, _, _ = root_group.extract_node(["llm", "chat"])
+        task, _, _ = root_group.extract_node(["llm", "chat"], web_only=True)
         return cast("LLMChatTask", task)
     except NodeNotFoundError:
         return None
@@ -158,21 +163,46 @@ async def resolve_llm_chat_task_for_session(
     return llm_chat, not_found_msg
 
 
+async def _get_registered_chat_task(root_group: AnyGroup) -> "AnyTask | None":
+    """The `llm chat` task as the tree holds it, hidden or not.
+
+    `get_llm_chat_task` answers what a browser may be *served*, so it answers
+    nothing for a `cli_only` override. Authorisation has to ask what is
+    registered instead, or a hidden task is indistinguishable from a project
+    that never declared one.
+    """
+    try:
+        task, _, _ = root_group.extract_node(["llm", "chat"])
+        return cast("AnyTask", task)
+    except NodeNotFoundError:
+        return None
+
+
 async def _require_auth(
     web_auth_config: WebAuthConfig,
     root_group: AnyGroup,
     request: "Request",
 ) -> "JSONResponse | None":
-    """Return a 403 response unless the requester may access ``llm chat``.
+    """Return a 403 response unless the requester may use ``llm chat``.
 
-    Returns ``None`` when allowed, or when no chat task is registered.
+    Returns ``None`` when allowed, or when no chat task is registered at all.
+
+    A task that exists but is kept off the web is **forbidden**, not absent. The
+    endpoints exist whatever the task's visibility, so reading "not served to
+    browsers" as "no chat task here" skipped the access check on all of them —
+    listing sessions, reading messages, uploading attachments — for every
+    caller. Restricted is an authorisation answer, and this is where it is given.
     """
     # lazy: heavy third-party
     from fastapi.responses import JSONResponse
 
     user = await get_user_from_request(web_auth_config, request)
     llm_chat = await get_llm_chat_task(root_group)
-    if llm_chat is not None and not user.can_access_task(llm_chat):
+    if llm_chat is None:
+        if await _get_registered_chat_task(root_group) is not None:
+            return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
+        return None
+    if not user.can_access_task(llm_chat):
         return JSONResponse(content={"detail": "Forbidden"}, status_code=403)
     return None
 
