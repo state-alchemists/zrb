@@ -163,27 +163,39 @@ async def test_a_resolver_that_blocks_while_the_agent_is_built_still_gives_up(
     The resolver is held by this test and not by a sleep, so the claim is an
     ordering rather than a duration: the deadline ended the wait while the
     resolver was still inside its block, whatever the runner's clock did.
+
+    That the loop kept running meanwhile is the same kind of claim, and the one
+    a bound on elapsed time used to carry by accident. The resolver announces
+    itself on the loop from its own thread; that callback runs only if the loop
+    is free, and `returned` is still unset when it does, so a build that had
+    taken the loop could not satisfy both.
     """
-    blocked = threading.Event()
+    loop = asyncio.get_running_loop()
     released = threading.Event()
+    returned = threading.Event()
+    loop_free = asyncio.Event()
 
     def _blocking_agent(model=None):
-        blocked.set()
+        loop.call_soon_threadsafe(loop_free.set)
         released.wait(30)
+        returned.set()
         return FakeAgent(output=RepairedSpeech(spoken=LINE))
 
     monkeypatch.setattr(repair, "create_speech_repair_agent", _blocking_agent)
 
+    running = asyncio.ensure_future(repair_for_speech(REPLY, timeout=0.05))
     try:
-        # The outer bound names the failure mode rather than measuring a
-        # duration: only a repair that waits the resolver out can reach it,
+        # A bound on the failure mode, not a duration to measure: a build that
+        # had held the loop could not let this callback run at all.
+        await asyncio.wait_for(loop_free.wait(), 10)
+        assert not returned.is_set(), "the loop ran only after the build returned"
+
+        # Only a repair that waits the resolver out can reach the outer bound,
         # because nothing but this test can release the resolver.
         with pytest.raises(SpeechRepairError, match="within 0.05s"):
-            await asyncio.wait_for(repair_for_speech(REPLY, timeout=0.05), 10)
+            await asyncio.wait_for(running, 10)
     finally:
         released.set()
-
-    assert blocked.wait(5), "the resolver never started"
 
 
 @pytest.mark.asyncio
