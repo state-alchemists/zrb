@@ -3,6 +3,8 @@ from unittest import mock
 
 import pytest
 
+from zrb.attr.tpl import Tpl
+from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.scheduler import Scheduler
@@ -111,3 +113,30 @@ async def test_scheduler_fires_once_per_minute_with_subminute_tick(
                 assert mock_datetime.datetime.now.call_count > 1
 
         mock_push.assert_called_once()
+
+
+def test_scheduler_rejects_an_unknown_cron_shortcut():
+    """`@dialy` matches nothing forever, so it is refused, not monitored."""
+    with pytest.raises(ValueError, match="Unknown cron shortcut '@dialy'"):
+        Scheduler(name="test_scheduler", schedule="@dialy")
+
+
+def test_scheduler_rejects_an_unparsable_cron_field():
+    with pytest.raises(ValueError, match="could not parse a field"):
+        Scheduler(name="test_scheduler", schedule="a b c d e")
+
+
+@pytest.mark.parametrize("schedule", [None, "@minutely", "@daily", "*/5 * * * *"])
+def test_scheduler_accepts_a_usable_schedule(schedule):
+    assert Scheduler(name="test_scheduler", schedule=schedule).name == "test_scheduler"
+
+
+@pytest.mark.asyncio
+async def test_scheduler_rejects_an_unknown_shortcut_rendered_at_run_time():
+    """A `Tpl` schedule's text arrives late, so it is checked before the loop."""
+    scheduler = Scheduler(name="test_scheduler", schedule=Tpl("@dialy"))
+    ctx = mock.MagicMock(spec=AnyContext)
+    ctx.render = mock.MagicMock(return_value="@dialy")
+
+    with pytest.raises(ValueError, match="Unknown cron shortcut '@dialy'"):
+        await scheduler.exec_action(ctx)
