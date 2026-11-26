@@ -240,9 +240,9 @@ async def test_base_task_exec():
 
 
 @pytest.mark.asyncio
-async def test_base_task_execute_condition_skipped():
+async def test_base_task_execute_condition_skipped_still_runs_its_downstreams():
     """
-    When a task is skipped, its successors should still be executed.
+    A skipped task's `>>` downstream tasks still run.
     """
     called_tasks = []
 

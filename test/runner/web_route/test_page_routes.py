@@ -182,6 +182,52 @@ def test_node_page_routes_to_group_task_and_errors(auth_config):
     assert request(root, anon, "/ui/odd").status_code == 404
 
 
+def test_node_page_hides_a_cli_only_task_behind_a_generic_404(auth_config):
+    """A CLI-only task is not on the web, and the page must not name it: the
+    error's `Did you mean` candidates include the hidden names of its group."""
+    from contextlib import ExitStack
+
+    from zrb.group.group import Group
+    from zrb.runner.web_route.node_page.node_page_route import serve_node_page
+    from zrb.task.base.base_task import BaseTask
+
+    module = "zrb.runner.web_route.node_page.node_page_route"
+    root = Group(name="zrb")
+    root.add_task(BaseTask(name="start-server", cli_only=True))
+    root.add_task(BaseTask(name="deploy"))
+    anon = MagicMock()
+    anon.can_access_task.return_value = True
+    anon.can_access_group.return_value = True
+    messages = []
+
+    def error_page(user, root_group, status_code, message):
+        messages.append((status_code, message))
+        return HTMLResponse(f"error-{status_code}", status_code=status_code)
+
+    def request(path):
+        with ExitStack() as stack:
+            app = FastAPI()
+            stack.enter_context(
+                patch(f"{module}.show_task_page", return_value=HTMLResponse("task"))
+            )
+            stack.enter_context(
+                patch(f"{module}.show_error_page", side_effect=error_page)
+            )
+            stack.enter_context(
+                patch(f"{module}.get_user_from_request", return_value=anon)
+            )
+            serve_node_page(app, root, auth_config)
+            return TestClient(app).get(path)
+
+    # The ordinary sibling still renders: this is not a blanket refusal.
+    assert request("/ui/deploy").text == "task"
+
+    # The hidden task's own URL, and a near miss at it, both say only this.
+    assert request("/ui/start-server").status_code == 404
+    assert request("/ui/start-serve").status_code == 404
+    assert messages == [(404, "Not found"), (404, "Not found")]
+
+
 def test_node_page_undefined_path_is_422(auth_config):
     """/ui with no path at all is a defined error, not a crash."""
     from zrb.runner.web_route.node_page.node_page_route import (

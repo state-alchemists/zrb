@@ -15,13 +15,19 @@ from zrb.llm.capabilities.permission import (
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.engine.agent.run.error_classifier import retry_unless_permanent
-from zrb.util.attr import get_attr
+from zrb.llm.engine.agent.run.hard_asks import get_llm_tool_name, is_hard_ask_call
+from zrb.llm.engine.agent.run.tool_capabilities import (
+    build_capability_map,
+    register_tool_capabilities,
+)
+from zrb.util.attr import get_attr, get_bool_attr
+from zrb.util.signature import can_take_positional
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from zrb.attr.type import StrAttr
+    from zrb.attr.type import BoolAttr, StrAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.capabilities.prompt.manager import PromptManager
     from zrb.llm.engine.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
@@ -124,3 +130,65 @@ def get_policy_skip_decision(
     if result == ASK:
         return False
     return None
+
+
+def make_skip_approval_decision(
+    cap_by_name: "dict[str, Capability]",
+    fallback: Callable[..., bool],
+) -> Callable[..., bool]:
+    """Build the predicate deciding whether a tool call skips approval.
+
+    A hard ask is never skipped, whoever would have allowed it: leaving the
+    sandbox and writing the MCP config are a human's decision, and a policy
+    `allow` answers about ordinary calls (ADR-0065, ADR-0146). Then the
+    permission policy decides (see `get_policy_skip_decision`), and *fallback*
+    last — a live xcom for `LLMChatTask`, a snapshot for a bare `LLMTask`. Tool
+    policies run later, in `deferred_calls.py`.
+
+    *fallback* may be a task's own `dynamic_yolo`, and the documented shape of
+    one takes only the tool definition. It is called with what it accepts, never
+    with the arguments it rejects: an `LLMTask` with a one-argument callback used
+    to raise `TypeError` here, before any approval decision was made.
+    """
+    call_fallback: Callable[..., bool] = (
+        fallback
+        if can_take_positional(fallback, 2, if_unknown=False)
+        else lambda tool_def, args=None: fallback(tool_def)
+    )
+
+    def should_skip_approval(tool_def=None, args=None):
+        if is_hard_ask_call(get_llm_tool_name(tool_def), args):
+            return False
+        decision = get_policy_skip_decision(tool_def, cap_by_name, args)
+        if decision is not None:
+            return decision
+        return call_fallback(tool_def, args)
+
+    return should_skip_approval
+
+
+def resolve_skip_approval(
+    ctx: AnyContext,
+    yolo: BoolAttr,
+    tools: "list[Tool | ToolFuncEither]",
+    override: Callable[..., bool] | None = None,
+) -> Callable[..., bool]:
+    """The skip decision for a task whose yolo is a plain attribute.
+
+    Registers the capability map the decision reads first: a bare `LLMTask` used
+    to register none, so `edit:ask` read every tool as UNKNOWN and the later
+    `*:allow` answered instead. Yolo is snapshotted — it is a `BoolAttr` here,
+    not `LLMChatTask`'s live xcom.
+
+    ``override`` is a task that brought its own decision (`dynamic_yolo`). Its
+    map is registered all the same — the deferred cascade looks a tool up by
+    name, and the task that registered nothing had every capability-keyed rule
+    fall through — and the override is wrapped, so a hard ask is still refused
+    before it answers.
+    """
+    cap_by_name = build_capability_map(tools)
+    register_tool_capabilities(cap_by_name)
+    if override is not None:
+        return make_skip_approval_decision(cap_by_name, override)
+    yolo_on = get_bool_attr(ctx, yolo, False)
+    return make_skip_approval_decision(cap_by_name, lambda *_: yolo_on)

@@ -163,9 +163,12 @@ class TestDenialReasonIsClamped:
         result = await channel.request_approval(context)
 
         assert result.approved is False
-        assert result.message.startswith("User denied with: " + "x" * 100)
-        assert "x" * (MAX_DENIAL_REASON_CHARS + 1) not in result.message
-        assert "[TRUNCATED 4500 chars]" in result.message
+        reason = result.message.removeprefix("User denied with: ")
+        # The cap is the whole reason, marker included: the marker says how much
+        # of the paste was dropped, and that count is what the cap left over.
+        assert len(reason) <= MAX_DENIAL_REASON_CHARS
+        assert reason.startswith("x" * 100)
+        assert reason.endswith(" ...[TRUNCATED 4526 chars]")
 
     @pytest.mark.asyncio
     async def test_a_short_reason_is_kept_as_typed(self):

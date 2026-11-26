@@ -376,3 +376,49 @@ async def test_execute_root_tasks_wakes_the_state_logger_on_termination():
     assert len(supplied) == 1
     assert supplied[0] is not None
     assert supplied[0].is_set()
+
+
+@pytest.mark.asyncio
+async def test_run_and_cleanup_gives_a_leftover_task_its_grace_before_cancelling(
+    monkeypatch,
+):
+    """Cleanup must not cancel the run's own task: the grace elapses, then it warns."""
+    import zrb.task.base.lifecycle as lifecycle_module
+
+    monkeypatch.setattr(lifecycle_module, "_CLEANUP_GRACE_PERIOD", 0.05)
+
+    task = BaseTask(name="task")
+    task.exec_root_tasks = AsyncMock(return_value="result")
+    ctx_mock = MagicMock()
+    task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
+
+    session = MagicMock(spec=Session)
+    session.is_terminated = False
+
+    release = asyncio.Event()
+
+    async def ignore_the_first_cancel():
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            # Only the cleanup's second cancel, after the grace, ends this.
+            await release.wait()
+
+    leftover = asyncio.create_task(ignore_the_first_cancel())
+    await asyncio.sleep(0)
+    try:
+        assert await lifecycle.run_and_cleanup(session=session) == "result"
+    finally:
+        release.set()
+        await asyncio.gather(leftover, return_exceptions=True)
+
+    # `all_tasks` holds the run's own task; cancelling it aborted the grace.
+    current = asyncio.current_task()
+    assert current is not None
+    assert current.cancelling() == 0
+    assert leftover.cancelled()
+    warnings = " ".join(
+        str(call.args[0]) for call in ctx_mock.log_warning.call_args_list
+    )
+    assert "did not stop within" in warnings

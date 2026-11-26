@@ -41,7 +41,7 @@ from zrb.llm.orchestration.task.building import LLMTaskBuilding
 from zrb.llm.orchestration.task.history import LLMTaskHistory
 from zrb.llm.orchestration.task.history_config import HistoryConfig
 from zrb.llm.orchestration.task.shared_getters import (
-    get_policy_skip_decision,
+    resolve_skip_approval,
     set_default_retry_if,
 )
 from zrb.task.base.base_task import BaseTask
@@ -769,25 +769,17 @@ class LLMTask(BaseTask):
         system_prompt: str | None = None,
         toolsets: "list[AbstractToolset[None]] | None" = None,
     ) -> "Agent[None, Any]":
-        if self._dynamic_yolo is not None:
-            should_skip_approval = self._dynamic_yolo
-        else:
-            # Snapshotting yolo is fine here: a bare LLMTask's yolo is a
-            # BoolAttr, not LLMChatTask's live xcom.
-            should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
-
-            def _should_skip_approval(tool_def=None, args=None):
-                decision = get_policy_skip_decision(tool_def, args=args)
-                if decision is not None:
-                    return decision
-                return should_skip_approval_bool
-
-            should_skip_approval = _should_skip_approval
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Toolsets may be pre-resolved (and entered) by _exec_action.
         resolved_tools = self.get_all_tools(ctx)
+        # The capability map is registered whichever decision answers: the
+        # deferred cascade looks a tool up by name, and a task that skipped this
+        # had every capability-keyed rule fall through to a later `*:allow`.
+        should_skip_approval = resolve_skip_approval(
+            ctx, self._yolo, resolved_tools, self._dynamic_yolo
+        )
         resolved_toolsets = (
             toolsets if toolsets is not None else self.get_all_toolsets(ctx)
         )

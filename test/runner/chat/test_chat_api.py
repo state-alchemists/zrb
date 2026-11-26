@@ -441,18 +441,6 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def testget_llm_chat_task_returns_none_when_missing():
-    """Internal helper returns None when the chat node isn't registered."""
-    from zrb.group.any_group import NodeNotFoundError
-    from zrb.runner.chat.chat_api_route import get_llm_chat_task
-
-    mock_root = MagicMock()
-    mock_root.extract_node.side_effect = NodeNotFoundError("nope")
-    result = await get_llm_chat_task(mock_root)
-    assert result is None
-
-
-@pytest.mark.asyncio
 async def test_cleared_stale_edit_slot_is_not_reported_as_still_waiting(
     client: AsyncClient,
 ):

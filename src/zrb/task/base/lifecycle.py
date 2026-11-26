@@ -4,6 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
 from zrb.session.any_session import AnySession
@@ -56,23 +57,21 @@ class BaseTaskLifecycle:
                 ctx = task.get_ctx(session)
                 ctx.log_info("Terminating session after run completion/error.")
                 session.terminate()
+            # The run's own task is in `all_tasks`: cancelling it aborts the
+            # grace wait below, so the grace and its warning never run.
             pending = [
                 t
                 for t in asyncio.all_tasks()
-                if t is not main_task_coro and not t.done()
+                if t is not main_task_coro
+                and t is not asyncio.current_task()
+                and not t.done()
             ]
             if pending:
                 ctx = task.get_ctx(session)
                 ctx.log_debug(f"Cleaning up {len(pending)} pending asyncio tasks...")
                 for t in pending:
                     t.cancel()
-                try:
-                    await asyncio.wait(pending, timeout=1.0)
-                except asyncio.CancelledError:
-                    pass
-                except Exception as cleanup_exc:
-                    if ctx is not None:
-                        ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+                await _await_cancelled(pending, ctx)
         except RuntimeError as cleanup_exc:
             if ctx is not None:
                 ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
@@ -191,3 +190,28 @@ class BaseTaskLifecycle:
                 ctx.log_error(f"Error in session state logger: {e}")
             except Exception as log_exc:
                 CFG.LOGGER.debug(f"Session state logger cleanup failed: {log_exc}")
+
+
+# Grace period a cancelled leftover task gets before the run reports it.
+_CLEANUP_GRACE_PERIOD = 1.0
+
+
+async def _await_cancelled(pending: list["asyncio.Task"], ctx: AnyContext) -> None:
+    """Give *pending* the grace period, then cancel and report any survivor."""
+    try:
+        await asyncio.wait(pending, timeout=_CLEANUP_GRACE_PERIOD)
+    except asyncio.CancelledError:
+        pass
+    except Exception as cleanup_exc:
+        ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+        return
+    leftover = [t for t in pending if not t.done()]
+    if not leftover:
+        return
+    names = ", ".join(t.get_name() for t in leftover)
+    ctx.log_warning(
+        f"{len(leftover)} asyncio task(s) did not stop within "
+        f"{_CLEANUP_GRACE_PERIOD}s: {names}"
+    )
+    for t in leftover:
+        t.cancel()

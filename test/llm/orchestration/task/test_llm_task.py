@@ -54,6 +54,38 @@ class TestLLMTaskExecution:
             assert tool in kwargs["tools"]
 
     @pytest.mark.asyncio
+    async def test_a_task_with_its_own_skip_decision_still_registers_its_map(
+        self, session
+    ):
+        """`dynamic_yolo` used to bypass the registration the cascade reads.
+
+        A bare task that only handed its callback over registered no capability
+        map, so a deferred `Edit` was looked up as UNKNOWN and the later
+        `*:allow` answered for a write the user had gated (ADR-0146).
+        """
+
+        def decision(tool_def=None, args=None):
+            return True
+
+        task = LLMTask(name="test-task", message="hello", dynamic_yolo=decision)
+
+        with (
+            patch(
+                "zrb.llm.orchestration.task.llm_task.resolve_skip_approval"
+            ) as resolve,
+            patch("zrb.llm.orchestration.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.orchestration.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+        # The decision is handed to the shared resolver, which registers the
+        # map first and then wraps it — never passed to the agent as it is.
+        assert resolve.call_args.args[3] is decision
+
+    @pytest.mark.asyncio
     async def test_llm_task_resolves_toolset_factories_once(self, session):
         """Toolset factories run once per execution and the same instances go
         to the agent."""

@@ -51,6 +51,54 @@ def configure_uvicorn_logging() -> None:
             logger.addFilter(cancelled_filter)
 
 
+def should_skip_session_cleanup() -> bool:
+    """Whether the chat sessions are left to whoever drives the app.
+
+    True under pytest: the suite builds the app in-process and owns
+    `ChatSessionManager`, so a test run must not cancel the sessions it holds.
+    """
+    return "pytest" in sys.modules
+
+
+async def cancel_task_runs(
+    task_runs: "list[asyncio.Task]", timeout_seconds: float
+) -> None:
+    """Cancel *task_runs*, waiting at most *timeout_seconds* for them to stop.
+
+    ``asyncio.wait``, not ``asyncio.wait_for(gather(...))``: a gather future is
+    only done once every child is, so on timeout `wait_for` waits for the
+    cancellation it just requested — and a run that catches `CancelledError`
+    again holds the shutdown there for as long as it likes, which is the one
+    thing the timeout exists to prevent. Shutdown still has the chat sessions to
+    cancel after this, so a survivor is named and left behind.
+    """
+    if not task_runs:
+        return
+    for task_run in task_runs:
+        task_run.cancel()
+    done, pending = await asyncio.wait(set(task_runs), timeout=timeout_seconds)
+    for task_run in done:
+        _consume_outcome(task_run)
+    if not pending:
+        return
+    for task_run in pending:
+        # Nothing awaits a survivor any more; consume whatever it ends with so
+        # asyncio does not report it as never retrieved.
+        task_run.add_done_callback(_consume_outcome)
+    names = ", ".join(sorted(task_run.get_name() for task_run in pending))
+    CFG.LOGGER.warning(
+        f"Web shutdown waited {timeout_seconds}s for {len(task_runs)} task "
+        f"run(s); {len(pending)} still running ({names}). Continuing with chat "
+        "session cleanup."
+    )
+
+
+def _consume_outcome(task_run: "asyncio.Task") -> None:
+    """Read a finished run's result or exception so asyncio stops holding it."""
+    if not task_run.cancelled():
+        task_run.exception()
+
+
 def create_web_app(
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
@@ -62,7 +110,7 @@ def create_web_app(
     _COROS = []
 
     async def _cleanup_sessions():
-        if "pytest" in sys.modules:
+        if should_skip_session_cleanup():
             return
         session_mgr = ChatSessionManager.get_instance_sync()
         await session_mgr.cancel_all_sessions()
@@ -77,13 +125,7 @@ def create_web_app(
 
         yield
 
-        for coro in _COROS:
-            coro.cancel()
-        if _COROS:
-            await asyncio.wait_for(
-                asyncio.gather(*_COROS, return_exceptions=True),
-                timeout=CFG.WEB_SHUTDOWN_TIMEOUT / 1000,
-            )
+        await cancel_task_runs(_COROS, CFG.WEB_SHUTDOWN_TIMEOUT / 1000)
         await _cleanup_sessions()
 
     app = FastAPI(

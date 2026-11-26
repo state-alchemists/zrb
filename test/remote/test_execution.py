@@ -105,6 +105,20 @@ def test_parse_probe_output_marks_missing_targets_as_error():
     assert parse_probe_output("0 ok\r\n2 200\njunk", 3) == ["ok", "error", "200"]
 
 
+@pytest.mark.parametrize("index", ["\u00b2", "9" * 5000])
+def test_parse_probe_output_ignores_an_index_it_cannot_convert(index):
+    """A target the host never reported is `error`, never an exception.
+
+    Both of these pass `str.isdigit` and neither survives `int()`: a superscript
+    is a digit that is not a decimal, and 5000 digits exceed its conversion
+    limit. The status list is a report about the run, so a garbled line must not
+    take the whole run with it.
+    """
+    assert index.isdigit()
+
+    assert parse_probe_output(f"{index} ok", 3) == ["error", "error", "error"]
+
+
 @pytest.mark.asyncio
 async def test_run_on_hosts_rejects_a_non_positive_timeout():
     with pytest.raises(ValueError, match="timeout"):

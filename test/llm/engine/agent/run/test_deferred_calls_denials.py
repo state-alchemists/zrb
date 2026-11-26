@@ -426,7 +426,10 @@ async def test_policy_deny_removes_preexisting_call_entry():
 async def test_permission_policy_allow_auto_approves():
     """Priority 2: a permission policy returning ALLOW auto-approves (lines
     240-250), including coercing string args to a dict."""
-    from zrb.llm.capabilities.permission import ALLOW
+    from zrb.llm.capabilities.permission import ALLOW, Capability
+    from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
+
+    register_tool_capabilities({"test_tool": Capability.EDIT})
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
@@ -444,14 +447,15 @@ async def test_permission_policy_allow_auto_approves():
     result_output.calls = [call]
     result_output.approvals = []
 
-    with (
-        patch(
-            "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
-        ),
-        patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
+    with patch(
+        "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
     ):
         result = await process_deferred_requests(result_output, None, ui, hook_manager)
 
     assert isinstance(result.approvals["call_1"], MockToolApproved)
-    # The JSON string args were decoded to a dict before policy.decide.
-    policy.decide.assert_called_once_with("test_tool", "cap", {"arg1": "val1"})
+    # The JSON string args were decoded to a dict before policy.decide, and the
+    # capability reached it from the run's name → capability map: the deferred
+    # part carries no capability tag of its own.
+    policy.decide.assert_called_once_with(
+        "test_tool", Capability.EDIT, {"arg1": "val1"}
+    )

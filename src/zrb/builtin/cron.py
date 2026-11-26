@@ -5,55 +5,20 @@ from zrb.context.any_context import AnyContext
 from zrb.input.int_input import IntInput
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
-from zrb.util.cron import match_cron
+from zrb.util.cron import match_cron, validate_cron_expression
 
 # Cap the forward scan so an impossible pattern (e.g. "0 0 30 2 *") terminates
 # instead of looping forever.
 _MAX_SCAN_MINUTES = 366 * 24 * 60 * 5
 
-_SPECIAL = {
-    "@yearly",
-    "@annually",
-    "@monthly",
-    "@weekly",
-    "@daily",
-    "@midnight",
-    "@hourly",
-    "@minutely",
-}
-
 
 def _validate_cron_expression(ctx: AnyContext, expression: str) -> None:
-    """Raise a clear, specific error if the cron expression is malformed."""
-    if expression.startswith("@"):
-        if expression not in _SPECIAL:
-            message = (
-                f"Unknown cron shortcut '{expression}'. "
-                f"Supported shortcuts: {', '.join(sorted(_SPECIAL))}."
-            )
-            ctx.print_err(f"❌ {message}")
-            raise ValueError(message)
-        return
-    fields = expression.split()
-    if len(fields) != 5:
-        message = (
-            f"Invalid cron expression '{expression}': expected 5 space-separated "
-            f"fields (minute hour day-of-month month day-of-week) but got "
-            f"{len(fields)}. Example: '*/5 * * * *', or a shortcut like '@daily'."
-        )
-        ctx.print_err(f"❌ {message}")
-        raise ValueError(message)
+    """Report a malformed cron expression to the user, then raise."""
     try:
-        # match_cron parses every field; a non-numeric/garbage field raises here.
-        match_cron(expression, datetime.datetime(2000, 1, 1))
+        validate_cron_expression(expression)
     except ValueError as e:
-        message = (
-            f"Invalid cron expression '{expression}': could not parse a field "
-            f"({e}). Each field must be a number, range (1-5), list (1,3,5), "
-            f"step (*/5), or wildcard (*)."
-        )
-        ctx.print_err(f"❌ {message}")
-        raise ValueError(message) from None
+        ctx.print_err(f"❌ {e}")
+        raise
 
 
 @make_task(

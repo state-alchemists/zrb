@@ -265,6 +265,30 @@ def test_get_task_session_api_not_task(app_deps, mock_user):
         assert response.status_code == 404
 
 
+def test_create_new_task_session_api_hides_a_cli_only_task(mock_user):
+    """A CLI-only task cannot be started from the web, and the answer says
+    only that the path is unknown."""
+    from zrb.group.group import Group
+    from zrb.task.base.base_task import BaseTask
+
+    app = FastAPI()
+    root_group = Group(name="root")
+    root_group.add_task(BaseTask(name="serve", cli_only=True))
+    coroutines = []
+    serve_task_session_api(app, root_group, MagicMock(), MagicMock(), coroutines)
+
+    with patch(
+        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+        new_callable=AsyncMock,
+        return_value=mock_user,
+    ):
+        response = TestClient(app).post("/api/v1/task-sessions/serve", json={})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found"}
+    assert coroutines == []
+
+
 def test_get_task_session_api_without_session_hides_restricted_task(
     app_deps, mock_user
 ):

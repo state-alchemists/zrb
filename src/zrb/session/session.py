@@ -446,11 +446,18 @@ class Session(AnySession):
         return next(self._icons)
 
     def is_allowed_to_run(self, task: AnyTask):
+        """Whether ``task`` may run now: not ended, not skipped, upstreams done.
+
+        A skipped task is refused here, not only where the skip was decided: a
+        successor marked skipped by one upstream can be reached again from
+        another upstream's chain, and running it there would execute an action
+        the graph has already written off.
+        """
         if self.is_terminated:
             return False
         self._register_single_task(task)
         task_status = self.get_task_status(task)
-        if task_status.is_started or task_status.is_completed:
+        if task_status.is_started or task_status.is_completed or task_status.is_skipped:
             return False
         unfulfilled_upstreams = [
             upstream

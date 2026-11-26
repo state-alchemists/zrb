@@ -32,9 +32,15 @@ def serve_node_page(  # noqa: C901 -- registration/factory fn; mccabe sums neste
             return show_error_page(user, root_group, 422, "Undefined path")
         args = path.strip("/").split("/")
         try:
-            node, node_path, residual_args = root_group.extract_node(args)
-        except NodeNotFoundError as e:
-            return show_error_page(user, root_group, 404, str(e))
+            node, node_path, residual_args = root_group.extract_node(
+                args, web_only=True
+            )
+        except NodeNotFoundError:
+            # The error's message carries `Did you mean ...?` candidates: the
+            # names the group it stopped at offers, hidden ones included. The
+            # page is readable by anyone who may see the root group, so it says
+            # nothing.
+            return show_error_page(user, root_group, 404, "Not found")
         url = f"/ui/{'/'.join(node_path)}/"
         if isinstance(node, AnyTask):
             if not user.can_access_task(node):

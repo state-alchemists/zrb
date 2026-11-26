@@ -160,6 +160,20 @@ def parse_probe_output(output: str, count: int) -> list[str]:
     statuses = ["error"] * count
     for line in output.splitlines():
         index, _, status = line.strip().partition(" ")
-        if index.isdigit() and int(index) < count and status:
+        if status and _is_target_index(index, count):
             statuses[int(index)] = status
     return statuses
+
+
+def _is_target_index(index: str, count: int) -> bool:
+    """Whether *index* names one of the *count* targets.
+
+    `isdecimal`, not `isdigit`: `'²'.isdigit()` is true while `int('²')` raises.
+    The digit count is compared before converting, because a long enough run of
+    digits exceeds `int()`'s conversion limit and raises too. Both would escape
+    the contract that says an unreported target is `error`. No index that fits
+    `count` is dropped: one with more digits than `count` is necessarily larger.
+    """
+    if not index.isdecimal() or len(index) > len(str(count)):
+        return False
+    return int(index) < count
