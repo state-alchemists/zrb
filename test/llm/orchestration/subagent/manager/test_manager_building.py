@@ -328,3 +328,41 @@ def test_common_tools_are_name_gated_for_sub_agents():
     assert "Read" in names
     assert "Write" not in names
     assert "Shell" not in names
+
+
+def test_a_sub_agent_registers_the_capabilities_of_the_tools_it_is_built_with():
+    """The inheritance checker reads the ambient map by name, and the cascade
+    reads it again once a call is deferred.
+
+    A sub-agent built through this path registered nothing, so its tool was
+    looked up as UNKNOWN: an `edit:ask` rule missed it and a later `*:allow`
+    answered — a write the user had gated ran unprompted.
+    """
+    from zrb.llm.capabilities.permission import Capability
+    from zrb.llm.capabilities.tool.file import write_file
+    from zrb.llm.engine.agent.run.tool_capabilities import (
+        get_tool_capability,
+        register_tool_capabilities,
+    )
+
+    # A map left by an earlier run, so "registered" is proved to mean "replaced
+    # by this build" rather than "still the one from whatever ran before".
+    register_tool_capabilities({"StaleTool": Capability.EDIT})
+
+    manager = SubAgentManager()
+    manager.append_tool(write_file)
+    manager.add_agent(
+        SubAgentDefinition(
+            name="editor",
+            path=".",
+            description="Edits files.",
+            system_prompt="Edit files.",
+            tools=["Write"],
+        )
+    )
+
+    with patch("zrb.llm.orchestration.subagent.building.create_agent"):
+        manager.create_agent("editor")
+
+    assert get_tool_capability("Write") is Capability.EDIT
+    assert get_tool_capability("StaleTool") is Capability.UNKNOWN

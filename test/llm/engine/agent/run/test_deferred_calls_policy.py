@@ -56,7 +56,10 @@ def _ask_policy():
 @pytest.mark.asyncio
 async def test_permission_policy_deny_blocks():
     """Priority 2: a permission policy returning DENY blocks (lines 251-255)."""
-    from zrb.llm.capabilities.permission import DENY
+    from zrb.llm.capabilities.permission import DENY, Capability
+    from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
+
+    register_tool_capabilities({"test_tool": Capability.EDIT})
 
     ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
@@ -74,17 +77,16 @@ async def test_permission_policy_deny_blocks():
     result_output.calls = [call]
     result_output.approvals = []
 
-    with (
-        patch(
-            "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
-        ),
-        patch("zrb.llm.capabilities.permission.tool_capability", return_value="cap"),
+    with patch(
+        "zrb.llm.capabilities.permission.get_effective_policy", return_value=policy
     ):
         result = await process_deferred_requests(result_output, None, ui, hook_manager)
 
     assert isinstance(result.approvals["call_1"], MockToolDenied)
-    # A non-JSON string coerces to {} (lines 242-243) before policy.decide.
-    policy.decide.assert_called_once_with("test_tool", "cap", {})
+    # A non-JSON string coerces to {} (lines 242-243) before policy.decide, which
+    # is told the capability the run registered for that name — a deferred part
+    # carries no capability tag of its own.
+    policy.decide.assert_called_once_with("test_tool", Capability.EDIT, {})
 
 
 @pytest.mark.asyncio

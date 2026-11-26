@@ -19,7 +19,7 @@ from zrb.llm.capabilities.approval.judge_state import (
 )
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
-from zrb.llm.capabilities.permission import ASK
+from zrb.llm.capabilities.permission import ASK, DENY
 from zrb.llm.capabilities.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
@@ -40,6 +40,7 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
 from zrb.llm.contracts.util.tool_args import parse_tool_args
+from zrb.llm.engine.agent.run.hard_asks import is_mcp_config_write
 from zrb.llm.engine.agent.run.hook_result_extractor import (
     PreToolDecision,
     extract_permission_decision,
@@ -211,11 +212,13 @@ async def _resolve_approval(
 
     Precedence:
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
-      1. Tool policy
+      1. Tool policy — a denial stands; its approval cannot carry an MCP write
       2. Permission policy (ALLOW→approve, DENY→deny, ASK→force ask)
+      2a. A write to the MCP loader's config — a hard ASK that outranks the
+          approval of 1 and the YOLO of 3 alike (ADR-0062, ADR-0146)
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
-      3. YOLO (only with no policy ASK)
+      3. YOLO (only with no policy ASK, and never for a sandbox escape)
       3b. The shell judge — a `safe` command may skip the prompt when the
           auto-approve knob is on; otherwise it only annotates one
       4. The `PermissionRequest` hook — fires *now that the call will prompt*,
@@ -233,6 +236,7 @@ async def _resolve_approval(
     if verdict is not None:
         return verdict
 
+    mcp_config_write = _is_mcp_config_write(call)
     verdict = await _apply_tool_policies(
         call, ui, effective_tool_confirmation, force_ask
     )
@@ -240,6 +244,8 @@ async def _resolve_approval(
         return verdict
 
     policy_decision, verdict = _apply_permission_policy(call, force_ask)
+    if mcp_config_write and policy_decision != DENY:
+        policy_decision, verdict = ASK, None
     if verdict is not None:
         return verdict
 
@@ -251,7 +257,7 @@ async def _resolve_approval(
     if verdict is not None:
         return verdict
 
-    verdict = _approve_via_yolo(policy_decision, force_ask)
+    verdict = _approve_via_yolo(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
@@ -303,7 +309,13 @@ async def _apply_tool_policies(
     effective_tool_confirmation: AnyToolConfirmation,
     force_ask: bool,
 ) -> "ToolApproved | ToolDenied | None":
-    """Priority 1: tool policies, from a `ToolCallHandler` or a UI method bound to one."""
+    """Priority 1: tool policies, from a `ToolCallHandler` or a UI method bound to one.
+
+    An approval here speaks for an ordinary call. A write to the MCP loader's
+    config is a hard ASK (ADR-0146), so that approval is dropped and the cascade
+    below asks a human; a denial still stands, because refusing is always safe.
+    Without this, `auto_approve("Write")` wrote the config with nobody asked.
+    """
     handler = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
         handler = effective_tool_confirmation
@@ -317,6 +329,8 @@ async def _apply_tool_policies(
     # lazy: heavy third-party
     from pydantic_ai import ToolDenied
 
+    if _is_mcp_config_write(call) and not isinstance(policy_result, ToolDenied):
+        return None
     if not force_ask or isinstance(policy_result, ToolDenied):
         return policy_result
     return None
@@ -329,14 +343,14 @@ def _apply_permission_policy(
 
     Returns the raw decision too: an ASK stops YOLO further down.
     """
-    # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy and .tool_capability; hoisting bypasses the mock
+    # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy; hoisting bypasses the mock
     from zrb.llm.capabilities.permission import (
         ALLOW,
         DENY,
         get_effective_policy,
-        tool_capability,
     )
     from zrb.llm.capabilities.permission.observability import record_policy_decision
+    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
 
     policy = get_effective_policy()
     if policy is None:
@@ -344,8 +358,11 @@ def _apply_permission_policy(
             layer="permission", decision="none", tool_name=call.tool_name
         )
         return None, None
+    # By name, never from the call part: a deferred `ToolCallPart` carries no
+    # capability tag, so asking the part answers UNKNOWN and a capability-keyed
+    # rule (`edit:ask`) silently falls through to a later `*:allow`.
     decision = policy.decide(
-        call.tool_name, tool_capability(call), parse_tool_args(call) or {}
+        call.tool_name, get_tool_capability(call.tool_name), parse_tool_args(call) or {}
     )
     record_policy_decision(
         layer="permission", decision=str(decision), tool_name=call.tool_name
@@ -413,18 +430,41 @@ def _approve_by_default(
 
 
 def _approve_via_yolo(
-    policy_decision: str | None, force_ask: bool
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
 ) -> "ToolApproved | None":
-    """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK."""
+    """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK.
+
+    Nor a request to leave the sandbox: the escape hatch is never auto-approved
+    (ADR-0065), and YOLO is the mode where nobody is watching anyway. The
+    arguments are needed here for that one question — a `Shell` call carrying
+    `dangerously_skip_sandbox` is a human's decision however ordinary the
+    command looks.
+    """
     # lazy: tests patch zrb.llm.contracts.shared.agent_state.get_current_yolo; hoisting bypasses the mock
     from zrb.llm.contracts.shared.agent_state import get_current_yolo
 
     if get_current_yolo() is not True or policy_decision == ASK or force_ask:
         return None
+    args = parse_tool_args(call)
+    if isinstance(args, dict) and is_sandbox_off(args):
+        return None
     # lazy: heavy third-party
     from pydantic_ai import ToolApproved
 
     return ToolApproved()
+
+
+def _is_mcp_config_write(call: "ToolCallPart") -> bool:
+    """Priority 2a: whether *call* would write the file the MCP loader reads.
+
+    A hard ASK rather than a DENY, because the file is a normal part of a user's
+    workspace: they may well mean to edit it, and only they can say. The
+    predicate is shared, because the skip decision asks it *before* a call is
+    deferred and this asks it after — a guard on only one of the two paths lets
+    the other approve the write first (ADR-0146).
+    """
+    args = parse_tool_args(call)
+    return isinstance(args, dict) and is_mcp_config_write(call.tool_name, args)
 
 
 async def _apply_shell_judge(

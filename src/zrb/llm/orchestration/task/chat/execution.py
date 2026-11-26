@@ -16,12 +16,15 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.capabilities.approval import resolve_approval_channel
 from zrb.llm.capabilities.hook.manager import HookManager
-from zrb.llm.capabilities.permission import tool_capability
 from zrb.llm.capabilities.sandbox import coerce_sandbox
 from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.contracts.util.attachment import get_attachments
+from zrb.llm.engine.agent.run.tool_capabilities import (
+    build_capability_map,
+    register_tool_capabilities,
+)
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.task.chat.persistence import (
     build_session_history_config,
@@ -33,7 +36,7 @@ from zrb.llm.orchestration.task.chat.teardown import (
 )
 from zrb.llm.orchestration.task.llm_task import LLMTask
 from zrb.llm.orchestration.task.shared_getters import (
-    get_policy_skip_decision,
+    make_skip_approval_decision,
     resolve_all_tools,
     resolve_all_toolsets,
     resolve_conversation_name,
@@ -319,10 +322,10 @@ class ChatExecution:
             ui = resolve_ui()
 
         # Keyed by the LLM-visible tool name; consulted only under a policy.
-        cap_by_name = {
-            (getattr(t, "name", None) or getattr(t, "__name__", "")): tool_capability(t)
-            for t in resolved_tools
-        }
+        cap_by_name = build_capability_map(resolved_tools)
+        # The approval cascade reads the same map by name: the part it sees is
+        # deferred, and a deferred part carries no capability tag of its own.
+        register_tool_capabilities(cap_by_name)
 
         _should_skip_approval = _make_should_skip_approval(
             ctx, llm_chat_task, cap_by_name
@@ -380,21 +383,22 @@ class ChatExecution:
 def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
     """Build the predicate deciding whether a tool call skips approval.
 
-    The permission policy decides first (see `get_policy_skip_decision`);
-    otherwise yolo does. Tool policies run later, in deferred_calls.py.
+    The skeleton is shared with a bare `LLMTask`; what differs is the last
+    answer. This task's yolo is a live xcom, read per call, so it is passed as
+    the fallback rather than a snapshot.
     """
-
-    def _should_skip_approval(tool_def=None, args=None):
-        decision = get_policy_skip_decision(tool_def, cap_by_name, args)
-        if decision is not None:
-            return decision
-        return _yolo_skip_decision(ctx, llm_chat_task, tool_def)
-
-    return _should_skip_approval
+    return make_skip_approval_decision(
+        cap_by_name,
+        lambda tool_def, args: _yolo_skip_decision(ctx, llm_chat_task, tool_def, args),
+    )
 
 
-def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
-    """Whether YOLO covers this call; the xcom holds a bool or a frozenset of tool names."""
+def _yolo_skip_decision(ctx, llm_chat_task, tool_def, args=None) -> bool:
+    """Whether YOLO covers this call; the xcom holds a bool or a frozenset of names.
+
+    A hard ask never reaches here: the caller refuses to skip one before asking
+    this (see `_make_should_skip_approval`).
+    """
     yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
     if yolo_xcom_key not in ctx.xcom:
         return False
