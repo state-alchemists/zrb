@@ -183,6 +183,32 @@ def test_a_cr_file_is_not_given_mixed_endings_by_a_copied_snippet(tmp_path):
     assert _read_bytes(path) == b"first\rSECOND\r"
 
 
+def test_a_multi_line_edit_gives_every_break_the_files_own_ending(tmp_path):
+    """`Read` hands back `a\\nb\\n` for a CRLF file, so a two-line replacement
+    carries `\\n` on the inside as well as at the end.
+
+    Only the trailing break was replaced, so the file came out `A\\nB\\r\\n`:
+    mixed, while the result said the edit did not mix endings.
+    """
+    path = os.path.join(tmp_path, "crlf.txt")
+    _write_bytes(path, b"a\r\nb\r\nc\r\n")
+
+    result = _r(path, old_text="a\nb\n", new_text="A\nB\n")
+
+    assert "Successfully updated" in result
+    assert _read_bytes(path) == b"A\r\nB\r\nc\r\n"
+
+
+def test_a_multi_line_edit_gives_every_break_a_cr_files_ending(tmp_path):
+    """The same for a lone-CR file: the inner breaks cannot stay `\\n`."""
+    path = os.path.join(tmp_path, "classic.txt")
+    _write_bytes(path, b"a\rb\rc\r")
+
+    _r(path, old_text="a\nb\n", new_text="A\nB\n")
+
+    assert _read_bytes(path) == b"A\rB\rc\r"
+
+
 def test_a_cr_line_break_is_kept_as_cr(tmp_path):
     """A legacy Mac file's lines end in a bare `\\r`, and the edit keeps it.
 

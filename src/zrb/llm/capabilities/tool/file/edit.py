@@ -17,6 +17,10 @@ from zrb.util.truncate import truncate_display
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 
+# Every way a text file can end a line, longest first so `\r\n` is not read as
+# two breaks. Used to give a replacement the ending the edited region uses.
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+
 
 @requires_purpose
 async def replace_in_file(
@@ -217,7 +221,7 @@ def _locate_match(
 
 
 def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
-    """Give `new_text` back the line break `actual_old` ended with.
+    """Give `new_text` the line breaks `actual_old` uses.
 
     `str.replace` splices text and knows nothing about lines: replacing
     `"first = 1\\n"` with `"first = 100"` yields `"first = 100second = 2"`, a
@@ -225,15 +229,51 @@ def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
     every such call means to keep the break, so it is restored and the result
     says so rather than leaving the caller to notice.
 
-    A replacement that arrives with its own break keeps the file's instead:
-    `Read` shows a CRLF file's lines with `\\n`, so the model's copy always
-    carries the wrong ending for such a file.
+    A replacement arrives with `\\n` whatever the file uses, because that is how
+    `Read` shows every line — the breaks on the inside of it included. So the
+    whole replacement takes the region's ending, not just its last one.
     """
     if new_text == actual_old or not new_text:
         return new_text, ""
     ending = _trailing_line_break(actual_old)
     if ending is None:
         return new_text, ""
+    file_ending = _one_line_break(actual_old)
+    if file_ending is None:
+        return _keep_trailing_break(new_text, ending)
+    return _keep_region_line_break(new_text, ending, file_ending)
+
+
+def _keep_region_line_break(
+    new_text: str, ending: str, file_ending: str
+) -> tuple[str, str]:
+    """Give every break in *new_text* the ending the edited region uses.
+
+    A two-line snippet copied from `Read` carries `\\n` inside and at the end,
+    so replacing only the trailing one wrote `A\\nB\\r\\n` into a CRLF file:
+    mixed, while the note said the edit did not mix endings.
+    """
+    kept = _LINE_BREAK.sub(file_ending, new_text)
+    if _trailing_line_break(new_text) is None:
+        return kept + ending, (
+            " — new_text had no trailing newline; old_text's line break was "
+            "kept, so the line after it is not joined onto the replacement."
+        )
+    if kept == new_text:
+        return new_text, ""
+    return kept, (
+        " — new_text's line breaks took the file's own, so this edit does not "
+        "mix endings."
+    )
+
+
+def _keep_trailing_break(new_text: str, ending: str) -> tuple[str, str]:
+    """Put *ending* on the end of *new_text*, leaving its inner breaks alone.
+
+    The edited region uses more than one line ending, so it names no single one
+    to impose on the whole replacement; only the break the splice would eat is
+    restored.
+    """
     supplied = _trailing_line_break(new_text)
     if supplied == ending:
         return new_text, ""
@@ -242,12 +282,8 @@ def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
             " — new_text had no trailing newline; old_text's line break was "
             "kept, so the line after it is not joined onto the replacement."
         )
-    # `Read` shows every line with `\n`, so a replacement copied from it carries
-    # the wrong ending for a CRLF or lone-CR file. Writing it unchanged mixes
-    # two endings in a file that had one, which the next reader has to unpick.
     return new_text[: -len(supplied)] + ending, (
-        " — new_text ended in a different line break; the file's own was kept, "
-        "so this edit does not mix endings."
+        " — new_text ended in a different line break; the file's own was kept."
     )
 
 
@@ -263,6 +299,16 @@ def _trailing_line_break(text: str) -> str | None:
         if text.endswith(ending):
             return ending
     return None
+
+
+def _one_line_break(text: str) -> str | None:
+    """The one line ending *text* uses throughout, or None when it mixes them.
+
+    A region with a single ending names the file's own, and only that is worth
+    imposing on a replacement. A region that already mixes them names none.
+    """
+    endings = set(_LINE_BREAK.findall(text))
+    return endings.pop() if len(endings) == 1 else None
 
 
 def _describe_missing_match(content: str, old_text: str, path: str) -> str:
