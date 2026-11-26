@@ -36,9 +36,16 @@ class BaseTaskExecution:
     async def execute_task_chain(self, session: AnySession):
         """Execute the task, then its next tasks."""
         task = self._task
-        if session.is_terminated or not session.is_allowed_to_run(task):
+        if session.is_terminated:
             return
-        result = await self.execute_task_action(session)
+        result = None
+        if session.is_allowed_to_run(task):
+            result = await self.execute_task_action(session)
+        elif not session.get_task_status(task).is_skipped:
+            return
+        # A skipped task is not run, but it counts as satisfied: a downstream
+        # reachable only through it still has to be visited, or the graph it
+        # belongs to never finishes.
         nexts = session.get_next_tasks(task)
         if session.is_terminated or len(nexts) == 0:
             return result
@@ -365,8 +372,13 @@ class BaseTaskExecution:
         if task_list:
             ctx.log_info(f"Skipping {len(task_list)} {group_name}(s)")
             for t in task_list:
-                if not session.get_task_status(t).is_skipped:
-                    session.get_task_status(t).mark_as_skipped()
+                status = session.get_task_status(t)
+                # A task that already started owns its own outcome: marking it
+                # skipped would let its downstreams run while its action is
+                # still in flight, and mislabel one that already finished.
+                if status.is_started or status.is_completed or status.is_skipped:
+                    continue
+                status.mark_as_skipped()
 
     async def execute_successors(self, session: "AnySession"):
         """Executes all successor tasks."""

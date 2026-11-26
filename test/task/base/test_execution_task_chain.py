@@ -19,6 +19,9 @@ async def test_execute_task_chain_not_allowed():
     session = MagicMock(spec=AnySession)
     session.is_terminated = False
     session.is_allowed_to_run.return_value = False
+    # Refused for being started or blocked, not for being skipped: a skipped
+    # task is the one case that still visits its downstreams.
+    session.get_task_status.return_value.is_skipped = False
 
     result = await execution.execute_task_chain(session)
     assert result is None
@@ -161,6 +164,64 @@ async def test_skipped_task_skips_its_explicit_successors():
 
 
 @pytest.mark.asyncio
+async def test_another_upstream_does_not_run_a_marked_skipped_successor():
+    """A skipped successor stays skipped when a second upstream reaches it.
+
+    `skipped` names `shared` as its successor, and `other` is also an upstream
+    of `shared`. Skipping `skipped` marks `shared` skipped; `other` then
+    completes and arrives at the same task. Running it there would execute an
+    action the graph already wrote off, and leave it both skipped and completed.
+
+    The successor is *not* also wired with `skipped >> shared`: registration
+    walks successors and upstreams together, so that pair is a cycle.
+    """
+    called_tasks = []
+
+    def make_action(name):
+        def action(ctx):
+            called_tasks.append(name)
+
+        return action
+
+    shared = BaseTask(name="shared", action=make_action("shared"))
+    skipped = BaseTask(name="skipped", execute_condition=False, successor=[shared])
+    other = BaseTask(name="other", action=make_action("other"))
+    main = BaseTask(name="main", action=make_action("main"), upstream=[skipped, other])
+    other >> shared
+
+    session = Session(shared_ctx=SharedContext())
+    for task in [main, skipped, shared, other]:
+        session.register_task(task)
+
+    await main.exec_root_tasks(session)
+
+    assert "shared" not in called_tasks
+    status = session.get_task_status(shared)
+    assert status.is_skipped
+    assert not status.is_completed
+
+
+def test_a_successor_that_already_started_is_not_marked_skipped():
+    """A successor already in flight owns its outcome; a skip cannot claim it.
+
+    Marking it skipped would let its downstreams run while its action is still
+    going, and a task that already finished would read as skipped.
+    """
+    successor = BaseTask(name="successor")
+    main = BaseTask(name="main", execute_condition=False, successor=[successor])
+    session = Session(shared_ctx=SharedContext())
+    for task in [main, successor]:
+        session.register_task(task)
+    session.get_task_status(successor).mark_as_started()
+
+    BaseTaskExecution(main).skip_successors(session)
+
+    status = session.get_task_status(successor)
+    assert status.is_started
+    assert not status.is_skipped
+
+
+@pytest.mark.asyncio
 async def test_execute_task_action_not_allowed():
     """Test execute_task_action returns early when not allowed to run."""
     task = BaseTask(name="test_task")
@@ -216,6 +277,15 @@ async def test_run_default_action_tpl_is_rendered():
     ctx.render.assert_called_once_with("{ctx.input.x}")
 
 
+def _fresh_status() -> MagicMock:
+    """A status for a task nothing has started, which is what a skip claims."""
+    status = MagicMock(spec=TaskStatus)
+    status.is_skipped = False
+    status.is_started = False
+    status.is_completed = False
+    return status
+
+
 def test_skip_successors_marks_tasks_skipped():
     """Test skip_successors marks tasks as skipped."""
     s1 = BaseTask(name="s1")
@@ -224,8 +294,7 @@ def test_skip_successors_marks_tasks_skipped():
     session = MagicMock(spec=AnySession)
 
     ctx = MagicMock(spec=AnyContext)
-    status = MagicMock(spec=TaskStatus)
-    status.is_skipped = False
+    status = _fresh_status()
 
     session.get_task_status.return_value = status
     with patch.object(task, "get_ctx", return_value=ctx):
@@ -242,8 +311,7 @@ def test_skip_fallbacks_marks_tasks_skipped():
     session = MagicMock(spec=AnySession)
 
     ctx = MagicMock(spec=AnyContext)
-    status = MagicMock(spec=TaskStatus)
-    status.is_skipped = False
+    status = _fresh_status()
 
     session.get_task_status.return_value = status
     with patch.object(task, "get_ctx", return_value=ctx):

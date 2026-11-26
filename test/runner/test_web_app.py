@@ -121,10 +121,10 @@ class TestConfigureUvicornLogging:
 
 class TestCancelTaskRuns:
     @pytest.mark.asyncio
-    async def test_a_task_run_ignoring_cancellation_does_not_stop_shutdown(
+    async def test_a_task_run_ignoring_the_first_cancel_does_not_stop_shutdown(
         self, caplog
     ):
-        """`wait_for` raises `TimeoutError` here; shutdown still has work to do."""
+        """Swallowing one cancellation is survivable; the run is named and left."""
         release = asyncio.Event()
 
         async def ignore_the_first_cancel():
@@ -138,11 +138,43 @@ class TestCancelTaskRuns:
         try:
             with caplog.at_level(logging.WARNING):
                 await cancel_task_runs([task_run], 0.01)
+            assert not task_run.done()
         finally:
             release.set()
             await asyncio.gather(task_run, return_exceptions=True)
 
-        assert task_run.cancelled()
+        assert "Continuing with chat session cleanup" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_a_task_run_refusing_every_cancel_does_not_stop_shutdown(
+        self, caplog
+    ):
+        """`wait_for(gather(...))` waits for the cancellation it asked for.
+
+        A run that catches `CancelledError` again and again never lets the
+        gather settle, so `wait_for`'s timeout fires and then the shutdown
+        blocks anyway. The survivor is reported by name and left behind.
+        """
+        release = asyncio.Event()
+
+        async def refuse_every_cancel():
+            while not release.is_set():
+                try:
+                    await release.wait()
+                except asyncio.CancelledError:
+                    continue
+
+        task_run = asyncio.create_task(refuse_every_cancel(), name="chat-task-run")
+        await asyncio.sleep(0)
+        try:
+            with caplog.at_level(logging.WARNING):
+                await cancel_task_runs([task_run], 0.01)
+            assert not task_run.done()
+        finally:
+            release.set()
+            await asyncio.gather(task_run, return_exceptions=True)
+
+        assert "chat-task-run" in caplog.text
         assert "Continuing with chat session cleanup" in caplog.text
 
     @pytest.mark.asyncio
