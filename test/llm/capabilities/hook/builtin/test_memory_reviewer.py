@@ -270,7 +270,7 @@ def test_all_three_hooks_register_while_both_switches_are_on(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -295,7 +295,7 @@ def test_the_log_hooks_survive_the_reviewer_switch(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -313,10 +313,7 @@ def test_a_log_hook_already_registered_is_not_registered_again(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {
-        "memory-event-log": MagicMock(),
-        "memory-interrupt-log": MagicMock(),
-    }
+    manager.registry.has_hook_named.side_effect = lambda name: name != "memory-reviewer"
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     assert [
@@ -334,7 +331,7 @@ def test_the_log_hooks_are_added_with_their_own_callables(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
-    manager.registry.get_configs.return_value = {}
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [call.args[2].name for call in manager.add_hook.call_args_list]
@@ -401,6 +398,7 @@ def test_the_interrupt_hook_is_registered_beside_the_reviewer(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
+    manager.registry.has_hook_named.return_value = False
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [

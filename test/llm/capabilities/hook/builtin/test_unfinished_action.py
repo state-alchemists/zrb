@@ -98,6 +98,34 @@ def test_a_negated_object_is_not_a_claim(message):
 @pytest.mark.parametrize(
     "message",
     [
+        # The sentence's own example: the message is about a string, not work.
+        'The status message says "I am running tests", which means the process '
+        "has started.",
+        # Fenced code the answer is explaining.
+        "The command prints:\n\n```text\nI am fixing all ten findings now\n```",
+        # An inline span.
+        "The log line `I am deleting the stale file now` is what it prints.",
+        # A quoted state line.
+        "> I am pushing the six branches\n\nThat is what the old transcript said.",
+        # A curly quotation, which is the same claim in another quote.
+        "She asked whether \u201cI am fixing the loader guard\u201d was true.",
+    ],
+)
+def test_a_quoted_example_is_not_a_claim(message):
+    assert unfinished_claim(message) is None
+
+
+def test_a_claim_after_a_quoted_example_still_blocks():
+    message = (
+        'The status message says "I am running tests". I am fixing the loader '
+        "guard now."
+    )
+    assert unfinished_claim(message) == "I am fixing"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
         "I am deleting the stale file now.",
         "I am removing the regression.",
         "I am installing the dependency.",
@@ -207,6 +235,23 @@ async def test_a_registered_gate_blocks_the_real_stop_event():
     blocked = [result for result in results if result.blocked]
     assert blocked, results
     assert blocked[0].decision == "block"
+
+
+def test_a_removed_gate_is_registered_again():
+    """The guard reads live hooks, not the diagnostic name map.
+
+    `remove_hook` prunes the hook→config mapping but keeps the name for
+    `get_configs()`; a guard reading that map would leave the gate removed for
+    the life of the manager.
+    """
+    manager = HookManager(search_dirs=[])
+    with patch("zrb.llm.capabilities.hook.builtin.unfinished_action.CFG") as cfg:
+        cfg.LLM_UNFINISHED_ACTION_ENABLED = True
+        register_unfinished_action_hook(manager)
+        gate = manager.registry.get_hooks(HookEvent.STOP)[0]
+        manager.remove_hook(gate)
+        register_unfinished_action_hook(manager)
+    assert len(manager.registry.get_hooks(HookEvent.STOP)) == 1
 
 
 def test_registering_twice_keeps_one_gate():

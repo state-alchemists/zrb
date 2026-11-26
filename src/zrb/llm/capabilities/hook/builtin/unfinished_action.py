@@ -252,7 +252,7 @@ def register_unfinished_action_hook(manager: "HookManager") -> None:
     if not CFG.LLM_UNFINISHED_ACTION_ENABLED:
         return
     config = build_unfinished_action_hook_config()
-    if config.name in manager.registry.get_configs():
+    if manager.registry.has_hook_named(config.name):
         return
     registered = manager.register_hook_config(config, source="builtin")
     if registered is None:
@@ -289,6 +289,23 @@ def create_unfinished_action_hook() -> "HookCallable":
     return unfinished_action
 
 
+#: Text the message is *about* rather than a promise it makes: a fenced snippet,
+#: an inline span, a block quote, a quotation. "The status says \"I am running
+#: tests\"" reports a string; it does not claim to be running anything.
+_FENCED_CODE_RE = re.compile(r"```.*?(?:```|$)", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+_QUOTED_RE = re.compile(r'"[^"\n]{0,400}"|\u201c[^\u201d\n]{0,400}\u201d')
+_BLOCKQUOTE_RE = re.compile(r"^\s*>.*$", re.MULTILINE)
+
+
+def own_prose(message: str) -> str:
+    """*message* with the parts that are not its own assertion removed."""
+    text = _FENCED_CODE_RE.sub(" ", message)
+    text = _INLINE_CODE_RE.sub(" ", text)
+    text = _BLOCKQUOTE_RE.sub(" ", text)
+    return _QUOTED_RE.sub(" ", text)
+
+
 def unfinished_claim(message: str) -> str | None:
     """The sentence's claim of work in progress, as written, or None.
 
@@ -296,8 +313,9 @@ def unfinished_claim(message: str) -> str | None:
     quote it back: a model that reads its own words sees the gap faster than one
     that reads a rule.
     """
+    text = own_prose(message)
     for pattern in (_ACTION_IN_PROGRESS_RE, _GOING_TO_RE):
-        match = pattern.search(message)
+        match = pattern.search(text)
         if match is not None:
             return " ".join(match.group(0).split())
     return None

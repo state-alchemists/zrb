@@ -191,3 +191,18 @@ def test_llm_hooks_allowlist_uses_config_name(registry, monkeypatch):
     assert registry.get_hooks(event) == [hook]
     monkeypatch.setenv("ZRB_LLM_HOOKS", "not-cfg")
     assert registry.get_hooks(event) == []
+
+
+def test_has_hook_named_reads_live_hooks_not_diagnostic_names(registry):
+    event = HookEvent.STOP
+    hook = _hook("probe")
+    config = _config(event)
+    registry.record_config(config.name, config)
+    registry.add_hook(hook, [event], config)
+    assert registry.has_hook_named("cfg")
+    assert not registry.has_hook_named("never-registered")
+    registry.remove_hook(hook)
+    assert not registry.has_hook_named("cfg")
+    # The name stays for diagnosis; that is exactly why a "once per manager"
+    # guard must not read it.
+    assert "cfg" in registry.get_configs()

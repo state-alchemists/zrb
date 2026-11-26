@@ -155,7 +155,7 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
         # clearing the registry, and a second reviewer doubles every model call
         # the turn makes.
         config = build_memory_reviewer_hook_config()
-        if config.name not in manager.registry.get_configs():
+        if not manager.registry.has_hook_named(config.name):
             manager.register_hook_config(config, source="builtin")
 
 
@@ -176,7 +176,7 @@ def _register_log_hook(
     The callable is swapped in afterwards because a log hook names an
     `AgentHookConfig` for the manager's sake and must never build an agent.
     """
-    if config.name in manager.registry.get_configs():
+    if manager.registry.has_hook_named(config.name):
         return
     registered = manager.register_hook_config(config, source="builtin")
     if registered is None:
