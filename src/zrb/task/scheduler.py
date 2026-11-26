@@ -9,7 +9,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.base.params import BaseTriggerParams
 from zrb.task.base_trigger import BaseTrigger
 from zrb.util.attr import get_str_attr
-from zrb.util.cron import match_cron
+from zrb.util.cron import match_cron, validate_cron_expression
 
 
 class Scheduler(BaseTrigger):
@@ -25,6 +25,12 @@ class Scheduler(BaseTrigger):
         Args:
             schedule: Cron expression describing when to fire. A literal, a
                 `Tpl` rendered against the context, or a callable taking it.
+                A literal is validated here; a rendered one when it is first
+                used, since its text is not known before then.
+
+        Raises:
+            ValueError: If `schedule` is not a usable cron expression or
+                shortcut.
 
         Every other parameter is `BaseTrigger`'s.
         """
@@ -32,10 +38,16 @@ class Scheduler(BaseTrigger):
             name=name,
             **kwargs,
         )
+        if isinstance(schedule, str):
+            validate_cron_expression(schedule)
         self._cron_pattern = schedule
 
     def _get_cron_pattern(self, shared_ctx: AnySharedContext) -> str:
-        return get_str_attr(shared_ctx, self._cron_pattern, "@minutely")
+        cron_pattern = get_str_attr(shared_ctx, self._cron_pattern, "@minutely")
+        # A rendered pattern matches nothing at all when it is wrong, so the
+        # scheduler would print "Monitoring" and never fire.
+        validate_cron_expression(cron_pattern)
+        return cron_pattern
 
     async def _exec_action(self, ctx: AnyContext):
         cron_pattern = self._get_cron_pattern(ctx)

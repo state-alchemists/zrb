@@ -121,7 +121,7 @@ sequenceDiagram
 
 The browser reads replies from the output queue through the open SSE stream. A POST marked as an approval action is answered against the pending tool call instead of being queued. A timeout or error is broadcast to the browser and the loop waits for the next message, so one bad request does not end the session.
 
-**Stopping.** On shutdown the app lifespan cancels every task run in its list, waits up to `WEB_SHUTDOWN_TIMEOUT`, then cancels all chat sessions.
+**Stopping.** On shutdown the app lifespan cancels every task run in its list, waits up to `WEB_SHUTDOWN_TIMEOUT`, then cancels all chat sessions. A run that is still going when the wait expires is reported and left behind rather than allowed to abort the shutdown, so the chat sessions are cancelled either way.
 
 ### Variations
 

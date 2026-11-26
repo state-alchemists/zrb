@@ -188,6 +188,8 @@ The `Scheduler` accepts standard cron expressions or preset keywords.
 
 When `schedule` is omitted, it defaults to `@minutely`.
 
+A pattern is checked when the `Scheduler` is constructed — and, for a `Tpl` or callable, before its loop starts. A misspelt keyword such as `@dialy` would otherwise match nothing and print `Monitoring cron pattern` forever, so it raises `ValueError` naming what is accepted instead.
+
 ### Standard Cron Format
 
 ```python

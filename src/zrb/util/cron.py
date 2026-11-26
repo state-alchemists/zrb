@@ -95,6 +95,38 @@ def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
     return matcher(dt) if matcher is not None else False
 
 
+def validate_cron_expression(expression: str) -> None:
+    """Raise `ValueError` naming why `expression` is not a usable cron pattern.
+
+    `match_cron` only refuses what it cannot parse, so an unknown `@` shortcut
+    matches nothing at all; anything scheduled on one would wait forever without
+    saying so. Call this wherever a pattern is accepted.
+    """
+    if expression.startswith("@"):
+        if expression not in _SPECIAL_CRON_MATCHERS:
+            raise ValueError(
+                f"Unknown cron shortcut '{expression}'. "
+                f"Supported shortcuts: {', '.join(sorted(_SPECIAL_CRON_MATCHERS))}."
+            )
+        return
+    fields = expression.split()
+    if len(fields) != 5:
+        raise ValueError(
+            f"Invalid cron expression '{expression}': expected 5 space-separated "
+            f"fields (minute hour day-of-month month day-of-week) but got "
+            f"{len(fields)}. Example: '*/5 * * * *', or a shortcut like '@daily'."
+        )
+    try:
+        # match_cron parses every field; a non-numeric/garbage field raises here.
+        match_cron(expression, datetime.datetime(2000, 1, 1))
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid cron expression '{expression}': could not parse a field "
+            f"({e}). Each field must be a number, range (1-5), list (1,3,5), "
+            f"step (*/5), or wildcard (*)."
+        ) from None
+
+
 def match_cron(cron_pattern: str, dt: datetime.datetime):
     """Whether `dt` matches `cron_pattern` — standard 5-field cron
     (`minute hour day month day_of_week`) or an `@`-prefixed special pattern."""
