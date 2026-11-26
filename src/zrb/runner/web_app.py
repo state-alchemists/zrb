@@ -51,6 +51,42 @@ def configure_uvicorn_logging() -> None:
             logger.addFilter(cancelled_filter)
 
 
+def should_skip_session_cleanup() -> bool:
+    """Whether the chat sessions are left to whoever drives the app.
+
+    True under pytest: the suite builds the app in-process and owns
+    `ChatSessionManager`, so a test run must not cancel the sessions it holds.
+    """
+    return "pytest" in sys.modules
+
+
+async def cancel_task_runs(
+    task_runs: "list[asyncio.Task]", timeout_seconds: float
+) -> None:
+    """Cancel *task_runs*, waiting at most *timeout_seconds* for them to stop.
+
+    A task run that ignores cancellation makes `asyncio.wait_for` raise
+    `TimeoutError`. Shutdown still has the chat sessions to cancel after this,
+    so the timeout is reported and swallowed here rather than left to escape.
+    """
+    if not task_runs:
+        return
+    for task_run in task_runs:
+        task_run.cancel()
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*task_runs, return_exceptions=True),
+            timeout=timeout_seconds,
+        )
+    except TimeoutError:
+        leftover = [task_run for task_run in task_runs if not task_run.done()]
+        CFG.LOGGER.warning(
+            f"Web shutdown waited {timeout_seconds}s for {len(task_runs)} task "
+            f"run(s); {len(leftover)} still running. Continuing with chat "
+            "session cleanup."
+        )
+
+
 def create_web_app(
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
@@ -62,7 +98,7 @@ def create_web_app(
     _COROS = []
 
     async def _cleanup_sessions():
-        if "pytest" in sys.modules:
+        if should_skip_session_cleanup():
             return
         session_mgr = ChatSessionManager.get_instance_sync()
         await session_mgr.cancel_all_sessions()
@@ -77,13 +113,7 @@ def create_web_app(
 
         yield
 
-        for coro in _COROS:
-            coro.cancel()
-        if _COROS:
-            await asyncio.wait_for(
-                asyncio.gather(*_COROS, return_exceptions=True),
-                timeout=CFG.WEB_SHUTDOWN_TIMEOUT / 1000,
-            )
+        await cancel_task_runs(_COROS, CFG.WEB_SHUTDOWN_TIMEOUT / 1000)
         await _cleanup_sessions()
 
     app = FastAPI(
