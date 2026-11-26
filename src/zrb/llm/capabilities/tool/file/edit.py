@@ -84,7 +84,11 @@ async def _replace_in_file_locked(
         return missing
 
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
+        # newline="": keep the file's own line endings. Universal-newline
+        # translation would turn a CRLF file into one text of `\n`, and the
+        # write below would then put every one of those lines back as LF — a
+        # one-line edit rewriting the whole file's bytes.
+        with open(abs_path, "r", encoding="utf-8", newline="") as f:
             content = f.read()
     except Exception as e:
         return (
@@ -111,7 +115,10 @@ async def _replace_in_file_locked(
         return refused
 
     try:
-        with open(abs_path, "w", encoding="utf-8") as f:
+        # newline="": write the text as it stands. The default translation
+        # would rewrite `\r\n` in `new_content` — the bytes read above — as
+        # whatever the platform uses.
+        with open(abs_path, "w", encoding="utf-8", newline="") as f:
             f.write(new_content)
     except Exception as e:
         return (
@@ -119,7 +126,7 @@ async def _replace_in_file_locked(
             "[SYSTEM SUGGESTION]: Verify the path and your write permissions, "
             "then retry."
         )
-    record_observed(abs_path, new_content)
+    record_observed(abs_path, _as_universal_newlines(new_content))
 
     replacements = match_count if count < 0 else min(match_count, count)
     return compose_write_result(
@@ -127,6 +134,17 @@ async def _replace_in_file_locked(
         f"{fuzzy_note}{newline_note}",
         await format_post_write_diagnostics(abs_path),
     )
+
+
+def _as_universal_newlines(content: str) -> str:
+    """*content* with every line ending a `\\n`, as a reader opening it sees it.
+
+    The observation store keys on that form — `check_observed` reads the file
+    with the default translation — while this tool now holds the file's own
+    bytes, `\\r\\n` included. Recording the bytes would make the next Write
+    report a file that changed under it.
+    """
+    return content.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _describe_missing_file(path: str, abs_path: str) -> str | None:
