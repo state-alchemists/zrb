@@ -159,22 +159,31 @@ async def test_a_resolver_that_blocks_while_the_agent_is_built_still_gives_up(
     loop. The turn then falls back to reading the reply whole, which is the
     only outcome a missing block ever had, instead of waiting for the resolver
     to come back.
+
+    The resolver is held by this test and not by a sleep, so the claim is an
+    ordering rather than a duration: the deadline ended the wait while the
+    resolver was still inside its block, whatever the runner's clock did.
     """
+    blocked = threading.Event()
+    released = threading.Event()
 
     def _blocking_agent(model=None):
-        time.sleep(0.4)
+        blocked.set()
+        released.wait(30)
         return FakeAgent(output=RepairedSpeech(spoken=LINE))
 
     monkeypatch.setattr(repair, "create_speech_repair_agent", _blocking_agent)
-    started = time.monotonic()
 
-    with pytest.raises(SpeechRepairError):
-        await repair_for_speech(REPLY, timeout=0.05)
+    try:
+        # The outer bound names the failure mode rather than measuring a
+        # duration: only a repair that waits the resolver out can reach it,
+        # because nothing but this test can release the resolver.
+        with pytest.raises(SpeechRepairError, match="within 0.05s"):
+            await asyncio.wait_for(repair_for_speech(REPLY, timeout=0.05), 10)
+    finally:
+        released.set()
 
-    elapsed = time.monotonic() - started
-    # Well under the block: the deadline fired, rather than waiting the resolver
-    # out and reporting a timeout afterwards.
-    assert elapsed < 0.3, f"the wait was not bounded: {elapsed:.2f}s"
+    assert blocked.wait(5), "the resolver never started"
 
 
 @pytest.mark.asyncio
@@ -201,20 +210,37 @@ async def test_a_second_repair_is_refused_while_the_first_is_still_alive(monkeyp
 
     The second reply is read whole instead — the outcome it had before the
     repair existed — and nothing new is started.
+
+    The first worker is held by this test and not by a sleep, so it is still
+    alive for as long as the assertion needs it. The refusal is what proves
+    immediacy: a call that had queued behind the worker would have answered
+    with a line, not with "still running".
     """
-    _with_agent(monkeypatch, FakeAgent(output=RepairedSpeech(spoken=LINE), delay=0.3))
+    blocked = threading.Event()
+    released = threading.Event()
+
+    class _HeldAgent:
+        async def run(self, text):
+            blocked.set()
+            while not released.is_set():
+                await asyncio.sleep(0.01)
+            return FakeResult(RepairedSpeech(spoken=LINE))
+
+    monkeypatch.setattr(
+        repair, "create_speech_repair_agent", lambda model=None: _HeldAgent()
+    )
     repairer = repair.SpeechRepairer()
 
-    with pytest.raises(SpeechRepairError, match="within"):
-        await repairer.repair(REPLY, timeout=0.05)
+    try:
+        with pytest.raises(SpeechRepairError, match="within"):
+            await repairer.repair(REPLY, timeout=0.05)
 
-    started = time.monotonic()
-    with pytest.raises(SpeechRepairError, match="still running"):
-        await repairer.repair(REPLY, timeout=0.05)
+        assert blocked.wait(5), "the first worker never reached the model"
 
-    assert time.monotonic() - started < 0.1
-    # Let the abandoned worker finish inside this test rather than the next.
-    time.sleep(0.4)
+        with pytest.raises(SpeechRepairError, match="still running"):
+            await repairer.repair(REPLY, timeout=0.05)
+    finally:
+        released.set()
 
 
 @pytest.mark.asyncio
@@ -224,24 +250,32 @@ async def test_a_repair_with_no_deadline_still_leaves_the_loop_free(monkeypatch)
     The model is resolved and the agent built before the first `await`, which is
     exactly the work that can block everything else the loop is doing, so the
     call goes to a thread either way.
+
+    The build is held by this test and announces itself by scheduling a
+    callback on the loop from its own thread: that callback runs only if the
+    loop is free, so the question is whether the loop ran at all while the
+    build was held, not how fast it ran.
     """
+    loop = asyncio.get_running_loop()
+    release = threading.Event()
+    built = asyncio.Event()
 
     def _blocking_agent(model=None):
-        time.sleep(0.3)
+        loop.call_soon_threadsafe(built.set)
+        release.wait(30)
         return FakeAgent(output=RepairedSpeech(spoken=LINE))
 
     monkeypatch.setattr(repair, "create_speech_repair_agent", _blocking_agent)
-    started = time.monotonic()
-    ticks: list[float] = []
+    running = asyncio.ensure_future(repair_for_speech(REPLY))
+    try:
+        # A bound on the failure mode, not a duration to measure: a build that
+        # had held the loop could never let this callback run at all.
+        await asyncio.wait_for(built.wait(), 10)
+        assert not running.done(), "the repair finished before its build was released"
+    finally:
+        release.set()
 
-    async def ticker():
-        await asyncio.sleep(0.02)
-        ticks.append(time.monotonic() - started)
-
-    repaired, _ = await asyncio.gather(repair_for_speech(REPLY), ticker())
-
-    assert repaired.spoken == LINE
-    assert ticks[0] < 0.15, f"the loop waited for the model: {ticks[0]:.2f}s"
+    assert (await running).spoken == LINE
 
 
 @pytest.mark.asyncio
@@ -289,25 +323,39 @@ async def test_the_repair_thread_is_a_daemon(monkeypatch):
 @pytest.mark.asyncio
 async def test_a_stuck_repair_does_not_cost_another_session_its_line(monkeypatch):
     """Nothing is queued behind a worker: another session's repair runs at once,
-    rather than after a worker that has already given up."""
+    rather than after a worker that has already given up.
+
+    The stuck worker is held by this test and not by a sleep, so the second
+    session answering while the first is still stuck is an ordering, and no
+    clock decides it.
+    """
+    stuck = threading.Event()
+    release = threading.Event()
 
     async def _slow_for_one_reply(text, model=None):
         if "slow" in text:
-            time.sleep(0.4)
+            stuck.set()
+            while not release.is_set():
+                await asyncio.sleep(0.01)
         return RepairedSpeech(spoken=LINE)
 
     monkeypatch.setattr(repair, "_run", _slow_for_one_reply)
-    stuck, other = repair.SpeechRepairer(), repair.SpeechRepairer()
+    stuck_session, other = repair.SpeechRepairer(), repair.SpeechRepairer()
 
-    with pytest.raises(SpeechRepairError):
-        await stuck.repair("a slow reply", timeout=0.02)
+    try:
+        with pytest.raises(SpeechRepairError):
+            await stuck_session.repair("a slow reply", timeout=0.02)
 
-    started = time.monotonic()
-    repaired = await other.repair(REPLY, timeout=1.0)
+        assert stuck.wait(5), "the stuck repair never reached its worker"
+        repaired = await other.repair(REPLY, timeout=10)
 
-    assert repaired.spoken == LINE
-    assert time.monotonic() - started < 0.3, "the second session waited for the first"
-    time.sleep(0.4)
+        assert repaired.spoken == LINE
+        # The second session answered while the first was still inside its
+        # worker. A repair that had queued behind it could only have answered
+        # after this release, which has not happened yet.
+        assert not release.is_set()
+    finally:
+        release.set()
 
 
 def test_the_agent_is_built_to_answer_in_the_repaired_shape(monkeypatch):
