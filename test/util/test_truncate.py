@@ -104,15 +104,27 @@ def test_truncate_display_small_budget_has_no_ellipsis():
     assert truncate_display("abcdef", 0) == ""
 
 
-# --- truncate_chars (unchanged) ---
+# --- truncate_chars ---
 def test_truncate_chars_no_truncation():
     assert truncate_chars("short", 100) == "short"
 
 
-def test_truncate_chars_truncates():
-    out = truncate_chars("abcdef", 3)
-    assert out.startswith("abc")
-    assert "TRUNCATED" in out
+def test_truncate_chars_never_exceeds_max_chars():
+    """The cap the docstring promises covers the marker it appends."""
+    text = "x" * 5000
+    for max_chars in (0, 1, 3, 10, 40, 100):
+        assert len(truncate_chars(text, max_chars)) <= max_chars
+
+
+def test_truncate_chars_counts_its_marker_against_the_cap():
+    out = truncate_chars("x" * 5000, 100)
+
+    assert len(out) == 100
+    assert out == "x" * 74 + " ...[TRUNCATED 4926 chars]"
+
+
+def test_truncate_chars_with_no_room_for_the_marker_still_caps():
+    assert truncate_chars("abcdef", 3) == "abc"
 
 
 def test_the_live_stream_and_the_exported_transcript_agree():

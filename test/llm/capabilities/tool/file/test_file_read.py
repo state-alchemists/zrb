@@ -83,10 +83,11 @@ def test_read_file_prefixes_each_line_with_its_number(tmp_path):
     assert ranged_body == "     3\tline3\n     4\tline4\n     5\tline5\n"
 
 
-def test_read_file_budget_counts_file_chars_not_prefixes(tmp_path):
-    # The header reports the cap as a char count, so the cap has to be spent on
-    # the file — numbering first would bill ~13% of it to prefixes the file
-    # does not contain, while the header still claimed the full figure.
+def test_read_file_budget_covers_prefixes_and_the_marker(tmp_path):
+    # The header reports the cap as a char count and the body is what reaches
+    # the model, so the cap covers the body: the `cat -n` prefix on every line
+    # (seven chars each) and the truncation marker alike. Spending it on file
+    # content alone overshot by seven chars per line delivered.
     file_path = tmp_path / "many_lines.txt"
     file_path.write_text("\n".join("abcd" for _ in range(100)))  # 5 chars/line
 
@@ -94,13 +95,9 @@ def test_read_file_budget_counts_file_chars_not_prefixes(tmp_path):
         cfg.LLM_MAX_OUTPUT_CHARS = 40
         body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
 
-    delivered = "".join(
-        line.split("\t", 1)[1]
-        for line in body.replace("\n...[TRUNCATED]", "").splitlines(keepends=True)
-    )
-    assert len(delivered) <= 40
-    assert len(delivered) > 30  # the whole budget went to content, not prefixes
-    assert body.rstrip().endswith("...[TRUNCATED]")
+    # Two 12-char numbered lines, then the 15-char marker: 38 of 40.
+    assert body == "     1\tabcd\n     2\tabcd\n...[TRUNCATED]"
+    assert len(body) <= 40
 
 
 def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
@@ -115,7 +112,9 @@ def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
 
     assert body.startswith("     1\t")
     assert body.rstrip().endswith("...[TRUNCATED]")
-    assert len(body.split("\t", 1)[1].replace("\n...[TRUNCATED]", "")) == 40
+    # The prefix and the marker were paid for first; the text gets the rest.
+    assert len(body) == 40
+    assert len(body.split("\t", 1)[1].replace("\n...[TRUNCATED]", "")) == 18
 
 
 def test_read_file_non_utf8(tmp_path):

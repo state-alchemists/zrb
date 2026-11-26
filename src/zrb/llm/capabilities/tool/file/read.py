@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 # Shared read-size cap for the text and PDF paths alike.
 _MAX_READ_FILE_BYTES = 10 * 1024 * 1024
 _READ_HEADER_PREFIX = "[File: "
+# `cat -n` style: the line number right-aligned in six columns, then a tab.
+_LINE_NUMBER_FORMAT = "{:>6}\t"
+_TRUNCATION_MARKER = "\n...[TRUNCATED]"
 
 
 @requires_purpose
@@ -98,12 +101,12 @@ def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:
 
         start, end = _clamp_range(start_line, end_line, total_lines)
         kept, truncated = _select_lines(
-            lines[start - 1 : end], CFG.LLM_MAX_OUTPUT_CHARS
+            lines[start - 1 : end], CFG.LLM_MAX_OUTPUT_CHARS, start
         )
 
         body = _number_lines(kept, start)
         if truncated:
-            body = body.rstrip("\n") + "\n...[TRUNCATED]"
+            body = body.rstrip("\n") + _TRUNCATION_MARKER
         header = _format_read_header(path, start, end, total_lines, truncated)
         return f"{header}{body}"
 
@@ -192,24 +195,44 @@ def _number_lines(lines: list[str], start: int) -> str:
     Splitting on the first tab recovers the original line
     (``file_edit._strip_read_line_numbers``).
     """
-    return "".join(f"{start + i:>6}\t{line}" for i, line in enumerate(lines))
+    return "".join(
+        _LINE_NUMBER_FORMAT.format(start + i) + line for i, line in enumerate(lines)
+    )
 
 
-def _select_lines(lines: list[str], max_chars: int) -> tuple[list[str], bool]:
-    """Keep leading lines within ``max_chars`` of file content (measured before numbering).
+def _prefix_width(line_number: int) -> int:
+    """Characters ``_number_lines`` puts in front of a line."""
+    return len(_LINE_NUMBER_FORMAT.format(line_number))
 
-    The first line is always kept, hard-cut if it alone exceeds the budget.
+
+def _select_lines(
+    lines: list[str], max_chars: int, start: int
+) -> tuple[list[str], bool]:
+    """Keep leading lines whose numbered form fits ``max_chars`` in total.
+
+    The cap covers the whole body — every ``cat -n`` prefix, and the truncation
+    marker the caller appends — so the delivered body never exceeds the figure
+    the header reports. The first line is always kept, its text hard-cut to
+    whatever the budget leaves for it.
     """
+    if _numbered_width(lines, start) <= max_chars:
+        return list(lines), False
+    room = max_chars - len(_TRUNCATION_MARKER)
     kept: list[str] = []
-    total = 0
-    for line in lines:
-        if not kept and len(line) > max_chars:
-            return [line[:max_chars]], True
-        if kept and total + len(line) > max_chars:
+    for offset, line in enumerate(lines):
+        prefix_width = _prefix_width(start + offset)
+        if prefix_width + len(line) > room:
+            if not kept:
+                return [line[: max(0, room - prefix_width)]], True
             return kept, True
         kept.append(line)
-        total += len(line)
-    return kept, False
+        room -= prefix_width + len(line)
+    return kept, True
+
+
+def _numbered_width(lines: list[str], start: int) -> int:
+    """Characters the numbered body of ``lines`` takes, truncation marker excluded."""
+    return sum(_prefix_width(start + i) + len(line) for i, line in enumerate(lines))
 
 
 def _validate_path_for_reading(abs_path: str) -> str | None:
