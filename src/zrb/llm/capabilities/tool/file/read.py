@@ -205,7 +205,7 @@ def _prefix_width(line_number: int) -> int:
     return len(_LINE_NUMBER_FORMAT.format(line_number))
 
 
-def _marker_fits(max_chars: int) -> bool:
+def _has_room_for_marker(max_chars: int) -> bool:
     """Whether a cap can hold the truncation marker beside any text at all."""
     return max_chars > len(_TRUNCATION_MARKER)
 
@@ -216,7 +216,7 @@ def _body_room(max_chars: int) -> int:
     A cap smaller than the marker leaves nothing to say beside it, so the marker
     is dropped for that cap and the body gets the whole figure instead.
     """
-    if not _marker_fits(max_chars):
+    if not _has_room_for_marker(max_chars):
         return max(0, max_chars)
     return max_chars - len(_TRUNCATION_MARKER)
 
@@ -228,7 +228,7 @@ def _with_truncation_marker(body: str, max_chars: int) -> str:
     the marker fits. Where it does not, the body is cut to the cap and the
     header — which states the truncation and the figure — carries the news.
     """
-    if _marker_fits(max_chars):
+    if _has_room_for_marker(max_chars):
         return body.rstrip("\n") + _TRUNCATION_MARKER
     return body[: max(0, max_chars)]
 
@@ -378,7 +378,7 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
     selected = "".join(lines[start - 1 : end])
 
     body, truncated = truncate_text(selected, CFG.LLM_MAX_OUTPUT_CHARS, keep="head")
-    if truncated and not _marker_fits(CFG.LLM_MAX_OUTPUT_CHARS):
+    if truncated and not _has_room_for_marker(CFG.LLM_MAX_OUTPUT_CHARS):
         # `truncate_text` always keeps its own marker; at a cap narrower than
         # that marker, the marker is the whole overshoot.
         body = body[: max(0, CFG.LLM_MAX_OUTPUT_CHARS)]
