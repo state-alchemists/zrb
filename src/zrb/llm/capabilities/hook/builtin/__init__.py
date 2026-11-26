@@ -1,4 +1,5 @@
-"""The hooks zrb ships: memory (reviewer, log lines, recall, the week) and self-review.
+"""The hooks zrb ships: memory (reviewer, log lines, recall, the week), the
+unfinished-action gate, and self-review.
 
 The memory hooks write what a turn taught, record that it happened, put a stored
 claim in front of a prompt that names its subject, and close a finished week in
@@ -25,6 +26,12 @@ from zrb.llm.capabilities.hook.builtin.self_review import (
     create_self_review_hook,
     register_self_review_hook,
 )
+from zrb.llm.capabilities.hook.builtin.unfinished_action import (
+    build_unfinished_action_hook_config,
+    create_unfinished_action_hook,
+    register_unfinished_action_hook,
+    unfinished_claim,
+)
 
 __all__ = [
     "build_memory_reviewer_hook_config",
@@ -37,4 +44,8 @@ __all__ = [
     "register_week_note_hook",
     "create_self_review_hook",
     "register_self_review_hook",
+    "build_unfinished_action_hook_config",
+    "create_unfinished_action_hook",
+    "register_unfinished_action_hook",
+    "unfinished_claim",
 ]

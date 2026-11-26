@@ -75,6 +75,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
+        self.DEFAULT_LLM_UNFINISHED_ACTION_ENABLED: str = "on"
         self.DEFAULT_LLM_SHELL_JUDGE_ENABLED: str = "off"
         self.DEFAULT_LLM_SHELL_JUDGE_AUTO_APPROVE_ENABLED: str = "off"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
@@ -378,6 +379,19 @@ class LLMContentMixin:
             "once. A turn that ends mid-continuation (cancelled, capped) never "
             "clears its count, so the oldest past this many are dropped; a "
             "dropped turn that does come back starts its count again."
+        ),
+    )
+
+    LLM_UNFINISHED_ACTION_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Master switch for the unfinished-action Stop hook. When a turn's "
+            'closing message says it is doing work ("I am fixing the six '
+            'findings now") and the turn stopped without a tool call, the '
+            "turn continues once with a reason that asks for the work or for "
+            "what is really being waited on. No model call and no file read: a "
+            "lexical pass over the closing message."
         ),
     )
 
