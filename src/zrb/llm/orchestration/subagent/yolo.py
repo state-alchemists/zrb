@@ -22,19 +22,24 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:  # noqa: C901 -- fac
     # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy; hoisting
     # would bind the name at this module's load time and bypass the mock.
     from zrb.llm.capabilities.permission import get_effective_policy
-    from zrb.llm.capabilities.tool_call.shell_call import is_sandbox_off
     from zrb.llm.contracts.shared.agent_state import get_current_ui, get_current_yolo
+    from zrb.llm.engine.agent.run.hard_asks import (
+        get_llm_tool_name,
+        is_hard_ask_call,
+    )
     from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
 
     def check_yolo_inheritance(tool_def: Any = None, args: dict | None = None) -> bool:
         # Approval precedence (matches chat/task.py check_yolo):
+        #   hard ask:    never auto-approved, whatever any level below says
         #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
         #                ask→defer to tool-policy / yolo cascade
         #   tool_policy: handled in _resolve_approval
         #   yolo:        handled in _resolve_approval
-        if isinstance(args, dict) and is_sandbox_off(args):
-            # Never auto-approved (ADR-0065): the call has to reach the cascade,
-            # where the escape hatch is a human's decision.
+        if is_hard_ask_call(get_llm_tool_name(tool_def), args):
+            # Leaving the sandbox and writing the MCP config are a human's
+            # decision (ADR-0065, ADR-0146) — above the policy, not only above
+            # yolo: an `allow` that covered one would be the same hole one level up.
             return False
         policy = get_effective_policy()
         if policy is not None:

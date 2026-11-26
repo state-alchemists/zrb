@@ -19,9 +19,9 @@ from zrb.llm.capabilities.hook.manager import HookManager
 from zrb.llm.capabilities.sandbox import coerce_sandbox
 from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
-from zrb.llm.capabilities.tool_call.shell_call import is_sandbox_off
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.contracts.util.attachment import get_attachments
+from zrb.llm.engine.agent.run.hard_asks import get_llm_tool_name, is_hard_ask_call
 from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.task.chat.persistence import (
@@ -382,11 +382,16 @@ class ChatExecution:
 def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
     """Build the predicate deciding whether a tool call skips approval.
 
-    The permission policy decides first (see `get_policy_skip_decision`);
-    otherwise yolo does. Tool policies run later, in deferred_calls.py.
+    A hard ask is never skipped, whoever would have allowed it: leaving the
+    sandbox and writing the MCP config are a human's decision, and a policy
+    `allow` answers about ordinary calls (ADR-0065, ADR-0146). Then the
+    permission policy decides (see `get_policy_skip_decision`), and yolo last.
+    Tool policies run later, in deferred_calls.py.
     """
 
     def _should_skip_approval(tool_def=None, args=None):
+        if is_hard_ask_call(get_llm_tool_name(tool_def), args):
+            return False
         decision = get_policy_skip_decision(tool_def, cap_by_name, args)
         if decision is not None:
             return decision
@@ -396,11 +401,11 @@ def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
 
 
 def _yolo_skip_decision(ctx, llm_chat_task, tool_def, args=None) -> bool:
-    """Whether YOLO covers this call; the xcom holds a bool or a frozenset of tool names."""
-    if isinstance(args, dict) and is_sandbox_off(args):
-        # The escape hatch is never auto-approved (ADR-0065), so this call has
-        # to reach the cascade, where a human is the only one who can answer it.
-        return False
+    """Whether YOLO covers this call; the xcom holds a bool or a frozenset of names.
+
+    A hard ask never reaches here: the caller refuses to skip one before asking
+    this (see `_make_should_skip_approval`).
+    """
     yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
     if yolo_xcom_key not in ctx.xcom:
         return False

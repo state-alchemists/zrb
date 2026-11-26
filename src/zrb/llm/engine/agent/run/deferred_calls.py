@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import inspect
 import json
-import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -20,8 +19,7 @@ from zrb.llm.capabilities.approval.judge_state import (
 )
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
-from zrb.llm.capabilities.permission import ASK, DENY, Capability
-from zrb.llm.capabilities.permission.policy import PATH_ARG_KEYS
+from zrb.llm.capabilities.permission import ASK, DENY
 from zrb.llm.capabilities.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
@@ -42,6 +40,7 @@ from zrb.llm.capabilities.tool_call.shell_call import (
 )
 from zrb.llm.contracts.shared.ambient_state import get_interactive_mode
 from zrb.llm.contracts.util.tool_args import parse_tool_args
+from zrb.llm.engine.agent.run.hard_asks import is_mcp_config_write
 from zrb.llm.engine.agent.run.hook_result_extractor import (
     PreToolDecision,
     extract_permission_decision,
@@ -449,69 +448,14 @@ def _approve_via_yolo(
 def _is_mcp_config_write(call: "ToolCallPart") -> bool:
     """Priority 2a: whether *call* would write the file the MCP loader reads.
 
-    `capabilities/tool/mcp.py` starts every server the config file names, so a
-    write to one decides what a later session runs with — a human's decision,
-    not the model's. It is a hard ASK rather than a DENY because the file is a
-    normal part of a user's workspace: they may well mean to edit it, and only
-    they can say.
-
-    Judge a write only, and only the capabilities `sandbox_gate` write-checks: a
-    tool that mutates files, and an untagged one that might. A shell command's
-    redirect stays out of reach here, as it does for that gate.
+    A hard ASK rather than a DENY, because the file is a normal part of a user's
+    workspace: they may well mean to edit it, and only they can say. The
+    predicate is shared, because the skip decision asks it *before* a call is
+    deferred and this asks it after — a guard on only one of the two paths lets
+    the other approve the write first (ADR-0146).
     """
-    # lazy: tests patch zrb.llm.engine.agent.run.tool_capabilities.get_tool_capability; hoisting bypasses the mock
-    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
-
-    if get_tool_capability(call.tool_name).value not in (
-        Capability.EDIT.value,
-        Capability.UNKNOWN.value,
-    ):
-        return False
     args = parse_tool_args(call)
-    return isinstance(args, dict) and _has_mcp_config_arg(args)
-
-
-def _has_mcp_config_arg(args: dict[str, object]) -> bool:
-    """Whether a path-shaped argument of *args* names a config the loader reads."""
-    config_paths = _mcp_config_paths()
-    for key in PATH_ARG_KEYS:
-        value = args.get(key)
-        if not isinstance(value, str) or not value.strip():
-            continue
-        if os.path.realpath(os.path.expanduser(value)) in config_paths:
-            return True
-    return False
-
-
-def _mcp_config_paths() -> frozenset[str]:
-    """Every absolute path `load_mcp_config` reads its config from.
-
-    The loader takes `CFG.MCP_CONFIG_FILE` from the working directory and, when
-    that sits under the home directory, from each directory between it and home
-    (`capabilities/tool/mcp.py::_get_config_files`). The walk is mirrored rather
-    than called: that module imports the MCP client, and the approval cascade
-    must not pay for it to answer a path question. A config that does not exist
-    yet counts — creating one is what this guard is for.
-    """
-    cwd = os.path.realpath(os.getcwd())
-    home = os.path.realpath(os.path.expanduser("~"))
-    config_file_name = CFG.MCP_CONFIG_FILE
-    if not config_file_name:
-        # A blank name reads nothing: `_get_config_files` would test the
-        # directory itself and find no file.
-        return frozenset()
-    directories = {cwd}
-    if cwd == home or cwd.startswith(home + os.sep):
-        # Every directory between the working directory and home; `home` is an
-        # ancestor, so the walk always ends there.
-        current = cwd
-        while current != home:
-            current = os.path.dirname(current)
-            directories.add(current)
-    return frozenset(
-        os.path.realpath(os.path.join(directory, config_file_name))
-        for directory in directories
-    )
+    return isinstance(args, dict) and is_mcp_config_write(call.tool_name, args)
 
 
 async def _apply_shell_judge(
