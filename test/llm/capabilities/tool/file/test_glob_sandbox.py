@@ -9,6 +9,8 @@ file they open; `Glob` listed whatever it found.
 
 from __future__ import annotations
 
+import os
+
 from zrb.llm.capabilities.sandbox import SandboxPolicy, sandbox_policy
 from zrb.llm.capabilities.tool.file import glob_files
 
@@ -83,5 +85,5 @@ def test_a_disabled_policy_lists_through_the_symlink(tmp_path):
     with _sandboxed(project, secrets, enabled=False):
         result = glob_files("link/*", path=str(project))
 
-    assert result.get("files") == ["link/id_rsa"]
+    assert result.get("files") == [os.path.join("link", "id_rsa")]
     assert "warning" not in result
