@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -19,7 +20,8 @@ from zrb.llm.capabilities.approval.judge_state import (
 )
 from zrb.llm.capabilities.hook.contracts.types import HookEvent
 from zrb.llm.capabilities.hook.manager import HookManager
-from zrb.llm.capabilities.permission import ASK
+from zrb.llm.capabilities.permission import ASK, DENY, Capability
+from zrb.llm.capabilities.permission.policy import PATH_ARG_KEYS
 from zrb.llm.capabilities.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
@@ -213,9 +215,11 @@ async def _resolve_approval(
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
       1. Tool policy
       2. Permission policy (ALLOW→approve, DENY→deny, ASK→force ask)
+      2a. A write to the MCP loader's config — a hard ASK, the only kind that
+          outranks YOLO (ADR-0062)
       2b. A hard ASK settled when non-interactive
       2c. Default-approve (the harness's bounded tools; a rule still wins)
-      3. YOLO (only with no policy ASK)
+      3. YOLO (only with no policy ASK, and never for a sandbox escape)
       3b. The shell judge — a `safe` command may skip the prompt when the
           auto-approve knob is on; otherwise it only annotates one
       4. The `PermissionRequest` hook — fires *now that the call will prompt*,
@@ -240,6 +244,8 @@ async def _resolve_approval(
         return verdict
 
     policy_decision, verdict = _apply_permission_policy(call, force_ask)
+    if _is_mcp_config_write(call) and policy_decision != DENY:
+        policy_decision, verdict = ASK, None
     if verdict is not None:
         return verdict
 
@@ -251,7 +257,7 @@ async def _resolve_approval(
     if verdict is not None:
         return verdict
 
-    verdict = _approve_via_yolo(policy_decision, force_ask)
+    verdict = _approve_via_yolo(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
@@ -329,14 +335,14 @@ def _apply_permission_policy(
 
     Returns the raw decision too: an ASK stops YOLO further down.
     """
-    # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy and .tool_capability; hoisting bypasses the mock
+    # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy; hoisting bypasses the mock
     from zrb.llm.capabilities.permission import (
         ALLOW,
         DENY,
         get_effective_policy,
-        tool_capability,
     )
     from zrb.llm.capabilities.permission.observability import record_policy_decision
+    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
 
     policy = get_effective_policy()
     if policy is None:
@@ -344,8 +350,11 @@ def _apply_permission_policy(
             layer="permission", decision="none", tool_name=call.tool_name
         )
         return None, None
+    # By name, never from the call part: a deferred `ToolCallPart` carries no
+    # capability tag, so asking the part answers UNKNOWN and a capability-keyed
+    # rule (`edit:ask`) silently falls through to a later `*:allow`.
     decision = policy.decide(
-        call.tool_name, tool_capability(call), parse_tool_args(call) or {}
+        call.tool_name, get_tool_capability(call.tool_name), parse_tool_args(call) or {}
     )
     record_policy_decision(
         layer="permission", decision=str(decision), tool_name=call.tool_name
@@ -413,18 +422,96 @@ def _approve_by_default(
 
 
 def _approve_via_yolo(
-    policy_decision: str | None, force_ask: bool
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
 ) -> "ToolApproved | None":
-    """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK."""
+    """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK.
+
+    Nor a request to leave the sandbox: the escape hatch is never auto-approved
+    (ADR-0065), and YOLO is the mode where nobody is watching anyway. The
+    arguments are needed here for that one question — a `Shell` call carrying
+    `dangerously_skip_sandbox` is a human's decision however ordinary the
+    command looks.
+    """
     # lazy: tests patch zrb.llm.contracts.shared.agent_state.get_current_yolo; hoisting bypasses the mock
     from zrb.llm.contracts.shared.agent_state import get_current_yolo
 
     if get_current_yolo() is not True or policy_decision == ASK or force_ask:
         return None
+    args = parse_tool_args(call)
+    if isinstance(args, dict) and is_sandbox_off(args):
+        return None
     # lazy: heavy third-party
     from pydantic_ai import ToolApproved
 
     return ToolApproved()
+
+
+def _is_mcp_config_write(call: "ToolCallPart") -> bool:
+    """Priority 2a: whether *call* would write the file the MCP loader reads.
+
+    `capabilities/tool/mcp.py` starts every server the config file names, so a
+    write to one decides what a later session runs with — a human's decision,
+    not the model's. It is a hard ASK rather than a DENY because the file is a
+    normal part of a user's workspace: they may well mean to edit it, and only
+    they can say.
+
+    Judge a write only, and only the capabilities `sandbox_gate` write-checks: a
+    tool that mutates files, and an untagged one that might. A shell command's
+    redirect stays out of reach here, as it does for that gate.
+    """
+    # lazy: tests patch zrb.llm.engine.agent.run.tool_capabilities.get_tool_capability; hoisting bypasses the mock
+    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
+
+    if get_tool_capability(call.tool_name).value not in (
+        Capability.EDIT.value,
+        Capability.UNKNOWN.value,
+    ):
+        return False
+    args = parse_tool_args(call)
+    return isinstance(args, dict) and _has_mcp_config_arg(args)
+
+
+def _has_mcp_config_arg(args: dict[str, object]) -> bool:
+    """Whether a path-shaped argument of *args* names a config the loader reads."""
+    config_paths = _mcp_config_paths()
+    for key in PATH_ARG_KEYS:
+        value = args.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if os.path.realpath(os.path.expanduser(value)) in config_paths:
+            return True
+    return False
+
+
+def _mcp_config_paths() -> frozenset[str]:
+    """Every absolute path `load_mcp_config` reads its config from.
+
+    The loader takes `CFG.MCP_CONFIG_FILE` from the working directory and, when
+    that sits under the home directory, from each directory between it and home
+    (`capabilities/tool/mcp.py::_get_config_files`). The walk is mirrored rather
+    than called: that module imports the MCP client, and the approval cascade
+    must not pay for it to answer a path question. A config that does not exist
+    yet counts — creating one is what this guard is for.
+    """
+    cwd = os.path.realpath(os.getcwd())
+    home = os.path.realpath(os.path.expanduser("~"))
+    config_file_name = CFG.MCP_CONFIG_FILE
+    if not config_file_name:
+        # A blank name reads nothing: `_get_config_files` would test the
+        # directory itself and find no file.
+        return frozenset()
+    directories = {cwd}
+    if cwd == home or cwd.startswith(home + os.sep):
+        # Every directory between the working directory and home; `home` is an
+        # ancestor, so the walk always ends there.
+        current = cwd
+        while current != home:
+            current = os.path.dirname(current)
+            directories.add(current)
+    return frozenset(
+        os.path.realpath(os.path.join(directory, config_file_name))
+        for directory in directories
+    )
 
 
 async def _apply_shell_judge(

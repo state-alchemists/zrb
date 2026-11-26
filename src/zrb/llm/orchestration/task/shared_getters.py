@@ -11,6 +11,7 @@ from zrb.llm.capabilities.permission import (
     DENY,
     Capability,
     get_effective_policy,
+    tool_capability,
 )
 from zrb.llm.contracts.config.model_resolver import resolve_configured_model
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
@@ -97,6 +98,22 @@ def resolve_conversation_name(
     if resolved.strip() == "":
         resolved = get_random_name()
     return resolved
+
+
+def build_capability_map(tools: "list[Tool | ToolFuncEither]") -> dict[str, Capability]:
+    """LLM-visible name → capability for *tools*, keyed by the name the model calls.
+
+    One map serves both halves of the gate on a call: the skip decision below,
+    which needs it before the call is deferred, and the approval cascade, which
+    needs it after — a deferred `ToolCallPart` carries no capability tag of its
+    own (see `engine/agent/run/tool_capabilities.py`).
+    """
+    return {
+        (getattr(tool, "name", None) or getattr(tool, "__name__", "")): tool_capability(
+            tool
+        )
+        for tool in tools
+    }
 
 
 def get_policy_skip_decision(

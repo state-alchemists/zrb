@@ -6,20 +6,25 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.capabilities.permission import ALLOW, ASK, DENY, Capability
+from zrb.llm.capabilities.permission import ALLOW, ASK, DENY
 
 
-def make_yolo_inheritance_checker() -> (
-    Callable[..., bool]
-):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
-    """Return a callable that reports the current effective YOLO mode."""
+def make_yolo_inheritance_checker() -> Callable[..., bool]:  # noqa: C901 -- factory
+    """Return a callable that reports the current effective YOLO mode.
+
+    mccabe sums the nested closure into this function's score while radon scores
+    each function separately (near-trivial on its own), so the factory carries
+    `# noqa: C901` rather than the ratchet being raised for it.
+    """
     # lazy: tests patch `zrb.llm.contracts.shared.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
     # lazy: tests patch zrb.llm.capabilities.permission.get_effective_policy; hoisting
     # would bind the name at this module's load time and bypass the mock.
     from zrb.llm.capabilities.permission import get_effective_policy
+    from zrb.llm.capabilities.tool_call.shell_call import is_sandbox_off
     from zrb.llm.contracts.shared.agent_state import get_current_ui, get_current_yolo
+    from zrb.llm.engine.agent.run.tool_capabilities import get_tool_capability
 
     def check_yolo_inheritance(tool_def: Any = None, args: dict | None = None) -> bool:
         # Approval precedence (matches chat/task.py check_yolo):
@@ -27,12 +32,20 @@ def make_yolo_inheritance_checker() -> (
         #                ask→defer to tool-policy / yolo cascade
         #   tool_policy: handled in _resolve_approval
         #   yolo:        handled in _resolve_approval
+        if isinstance(args, dict) and is_sandbox_off(args):
+            # Never auto-approved (ADR-0065): the call has to reach the cascade,
+            # where the escape hatch is a human's decision.
+            return False
         policy = get_effective_policy()
         if policy is not None:
             tool_name = (
                 getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
             )
-            result = policy.decide(tool_name, Capability.UNKNOWN, args or {})
+            # By name, the same map the cascade reads: a capability tag lives on
+            # the registered callable, and a `tool_def` here may not be it.
+            result = policy.decide(
+                tool_name, get_tool_capability(tool_name), args or {}
+            )
             if result is not None:
                 if result == ALLOW:
                     return True
