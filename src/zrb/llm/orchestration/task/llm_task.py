@@ -36,15 +36,12 @@ from zrb.llm.contracts.shared.stream_observer import StreamObserver
 from zrb.llm.contracts.shared.usage_log import CompactionDetail
 from zrb.llm.contracts.util.attachment import get_attachments
 from zrb.llm.engine.agent import AnyToolConfirmation, create_agent, run_agent
-from zrb.llm.engine.agent.run.hard_asks import get_llm_tool_name, is_hard_ask_call
-from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
 from zrb.llm.engine.summarizer import summarize_history, warn_forced_compaction
 from zrb.llm.orchestration.task.building import LLMTaskBuilding
 from zrb.llm.orchestration.task.history import LLMTaskHistory
 from zrb.llm.orchestration.task.history_config import HistoryConfig
 from zrb.llm.orchestration.task.shared_getters import (
-    build_capability_map,
-    get_policy_skip_decision,
+    resolve_skip_approval,
     set_default_retry_if,
 )
 from zrb.task.base.base_task import BaseTask
@@ -777,28 +774,12 @@ class LLMTask(BaseTask):
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Toolsets may be pre-resolved (and entered) by _exec_action.
         resolved_tools = self.get_all_tools(ctx)
-        # Both predicates below key a rule on a tool's capability, and a bare
-        # LLMTask registered neither: `edit:ask` read every tool as UNKNOWN and
-        # the later `*:allow` answered instead.
-        cap_by_name = build_capability_map(resolved_tools)
-        register_tool_capabilities(cap_by_name)
         if self._dynamic_yolo is not None:
             should_skip_approval = self._dynamic_yolo
         else:
-            # Snapshotting yolo is fine here: a bare LLMTask's yolo is a
-            # BoolAttr, not LLMChatTask's live xcom.
-            should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
-
-            def _should_skip_approval(tool_def=None, args=None):
-                # A hard ask is never skipped, whoever would have allowed it.
-                if is_hard_ask_call(get_llm_tool_name(tool_def), args):
-                    return False
-                decision = get_policy_skip_decision(tool_def, cap_by_name, args)
-                if decision is not None:
-                    return decision
-                return should_skip_approval_bool
-
-            should_skip_approval = _should_skip_approval
+            should_skip_approval = resolve_skip_approval(
+                ctx, self._yolo, resolved_tools
+            )
         resolved_toolsets = (
             toolsets if toolsets is not None else self.get_all_toolsets(ctx)
         )

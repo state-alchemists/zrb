@@ -21,7 +21,6 @@ from zrb.llm.capabilities.tool_call.batch_nudge import create_batch_nudge_proces
 from zrb.llm.capabilities.tool_call.handler import ToolCallHandler
 from zrb.llm.contracts.shared.factory_resolver import resolve_factory_items
 from zrb.llm.contracts.util.attachment import get_attachments
-from zrb.llm.engine.agent.run.hard_asks import get_llm_tool_name, is_hard_ask_call
 from zrb.llm.engine.agent.run.tool_capabilities import register_tool_capabilities
 from zrb.llm.engine.summarizer import create_summarizer_history_processor
 from zrb.llm.orchestration.task.chat.persistence import (
@@ -35,7 +34,7 @@ from zrb.llm.orchestration.task.chat.teardown import (
 from zrb.llm.orchestration.task.llm_task import LLMTask
 from zrb.llm.orchestration.task.shared_getters import (
     build_capability_map,
-    get_policy_skip_decision,
+    make_skip_approval_decision,
     resolve_all_tools,
     resolve_all_toolsets,
     resolve_conversation_name,
@@ -382,22 +381,14 @@ class ChatExecution:
 def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
     """Build the predicate deciding whether a tool call skips approval.
 
-    A hard ask is never skipped, whoever would have allowed it: leaving the
-    sandbox and writing the MCP config are a human's decision, and a policy
-    `allow` answers about ordinary calls (ADR-0065, ADR-0146). Then the
-    permission policy decides (see `get_policy_skip_decision`), and yolo last.
-    Tool policies run later, in deferred_calls.py.
+    The skeleton is shared with a bare `LLMTask`; what differs is the last
+    answer. This task's yolo is a live xcom, read per call, so it is passed as
+    the fallback rather than a snapshot.
     """
-
-    def _should_skip_approval(tool_def=None, args=None):
-        if is_hard_ask_call(get_llm_tool_name(tool_def), args):
-            return False
-        decision = get_policy_skip_decision(tool_def, cap_by_name, args)
-        if decision is not None:
-            return decision
-        return _yolo_skip_decision(ctx, llm_chat_task, tool_def, args)
-
-    return _should_skip_approval
+    return make_skip_approval_decision(
+        cap_by_name,
+        lambda tool_def, args: _yolo_skip_decision(ctx, llm_chat_task, tool_def, args),
+    )
 
 
 def _yolo_skip_decision(ctx, llm_chat_task, tool_def, args=None) -> bool:
