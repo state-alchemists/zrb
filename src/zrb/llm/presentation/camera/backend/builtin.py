@@ -41,7 +41,7 @@ def get_camera_backend(
         if page is None:
             raise ValueError(
                 "the remote camera backend needs a face server: set "
-                f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL to the page that holds "
+                f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL to the page that holds "
                 "the camera"
             )
         return page

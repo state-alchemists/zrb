@@ -1,7 +1,7 @@
 """The face server's routes that are not the voice: a page's microphone and
 speaker, and the cameras on that page.
 
-With `LLM_VOICE_REMOTE_URL` set, zrb's voice moves into the page that server
+With `LLM_FACE_SERVER_URL` set, zrb's voice moves into the page that server
 serves: dictation reads the microphone from GET /audio/in, and the speech player
 writes what zrb says to POST /say. The machine that runs zrb then opens neither
 a microphone nor an output stream, and a phone across the room holds both. Empty
@@ -56,7 +56,7 @@ TYPED_PATH = "/text/in"
 
 def get_remote_url() -> str | None:
     """The face server's base URL, or ``None`` while zrb's devices stay here."""
-    return CFG.LLM_VOICE_REMOTE_URL.strip().rstrip("/") or None
+    return CFG.LLM_FACE_SERVER_URL.strip().rstrip("/") or None
 
 
 def is_remote_voice_selected() -> bool:
@@ -66,7 +66,7 @@ def is_remote_voice_selected() -> bool:
 
 def get_remote_headers() -> dict[str, str]:
     """The header the server's routes want, when it holds a token at all."""
-    token = CFG.LLM_VOICE_REMOTE_TOKEN.strip()
+    token = CFG.LLM_FACE_SERVER_TOKEN.strip()
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 

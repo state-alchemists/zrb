@@ -102,7 +102,7 @@ async def open_microphone(
 ) -> Any:
     """The microphone, open and running, or a `RuntimeError` saying why.
 
-    With `LLM_VOICE_REMOTE_URL` set, it is the page's microphone on that
+    With `LLM_FACE_SERVER_URL` set, it is the page's microphone on that
     server, and *device* and *is_echo_cancelled* go unused: the phone picks the
     microphone, and its browser cancels the page's own voice out of it. Nothing
     local stands in when that server cannot be reached — a microphone here
@@ -224,7 +224,7 @@ async def _open_remote_microphone(
         raise RuntimeError(
             f"{e} The page that carries the microphone must be open on that "
             f"server; nothing local stands in while "
-            f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL is set."
+            f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL is set."
         ) from e
     return microphone
 

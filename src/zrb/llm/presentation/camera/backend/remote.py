@@ -169,7 +169,7 @@ class RemoteCameraBackend(AnyCameraBackend):
     def get_failure_hint(self) -> str:
         hint = (
             "  The camera belongs to the page: open it on the face server that "
-            f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL names, grant that page "
+            f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL names, grant that page "
             "camera access, and name one of the devices it lists, as in "
             "/photo <device>.\n"
         )

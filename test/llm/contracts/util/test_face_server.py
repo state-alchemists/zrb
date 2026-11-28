@@ -1,7 +1,7 @@
 """The face server's contract as zrb speaks it: where the voice is, its token,
 and the format both routes carry.
 
-`LLM_VOICE_REMOTE_URL` is the one setting that moves both halves of the voice —
+`LLM_FACE_SERVER_URL` is the one setting that moves both halves of the voice —
 dictation's microphone and speech's speaker — so what it reads as decides both.
 These tests are about that reading: the base URL with no trailing slash, the
 empty default that keeps the voice on this machine, the `Authorization` header
@@ -41,14 +41,33 @@ def test_no_url_keeps_the_voice_on_this_machine():
 
 
 def test_a_url_selects_the_page_for_both_halves(monkeypatch):
-    _set(monkeypatch, "LLM_VOICE_REMOTE_URL", "  http://127.0.0.1:7777/  ")
+    _set(monkeypatch, "LLM_FACE_SERVER_URL", "  http://127.0.0.1:7777/  ")
 
     assert face_server.get_remote_url() == "http://127.0.0.1:7777"
     assert face_server.is_remote_voice_selected()
 
 
+def test_the_name_it_shipped_under_is_still_read(monkeypatch):
+    """4.1.0 named the setting after the server rather than the voice. The old
+    name keeps working until the next major releases it, so a tree that carries
+    only the old name is a tree whose voice is still in the page."""
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
+    _set(monkeypatch, "LLM_VOICE_REMOTE_URL", "http://127.0.0.1:7777")
+
+    assert face_server.get_remote_url() == "http://127.0.0.1:7777"
+
+
+def test_the_new_name_wins_over_the_one_it_replaced(monkeypatch):
+    """Both set is a tree being renamed, not a contradiction: the setting that
+    names the server now is the one that decides."""
+    _set(monkeypatch, "LLM_VOICE_REMOTE_URL", "http://old:7777")
+    _set(monkeypatch, "LLM_FACE_SERVER_URL", "http://new:7777")
+
+    assert face_server.get_remote_url() == "http://new:7777"
+
+
 def test_a_server_without_a_token_wants_no_header(monkeypatch):
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_TOKEN", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_TOKEN", raising=False)
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_AVATAR_TOKEN", raising=False)
 
     assert face_server.get_remote_headers() == {}
@@ -57,17 +76,25 @@ def test_a_server_without_a_token_wants_no_header(monkeypatch):
 def test_the_servers_own_token_names_both_sides(monkeypatch):
     """One token, one name: where this setting is unset, the server's own
     `ZRB_AVATAR_TOKEN` is what zrb sends."""
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_TOKEN", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_TOKEN", raising=False)
     _set(monkeypatch, "AVATAR_TOKEN", "shared")
 
     assert face_server.get_remote_headers() == {"Authorization": "Bearer shared"}
 
 
 def test_this_setting_is_sent_over_the_servers_own(monkeypatch):
-    _set(monkeypatch, "LLM_VOICE_REMOTE_TOKEN", "mine")
+    _set(monkeypatch, "LLM_FACE_SERVER_TOKEN", "mine")
     _set(monkeypatch, "AVATAR_TOKEN", "theirs")
 
     assert face_server.get_remote_headers() == {"Authorization": "Bearer mine"}
+
+
+def test_the_token_name_it_shipped_under_is_still_read(monkeypatch):
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_TOKEN", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_AVATAR_TOKEN", raising=False)
+    _set(monkeypatch, "LLM_VOICE_REMOTE_TOKEN", "old")
+
+    assert face_server.get_remote_headers() == {"Authorization": "Bearer old"}
 
 
 def test_the_contracts_own_format_is_taken():

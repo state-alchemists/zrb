@@ -1,6 +1,6 @@
 """Typed lines from the page, read off the face server as whole messages.
 
-With `LLM_VOICE_REMOTE_URL` set, the page that holds the microphone also holds a
+With `LLM_FACE_SERVER_URL` set, the page that holds the microphone also holds a
 text box: a phone across the room has a keyboard of its own, and a line typed
 there has to reach the chat the way a spoken one does. `GET /text/in` is one long
 response of newline-framed UTF-8 lines, read here on a thread of its own and

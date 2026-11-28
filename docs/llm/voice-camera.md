@@ -6,7 +6,7 @@
 
 | Feature | Commands | Needs |
 |---|---|---|
-| Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android; or a camera on the page a face server serves, with `ZRB_LLM_VOICE_REMOTE_URL` set |
+| Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android; or a camera on the page a face server serves, with `ZRB_LLM_FACE_SERVER_URL` set |
 | Screenshot | `/screenshot [display]` | nothing on macOS, Windows and WSL; `grim`, `gnome-screenshot` or `spectacle` on Wayland; nothing (or `scrot`) on X11 |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |

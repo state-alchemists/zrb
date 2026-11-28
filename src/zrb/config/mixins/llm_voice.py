@@ -61,8 +61,14 @@ class LLMVoiceMixin:
         ),
     )
 
-    LLM_VOICE_REMOTE_URL = EnvField(
+    LLM_FACE_SERVER_URL = EnvField(
         str,
+        # The name this setting shipped under in 3.40, read until the next major
+        # releases it (`zrb.config.retired`): it called the page the voice moves
+        # to a remote voice, though the same page is where a camera and a typed
+        # line live too. The new name is read first, so a tree with both is the
+        # new one.
+        aliases=["LLM_FACE_SERVER_URL", "LLM_VOICE_REMOTE_URL"],
         doc=(
             "Base URL of the face server whose page carries your voice, such as "
             "http://127.0.0.1:7777. Set, this one setting moves both halves: "
@@ -81,9 +87,9 @@ class LLMVoiceMixin:
         ),
     )
 
-    LLM_VOICE_REMOTE_TOKEN = EnvField(
+    LLM_FACE_SERVER_TOKEN = EnvField(
         str,
-        aliases=["LLM_VOICE_REMOTE_TOKEN", "AVATAR_TOKEN"],
+        aliases=["LLM_FACE_SERVER_TOKEN", "LLM_VOICE_REMOTE_TOKEN", "AVATAR_TOKEN"],
         secret=True,
         doc=(
             "Token sent to the face server as `Authorization: Bearer <token>`, "
