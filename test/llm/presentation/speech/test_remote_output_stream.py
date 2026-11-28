@@ -257,7 +257,7 @@ def test_a_server_that_cannot_be_reached_says_where(monkeypatch):
 def test_speech_goes_to_the_page_and_no_device_is_opened(monkeypatch, connection):
     """The whole point of the setting: with it, this machine opens nothing, so
     PortAudio is not imported at all on the way."""
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
 
     def no_portaudio():
         raise AssertionError("the page's speaker must not start PortAudio")
@@ -274,7 +274,7 @@ def test_speech_goes_to_the_page_and_no_device_is_opened(monkeypatch, connection
 
 
 def test_without_the_setting_the_device_opens_as_it_always_did(monkeypatch, connection):
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
     FakeOutputStream.instances = []
     fake_sd = types.SimpleNamespace(OutputStream=FakeOutputStream)
     monkeypatch.setattr(pcm_player, "_import_audio", lambda: (np, fake_sd))
@@ -295,7 +295,7 @@ def test_the_page_s_stream_is_counted_while_it_is_open(monkeypatch, connection):
     has closed. An uncounted one leaves the count negative, and then
     `wait_for_streams_to_close` waits for a zero it has already passed, so a
     process ending after a sentence was said on the page never exits."""
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
     assert not pcm_player.has_open_streams()
     pcm = np.zeros(RATE // 2, np.int16).tobytes()  # half a second, block by block
     utterance = PcmUtterance(SpeechAudio(RATE, [pcm]), block_frames=160)

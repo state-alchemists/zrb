@@ -223,7 +223,7 @@ def test_the_hint_names_the_setting_that_holds_the_page():
 
     hint = backend.get_failure_hint()
 
-    assert f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL" in hint
+    assert f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL" in hint
 
 
 def test_a_url_that_is_not_http_is_refused_when_the_backend_is_built():

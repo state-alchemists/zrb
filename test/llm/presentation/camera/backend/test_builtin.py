@@ -37,7 +37,7 @@ def test_an_unknown_name_is_refused():
 
 def test_remote_without_a_face_server_is_refused(monkeypatch):
     """There is no page to ask: saying so beats a capture that waits for one."""
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
 
     with pytest.raises(ValueError, match="face server"):
         get_camera_backend("remote", CameraConfig().resolve())
@@ -45,7 +45,7 @@ def test_remote_without_a_face_server_is_refused(monkeypatch):
 
 def test_remote_is_the_page_the_voice_setting_names(monkeypatch):
     monkeypatch.setenv(
-        f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", "http://127.0.0.1:7777/"
+        f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", "http://127.0.0.1:7777/"
     )
 
     backend = get_camera_backend("remote", CameraConfig().resolve())
@@ -54,9 +54,7 @@ def test_remote_is_the_page_the_voice_setting_names(monkeypatch):
 
 
 def test_auto_carries_the_page_when_one_is_configured(monkeypatch):
-    monkeypatch.setenv(
-        f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", "http://127.0.0.1:7777"
-    )
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", "http://127.0.0.1:7777")
 
     backend = get_camera_backend("auto", CameraConfig().resolve())
 

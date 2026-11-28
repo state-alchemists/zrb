@@ -223,7 +223,7 @@ def test_closing_lets_the_route_go(monkeypatch):
 
 
 def test_open_microphone_takes_the_page_and_never_this_machine(monkeypatch):
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
     asked = _serve(monkeypatch, FakeResponse(_pcm(*([0] * 8))))
     sd = MagicMock()
     blocks = []
@@ -250,7 +250,7 @@ def test_open_microphone_takes_the_page_and_never_this_machine(monkeypatch):
 def test_a_server_that_cannot_be_reached_says_what_to_do(monkeypatch):
     """No local microphone stands in: a room nobody is speaking into, handed to
     the transcriber, is the failure this prevents."""
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
 
     def refuse(url, headers, timeout):
         raise OSError("Connection refused")
@@ -263,12 +263,12 @@ def test_a_server_that_cannot_be_reached_says_what_to_do(monkeypatch):
 
     message = str(refusal.value)
     assert REMOTE_URL in message
-    assert "LLM_VOICE_REMOTE_URL" in message
+    assert "LLM_FACE_SERVER_URL" in message
     sd.InputStream.assert_not_called()
 
 
 def test_without_the_setting_the_local_microphone_opens_as_it_always_did(monkeypatch):
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
     asked = _serve(monkeypatch, FakeResponse(b""))
     captured = {}
 

@@ -3,7 +3,7 @@
 The reader itself -- one long GET, reconnected, blank lines dropped -- is tested beside this in
 `test_remote_typed.py`, with the fake responses it needs. Here the reader is a fake, and what is
 being tested is the trigger: that it opens when the setting names a server and stops when it does
-not, that it follows the setting while the chat runs (`/set LLM_VOICE_REMOTE_URL ...`), and that a
+not, that it follows the setting while the chat runs (`/set LLM_FACE_SERVER_URL ...`), and that a
 line it hands on is the user's own words, typed rather than said.
 """
 
@@ -66,7 +66,7 @@ def _open_chat(monkeypatch):
 def test_without_the_setting_nothing_is_read(monkeypatch):
     """No server named, no route opened: the box belongs to the page that holds the
     microphone, and there is no such page yet."""
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
     _looks_often(monkeypatch)
     chat = _open_chat(monkeypatch)
 
@@ -85,9 +85,9 @@ def test_without_the_setting_nothing_is_read(monkeypatch):
 
 
 def test_the_box_opens_when_the_setting_arrives_after_the_chat_started(monkeypatch):
-    """`/set LLM_VOICE_REMOTE_URL ...` moves the speaker and the microphone without a
+    """`/set LLM_FACE_SERVER_URL ...` moves the speaker and the microphone without a
     restart, and a box that only read the setting once left typing behind."""
-    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", raising=False)
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", raising=False)
     _looks_often(monkeypatch)
     chat = _open_chat(monkeypatch)
 
@@ -96,7 +96,7 @@ def test_the_box_opens_when_the_setting_arrives_after_the_chat_started(monkeypat
         waiting = asyncio.ensure_future(trigger.__anext__())
         await asyncio.sleep(0.05)
         assert Box.made == [], "a box was opened before any server was named"
-        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
         while not Box.made:
             await asyncio.sleep(0.01)
         Box.made[0].written.put_nowait("typed after the setting moved")
@@ -113,7 +113,7 @@ def test_the_box_follows_the_setting_to_another_server(monkeypatch):
     one for the server named now is opened, or two readers would split a message."""
     first = "http://127.0.0.1:7777"
     second = "http://127.0.0.1:8888"
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", first)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", first)
     _looks_often(monkeypatch)
     chat = _open_chat(monkeypatch)
 
@@ -125,7 +125,7 @@ def test_the_box_follows_the_setting_to_another_server(monkeypatch):
         Box.made[0].written.put_nowait("from the first server")
         before = await waiting
         waiting = asyncio.ensure_future(trigger.__anext__())
-        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", second)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", second)
         while len(Box.made) < 2:
             await asyncio.sleep(0.01)
         Box.made[1].written.put_nowait("from the second server")
@@ -146,7 +146,7 @@ def test_the_box_follows_the_setting_to_another_server(monkeypatch):
 def test_a_page_without_a_box_is_not_asked_again(monkeypatch):
     """A reader that ends has said the page has no such route; asking a second later
     would get the same answer, so the setting is waited on instead."""
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
     _looks_often(monkeypatch)
 
     class NoBox:
@@ -182,7 +182,7 @@ def test_a_server_that_had_no_box_is_asked_again_when_the_setting_returns(monkey
     may be upgraded by the time the setting comes back to it."""
     first = "http://127.0.0.1:7777"
     second = "http://127.0.0.1:8888"
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", first)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", first)
     _looks_often(monkeypatch)
 
     class NoBox:
@@ -210,9 +210,9 @@ def test_a_server_that_had_no_box_is_asked_again_when_the_setting_returns(monkey
                 await asyncio.sleep(0.01)
 
         await until(1)
-        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", second)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", second)
         await until(2)
-        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", first)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", first)
         await until(3)
         waiting.cancel()
         with contextlib.suppress(BaseException):
@@ -228,7 +228,7 @@ def test_a_server_that_had_no_box_is_asked_again_when_the_setting_returns(monkey
 
 
 def test_letting_the_trigger_go_closes_the_box(monkeypatch):
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
     _looks_often(monkeypatch)
     chat = _open_chat(monkeypatch)
 
@@ -249,7 +249,7 @@ def test_letting_the_trigger_go_closes_the_box(monkeypatch):
 def test_a_typed_line_becomes_a_turn_of_its_own(monkeypatch):
     """Provenance is the web's, because it was typed rather than said: the turn
     says where it came from without being presented as transcription."""
-    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_FACE_SERVER_URL", REMOTE_URL)
     _looks_often(monkeypatch)
 
     class Reader:

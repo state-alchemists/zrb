@@ -1,11 +1,11 @@
 """The page's text box as a chat feature: a line typed there becomes a turn.
 
 `enable_typed_input` adds it to a chat task; nothing is opened unless
-`LLM_VOICE_REMOTE_URL` names a face server, since the page that holds the
+`LLM_FACE_SERVER_URL` names a face server, since the page that holds the
 microphone is the one that holds the box.
 
 The setting is looked at again while the session lasts, not only when it starts:
-`/set LLM_VOICE_REMOTE_URL ...` moves the speaker and the microphone without a
+`/set LLM_FACE_SERVER_URL ...` moves the speaker and the microphone without a
 restart, and a box that stayed shut until the chat was reopened would be the one
 part of the page that did not follow.
 """

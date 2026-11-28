@@ -23,7 +23,7 @@ class CameraConfig:
 
     *backend* names a built-in backend (``auto``, ``termux``, ``ffmpeg``,
     ``remote``) or is an `AnyCameraBackend` of your own. ``remote`` is the page
-    on the face server `LLM_VOICE_REMOTE_URL` names, whose cameras `auto` also
+    on the face server `LLM_FACE_SERVER_URL` names, whose cameras `auto` also
     offers whenever that setting is on.
     """
 
