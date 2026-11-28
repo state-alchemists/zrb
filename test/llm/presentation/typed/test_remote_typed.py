@@ -436,6 +436,56 @@ def test_a_page_without_a_box_is_not_asked_again(monkeypatch):
     assert NoBox.made == 1, f"a page with no box was asked {NoBox.made} times"
 
 
+def test_a_server_that_had_no_box_is_asked_again_when_the_setting_returns(monkeypatch):
+    """The answer is remembered only while the setting stays on that server: a page that had no box
+    may be upgraded by the time the setting comes back to it."""
+    first = "http://127.0.0.1:7777"
+    second = "http://127.0.0.1:8888"
+    monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", first)
+    _looks_often(monkeypatch)
+
+    class NoBox:
+        asked: "list[str]" = []
+
+        def __init__(self, url, headers, loop):
+            NoBox.asked.append(url)
+
+        async def lines(self):
+            return
+            yield ""
+
+    monkeypatch.setattr(feature, "RemoteTyped", NoBox)
+    chat = FakeChat()
+    enable_typed_input(chat)
+
+    async def come_back():
+        trigger = chat.triggers[0]()
+        waiting = asyncio.ensure_future(trigger.__anext__())
+
+        async def until(count):
+            for _ in range(100):
+                if len(NoBox.asked) >= count:
+                    return
+                await asyncio.sleep(0.01)
+
+        await until(1)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", second)
+        await until(2)
+        monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", first)
+        await until(3)
+        waiting.cancel()
+        with contextlib.suppress(BaseException):
+            await waiting
+        await trigger.aclose()
+
+    asyncio.run(come_back())
+    assert NoBox.asked == [
+        first,
+        second,
+        first,
+    ], "a server that had no box is never asked again, so a page upgraded since stays shut"
+
+
 def test_letting_the_trigger_go_closes_the_box(monkeypatch):
     monkeypatch.setenv(f"{CFG.ENV_PREFIX}_LLM_VOICE_REMOTE_URL", REMOTE_URL)
     _looks_often(monkeypatch)

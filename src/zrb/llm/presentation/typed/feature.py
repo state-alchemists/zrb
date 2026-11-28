@@ -19,8 +19,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.contracts.shared.feature_config import replace_registration
 from zrb.llm.contracts.shared.input_source import WEB_INPUT
-from zrb.llm.contracts.util.face_server import (get_remote_headers,
-                                                get_remote_url)
+from zrb.llm.contracts.util.face_server import get_remote_headers, get_remote_url
 from zrb.llm.presentation.typed.remote_typed import RemoteTyped
 from zrb.llm.presentation.ui.trigger import TriggerInput
 
@@ -59,7 +58,12 @@ class _TextBox:
             return
         await self.close()
         self._url = url
-        if url is not None and url != self._no_box:
+        if url is not None and url == self._no_box:
+            return  # the server that said it has no box is still the one named
+        # Being sent to a different server forgets that answer: a page that had no box may have been
+        # upgraded since, and coming back asks once more rather than staying shut for the session.
+        self._no_box = None
+        if url is not None:
             self._lines = RemoteTyped(url, get_remote_headers(), self._loop).lines()
 
     async def next_line(self, timeout: float) -> "str | None":
