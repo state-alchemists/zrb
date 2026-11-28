@@ -1064,7 +1064,10 @@ async def _resolve_deferred_requests(
     cursor.commit_round()
     CFG.LOGGER.debug("Got DeferredToolRequests, calling process_deferred_requests")
     # Past the setup guards the UI is always resolved.
-    assert effective_ui is not None
+    if effective_ui is None:
+        raise RuntimeError(
+            "a deferred tool call reached the resolver with no UI to ask through"
+        )
     cursor.results = await process_deferred_requests(
         cursor.output,
         effective_tool_confirmation,

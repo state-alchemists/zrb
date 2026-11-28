@@ -13,6 +13,8 @@ class Xcom(deque[Any]):
       unlike `deque.pop`; use `popright` for LIFO).
     * **Single variable** — `set`/`get`. `set` keeps only the new value, and
       `get` returns the newest value.
+    * **Reordering** — `rotate` and `reverse` rearrange what is already there,
+      so neither pushes nor pops, and neither fires a callback.
     """
 
     push_callbacks: list[Callable[[], Any]]
@@ -51,6 +53,13 @@ class Xcom(deque[Any]):
         super().extendleft(values)
         self.__call_push_callbacks()
 
+    def __iadd__(self, values: Iterable[Any]) -> Self:
+        """`xcom += [...]` extends the queue, firing push callbacks once."""
+        # `deque.__iadd__` is `extend`, and inheriting it would push values
+        # without firing the push callbacks a trigger fans out on.
+        self.extend(values)
+        return self
+
     def insert(self, index: int, value: Any) -> None:
         """Insert a value at *index*, firing push callbacks."""
         super().insert(index, value)
@@ -60,6 +69,12 @@ class Xcom(deque[Any]):
         """Remove the first matching value, firing pop callbacks."""
         super().remove(value)
         self.__call_pop_callbacks()
+
+    def clear(self) -> None:
+        """Empty the queue, firing pop callbacks when there was something there."""
+        if len(self) > 0:
+            super().clear()
+            self.__call_pop_callbacks()
 
     def __setitem__(self, index: "SupportsIndex | slice", value: Any) -> None:
         # `deque.__setitem__` is two overloads -- (SupportsIndex, value) and
@@ -125,10 +140,15 @@ class Xcom(deque[Any]):
         return default_value
 
     def set(self, new_value: Any) -> None:
-        """Replace the contents with a single value. Pairs with `get`."""
-        self.push(new_value)
-        while len(self) > 1:
-            self.pop()
+        """Replace the contents with a single value. Pairs with `get`.
+
+        The old contents are replaced rather than consumed, so no pop callback
+        fires; the push callback fires once, with the queue already holding only
+        the new value.
+        """
+        if len(self) > 0:
+            super().clear()
+        self.append(new_value)
 
     def append_push_callback(self, callback: Callable[[], Any]) -> None:
         """Register a zero-argument callback fired after every push.

@@ -16,9 +16,21 @@ async def run_async(value: Any) -> Any:
 async def gather_isolated(*coros: Any) -> list[Any]:
     """Gather coros, letting every sibling settle before surfacing an error.
 
-    Unlike plain ``asyncio.gather``, no sibling is left running orphaned:
-    every coroutine completes, then the first exception is re-raised. Use
+    Unlike plain ``asyncio.gather``, no sibling is left running orphaned: the
+    siblings settle before the first one that failed is re-raised. Use
     ``gather_fail_fast`` where a sibling may never return on its own.
+
+    A cancelled sibling is one of those failures, and deciding that is the point
+    of this docstring (review of the tree, 2026-11-28). ``asyncio.gather`` with
+    ``return_exceptions=True`` reports a child cancelled on its own as a
+    ``CancelledError`` *value*, which is not a completion and must not be handed
+    back as one: `execute_root_tasks` reads a cancelled root task as the run
+    being stopped, and swallowing it finished the session quietly instead of
+    reporting the cancellation. So it is raised after the siblings settle.
+
+    That does not make a sibling's cancellation the caller's: a caller cancelled
+    while it waits gets its own ``CancelledError`` out of the ``await``, before
+    the results are ever read.
     """
     results = await asyncio.gather(*coros, return_exceptions=True)
     for r in results:

@@ -170,3 +170,15 @@ def test_bool_input_rejected_value_lists_every_spelling_it_takes():
     for accepted in [*TRUE_STRS, *FALSE_STRS]:
         assert accepted in message
     assert "Cannot infer boolean value" not in message
+
+
+def test_bool_input_reports_a_non_string_value_as_an_invalid_value():
+    """A JSON `true` arrives as a real bool, and `to_boolean` would call
+    `.lower()` on it: the same mistake as a bad string, so the same answer."""
+    inp = BoolInput(name="flag")
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    shared_ctx.input = {}
+    with pytest.raises(ValueError, match="Invalid value for input 'flag'"):
+        inp.update_shared_context(
+            shared_ctx, str_value=True
+        )  # pyright: ignore[reportArgumentType]

@@ -1,4 +1,8 @@
+import os
+import subprocess
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from zrb import Group, IntInput, PasswordInput, StrInput, Task
 from zrb.attr.tpl import Tpl
@@ -239,18 +243,30 @@ def test_run_kwarg_without_value_becomes_true_flag():
 
 
 def test_get_run_command_param_quotes_strings_with_spaces():
-    """Values containing whitespace or quotes get double-quoted in the rerun hint."""
+    """A value with a space stays one argument, and a plain value stays bare."""
     cli = Cli()
-    out = cli.get_run_command_param("msg", "hello world")
-    assert out == '--msg "hello world"'
+    assert cli.get_run_command_param("flag", "true") == "--flag true"
+    # An empty value must still be given, so the default is not used instead.
+    assert cli.get_run_command_param("msg", "") in ('--msg ""', "--msg ''")
+    spaced = cli.get_run_command_param("msg", "hello world")
+    assert spaced in ('--msg "hello world"', "--msg 'hello world'")
 
-    # Already-quoted values get re-wrapped consistently
-    out2 = cli.get_run_command_param("msg", "")
-    assert out2 == '--msg ""'
 
-    # Plain values don't get quoted
-    out3 = cli.get_run_command_param("flag", "true")
-    assert out3 == "--flag true"
+def test_get_run_command_param_keeps_a_shell_metacharacter_inert():
+    """The hint is printed to be copy-pasted, so a shell must read `$(...)`, a
+    backtick, a `;` and a glob as the value itself, not as something to run."""
+    if os.name == "nt":
+        pytest.skip("POSIX quoting is what this pins")
+    cli = Cli()
+    for value in ["$(echo pwned)", "`echo pwned`", "a;echo pwned", "*"]:
+        param = cli.get_run_command_param("k", value)
+        done = subprocess.run(
+            ["sh", "-c", f"printf '%s\\n' {param}"],
+            capture_output=True,
+            text=True,
+        )
+        # Two words and nothing else: the flag, then the value unchanged.
+        assert done.stdout.splitlines() == ["--k", value]
 
 
 def test_run_command_omits_secret_input(capsys):
@@ -301,8 +317,9 @@ def test_run_command_omits_an_empty_value_whose_default_is_empty(capsys):
     err = capsys.readouterr().err
     assert "--name world" in err
     assert "--title" not in err
-    # An empty value that overrides a non-empty default must survive a rerun.
-    assert '--suffix ""' in err
+    # An empty value that overrides a non-empty default must survive a rerun,
+    # quoted however this platform's shell needs it.
+    assert cli.get_run_command_param("suffix", "") in err
 
 
 def test_an_interrupted_run_reaches_the_shell_as_keyboard_interrupt():

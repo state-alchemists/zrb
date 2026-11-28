@@ -283,11 +283,10 @@ class HookManager(HookManagerLoading):
             and config.is_async
             and config.type in (HookType.COMMAND, HookType.AGENT)
         )
-        if is_background_eligible:
+        if is_background_eligible and config is not None:
             # Match before spawning: a spawned-then-rejected agent hook would
             # still extend `_effective_grace_seconds`'s drain for every other
             # pending hook.
-            assert config is not None
             if not evaluate_matchers(config.matchers, context):
                 return None, False
             if self._spawn_background_hook(hook, context):

@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
@@ -32,7 +32,7 @@ def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sum
     async def create_new_task_session_api(
         path: str,
         request: Request,
-        inputs: dict[str, Any],
+        inputs: dict[str, str],
     ) -> "NewSessionResponse":
         """
         Creating new session

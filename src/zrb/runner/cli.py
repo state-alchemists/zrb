@@ -19,7 +19,7 @@ from zrb.util.cli.style import (
     stylize_muted,
     stylize_section_header,
 )
-from zrb.util.string.conversion import double_quote
+from zrb.util.string.conversion import shell_quote
 
 
 class Cli(Group):
@@ -129,10 +129,13 @@ class Cli(Group):
         return " ".join(parts)
 
     def get_run_command_param(self, key: str, val: str) -> str:
-        """Format a single ``--key val`` CLI param, quoting `val` if needed."""
-        if '"' in val or "'" in val or " " in val or val == "":
-            return f"--{key} {double_quote(val)}"
-        return f"--{key} {val}"
+        """Format a single ``--key val`` CLI param, quoting `val` so the command
+        a reader copies runs the same value this run did.
+
+        The hint is printed to be copy-pasted, so a value like `a;b` or
+        `$(whoami)` has to survive the shell it is pasted into.
+        """
+        return f"--{key} {shell_quote(val)}"
 
     def _run_task(
         self, task: AnyTask, args: list[str], run_kwargs: dict[str, str]

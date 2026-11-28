@@ -164,7 +164,10 @@ async def run_shell_command(
     handle: "str | None" = None
     try:
         process = await start_process(argv, cwd)
-        assert process.stdout is not None and process.stderr is not None
+        if process.stdout is None or process.stderr is None:
+            raise RuntimeError(
+                "the shell process started without the pipes its output is read from"
+            )
 
         ui = get_current_ui()
         live_ui = _live_shell_ui(ui)
@@ -568,7 +571,10 @@ async def _wait_for_exit_or_adopt(
     adopted process untrackable), so a timeout kills it instead.
     """
     # No return_exceptions: a broken reader should abort immediately.
-    assert process.stdout is not None and process.stderr is not None
+    if process.stdout is None or process.stderr is None:
+        raise RuntimeError(
+            "the shell process started without the pipes its output is read from"
+        )
     readers = asyncio.gather(
         _read_stream(process.stdout, stdout_cap, on_chunk),
         _read_stream(process.stderr, stderr_cap, on_chunk),
@@ -610,8 +616,10 @@ async def _wait_for_exit_or_adopt(
             if not _can_adopt(command, allow_adopt=allow_adopt):
                 # Nothing to step aside for: the wait is the work, or adoption
                 # is off. Killing it is not what the user asked for, so keep
-                # waiting — the deadline still applies.
-                assert cut_wait is not None
+                # waiting — the deadline still applies. `done` holds something
+                # that is not the drain, and the cut wait is the only other
+                # waiter, so the cut is what ended this round: drop it and wait
+                # for the next one. `_stop` takes a None cut as nothing to stop.
                 await _stop(cut_wait)
                 cut_wait = None
                 continue

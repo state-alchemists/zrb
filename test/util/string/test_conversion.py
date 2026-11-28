@@ -1,7 +1,11 @@
+import os
+import shlex
+
 import pytest
 
 from zrb.util.string.conversion import (
     double_quote,
+    shell_quote,
     to_boolean,
     to_camel_case,
     to_human_case,
@@ -14,6 +18,15 @@ from zrb.util.string.conversion import (
 def test_double_quote():
     assert double_quote('hello "world"') == '"hello \\"world\\""'
     assert double_quote("hello world") == '"hello world"'
+
+
+def test_shell_quote_gives_the_shell_back_the_same_value():
+    """Whatever the shell would otherwise read as syntax comes back as one
+    argument -- `;`, `$(...)`, backticks, a glob and an empty string alike."""
+    if os.name == "nt":
+        pytest.skip("POSIX quoting is what this pins")
+    for value in ["a;b", "$(whoami)", "`id`", "*", "hello world", "", "it's"]:
+        assert shlex.split(f"prog {shell_quote(value)}") == ["prog", value]
 
 
 def test_to_boolean_true():

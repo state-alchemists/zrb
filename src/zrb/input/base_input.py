@@ -94,8 +94,12 @@ class BaseInput(AnyInput):
                 str_value = self.get_default_str(shared_ctx)
             try:
                 value = self._parse_str_value(str_value)
-            except ValueError:
+            except (ValueError, TypeError, AttributeError):
                 # Every CLI value is parsed here, so one message names the input.
+                # `TypeError` and `AttributeError` are what a caller that passed a
+                # non-string (a JSON `true`, a number) provokes further down --
+                # `to_boolean` calls `.lower()` -- and they are the same mistake
+                # as a bad string, so they get the same answer.
                 raise ValueError(
                     f"Invalid value for input '{self.name}': {str_value!r}. "
                     f"Expected {self._expected_value_description()}."

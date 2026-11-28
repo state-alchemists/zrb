@@ -181,7 +181,7 @@ The `Scheduler` accepts standard cron expressions or preset keywords.
 | `@minutely` | Every minute | `* * * * *` |
 | `@hourly` | Every hour | `0 * * * *` |
 | `@daily` | Every day at midnight | `0 0 * * *` |
-| `@weekly` | Every Monday at midnight | `0 0 * * 1` |
+| `@weekly` | Every Sunday at midnight | `0 0 * * 0` |
 | `@monthly` | 1st of month at midnight | `0 0 1 * *` |
 | `@yearly` / `@annually` | January 1st at midnight | `0 0 1 1 *` |
 | `@midnight` | Same as `@daily` | `0 0 * * *` |

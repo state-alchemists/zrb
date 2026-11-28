@@ -56,12 +56,19 @@ async def run_chat_session(
 ) -> None:
     """Drive an SSE chat session through `llm_chat_task` until cancelled."""
     current_task = asyncio.current_task()
-    assert current_task is not None
+    if current_task is None:
+        raise RuntimeError(
+            "a chat session must be driven from inside a task it can be cancelled by"
+        )
 
     approval_channel = session.approval_channel
     # The route hands a channel in before it starts the session: without one
     # there is nobody to answer the tool calls this session will make.
-    assert approval_channel is not None
+    if approval_channel is None:
+        raise RuntimeError(
+            "a chat session needs an approval channel; the route hands one in "
+            "before it starts the session"
+        )
     http_ui_factory = create_http_ui_factory(
         session_manager,
         session.session_id,

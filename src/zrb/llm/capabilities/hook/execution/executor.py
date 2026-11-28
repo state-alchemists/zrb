@@ -206,7 +206,8 @@ class ThreadPoolHookExecutor:
 
         try:
             self.start()
-            assert self._executor is not None
+            if self._executor is None:
+                raise RuntimeError("the hook executor started without its pool")
             job: Future[HookExecutionResult] = self._executor.submit(
                 _copy_context_for_hook().run, self._run_hook_sync, hook, context, run
             )

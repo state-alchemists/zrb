@@ -1967,6 +1967,7 @@
         "append_pop_callback",
         "append_push_callback",
         "appendleft",
+        "clear",
         "extend",
         "extendleft",
         "get",

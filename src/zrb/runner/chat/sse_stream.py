@@ -23,7 +23,11 @@ class SSEStreamResponse(StreamingResponse):
     ):
         session = session_manager.get_session(session_id)
         # The route creates the session before it builds this response.
-        assert session is not None
+        if session is None:
+            raise RuntimeError(
+                f"no chat session named {session_id!r}; the route is expected to "
+                "create it before it builds this response"
+            )
         self.session_id = session_id
         self.output_queue = session.output_queue
         self._closed = False
