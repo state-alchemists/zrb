@@ -23,7 +23,7 @@ import socket
 import threading
 import urllib.error
 import urllib.request
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, Iterator
 
 from zrb.llm.contracts.util.face_server import TYPED_PATH
 
@@ -76,8 +76,12 @@ class RemoteTyped:
         # that is down is one message, not one a second until it comes back.
         self._said = False
 
-    async def lines(self) -> AsyncIterator[str]:
-        """Every line typed on the page, in order, while this is being read."""
+    async def lines(self) -> AsyncGenerator[str, None]:
+        """Every line typed on the page, in order, while this is being read.
+
+        An async generator, so whoever reads it can let it go with ``aclose()`` at
+        once rather than waiting for a line that may be a keepalive away.
+        """
         thread = threading.Thread(
             target=self._read, name="zrb-remote-typed", daemon=True
         )
