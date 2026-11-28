@@ -81,8 +81,6 @@ def _find_subsequence_range(
             j += 1
         i += 1
 
-    if j == len(needle):
-        # needle is non-empty, so first_pos is set.
-        assert first_pos is not None
+    if j == len(needle) and first_pos is not None:
         return first_pos, i
     return None

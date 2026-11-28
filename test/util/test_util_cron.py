@@ -54,12 +54,22 @@ def test_handle_special_cron_patterns_monthly():
 
 
 def test_handle_special_cron_patterns_weekly():
-    dt = datetime.datetime(2024, 4, 29, 0, 0)  # Monday
+    # Sunday, which is what a crontab's `0 0 * * 0` means by @weekly.
+    dt = datetime.datetime(2024, 4, 28, 0, 0)  # Sunday
     assert handle_special_cron_patterns("@weekly", dt) is True
-    dt = datetime.datetime(2024, 4, 30, 0, 0)  # Tuesday
+    dt = datetime.datetime(2024, 4, 29, 0, 0)  # Monday
     assert handle_special_cron_patterns("@weekly", dt) is False
-    dt = datetime.datetime(2024, 4, 29, 0, 1)
+    dt = datetime.datetime(2024, 4, 28, 0, 1)
     assert handle_special_cron_patterns("@weekly", dt) is False
+
+
+def test_match_cron_reads_a_stepped_day_field_as_a_star():
+    # `*/2` is restricted in form and a star in cronie's sense, so the two day
+    # fields are ANDed: odd days that are also Mondays, not every Monday.
+    monday_on_an_even_day = datetime.datetime(2024, 9, 2, 0, 0)
+    assert match_cron("0 0 */2 * 1", monday_on_an_even_day) is False
+    monday_on_an_odd_day = datetime.datetime(2024, 9, 9, 0, 0)
+    assert match_cron("0 0 */2 * 1", monday_on_an_odd_day) is True
 
 
 def test_handle_special_cron_patterns_daily():
@@ -117,9 +127,9 @@ def test_match_cron_special_monthly():
 
 
 def test_match_cron_special_weekly():
-    dt = datetime.datetime(2025, 4, 28, 0, 0)  # Monday, April 28, 2025
+    dt = datetime.datetime(2025, 4, 27, 0, 0)  # Sunday, April 27, 2025
     assert match_cron("@weekly", dt) is True
-    dt = datetime.datetime(2025, 4, 29, 0, 0)  # Tuesday, April 29, 2025
+    dt = datetime.datetime(2025, 4, 28, 0, 0)  # Monday, April 28, 2025
     assert match_cron("@weekly", dt) is False
 
 

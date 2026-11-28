@@ -308,3 +308,12 @@ def test_get_task_session_api_without_session_hides_restricted_task(
     ):
         response = client.get("/api/v1/task-sessions/my/task")
         assert response.status_code == 404
+
+
+def test_create_new_task_session_api_refuses_a_non_string_input(app_deps):
+    """A JSON `true` is not the string this route takes, and FastAPI says so
+    with a 422 before a session starts on a value no input can parse."""
+    client, _, _, _, coroutines = app_deps
+    response = client.post("/api/v1/task-sessions/my/task", json={"flag": True})
+    assert response.status_code == 422
+    assert coroutines == []

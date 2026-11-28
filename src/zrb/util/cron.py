@@ -79,8 +79,9 @@ _SPECIAL_CRON_MATCHERS: dict[str, Callable[[datetime.datetime], bool]] = {
     "@yearly": _is_yearly,
     "@annually": _is_yearly,
     "@monthly": lambda dt: (dt.day, dt.hour, dt.minute) == (1, 0, 0),
-    # Monday at midnight
-    "@weekly": lambda dt: (dt.weekday(), dt.hour, dt.minute) == (0, 0, 0),
+    # Sunday at midnight, as Vixie cron and cronie define it. Python's
+    # `weekday()` puts Sunday last.
+    "@weekly": lambda dt: (dt.weekday(), dt.hour, dt.minute) == (6, 0, 0),
     "@daily": _is_midnight,
     "@midnight": _is_midnight,
     "@hourly": lambda dt: dt.minute == 0,
@@ -145,7 +146,10 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     weekday_match = cron_dow in days_of_week or (cron_dow == 0 and 7 in days_of_week)
     # Cron semantics: when both day-of-month and day-of-week are restricted,
     # either may match (OR); otherwise AND, since a `*` field always matches.
-    if day == "*" or day_of_week == "*":
+    # A star is the field's *first* character, not the whole field: cronie reads
+    # `*/2` as a star flag too, so `0 0 */2 * 1` runs on odd days that are also
+    # Mondays, never on every Monday.
+    if day.startswith("*") or day_of_week.startswith("*"):
         day_match = day_of_month_match and weekday_match
     else:
         day_match = day_of_month_match or weekday_match

@@ -336,7 +336,10 @@ async def run_command(
     cmd_process = await _spawn(cmd, cwd, env_map, is_interactive)
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
-    assert cmd_process.stdout is not None and cmd_process.stderr is not None
+    if cmd_process.stdout is None or cmd_process.stderr is None:
+        raise RuntimeError(
+            "the command started without the pipes its output is read from"
+        )
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else None)
     states = {
         "stdout": _StreamState(max_output_line),

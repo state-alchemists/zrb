@@ -147,9 +147,11 @@ class _Opening:
         if isinstance(event, PartEndEvent) and event.index == self._index:
             return self.flush() + [self._clean_end(event)]
         self._held.append(event)
-        if _is_text_delta(event, self._index):
-            assert isinstance(event, PartDeltaEvent)
-            assert isinstance(event.delta, TextPartDelta)
+        if (
+            isinstance(event, PartDeltaEvent)
+            and isinstance(event.delta, TextPartDelta)
+            and event.index == self._index
+        ):
             self._text += event.delta.content_delta
             return self._release_if_a_word()
         return []
@@ -174,7 +176,10 @@ class _Opening:
         if spans or _has_visible_text(text):
             self._is_opening_read = True
         if spans:
-            assert index is not None
+            if index is None:
+                raise RuntimeError(
+                    "a part's markers were found without the part index holding them"
+                )
             self._stripped.add(index)
             held = _remove_chars(held, index, spans)
         return [emotion, *held]
@@ -252,9 +257,11 @@ def _remove_chars(
         ):
             content, offset = _cut_spans(event.part.content, offset, spans)
             kept.append(replace(event, part=replace(event.part, content=content)))
-        elif _is_text_delta(event, index):
-            assert isinstance(event, PartDeltaEvent)
-            assert isinstance(event.delta, TextPartDelta)
+        elif (
+            isinstance(event, PartDeltaEvent)
+            and isinstance(event.delta, TextPartDelta)
+            and event.index == index
+        ):
             delta = event.delta.content_delta
             content, offset = _cut_spans(delta, offset, spans)
             if delta and not content:
@@ -285,21 +292,12 @@ def _cut_spans(
     return "".join(pieces), offset + len(content)
 
 
-def _is_text_delta(event: AgentStreamEvent, index: int) -> bool:
-    return (
-        isinstance(event, PartDeltaEvent)
-        and isinstance(event.delta, TextPartDelta)
-        and event.index == index
-    )
-
-
 def _part_emotion(part: ModelResponsePart) -> str:
     return get_leading_emotion(part.content) or "" if isinstance(part, TextPart) else ""
 
 
 def _strip_part(part: ModelResponsePart) -> ModelResponsePart:
-    if _part_emotion(part):
-        assert isinstance(part, TextPart)
+    if isinstance(part, TextPart) and _part_emotion(part):
         return replace(part, content=_strip_text(part.content))
     return part
 

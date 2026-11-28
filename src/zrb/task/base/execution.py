@@ -131,7 +131,11 @@ class BaseTaskExecution:
             session.defer_action(task, action_coro)
 
             if readiness_passed and monitor_readiness:
-                assert self._base_monitoring is not None
+                if self._base_monitoring is None:
+                    raise RuntimeError(
+                        "readiness monitoring was requested, but this task has no "
+                        "monitoring helper to run it"
+                    )
                 monitor_coro = asyncio.create_task(
                     run_async(
                         self._base_monitoring.monitor_task_readiness(

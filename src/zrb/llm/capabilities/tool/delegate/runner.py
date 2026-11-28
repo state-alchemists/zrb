@@ -790,7 +790,11 @@ async def _run_parallel(
                             f"manual review: {worktree_path}: {e})"
                         )
 
-        assert result is not None
+        if result is None:
+            raise RuntimeError(
+                f"the {agent_name} sub-agent answered no result; a failed run is "
+                "reported as a result, not as None"
+            )
         return AgentTaskResult(
             buffered_ui.label or f"[{agent_name}]",
             result.result,

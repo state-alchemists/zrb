@@ -1,5 +1,8 @@
 import json
+import os
 import re
+import shlex
+import subprocess
 from typing import Any
 
 NON_ALPHA_NUM = re.compile(r"[^a-zA-Z0-9]+")
@@ -12,6 +15,17 @@ def double_quote(input_string: str) -> str:
     and double quotes escaped."""
     escaped_string = re.sub(r'([\\"])', r"\\\1", input_string)
     return f'"{escaped_string}"'
+
+
+def shell_quote(value: str) -> str:
+    """Quote *value* so that a command a reader copies runs it as one argument.
+
+    A POSIX shell gets `shlex.quote`. Windows gets the quoting its C runtime
+    parses, because `shlex`'s single quotes mean nothing to `cmd` or PowerShell.
+    """
+    if os.name == "nt":
+        return subprocess.list2cmdline([value])
+    return shlex.quote(value)
 
 
 def to_boolean(text: str) -> bool:

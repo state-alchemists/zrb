@@ -209,3 +209,21 @@ async def test_gather_fail_fast_stays_bounded_when_a_child_shields_its_cleanup(
         await asyncio.wait_for(gather_fail_fast(shielded(), shielded()), timeout=0.1)
     # timeout + settle cap, not the 30s the children would have taken.
     assert loop.time() - started < 2
+
+
+@pytest.mark.asyncio
+async def test_gather_isolated_raises_a_siblings_cancellation_instead_of_returning_it():
+    """A child cancelled on its own is a cancellation, not a result.
+
+    `asyncio.gather(return_exceptions=True)` reports it as a `CancelledError`
+    *value*; handing that back finished a run quietly, so it is raised after the
+    siblings settle (decision recorded in `gather_isolated`'s docstring)."""
+
+    async def cancelled_sibling():
+        raise asyncio.CancelledError()
+
+    async def ok():
+        return "ok"
+
+    with pytest.raises(asyncio.CancelledError):
+        await gather_isolated(ok(), cancelled_sibling())

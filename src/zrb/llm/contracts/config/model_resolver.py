@@ -271,7 +271,11 @@ def _configured_credentials(model: "str | Model | None") -> tuple[str, str]:
 def resolve_configured_model(model: "str | Model | None" = None) -> "str | Model":
     """Resolve *model* (or `CFG.LLM_MODEL`) using the configured credentials."""
     resolved = _resolve_with_configured_credentials(model or CFG.LLM_MODEL)
-    assert resolved is not None  # CFG.LLM_MODEL always has a non-empty default
+    if resolved is None:  # CFG.LLM_MODEL has a non-empty default
+        raise RuntimeError(
+            "no model could be resolved: CFG.LLM_MODEL and the credentials for it "
+            "are both empty"
+        )
     return resolved
 
 
@@ -285,7 +289,11 @@ def resolve_configured_small_model(model: "str | Model | None" = None) -> "str |
         or CFG.LLM_MODEL
     )
     resolved = _resolve_with_configured_credentials(target)
-    assert resolved is not None  # CFG.LLM_MODEL always has a non-empty default
+    if resolved is None:  # CFG.LLM_MODEL has a non-empty default
+        raise RuntimeError(
+            "no small model could be resolved: the run, small-model and main-model "
+            "settings are all empty"
+        )
     return resolved
 
 
